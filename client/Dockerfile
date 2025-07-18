@@ -10,7 +10,7 @@ COPY vite.config.js ./
 COPY eslint.config.js ./
 # Before pnpm build
 COPY .env.production .env
-RUN pnpm build
+RUN pnpm build --mode production
 
 
 FROM nginx:alpine
