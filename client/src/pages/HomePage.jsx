@@ -84,6 +84,7 @@ const dividerSVGAlt = (
 );
 
 const HomePage = () => {
+  console.log(import.meta.env.VITE_API_URL); // Debug: Print API URL
   return (
     <div className="homepage-root">
       {/* Modern Hero Section */}
@@ -98,7 +99,7 @@ const HomePage = () => {
                 className="hero-text-block hero-text-block-large"
               >
                 <h1 className="hero-title-home hero-title-home-large mb-4">
-                  <span className="gradient-text">Revolutionize</span> Your Lab Experience
+                  <span className="gradient-text">Revolutionize</span> Your Lab Experience Enabling you to manage your lab with ease
                 </h1>
                 <motion.p
                   className="hero-subtitle-home hero-subtitle-home-large mb-4"
