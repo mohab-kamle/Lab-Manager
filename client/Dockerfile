@@ -1,19 +1,11 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm
-COPY package.json pnpm-lock.yaml ./
+COPY . .
 RUN pnpm install --frozen-lockfile
-COPY src/ ./src/
-COPY public/ ./public/
-COPY index.html ./
-COPY vite.config.js ./
-COPY eslint.config.js ./
-COPY .env.production ./.env.production
-COPY .env.production ./.env
 RUN cat ./.env
 RUN cat ./.env.production
-RUN npm run build -- --mode production
-
+RUN pnpm run build -- --mode production
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
