@@ -1,3 +1,10 @@
+name: Deploy to Windows Server
+
+on:
+  push:
+    branches:
+      - main
+
 jobs:
   deploy:
     runs-on: self-hosted
