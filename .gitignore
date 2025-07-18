@@ -1,0 +1,35 @@
+# Node modules (dependencies)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables (DO NOT PUSH SECRETS)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+logs/
+*.log
+debug.log
+error.log
+output.log
+
+# Database and credentials
+database.sqlite
+database.sqlite-journal
+dump.sql
+
+# Build and cache files
+dist/
+.vite/
+.cache/
+coverage/
+
+# Editor settings
+.vscode/
+.idea/
+.DS_Store 

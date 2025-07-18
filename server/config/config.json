@@ -1,0 +1,51 @@
+{
+  "development": {
+    "username": "root",
+    "password": null,
+    "database": "labmanager",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "pool": {
+      "max": 20,
+      "min": 5,
+      "acquire": 60000,
+      "idle": 10000
+    },
+    "dialectOptions": {
+      "connectTimeout": 60000,
+      "acquireTimeout": 60000,
+      "timeout": 60000
+    }
+  },
+  "test": {
+    "username": "root",
+    "password": null,
+    "database": "database_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "pool": {
+      "max": 10,
+      "min": 2,
+      "acquire": 30000,
+      "idle": 10000
+    }
+  },
+  "production": {
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "mysql",
+    "pool": {
+      "max": 20,
+      "min": 5,
+      "acquire": 60000,
+      "idle": 10000
+    },
+    "dialectOptions": {
+      "ssl": {
+        "rejectUnauthorized": false
+      },
+      "connectTimeout": 60000,
+      "acquireTimeout": 60000,
+      "timeout": 60000
+    }
+  }
+}

@@ -1,0 +1,13 @@
+/* custom.scss */
+
+/* Override default Bootstrap color variables */
+$primary: #004a93;  /* Navy Blue for primary */
+$secondary: #ffd500; /* Lime Green for secondary */
+$danger: #ff3333;    /* Set your custom color for danger */
+
+/* Use Bootstrap after the variables */
+@use "bootstrap/scss/bootstrap" with (
+  $primary: $primary,
+  $secondary: $secondary,
+  $danger: $danger
+);

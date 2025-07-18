@@ -1,0 +1,87 @@
+:root {
+    font-family: 
+    "Noto Sans Arabic",
+    "Roboto",
+    "Helvetica Neue", /* macOS */
+    Arial,  /* Generic fallback */
+    sans-serif;  /* Generic fallback */
+}
+
+/* Dark mode styles */
+.dark-mode {
+    background-color: #212529;
+    color: #f8f9fa;
+}
+
+.dark-mode .container {
+    background-color: #343a40;
+}
+
+.dark-mode .card {
+    background-color: #495057;
+    border-color: #6c757d;
+}
+
+.dark-mode .modal-content {
+    background-color: #495057;
+    border-color: #6c757d;
+}
+
+.dark-mode .form-control {
+    background-color: #6c757d;
+    border-color: #adb5bd;
+    color: #f8f9fa;
+}
+
+.dark-mode .form-control:focus {
+    background-color: #6c757d;
+    border-color: #0d6efd;
+    color: #f8f9fa;
+}
+
+.dark-mode .form-select {
+    background-color: #6c757d;
+    border-color: #adb5bd;
+    color: #f8f9fa;
+}
+
+.dark-mode .table {
+    color: #f8f9fa;
+}
+
+.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: #495057;
+}
+
+.dark-mode .table-hover > tbody > tr:hover > td {
+    background-color: #6c757d;
+}
+
+.dark-mode .btn-outline-secondary {
+    color: #f8f9fa;
+    border-color: #adb5bd;
+}
+
+.dark-mode .btn-outline-secondary:hover {
+    background-color: #adb5bd;
+    color: #212529;
+}
+
+.dark-mode .alert {
+    background-color: #495057;
+    border-color: #6c757d;
+}
+
+.dark-mode .text-muted {
+    color: #adb5bd !important;
+}
+
+.dark-mode .bg-light {
+    background-color: #6c757d !important;
+}
+
+.dark-mode .patients-admin-container {
+    background-color: #212529;
+    min-height: 100vh;
+    padding: 20px;
+}

@@ -1,0 +1,36 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js",
+    "migrate": "sequelize-cli db:migrate",
+    "migrate:undo": "sequelize-cli db:migrate:undo",
+    "run-migrations": "node scripts/runMigrations.js",
+    "db:sync": "node syncDatabase.js",
+    "db:sync:force": "node syncDatabase.js force",
+    "db:check": "node syncDatabase.js check",
+    "db:fix-culture": "node fixMedicalReportHasCulture.js",
+    "db:fix-sql": "mysql -u root -p labmanager < fix_primary_key.sql",
+    "db:fix-primary-key": "node run_fix.js"
+  },
+  "keywords": [],
+  "author": "Mohab",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "commander": "^12.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.1",
+    "mysql2": "^3.12.0",
+    "nodemon": "^3.1.9",
+    "sequelize": "^6.37.5",
+    "sequelize-cli": "^6.6.2",
+    "xlsx": "^0.18.5"
+  }
+}

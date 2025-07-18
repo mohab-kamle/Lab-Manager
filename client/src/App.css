@@ -1,0 +1,28 @@
+#root {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-self: center;
+}
+.patient-reports-container {
+  width: 100%;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh; /* Make the container take the full height of the viewport */
+}
+
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.table-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}

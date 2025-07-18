@@ -1,0 +1,63 @@
+{
+  "name": "client",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "^4.3.0",
+    "axios": "^1.7.9",
+    "bootstrap": "^5.3.3",
+    "buffer": "^6.0.3",
+    "formik": "^2.4.6",
+    "framer-motion": "^12.4.10",
+    "html2canvas": "^1.4.1",
+    "jsbarcode": "^3.11.6",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "jspdf-font": "^1.0.7",
+    "lucide-react": "^0.475.0",
+    "luxon": "^3.6.1",
+    "pdfmake": "^0.2.20",
+    "prop-types": "^15.8.1",
+    "qrcode": "^1.5.4",
+    "qrcode-svg": "^1.1.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.10.8",
+    "react-bootstrap-icons": "^1.11.5",
+    "react-datepicker": "^8.2.1",
+    "react-dom": "^18.3.1",
+    "react-qr-code": "^2.0.18",
+    "react-router-dom": "^7.1.3",
+    "react-select": "^5.10.1",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.0.2",
+    "sass": "^1.83.4",
+    "xlsx": "^0.18.5",
+    "yup": "^1.6.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react-swc": "^3.5.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "sass-embedded": "^1.83.4",
+    "vite": "^6.3.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@emotion/react": "^11.11.4"
+    }
+  }
+}
