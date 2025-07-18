@@ -85,6 +85,7 @@ const dividerSVGAlt = (
 
 const HomePage = () => {
   console.log(import.meta.env.VITE_API_URL); // Debug: Print API URL
+  console.log(import.meta.env.MODE); // Debug: Print Vite build mode
   return (
     <div className="homepage-root">
       {/* Modern Hero Section */}
