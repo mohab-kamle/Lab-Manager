@@ -16,7 +16,9 @@ jobs:
       - name: Create .env.production
         run: |
           echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > client/.env.production
-
+      - name: Create empty .env for frontend
+        run: |
+          echo "" > client/.env
       # (Optional) Copy .docker.env to server/.env if your Dockerfile expects it
       - name: Copy .docker.env to server/.env
         run: cp .docker.env server/.env

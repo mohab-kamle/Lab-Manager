@@ -56,7 +56,6 @@ services:
     restart: unless-stopped
     env_file: 
       - .docker.env
-      - ./client/.env.production
     ports:
       - "80:80"
     depends_on:
