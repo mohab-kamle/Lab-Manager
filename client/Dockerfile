@@ -8,7 +8,9 @@ COPY public/ ./public/
 COPY index.html ./
 COPY vite.config.js ./
 COPY eslint.config.js ./
-COPY .env.production .env.production
+COPY .env.production .env
+RUN cat .env.production
+RUN cat .env
 RUN npm run build -- --mode production
 
 
