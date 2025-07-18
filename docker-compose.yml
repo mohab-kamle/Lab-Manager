@@ -56,6 +56,8 @@ services:
     restart: unless-stopped
     env_file: 
       - .docker.env
+    environment:
+      NODE_ENV: production
     ports:
       - "80:80"
     depends_on:

@@ -3,12 +3,6 @@
 .gitignore
 README.md
 
-# Environment files
-.env
-.env.local
-.env.development
-.env.test
-.env.production
 
 # Node modules (will be installed in container)
 node_modules/
