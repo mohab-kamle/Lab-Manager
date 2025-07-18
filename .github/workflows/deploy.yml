@@ -12,9 +12,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Pull latest code
-        run: git pull
-
       - name: Build and restart Docker containers
         run: |
           docker-compose up -d --build
