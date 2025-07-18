@@ -8,12 +8,7 @@ COPY public/ ./public/
 COPY index.html ./
 COPY vite.config.js ./
 COPY eslint.config.js ./
-# Accept build arg
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
-
-# 👇 inject it at build time
-RUN echo "VITE_API_URL=$VITE_API_URL" > .env.production
+COPY .env.production .env.production
 RUN npm run build -- --mode production
 
 
