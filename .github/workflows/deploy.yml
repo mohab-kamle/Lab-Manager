@@ -1,10 +1,3 @@
-name: Deploy to Windows Server
-
-on:
-  push:
-    branches:
-      - main
-
 jobs:
   deploy:
     runs-on: self-hosted
@@ -12,6 +5,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Create .env.production for frontend (if not committed)
+      - name: Create .env.production
+        run: |
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > client/.env.production
+
+      # (Optional) Copy .docker.env to server/.env if your Dockerfile expects it
+      - name: Copy .docker.env to server/.env
+        run: cp .docker.env server/.env
+
       - name: Build and restart Docker containers
         run: |
+          docker-compose down
           docker-compose up -d --build
