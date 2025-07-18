@@ -54,6 +54,8 @@ services:
       dockerfile: Dockerfile
     container_name: labmanager-frontend
     restart: unless-stopped
+    args:
+       VITE_API_URL=https://api.labdoctors-laboratories.com
     env_file: 
       - .docker.env
     environment:
