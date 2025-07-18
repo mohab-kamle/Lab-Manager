@@ -54,7 +54,7 @@ services:
       dockerfile: Dockerfile
     container_name: labmanager-frontend
     restart: unless-stopped
-    env_file: .docker.env
+    env_file: .docker.env .env.production
     ports:
       - "80:80"
     depends_on:
