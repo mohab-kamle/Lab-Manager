@@ -8,9 +8,8 @@ COPY public/ ./public/
 COPY index.html ./
 COPY vite.config.js ./
 COPY eslint.config.js ./
-# Before pnpm build
-COPY .env.production .env
-RUN pnpm build --mode production
+COPY .env.production .env.production
+RUN npm run build -- --mode production
 
 
 FROM nginx:alpine
