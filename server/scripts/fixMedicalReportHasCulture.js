@@ -8,7 +8,7 @@
  */
 
 require("dotenv").config();
-const db = require("./models");
+const db = require("../models");
 
 async function fixMedicalReportHasCultureTable() {
   try {

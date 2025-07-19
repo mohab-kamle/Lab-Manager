@@ -291,21 +291,45 @@ router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async 
     const { components } = req.body;
     const testId = req.params.id;
     
+    console.log('Creating test components for test ID:', testId);
+    console.log('Components data:', JSON.stringify(components, null, 2));
+    
     // Delete existing components for this test
     await db.test_component.destroy({ where: { test_id: testId } });
     
     // Create new components
     const createdComponents = [];
     for (const component of components) {
+      // Map gender values from frontend to database format
+      let genderValue = null;
+      if (component.gender === 'm') {
+        genderValue = 'Male';
+      } else if (component.gender === 'f') {
+        genderValue = 'Female';
+      } else if (component.gender === 'both') {
+        // For 'both', we'll create two components (handled in frontend)
+        continue;
+      }
+      
+      // Handle boolean components differently
+      let normalFrom = component.normal_from;
+      let normalTo = component.normal_to;
+      
+      if (component.result_type === 'boolean') {
+        // For boolean components, set default values
+        normalFrom = '0';
+        normalTo = '1';
+      }
+      
       const created = await db.test_component.create({
         test_id: testId,
         name: component.name,
         unit: component.unit,
-        normal_from: component.normal_from,
-        normal_to: component.normal_to,
+        normal_from: normalFrom,
+        normal_to: normalTo,
         c_low: component.c_low || null,
         c_high: component.c_high || null,
-        gender: component.gender || null,
+        gender: genderValue,
         age_start: component.age_start ? parseInt(component.age_start) : null,
         age_end: component.age_end ? parseInt(component.age_end) : null,
         reference_range: component.reference_range || null,
@@ -314,10 +338,11 @@ router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async 
       createdComponents.push(created);
     }
     
+    console.log('Successfully created', createdComponents.length, 'components');
     res.status(201).json(createdComponents);
   } catch (error) {
     console.error('Error creating test components:', error);
-    res.status(500).json({ error: 'Failed to create test components' });
+    res.status(500).json({ error: 'Failed to create test components', details: error.message });
   }
 });
 
@@ -327,21 +352,45 @@ router.put('/:id/components', authenticateUser, authorizeRoles('admin'), async (
     const { components } = req.body;
     const testId = req.params.id;
     
+    console.log('Updating test components for test ID:', testId);
+    console.log('Components data:', JSON.stringify(components, null, 2));
+    
     // Delete existing components for this test
     await db.test_component.destroy({ where: { test_id: testId } });
     
     // Create new components
     const updatedComponents = [];
     for (const component of components) {
+      // Map gender values from frontend to database format
+      let genderValue = null;
+      if (component.gender === 'm') {
+        genderValue = 'Male';
+      } else if (component.gender === 'f') {
+        genderValue = 'Female';
+      } else if (component.gender === 'both') {
+        // For 'both', we'll create two components (handled in frontend)
+        continue;
+      }
+      
+      // Handle boolean components differently
+      let normalFrom = component.normal_from;
+      let normalTo = component.normal_to;
+      
+      if (component.result_type === 'boolean') {
+        // For boolean components, set default values
+        normalFrom = '0';
+        normalTo = '1';
+      }
+      
       const created = await db.test_component.create({
         test_id: testId,
         name: component.name,
         unit: component.unit,
-        normal_from: component.normal_from,
-        normal_to: component.normal_to,
+        normal_from: normalFrom,
+        normal_to: normalTo,
         c_low: component.c_low || null,
         c_high: component.c_high || null,
-        gender: component.gender || null,
+        gender: genderValue,
         age_start: component.age_start ? parseInt(component.age_start) : null,
         age_end: component.age_end ? parseInt(component.age_end) : null,
         reference_range: component.reference_range || null,
@@ -350,10 +399,11 @@ router.put('/:id/components', authenticateUser, authorizeRoles('admin'), async (
       updatedComponents.push(created);
     }
     
+    console.log('Successfully updated', updatedComponents.length, 'components');
     res.json(updatedComponents);
   } catch (error) {
     console.error('Error updating test components:', error);
-    res.status(500).json({ error: 'Failed to update test components' });
+    res.status(500).json({ error: 'Failed to update test components', details: error.message });
   }
 });
 

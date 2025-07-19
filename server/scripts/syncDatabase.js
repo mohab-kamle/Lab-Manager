@@ -13,7 +13,7 @@
  */
 
 require("dotenv").config();
-const db = require("./models");
+const db = require("../models");
 
 // Parse command line arguments
 const args = process.argv.slice(2);

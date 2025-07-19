@@ -53,8 +53,7 @@ const Tests = () => {
     age_end: "",
     c_low: "",
     c_high: "",
-    result_type: "range", // Added result_type
-    boolean_result: "" // Added boolean_result
+    result_type: "range" // Added result_type
   });
   const [componentError, setComponentError] = useState("");
   const [questionSearchTerm, setQuestionSearchTerm] = useState("");
@@ -242,8 +241,7 @@ const Tests = () => {
       age_end: "",
       c_low: "",
       c_high: "",
-      result_type: "range", // Added result_type
-      boolean_result: "" // Added boolean_result
+      result_type: "range" // Added result_type
     });
     // Clear search terms
     setCategorySearchTerm("");
@@ -277,7 +275,14 @@ const Tests = () => {
       const response = await axios.get(`${apiUrl}/tests/${test.id}/components`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTestComponents(response.data || []);
+      
+      // Map gender values from database format to frontend format
+      const mappedComponents = (response.data || []).map(component => ({
+        ...component,
+        gender: component.gender === 'Male' ? 'm' : component.gender === 'Female' ? 'f' : ''
+      }));
+      
+      setTestComponents(mappedComponents);
     } catch (error) {
       console.error("Error fetching test components:", error);
       setTestComponents([]);
@@ -316,13 +321,6 @@ const Tests = () => {
         return;
       }
     }
-    if (newComponent.result_type === 'boolean') {
-      // Optionally require boolean_result
-      // if (!newComponent.boolean_result) {
-      //   setComponentError("Boolean result is required");
-      //   return;
-      // }
-    }
     // If gender is "both", create two components (male and female)
     if (newComponent.gender === "both") {
       const maleComponent = { 
@@ -350,8 +348,7 @@ const Tests = () => {
       age_end: "",
       c_low: "",
       c_high: "",
-      result_type: "range", // Added result_type
-      boolean_result: "" // Added boolean_result
+      result_type: "range" // Added result_type
     });
   };
 
@@ -680,7 +677,7 @@ const Tests = () => {
                           <td>{component.reference_range || 'N/A'}</td>
                           <td>{component.c_low || 'N/A'}</td>
                           <td>{component.c_high || 'N/A'}</td>
-                          <td>{component.gender === 'm' ? 'Male' : component.gender === 'f' ? 'Female' : 'Any'}</td>
+                          <td>{component.gender === 'Male' ? 'Male' : component.gender === 'Female' ? 'Female' : 'Any'}</td>
                           <td>{component.age_start || 'Any'}</td>
                           <td>{component.age_end || 'Any'}</td>
                         </tr>
@@ -967,20 +964,7 @@ const Tests = () => {
                   </Row>
                   {newComponent.result_type === 'boolean' ? (
                     <Row className="g-2 mt-2">
-                      <Col md={4}>
-                        <Form.Group>
-                          <Form.Label>Boolean Result</Form.Label>
-                          <Form.Select
-                            value={newComponent.boolean_result || ''}
-                            onChange={e => setNewComponent({ ...newComponent, boolean_result: e.target.value })}
-                          >
-                            <option value="">Select Result</option>
-                            <option value="positive">Positive</option>
-                            <option value="negative">Negative</option>
-                          </Form.Select>
-                        </Form.Group>
-                      </Col>
-                      <Col md={4}>
+                      <Col md={6}>
                         <Form.Group>
                           <Form.Label>Reference Range</Form.Label>
                           <Form.Control
@@ -1116,7 +1100,6 @@ const Tests = () => {
                               <div className="mb-2"><strong>Unit:</strong> {component.unit || <span className="text-muted">N/A</span>}</div>
                               {component.result_type === 'boolean' ? (
                                 <>
-                                  <div className="mb-2"><strong>Boolean Result:</strong> {component.boolean_result ? (component.boolean_result === 'positive' ? 'Positive' : 'Negative') : <span className="text-muted">N/A</span>}</div>
                                   <div className="mb-2"><strong>Reference Range:</strong> {component.reference_range || <span className="text-muted">N/A</span>}</div>
                                 </>
                               ) : (
@@ -1128,7 +1111,7 @@ const Tests = () => {
                               )}
                               <div className="mb-2"><strong>C Low:</strong> {component.c_low || <span className="text-muted">N/A</span>}</div>
                               <div className="mb-2"><strong>C High:</strong> {component.c_high || <span className="text-muted">N/A</span>}</div>
-                              <div className="mb-2"><strong>Gender:</strong> {component.gender === 'm' ? 'Male' : component.gender === 'f' ? 'Female' : component.gender === 'both' ? 'Both' : <span className="text-muted">Any</span>}</div>
+                              <div className="mb-2"><strong>Gender:</strong> {component.gender === 'Male' ? 'Male' : component.gender === 'Female' ? 'Female' : <span className="text-muted">Any</span>}</div>
                               <div className="mb-2"><strong>Age Start:</strong> {component.age_start || <span className="text-muted">Any</span>}</div>
                               <div className="mb-2"><strong>Age End:</strong> {component.age_end || <span className="text-muted">Any</span>}</div>
                             </Card.Body>

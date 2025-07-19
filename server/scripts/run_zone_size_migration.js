@@ -1,7 +1,7 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
-const config = require('./config/config.json');
+const config = require('../config/config.json');
 
 async function runZoneSizeMigration() {
   let connection;

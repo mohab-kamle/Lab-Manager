@@ -1,5 +1,5 @@
-const { sequelize } = require('./models');
-const db = require('./models');
+const { sequelize } = require('../models');
+const db = require('../models');
 
 async function testNewFields() {
   try {
