@@ -15,24 +15,25 @@ jobs:
 
       # Create .env.production for frontend (UTF-8 encoded)
       - name: Create .env.production (UTF-8)
-        shell: pwsh
+        shell: powershell
         run: |
           [System.IO.File]::WriteAllText("client/.env.production", "VITE_API_URL=${{ secrets.VITE_API_URL }}", [System.Text.Encoding]::UTF8)
 
       # Create empty .env for frontend (UTF-8 encoded)
       - name: Create empty .env (UTF-8)
-        shell: pwsh
+        shell: powershell
         run: |
           [System.IO.File]::WriteAllText("client/.env", "", [System.Text.Encoding]::UTF8)
 
-      # (Optional) Copy .docker.env to server/.env if your Dockerfile expects it
+      # Copy .docker.env to server/.env
       - name: Copy .docker.env to server/.env
-        shell: pwsh
-        run: Copy-Item ".docker.env" "server/.env" -Force
+        shell: powershell
+        run: |
+          Copy-Item ".docker.env" "server/.env" -Force
 
       # Build and restart Docker containers
       - name: Build and restart Docker containers
-        shell: pwsh
+        shell: powershell
         run: |
           docker compose down
           docker compose up -d --build
