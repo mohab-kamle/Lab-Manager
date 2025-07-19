@@ -3,14 +3,8 @@ WORKDIR /app
 RUN npm install -g pnpm
 COPY . .
 RUN pnpm install --frozen-lockfile
-
-# Remove BOM characters from environment files
-RUN sed -i '1s/^\xEF\xBB\xBF//' .env* 2>/dev/null || true
-
-# Debug: Check files after BOM removal
-RUN echo "=== .env.production after BOM removal ===" && cat ./.env.production
-
 RUN pnpm run build -- --mode production
+
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
