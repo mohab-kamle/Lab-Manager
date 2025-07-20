@@ -677,9 +677,23 @@ const Tests = () => {
                           <td>{component.reference_range || 'N/A'}</td>
                           <td>{component.c_low || 'N/A'}</td>
                           <td>{component.c_high || 'N/A'}</td>
-                          <td>{component.gender === 'Male' ? 'Male' : component.gender === 'Female' ? 'Female' : 'Any'}</td>
-                          <td>{component.age_start || 'Any'}</td>
-                          <td>{component.age_end || 'Any'}</td>
+                          <td>{
+                            component.gender === 'm' || component.gender === 'Male'
+                              ? 'Male'
+                              : component.gender === 'f' || component.gender === 'Female'
+                              ? 'Female'
+                              : 'Any'
+                          }</td>
+                          <td>{
+                            component.age_start !== undefined && component.age_start !== null && component.age_start !== ''
+                              ? component.age_start
+                              : 'Any'
+                          }</td>
+                          <td>{
+                            component.age_end !== undefined && component.age_end !== null && component.age_end !== ''
+                              ? component.age_end
+                              : 'Any'
+                          }</td>
                         </tr>
                       ))}
                     </tbody>
