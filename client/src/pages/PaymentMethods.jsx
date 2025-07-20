@@ -14,7 +14,7 @@ const PaymentMethods = () => {
     const [editName, setEditName] = useState("");
     const [saving, setSaving] = useState(false);
 
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+    const apiUrl = import.meta.env.VITE_API_URL;
 
     useEffect(() => {
         fetchPaymentMethods();

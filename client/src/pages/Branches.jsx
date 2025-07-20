@@ -37,7 +37,7 @@ const Branches = () => {
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   // Extracted fetch logic for reuse
   const fetchBranches = async () => {
