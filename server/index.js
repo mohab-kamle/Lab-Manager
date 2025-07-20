@@ -4,6 +4,7 @@ require("dotenv").config();
 // Core dependencies
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const { employee, patient, phone } = require("./models");
@@ -59,6 +60,9 @@ const corsOptions = {
 };
 
 app.use(express.json());
+
+// Apply security headers
+app.use(helmet());
 
 // Apply CORS to all routes
 app.use(cors(corsOptions));
