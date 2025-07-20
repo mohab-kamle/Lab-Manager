@@ -31,6 +31,11 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(45),
       allowNull: true
     },
+    is_main_branch: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
     manager_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -64,6 +69,15 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "manager_id" }
+        ]
+      },
+      {
+        name: "unique_branch_number_per_lab",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" },
+          { name: "branch_number" }
         ]
       }
     ]

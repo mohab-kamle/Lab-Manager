@@ -23,6 +23,8 @@ var _employee = require("./employee");
 var _lab = require("./lab");
 var _lab_contracts_company = require("./lab_contracts_company");
 var _lab_contracts_doctor = require("./lab_contracts_doctor");
+var _lab_settings = require("./lab_settings");
+var _lab_activity_log = require("./lab_activity_log");
 var _medical_report = require("./medical_report");
 var _medical_report_has_test = require("./medical_report_has_test");
 var _medical_report_has_culture = require("./medical_report_has_culture");
@@ -78,6 +80,8 @@ function initModels(sequelize) {
   var lab = _lab(sequelize, DataTypes);
   var lab_contracts_company = _lab_contracts_company(sequelize, DataTypes);
   var lab_contracts_doctor = _lab_contracts_doctor(sequelize, DataTypes);
+  var lab_settings = _lab_settings(sequelize, DataTypes);
+  var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
   var medical_report = _medical_report(sequelize, DataTypes);
   var medical_report_has_test = _medical_report_has_test(sequelize, DataTypes);
   var medical_report_has_culture = _medical_report_has_culture(sequelize, DataTypes);
@@ -646,6 +650,28 @@ function initModels(sequelize) {
     foreignKey: "antibiotic_id",
   });
 
+  // Tenant associations
+  lab.hasMany(patient, { as: "patients", foreignKey: "lab_id" });
+  patient.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
+  lab.hasMany(branch, { as: "branches", foreignKey: "lab_id" });
+  branch.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
+  lab.hasMany(bill, { as: "bills", foreignKey: "lab_id" });
+  bill.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
+  lab.hasMany(medical_report, { as: "medical_reports", foreignKey: "lab_id" });
+  medical_report.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
+  lab.hasMany(lab_settings, { as: "settings", foreignKey: "lab_id" });
+  lab_settings.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
+  lab.hasMany(lab_activity_log, { as: "activity_logs", foreignKey: "lab_id" });
+  lab_activity_log.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
+  patient.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
+  branch.hasMany(patient, { as: "patients", foreignKey: "branch_id" });
+
   return {
     admin,
     admin_packages_and_offers,
@@ -672,6 +698,8 @@ function initModels(sequelize) {
     lab,
     lab_contracts_company,
     lab_contracts_doctor,
+    lab_settings,
+    lab_activity_log,
     medical_report,
     medical_report_has_test,
     medical_report_has_culture,
