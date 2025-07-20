@@ -214,7 +214,7 @@ const PatientReports = () => {
   const [typeFilter, setTypeFilter] = useState("all");
   const [pdfLoadingId, setPdfLoadingId] = useState(null);
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const apiUrl = import.meta.env.VITE_API_URL;
   const { user } = useAuth();
 
   useEffect(() => {
