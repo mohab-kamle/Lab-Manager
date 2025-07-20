@@ -22,7 +22,7 @@ const CultureOptions = () => {
   const [optionToDelete, setOptionToDelete] = useState(null);
   const [formData, setFormData] = useState({ name: "" });
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchData = async () => {
