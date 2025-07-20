@@ -3,13 +3,24 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
+const rateLimit = require('express-rate-limit');
+
+// Rate limiter for login to mitigate brute-force attacks
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                  // limit each IP to 10 requests per windowMs
+  standardHeaders: true,    // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false,
+  message: { error: "Too many login attempts, please try again later." }
+});
+
 const { employee, sequelize } = require('../models');
 const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 
 // Employee login
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
     const { username, password } = req.body;
   
     try {
@@ -25,8 +36,10 @@ router.post("/login", async (req, res) => {
       }
   
       const token = sign({ id: emp.id, role: emp.role }, SECRET_KEY, { expiresIn: "3h" });
-  
-      res.json({ token, user: emp.get({ plain: true }) });
+
+      // Exclude sensitive fields before sending the user object
+      const { password: _password, ...safeUser } = emp.get({ plain: true });
+      res.json({ token, user: safeUser });
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Server error" });
