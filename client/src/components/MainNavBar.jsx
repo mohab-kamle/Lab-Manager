@@ -38,7 +38,8 @@ const MainNavBar = () => {
       style={{
         background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
         boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
-        border: 'none'
+        border: 'none',
+        zIndex: 1050 // Ensure the navbar sits above page content (e.g., UnifiedLogin background)
       }}
     >
       <Container>
