@@ -3,6 +3,7 @@ const router = express.Router();
 const { contract } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 const multer = require("multer");
 const xlsx = require("xlsx");
 require("dotenv").config();
@@ -18,7 +19,7 @@ const upload = multer({
 /**
  * GET /contracts - Fetch all contracts
  */
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
   try {
     const contracts = await contract.findAll({
       order: [["id", "DESC"]],
@@ -33,7 +34,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 /**
  * GET /contracts/:id - Get a specific contract by ID
  */
-router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     const contractRecord = await contract.findByPk(id);
@@ -52,7 +53,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
 /**
  * POST /contracts - Create a new contract
  */
-router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
   try {
     const { name, region, governorate, discount_type, discount_amount, details } = req.body;
 
@@ -63,7 +64,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
 
     // Check if contract already exists with same region and governorate
     const existingContract = await contract.findOne({
-      where: { region, governorate }
+      where: {  region, governorate , lab_id: req.tenant.lab_id }
     });
 
     if (existingContract) {
@@ -79,7 +80,8 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
       governorate,
       discount_type: discount_type || "none",
       discount_amount: discount_amount !== undefined ? discount_amount : 0.00,
-      details: details || ""
+      details: details || "",
+      lab_id: req.tenant.lab_id
     });
 
     res.status(201).json(newContract);
@@ -92,7 +94,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
 /**
  * PUT /contracts/:id - Update an existing contract
  */
-router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, region, governorate, discount_type, discount_amount, details } = req.body;
@@ -105,10 +107,11 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
     // Check if another contract exists with same region and governorate
     if (region && governorate) {
       const duplicateContract = await contract.findOne({
-        where: { 
+        where: {  
           region, 
           governorate,
-          id: { [require("sequelize").Op.ne]: id }
+          id: { [require("sequelize").Op.ne]: id },
+          lab_id: req.tenant.lab_id
         }
       });
 
@@ -144,7 +147,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
 /**
  * DELETE /contracts/:id - Delete a contract
  */
-router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -211,7 +214,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
 
         // Check if contract exists
         const existingContract = await contract.findOne({
-          where: { region, governorate }
+          where: {  region, governorate , lab_id: req.tenant.lab_id }
         });
 
         if (existingContract) {
@@ -231,7 +234,8 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
             governorate,
             discount_type: discountType.toLowerCase(),
             discount_amount: discountAmount,
-            details
+            details,
+            lab_id: req.tenant.lab_id
           });
           imported++;
         }
@@ -255,7 +259,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
 /**
  * GET /contracts/export - Export contracts to Excel
  */
-router.get("/export", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/export", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
   try {
     const contracts = await contract.findAll({
       order: [["id", "ASC"]],

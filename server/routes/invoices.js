@@ -3,13 +3,14 @@ const router = express.Router();
 const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, pao_has_test, pao_has_culture, bill_has_tg, medical_report_tg_field_value, medical_report_has_tg, test_group } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 require("dotenv").config();
 const { sequelize } = require("../models");
 
 /**
  * GET /invoices - Fetch all bills with associated tests, cultures, packages, and payment methods.
  */
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
     try {
         console.log('Fetching invoices...');
         const query = `
@@ -35,10 +36,14 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         LEFT JOIN payment_method pm ON pm.id = bhpm.payment_method_id
         LEFT JOIN bill_has_tg btg ON btg.bill_id = b.id
         LEFT JOIN test_group tg ON tg.id = btg.tg_id
+        WHERE b.lab_id = :labId
         ORDER BY b.id DESC;
         `;
 
-        const results = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+        const results = await sequelize.query(query, { 
+            replacements: { labId: req.tenant.lab_id },
+            type: sequelize.QueryTypes.SELECT 
+        });
         console.log(`Found ${results.length} invoices`);
 
         // Group bills by id

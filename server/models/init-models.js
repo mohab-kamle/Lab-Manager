@@ -49,6 +49,8 @@ var _medical_report_tg_field_value = require("./medical_report_tg_field_value");
 var _medical_report_has_tg = require("./medical_report_has_tg");
 var _bill_has_tg = require("./bill_has_tg");
 var _medical_report_has_culture_antibiotic = require("./medical_report_has_culture_antibiotic");
+var _lab_settings = require("./lab_settings");
+var _lab_activity_log = require("./lab_activity_log");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -110,6 +112,8 @@ function initModels(sequelize) {
   var medical_report_has_tg = _medical_report_has_tg(sequelize, DataTypes);
   var bill_has_tg = _bill_has_tg(sequelize, DataTypes);
   var medical_report_has_culture_antibiotic = _medical_report_has_culture_antibiotic(sequelize, DataTypes);
+  var lab_settings = _lab_settings(sequelize, DataTypes);
+  var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
 
   // Add many-to-many association between test and question
   test.belongsToMany(question, {
@@ -646,6 +650,51 @@ function initModels(sequelize) {
     foreignKey: "antibiotic_id",
   });
 
+  // Multi-tenant associations
+  lab_settings.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(lab_settings, { as: "settings", foreignKey: "lab_id" });
+
+  lab_activity_log.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(lab_activity_log, { as: "activity_logs", foreignKey: "lab_id" });
+
+  // Lab associations for tenant isolation (use unique aliases)
+  patient.belongsTo(lab, { as: "patient_lab", foreignKey: "lab_id" });
+  lab.hasMany(patient, { as: "patients", foreignKey: "lab_id" });
+
+  bill.belongsTo(lab, { as: "bill_lab", foreignKey: "lab_id" });
+  lab.hasMany(bill, { as: "bills", foreignKey: "lab_id" });
+
+  bill.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
+  branch.hasMany(bill, { as: "bills", foreignKey: "branch_id" });
+
+  medical_report.belongsTo(lab, { as: "medical_report_lab", foreignKey: "lab_id" });
+  lab.hasMany(medical_report, { as: "medical_reports", foreignKey: "lab_id" });
+
+  medical_report.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
+  branch.hasMany(medical_report, { as: "medical_reports", foreignKey: "branch_id" });
+
+  // Only one 'lab' alias for employee
+  employee.belongsTo(lab, { as: 'lab', foreignKey: 'lab_id' });
+  lab.hasMany(employee, { as: 'employees', foreignKey: 'lab_id' });
+
+  contract.belongsTo(lab, { as: "contract_lab", foreignKey: "lab_id" });
+  lab.hasMany(contract, { as: "contracts", foreignKey: "lab_id" });
+
+  packages_and_offers.belongsTo(lab, { as: "packages_lab", foreignKey: "lab_id" });
+  lab.hasMany(packages_and_offers, { as: "packages", foreignKey: "lab_id" });
+
+  payment_method.belongsTo(lab, { as: "payment_method_lab", foreignKey: "lab_id" });
+  lab.hasMany(payment_method, { as: "payment_methods", foreignKey: "lab_id" });
+
+  company.belongsTo(lab, { as: "company_lab", foreignKey: "lab_id" });
+  lab.hasMany(company, { as: "companies", foreignKey: "lab_id" });
+
+  doctor.belongsTo(lab, { as: "doctor_lab", foreignKey: "lab_id" });
+  lab.hasMany(doctor, { as: "doctors", foreignKey: "lab_id" });
+
+  chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
+  lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
+
   return {
     admin,
     admin_packages_and_offers,
@@ -697,6 +746,8 @@ function initModels(sequelize) {
     field_comp_options,
     medical_report_tg_field_value,
     medical_report_has_tg,
+    lab_settings,
+    lab_activity_log,
   };
 }
 module.exports = initModels;

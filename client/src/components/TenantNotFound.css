@@ -1,0 +1,71 @@
+.tenant-not-found {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.error-container {
+  text-align: center;
+  max-width: 500px;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.error-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.error-container h1 {
+  font-size: 32px;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.error-message {
+  font-size: 18px;
+  margin-bottom: 30px;
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.error-actions {
+  margin-top: 30px;
+}
+
+.error-actions p {
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.btn-primary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-primary:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .tenant-not-found {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  }
+} 

@@ -38,6 +38,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'admin',
         key: 'id'
       }
+    },
+    is_main_branch: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     }
   }, {
     sequelize,
@@ -64,6 +69,13 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "manager_id" }
+        ]
+      },
+      {
+        name: "idx_branch_main",
+        using: "BTREE",
+        fields: [
+          { name: "is_main_branch" }
         ]
       }
     ]

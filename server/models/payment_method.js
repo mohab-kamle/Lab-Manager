@@ -7,6 +7,14 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
+    },
     name: {
       type: DataTypes.STRING(45),
       allowNull: false,
@@ -26,11 +34,19 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "name_UNIQUE",
+        name: "unique_payment_method_name_per_lab",
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "name" },
+        ]
+      },
+      {
+        name: "idx_payment_method_lab",
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" },
         ]
       },
     ]

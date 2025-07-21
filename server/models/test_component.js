@@ -17,7 +17,7 @@ module.exports = function(sequelize, DataTypes) {
       }
     },
     name: {
-      type: DataTypes.STRING(35),
+      type: DataTypes.STRING(255),
       allowNull: true
     },
     unit: {

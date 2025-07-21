@@ -7,13 +7,31 @@ const { employee, sequelize } = require('../models');
 const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
+const { tenantContext } = require('../middleware/tenantContext');
 
 // Employee login
 router.post("/login", async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, lab_id } = req.body;
   
     try {
-      const emp = await employee.findOne({ where: { username :username} });
+      // For login, we need to check if the employee exists in the specified lab
+      // or find them across all labs if lab_id is not provided
+      let emp;
+      
+      if (lab_id) {
+        // If lab_id is provided, check in that specific lab
+        emp = await employee.findOne({ 
+          where: { 
+            username: username,
+            lab_id: lab_id 
+          } 
+        });
+      } else {
+        // If no lab_id provided, find the employee (for backward compatibility)
+        emp = await employee.findOne({ 
+          where: { username: username } 
+        });
+      }
   
       if (!emp) {
         return res.status(401).json({ error: "User not found" });
@@ -24,7 +42,12 @@ router.post("/login", async (req, res) => {
         return res.status(401).json({ error: "Incorrect password" });
       }
   
-      const token = sign({ id: emp.id, role: emp.role }, SECRET_KEY, { expiresIn: "3h" });
+      // Generate token with lab_id included
+      const token = sign({ 
+        id: emp.id, 
+        role: emp.role,
+        lab_id: emp.lab_id 
+      }, SECRET_KEY, { expiresIn: "3h" });
   
       res.json({ token, user: emp.get({ plain: true }) });
     } catch (error) {
@@ -34,7 +57,7 @@ router.post("/login", async (req, res) => {
 });
 
 // Get all employees (admin only)
-router.get("/", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const employees = await employee.findAll({
             attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
@@ -48,7 +71,7 @@ router.get("/", authenticateUser, authorizeRoles("admin"), async (req, res) => {
 });
 
 // Get employee by ID (admin only)
-router.get("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.get("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
         const emp = await employee.findByPk(id, {
@@ -67,7 +90,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
 });
 
 // Create new employee (admin only)
-router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { 
             name, 
@@ -94,14 +117,14 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
         }
 
         // Check if username already exists
-        const existingUser = await employee.findOne({ where: { username } });
+        const existingUser = await employee.findOne({ where: {  username , lab_id: req.tenant.lab_id } });
         if (existingUser) {
             return res.status(400).json({ error: "Username already exists" });
         }
 
         // Check if national_id already exists (if provided)
         if (national_id) {
-            const existingNationalId = await employee.findOne({ where: { national_id } });
+            const existingNationalId = await employee.findOne({ where: {  national_id , lab_id: req.tenant.lab_id } });
             if (existingNationalId) {
                 return res.status(400).json({ error: "National ID already exists" });
             }
@@ -122,26 +145,30 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
             national_id: national_id || null,
             nationality: nationality || null,
             passport_no: passport_no || null,
-            role
+            role,
+            lab_id: req.tenant.lab_id
         });
 
         // Create role-specific record based on the role
         switch (role) {
             case 'admin':
                 await sequelize.models.admin.create({
-                    id: newEmployee.id
+                    id: newEmployee.id,
+                    lab_id: req.tenant.lab_id
                 });
                 break;
             case 'chemist':
                 await sequelize.models.chemist.create({
                     id: newEmployee.id,
-                    no_of_reports: 0
+                    no_of_reports: 0,
+                    lab_id: req.tenant.lab_id
                 });
                 break;
             case 'receptionist':
                 await sequelize.models.receptionist.create({
                     id: newEmployee.id,
-                    no_of_bills: 0
+                    no_of_bills: 0,
+                    lab_id: req.tenant.lab_id
                 });
                 break;
             case 'doctor':
@@ -154,7 +181,8 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
                     birth_date: newEmployee.birth_date,
                     national_id: newEmployee.national_id,
                     nationality: newEmployee.nationality,
-                    passport_no: newEmployee.passport_no
+                    passport_no: newEmployee.passport_no,
+                    lab_id: req.tenant.lab_id
                 });
                 break;
             case 'employee':
@@ -174,7 +202,7 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
 });
 
 // Update employee (admin only)
-router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
         const { 
@@ -206,7 +234,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
 
         // Check if username already exists (if changed)
         if (username && username !== emp.username) {
-            const existingUser = await employee.findOne({ where: { username } });
+            const existingUser = await employee.findOne({ where: {  username , lab_id: req.tenant.lab_id } });
             if (existingUser) {
                 return res.status(400).json({ error: "Username already exists" });
             }
@@ -214,7 +242,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
 
         // Check if national_id already exists (if changed)
         if (national_id && national_id !== emp.national_id) {
-            const existingNationalId = await employee.findOne({ where: { national_id } });
+            const existingNationalId = await employee.findOne({ where: {  national_id , lab_id: req.tenant.lab_id } });
             if (existingNationalId) {
                 return res.status(400).json({ error: "National ID already exists" });
             }
@@ -271,32 +299,36 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
             switch (role) {
                 case 'admin':
                     await sequelize.models.admin.create({
-                        id: emp.id
+                        id: emp.id,
+                        lab_id: req.tenant.lab_id
                     });
                     break;
                 case 'chemist':
                     await sequelize.models.chemist.create({
                         id: emp.id,
-                        no_of_reports: 0
+                        no_of_reports: 0,
+                        lab_id: req.tenant.lab_id
                     });
                     break;
                 case 'receptionist':
                     await sequelize.models.receptionist.create({
                         id: emp.id,
-                        no_of_bills: 0
+                        no_of_bills: 0,
+                        lab_id: req.tenant.lab_id
                     });
                     break;
-                            case 'doctor':
-                await sequelize.models.doctor.create({
-                    name: emp.name,
-                    email: emp.email,
-                    gender: emp.gender,
-                    birth_date: emp.birth_date,
-                    national_id: emp.national_id,
-                    nationality: emp.nationality,
-                    passport_no: emp.passport_no
-                });
-                break;
+                case 'doctor':
+                    await sequelize.models.doctor.create({
+                        name: emp.name,
+                        email: emp.email,
+                        gender: emp.gender,
+                        birth_date: emp.birth_date,
+                        national_id: emp.national_id,
+                        nationality: emp.nationality,
+                        passport_no: emp.passport_no,
+                        lab_id: req.tenant.lab_id
+                    });
+                    break;
                 case 'employee':
                     // Basic employee doesn't need additional table
                     break;
@@ -313,7 +345,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
 });
 
 // Delete employee (admin only)
-router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -360,7 +392,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res
 });
 
 // Get available roles (admin only)
-router.get("/roles/available", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.get("/roles/available", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const roles = [
             { value: 'admin', label: 'Administrator', description: 'Full system access' },
@@ -377,7 +409,7 @@ router.get("/roles/available", authenticateUser, authorizeRoles("admin"), async 
 });
 
 // Get role permissions (admin only)
-router.get("/roles/:role/permissions", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.get("/roles/:role/permissions", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { role } = req.params;
         

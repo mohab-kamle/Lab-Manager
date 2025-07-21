@@ -1,0 +1,85 @@
+.lab-branding {
+  /* Default branding styles */
+  --primary-color: #007bff;
+  --primary-hover: #0056b3;
+  --secondary-color: #6c757d;
+  --accent-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+  --light-color: #f8f9fa;
+  --dark-color: #343a40;
+  
+  /* Apply custom branding */
+  min-height: 100vh;
+}
+
+/* Apply custom colors to various elements */
+.lab-branding .btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.lab-branding .btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.lab-branding .navbar {
+  background-color: var(--primary-color) !important;
+}
+
+.lab-branding .nav-link.active {
+  background-color: var(--primary-hover) !important;
+}
+
+.lab-branding .card-header {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.lab-branding .text-primary {
+  color: var(--primary-color) !important;
+}
+
+.lab-branding .bg-primary {
+  background-color: var(--primary-color) !important;
+}
+
+.lab-branding .border-primary {
+  border-color: var(--primary-color) !important;
+}
+
+/* Custom lab-specific branding */
+.lab-branding.tenant-default {
+  /* Default tenant styling - no additional styles needed */
+}
+
+.lab-branding.tenant-lab1 {
+  /* Lab 1 specific styling - can be customized per lab */
+  --primary-color: #28a745;
+  --primary-hover: #1e7e34;
+}
+
+.lab-branding.tenant-lab2 {
+  /* Lab 2 specific styling - can be customized per lab */
+  --primary-color: #dc3545;
+  --primary-hover: #c82333;
+}
+
+/* Responsive branding */
+@media (max-width: 768px) {
+  .lab-branding {
+    /* Mobile-specific branding adjustments */
+    --primary-color: var(--primary-color);
+    --primary-hover: var(--primary-hover);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .lab-branding {
+    --light-color: #2c3e50;
+    --dark-color: #ecf0f1;
+  }
+} 

@@ -1,40 +1,219 @@
 const express = require('express');
 const router = express.Router();
-const { lab, employee } = require('../models');
+const { lab, LabSettings, admin, employee } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
+const authorizeRoles = require('../middleware/authorizeRoles');
 
-// Get all labs owned by the user
-router.get('/', authenticateUser, async (req, res) => {
-    try {
-        const labs = await lab.findAll({
-            where: { owner_id: req.user.id },
-            order: [['name', 'ASC']]
-        });
-        res.json(labs);
-    } catch (error) {
-        console.error('Error fetching labs:', error);
-        res.status(500).json({ error: 'Internal server error' });
+// Get lab by path (for multi-tenant routing)
+router.get('/by-path/:path', async (req, res) => {
+  try {
+    const { path } = req.params;
+    
+    // Use subdomain as the path and subscription_status as active
+    const labResult = await lab.findOne({
+      where: { subdomain: path, subscription_status: 'active' },
+      include: [
+        {
+          model: employee,
+          as: 'employees',
+          where: { role: 'admin' },
+          attributes: ['id', 'name', 'email', 'role'],
+          required: false
+        }
+      ]
+    });
+
+    if (!labResult) {
+      return res.status(404).json({ error: 'Lab not found' });
     }
+
+    res.json(labResult);
+  } catch (error) {
+    console.error('Error fetching lab by path:', error);
+    res.status(500).json({ error: 'Failed to fetch lab information' });
+  }
 });
 
-// Get a single lab
-router.get('/:id', authenticateUser, async (req, res) => {
-    try {
-        const labData = await lab.findOne({
-            where: { 
-                id: req.params.id,
-                owner_id: req.user.id
-            }
-        });
-        
-        if (!labData) {
-            return res.status(404).json({ error: 'Lab not found' });
-        }
-        res.json(labData);
-    } catch (error) {
-        console.error('Error fetching lab:', error);
-        res.status(500).json({ error: 'Internal server error' });
+// Get lab settings
+router.get('/:labId/settings', async (req, res) => {
+  try {
+    const { labId } = req.params;
+    
+    const settings = await LabSettings.findAll({
+      where: { lab_id: labId },
+      order: [['setting_key', 'ASC']]
+    });
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Error fetching lab settings:', error);
+    res.status(500).json({ error: 'Failed to fetch lab settings' });
+  }
+});
+
+// Update lab settings
+router.put('/:labId/settings', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { labId } = req.params;
+    const { settings } = req.body;
+
+    // Verify user belongs to this lab
+    if (req.user.lab_id !== parseInt(labId)) {
+      return res.status(403).json({ error: 'Access denied' });
     }
+
+    // Update or create settings
+    for (const setting of settings) {
+      await LabSettings.upsert({
+        lab_id: labId,
+        setting_key: setting.setting_key,
+        setting_value: setting.setting_value,
+        setting_type: setting.setting_type
+      });
+    }
+
+    // Fetch updated settings
+    const updatedSettings = await LabSettings.findAll({
+      where: { lab_id: labId },
+      order: [['setting_key', 'ASC']]
+    });
+
+    res.json(updatedSettings);
+  } catch (error) {
+    console.error('Error updating lab settings:', error);
+    res.status(500).json({ error: 'Failed to update lab settings' });
+  }
+});
+
+// Update lab information
+router.put('/:labId', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { labId } = req.params;
+    const updateData = req.body;
+
+    // Verify user belongs to this lab
+    if (req.user.lab_id !== parseInt(labId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Check if lab name is being changed and if it's unique
+    if (updateData.name) {
+      const existingLab = await lab.findOne({
+        where: { 
+          name: updateData.name,
+          id: { [require('sequelize').Op.ne]: labId }
+        }
+      });
+      
+      if (existingLab) {
+        return res.status(400).json({ error: 'Lab name already exists' });
+      }
+    }
+
+    // Update lab
+    const lab = await lab.findByPk(labId);
+    if (!lab) {
+      return res.status(404).json({ error: 'Lab not found' });
+    }
+
+    await lab.update(updateData);
+
+    res.json(lab);
+  } catch (error) {
+    console.error('Error updating lab:', error);
+    res.status(500).json({ error: 'Failed to update lab information' });
+  }
+});
+
+// Get subscription status
+router.get('/:labId/subscription', async (req, res) => {
+  try {
+    const { labId } = req.params;
+    
+    const lab = await lab.findByPk(labId, {
+      attributes: ['id', 'subscription_status', 'trial_expires_at', 'is_active']
+    });
+
+    if (!lab) {
+      return res.status(404).json({ error: 'Lab not found' });
+    }
+
+    const subscriptionStatus = {
+      status: lab.subscription_status,
+      trialExpiresAt: lab.trial_expires_at,
+      isTrialExpired: lab.trial_expires_at ? new Date(lab.trial_expires_at) < new Date() : false,
+      isActive: lab.is_active
+    };
+
+    res.json(subscriptionStatus);
+  } catch (error) {
+    console.error('Error fetching subscription status:', error);
+    res.status(500).json({ error: 'Failed to fetch subscription status' });
+  }
+});
+
+// Upgrade subscription (placeholder for payment integration)
+router.post('/:labId/upgrade', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { labId } = req.params;
+    const { plan, paymentMethod } = req.body;
+
+    // Verify user belongs to this lab
+    if (req.user.lab_id !== parseInt(labId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // TODO: Integrate with payment gateway (Stripe/local payment methods)
+    // For now, simulate successful payment
+    const lab = await lab.findByPk(labId);
+    if (!lab) {
+      return res.status(404).json({ error: 'Lab not found' });
+    }
+
+    // Update subscription status
+    await lab.update({
+      subscription_status: 'active',
+      trial_expires_at: null
+    });
+
+    res.json({
+      success: true,
+      message: 'Subscription upgraded successfully',
+      subscription: {
+        status: 'active',
+        plan: plan
+      }
+    });
+  } catch (error) {
+    console.error('Error upgrading subscription:', error);
+    res.status(500).json({ error: 'Failed to upgrade subscription' });
+  }
+});
+
+// Get lab statistics
+router.get('/:labId/stats', authenticateUser, async (req, res) => {
+  try {
+    const { labId } = req.params;
+    
+    // Verify user belongs to this lab
+    if (req.user.lab_id !== parseInt(labId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // TODO: Add actual statistics queries
+    const stats = {
+      totalPatients: 0,
+      totalTests: 0,
+      totalReports: 0,
+      monthlyRevenue: 0,
+      activeSubscriptions: 1
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching lab stats:', error);
+    res.status(500).json({ error: 'Failed to fetch lab statistics' });
+  }
 });
 
 module.exports = router; 

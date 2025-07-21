@@ -26,3 +26,183 @@
   justify-content: center;
   width: 100%;
 }
+
+/* Lab Layout Styles */
+.lab-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lab-main-content {
+  flex: 1;
+  padding: 20px 0;
+}
+
+.lab-footer {
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  margin-top: auto;
+}
+
+/* Custom properties for lab branding */
+:root {
+  --lab-primary-color: #007bff;
+  --lab-secondary-color: #6c757d;
+}
+
+/* Apply lab colors to various components */
+.lab-layout .btn-primary {
+  background-color: var(--lab-primary-color);
+  border-color: var(--lab-primary-color);
+}
+
+.lab-layout .btn-primary:hover {
+  background-color: var(--lab-primary-color);
+  border-color: var(--lab-primary-color);
+  filter: brightness(0.9);
+}
+
+.lab-layout .text-primary {
+  color: var(--lab-primary-color) !important;
+}
+
+.lab-layout .bg-primary {
+  background-color: var(--lab-primary-color) !important;
+}
+
+.lab-layout .border-primary {
+  border-color: var(--lab-primary-color) !important;
+}
+
+/* Trial warning styles */
+.lab-layout .alert-warning {
+  background-color: #fff3cd;
+  border-color: #ffeaa7;
+  color: #856404;
+}
+
+.lab-layout .alert-danger {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .lab-main-content {
+    padding: 15px 0;
+  }
+  
+  .lab-footer {
+    padding: 15px 0;
+  }
+}
+
+/* Loading spinner styles */
+.lab-layout .spinner-border {
+  color: var(--lab-primary-color);
+}
+
+/* Navigation adjustments for lab context */
+.lab-layout .navbar {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.lab-layout .navbar-brand {
+  color: var(--lab-primary-color) !important;
+  font-weight: bold;
+}
+
+/* Form elements with lab branding */
+.lab-layout .form-control:focus {
+  border-color: var(--lab-primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.lab-layout .form-select:focus {
+  border-color: var(--lab-primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Card styles with lab branding */
+.lab-layout .card {
+  border: 1px solid #dee2e6;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.lab-layout .card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Table styles */
+.lab-layout .table {
+  border-color: #dee2e6;
+}
+
+.lab-layout .table thead th {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  color: #495057;
+}
+
+/* Pagination styles */
+.lab-layout .page-link {
+  color: var(--lab-primary-color);
+}
+
+.lab-layout .page-item.active .page-link {
+  background-color: var(--lab-primary-color);
+  border-color: var(--lab-primary-color);
+}
+
+/* Modal styles */
+.lab-layout .modal-header {
+  border-bottom: 1px solid #dee2e6;
+}
+
+.lab-layout .modal-footer {
+  border-top: 1px solid #dee2e6;
+}
+
+/* Badge styles */
+.lab-layout .badge.bg-primary {
+  background-color: var(--lab-primary-color) !important;
+}
+
+/* Progress bar styles */
+.lab-layout .progress-bar {
+  background-color: var(--lab-primary-color);
+}
+
+/* List group styles */
+.lab-layout .list-group-item.active {
+  background-color: var(--lab-primary-color);
+  border-color: var(--lab-primary-color);
+}
+
+/* Dropdown styles */
+.lab-layout .dropdown-item:active {
+  background-color: var(--lab-primary-color);
+}
+
+/* Custom scrollbar */
+.lab-layout ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lab-layout ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.lab-layout ::-webkit-scrollbar-thumb {
+  background: var(--lab-primary-color);
+  border-radius: 4px;
+}
+
+.lab-layout ::-webkit-scrollbar-thumb:hover {
+  background: var(--lab-primary-color);
+  filter: brightness(0.8);
+}

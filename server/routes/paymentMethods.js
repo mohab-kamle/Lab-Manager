@@ -4,9 +4,10 @@ require("dotenv").config();
 const { payment_method } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
+const { tenantContext } = require('../middleware/tenantContext');
 
 // GET: Fetch all payment methods
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
     try {
         const paymentMethodsList = await payment_method.findAll();
         res.json(paymentMethodsList);
@@ -17,14 +18,14 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 });
 
 // POST: Add a new payment method
-router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { name } = req.body;
         if (!name) {
             return res.status(400).json({ error: "Payment method name is required" });
         }
 
-        const newPaymentMethod = await payment_method.create({ name });
+        const newPaymentMethod = await payment_method.create({ name, lab_id: req.tenant.lab_id });
         res.status(201).json(newPaymentMethod);
     } catch (error) {
         console.error(error);
@@ -33,7 +34,7 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
 });
 
 // PUT: Update a payment method
-router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
         const { name } = req.body;

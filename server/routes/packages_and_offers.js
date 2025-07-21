@@ -3,9 +3,10 @@ const router = express.Router();
 const { packages_and_offers, pao_has_test, pao_has_culture, admin_packages_and_offers, test, culture } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
+const { tenantContext } = require('../middleware/tenantContext');
 
 // Get all packages and offers for the user
-router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemist', 'doctor', 'employee'), async (req, res) => {
+router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemist', 'doctor', 'employee'), tenantContext, async (req, res) => {
     try {
         console.log('Fetching packages and offers...');
         const packagesAndOffers = await packages_and_offers.findAll({
@@ -23,10 +24,10 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
         
         const [testAssociations, cultureAssociations] = await Promise.all([
             pao_has_test.findAll({
-                where: { packages_and_offers_id: packageAndOfferIds }
+                where: {  packages_and_offers_id: packageAndOfferIds , lab_id: req.tenant.lab_id }
             }),
             pao_has_culture.findAll({
-                where: { packages_and_offers_id: packageAndOfferIds }
+                where: {  packages_and_offers_id: packageAndOfferIds , lab_id: req.tenant.lab_id }
             })
         ]);
         console.log('Test associations:', testAssociations.length);
@@ -40,8 +41,8 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
 
         // Fetch all tests and cultures
         const [tests, cultures] = await Promise.all([
-            testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
-            cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+            testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
+            cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
         ]);
         console.log('Found tests:', tests.length);
         console.log('Found cultures:', cultures.length);
@@ -83,10 +84,10 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
 });
 
 // Get a single package/offer
-router.get('/:id', authenticateUser, async (req, res) => {
+router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         const packageAndOffer = await packages_and_offers.findOne({
-            where: { id: req.params.id }
+            where: {  id: req.params.id , lab_id: req.tenant.lab_id }
         });
         
         if (!packageAndOffer) {
@@ -96,10 +97,10 @@ router.get('/:id', authenticateUser, async (req, res) => {
         // Get associated tests and cultures
         const [testAssociations, cultureAssociations] = await Promise.all([
             pao_has_test.findAll({
-                where: { packages_and_offers_id: req.params.id }
+                where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
             }),
             pao_has_culture.findAll({
-                where: { packages_and_offers_id: req.params.id }
+                where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
             })
         ]);
 
@@ -109,8 +110,8 @@ router.get('/:id', authenticateUser, async (req, res) => {
 
         // Fetch tests and cultures
         const [tests, cultures] = await Promise.all([
-            testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
-            cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+            testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
+            cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
         ]);
 
         const result = {
@@ -127,7 +128,7 @@ router.get('/:id', authenticateUser, async (req, res) => {
 });
 
 // Create a new package/offer
-router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
     try {
         const { name, shortcut, price, start_date, end_date, type, tests, cultures, item_id, item_type } = req.body;
         console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, cultures, item_id, item_type });
@@ -173,7 +174,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
                 }
 
                 const existingTests = await test.findAll({
-                    where: { id: testIds }
+                    where: {  id: testIds , lab_id: req.tenant.lab_id }
                 });
                 
                 if (existingTests.length !== tests.length) {
@@ -199,7 +200,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
                 }
 
                 const existingCultures = await culture.findAll({
-                    where: { id: cultureIds }
+                    where: {  id: cultureIds , lab_id: req.tenant.lab_id }
                 });
                 
                 if (existingCultures.length !== cultures.length) {
@@ -236,10 +237,10 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
             // Get the created item with its associations
             const [testAssociations, cultureAssociations] = await Promise.all([
                 pao_has_test.findAll({
-                    where: { packages_and_offers_id: newPackageAndOffer.id }
+                    where: {  packages_and_offers_id: newPackageAndOffer.id , lab_id: req.tenant.lab_id }
                 }),
                 pao_has_culture.findAll({
-                    where: { packages_and_offers_id: newPackageAndOffer.id }
+                    where: {  packages_and_offers_id: newPackageAndOffer.id , lab_id: req.tenant.lab_id }
                 })
             ]);
 
@@ -249,8 +250,8 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
 
             // Fetch tests and cultures
             const [createdTests, createdCultures] = await Promise.all([
-                testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
-                cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+                testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
+                cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
             ]);
 
             const result = {
@@ -272,7 +273,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
 });
 
 // Update a package/offer
-router.put('/:id', authenticateUser, async (req, res) => {
+router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         const { name, shortcut, price, start_date, end_date, type, tests, cultures, item_id, item_type } = req.body;
 
@@ -282,7 +283,7 @@ router.put('/:id', authenticateUser, async (req, res) => {
         try {
             // Verify that the package/offer exists
             const packageAndOffer = await packages_and_offers.findOne({
-                where: { id: req.params.id }
+                where: {  id: req.params.id , lab_id: req.tenant.lab_id }
             }, { transaction });
 
             if (!packageAndOffer) {
@@ -327,7 +328,7 @@ router.put('/:id', authenticateUser, async (req, res) => {
                     }
 
                     const existingTests = await test.findAll({
-                        where: { id: testIds }
+                        where: {  id: testIds , lab_id: req.tenant.lab_id }
                     });
                     
                     if (existingTests.length !== tests.length) {
@@ -375,10 +376,10 @@ router.put('/:id', authenticateUser, async (req, res) => {
             // Get the updated item with its associations
             const [testAssociations, cultureAssociations] = await Promise.all([
                 pao_has_test.findAll({
-                    where: { packages_and_offers_id: req.params.id }
+                    where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
                 }),
                 pao_has_culture.findAll({
-                    where: { packages_and_offers_id: req.params.id }
+                    where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
                 })
             ]);
 
@@ -388,8 +389,8 @@ router.put('/:id', authenticateUser, async (req, res) => {
 
             // Fetch tests and cultures
             const [updatedTests, updatedCultures] = await Promise.all([
-                testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
-                cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+                testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
+                cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
             ]);
 
             const result = {
@@ -411,7 +412,7 @@ router.put('/:id', authenticateUser, async (req, res) => {
 });
 
 // Delete a package/offer
-router.delete('/:id', authenticateUser, async (req, res) => {
+router.delete('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         // Start a transaction
         const transaction = await packages_and_offers.sequelize.transaction();
@@ -419,7 +420,7 @@ router.delete('/:id', authenticateUser, async (req, res) => {
         try {
             // Verify that the package/offer exists
             const packageAndOffer = await packages_and_offers.findOne({
-                where: { id: req.params.id }
+                where: {  id: req.params.id , lab_id: req.tenant.lab_id }
             }, { transaction });
 
             if (!packageAndOffer) {

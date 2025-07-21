@@ -7,6 +7,14 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
+    },
     name: {
       type: DataTypes.STRING(45),
       allowNull: true
@@ -83,26 +91,29 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "patientcode_UNIQUE",
+        name: "unique_patient_code_per_lab",
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "patientcode" },
         ]
       },
       {
-        name: "national_id_UNIQUE",
+        name: "unique_national_id_per_lab",
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "national_id" },
         ]
       },
       {
-        name: "passport_no_UNIQUE",
+        name: "unique_passport_per_lab",
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "passport_no" },
         ]
       },
@@ -111,6 +122,13 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "contract_id" },
+        ]
+      },
+      {
+        name: "idx_patient_lab",
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" },
         ]
       },
     ]

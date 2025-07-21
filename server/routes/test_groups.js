@@ -5,6 +5,7 @@ const { test_group, tgc_category, tg_component, tg_fields, field_comp_options, s
 const { Op } = require('sequelize');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
+const { tenantContext } = require('../middleware/tenantContext');
 
 const allowedRoles = ['admin', 'chemist', 'receptionist', 'doctor', 'employee'];
 
@@ -35,7 +36,7 @@ router.get('/test', async (req, res) => {
 });
 
 // Get all test groups (active only by default, with option to include deleted)
-router.get('/', authenticateUser, authorizeRoles(...allowedRoles), async (req, res) => {
+router.get('/', authenticateUser, authorizeRoles(...allowedRoles), tenantContext, async (req, res) => {
   try {
     const { includeDeleted = false } = req.query;
     
@@ -58,7 +59,7 @@ router.get('/', authenticateUser, authorizeRoles(...allowedRoles), async (req, r
 });
 
 // Create a new test group with nested data
-router.post('/', authenticateUser, authorizeRoles(...allowedRoles), async (req, res) => {
+router.post('/', authenticateUser, authorizeRoles(...allowedRoles), tenantContext, async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { name, price, tgc_categories = [], tg_components = [], tg_fields: tg_fields_data = [], field_comp_options: field_comp_options_data = [] } = req.body;
@@ -72,7 +73,7 @@ router.post('/', authenticateUser, authorizeRoles(...allowedRoles), async (req, 
     }
     
     // Unique test group name
-    const existing = await test_group.findOne({ where: { name }, transaction: t });
+    const existing = await test_group.findOne({ where: {  name , lab_id: req.tenant.lab_id }, transaction: t });
     if (existing) {
       await t.rollback();
       return res.status(400).json({ error: 'Test group name must be unique.' });
@@ -206,7 +207,7 @@ router.post('/', authenticateUser, authorizeRoles(...allowedRoles), async (req, 
 });
 
 // Update a test group with nested data
-router.put('/:id', authenticateUser, authorizeRoles(...allowedRoles), async (req, res) => {
+router.put('/:id', authenticateUser, authorizeRoles(...allowedRoles), tenantContext, async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
@@ -642,7 +643,7 @@ router.put('/:id', authenticateUser, authorizeRoles(...allowedRoles), async (req
 });
 
 // Soft delete a test group
-router.delete('/:id', authenticateUser, authorizeRoles(...allowedRoles), async (req, res) => {
+router.delete('/:id', authenticateUser, authorizeRoles(...allowedRoles), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     const group = await test_group.findByPk(id);
@@ -658,7 +659,7 @@ router.delete('/:id', authenticateUser, authorizeRoles(...allowedRoles), async (
 });
 
 // Restore a soft-deleted test group
-router.post('/:id/restore', authenticateUser, authorizeRoles(...allowedRoles), async (req, res) => {
+router.post('/:id/restore', authenticateUser, authorizeRoles(...allowedRoles), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     const group = await test_group.scope('withDeleted').findByPk(id);
@@ -678,7 +679,7 @@ router.post('/:id/restore', authenticateUser, authorizeRoles(...allowedRoles), a
 });
 
 // Hard delete a test group (admin only)
-router.delete('/:id/hard', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.delete('/:id/hard', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     const group = await test_group.scope('withDeleted').findByPk(id);
@@ -705,7 +706,7 @@ router.delete('/:id/hard', authenticateUser, authorizeRoles('admin'), async (req
 });
 
 // Get all test group components (flat list for viewing)
-router.get('/components', authenticateUser, authorizeRoles(...allowedRoles), async (req, res) => {
+router.get('/components', authenticateUser, authorizeRoles(...allowedRoles), tenantContext, async (req, res) => {
   try {
     const components = await tg_component.findAll({
       include: [
@@ -723,7 +724,7 @@ router.get('/components', authenticateUser, authorizeRoles(...allowedRoles), asy
 });
 
 // Get a test group with all nested data
-router.get('/:id', authenticateUser, authorizeRoles(...allowedRoles), async (req, res) => {
+router.get('/:id', authenticateUser, authorizeRoles(...allowedRoles), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     const group = await test_group.findByPk(id, {

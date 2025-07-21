@@ -1,258 +1,506 @@
-import React from 'react';
-import { Container, Row, Col, Card, Button } from 'react-bootstrap';
-import { motion } from 'framer-motion';
-import {
-  BarChart2, User, FileText, Lock, Barcode, ArrowRight
-} from 'lucide-react';
-import heroImage from '../assets/heroImage.png';
+import React, { useState } from 'react';
+import { Container, Row, Col, Button, Modal, Form, Alert, Card } from 'react-bootstrap';
+import { Play, ArrowRight, CheckCircle, Users, FlaskConical, FileText, Shield, Zap, Mail, CreditCard } from 'lucide-react';
+import axios from 'axios';
+import MainNavBar from '../components/MainNavBar';
 import './HomePage.css';
-
-const features = [
-  {
-    icon: <BarChart2 size={32} className="feature-icon" />, title: 'Smart Admin Dashboard',
-    desc: 'Real-time analytics, revenue, and payment tracking for efficient management.'
-  },
-  {
-    icon: <User size={32} className="feature-icon" />, title: 'Patient Portal',
-    desc: 'Patients can view, download, and track their medical reports securely.'
-  },
-  {
-    icon: <Barcode size={32} className="feature-icon" />, title: 'Barcode & QR Integration',
-    desc: 'Seamless barcode/QR for samples, reports, and patient login.'
-  },
-  {
-    icon: <FileText size={32} className="feature-icon" />, title: 'Automated Invoicing',
-    desc: 'Generate, send, and manage invoices and payments automatically.'
-  },
-  {
-    icon: <FileText size={32} className="feature-icon" />, title: 'Medical Report Generation',
-    desc: 'Professional PDF reports, multi-format, and multi-page support.'
-  },
-  {
-    icon: <Lock size={32} className="feature-icon" />, title: 'Role-based Access',
-    desc: 'Secure, permissioned access for Admin, Patient, Chemist, and Receptionist.'
-  },
-];
-
-const workflowSteps = [
-  {
-    icon: <User size={28} />, title: 'Patient',
-    steps: [
-      'Register or login with patient code',
-      'Book tests and view results online',
-      'Download reports and invoices',
-      'Get notified when results are ready',
-    ]
-  },
-  {
-    icon: <BarChart2 size={28} />, title: 'Admin',
-    steps: [
-      'Monitor dashboard and analytics',
-      'Manage patients, tests, and staff',
-      'Approve results and generate reports',
-      'Oversee payments and branches',
-    ]
-  },
-  {
-    icon: <Lock size={28} />, title: 'Chemist & Receptionist',
-    steps: [
-      'Coming soon: Dedicated workflows for chemists and receptionists.'
-    ]
-  }
-];
-
-const heroVariants = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8 } }
-};
-
-const sectionVariants = {
-  hidden: { opacity: 0, y: 60 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7 } }
-};
-
-const dividerSVG = (
-  <svg className="section-divider" viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z" fill="#f8f9fa"/>
-  </svg>
-);
-
-const dividerSVGAlt = (
-  <svg className="section-divider" viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-    <path d="M0,30 C360,0 1080,60 1440,30 L1440,60 L0,60 Z" fill="#eaf0f7"/>
-  </svg>
-);
+import { useNavigate } from 'react-router-dom';
 
 const HomePage = () => {
-  console.log(import.meta.env.VITE_API_URL); // Debug: Print API URL
-  console.log(import.meta.env.MODE); // Debug: Print Vite build mode
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [demoForm, setDemoForm] = useState({
+    email: '',
+    labName: '',
+    contactPerson: '',
+    phone: '',
+    region: '',
+    message: ''
+  });
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoSuccess, setDemoSuccess] = useState(false);
+  const [demoError, setDemoError] = useState('');
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+  const navigate = useNavigate();
+
+  const handleDemoRequest = async (e) => {
+    e.preventDefault();
+    setDemoLoading(true);
+    setDemoError('');
+
+    // Basic validation
+    if (!demoForm.email || !demoForm.labName || !demoForm.contactPerson || !demoForm.phone) {
+      setDemoError('Please fill in all required fields');
+      setDemoLoading(false);
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(demoForm.email)) {
+      setDemoError('Please enter a valid email address');
+      setDemoLoading(false);
+      return;
+    }
+
+    // Phone validation (basic)
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    if (!phoneRegex.test(demoForm.phone.replace(/\s/g, ''))) {
+      setDemoError('Please enter a valid phone number');
+      setDemoLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${apiUrl}/demo/request`, demoForm);
+      setDemoSuccess(true);
+      setDemoForm({
+        email: '',
+        labName: '',
+        contactPerson: '',
+        phone: '',
+        region: '',
+        message: ''
+      });
+    } catch (error) {
+      setDemoError(error.response?.data?.error || 'Failed to submit demo request. Please try again.');
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setDemoForm({
+      ...demoForm,
+      [e.target.name]: e.target.value
+    });
+  };
+
   return (
     <div className="homepage-root">
-      {/* Modern Hero Section */}
-      <motion.section className="hero-section-home-modern" initial="hidden" animate="visible" variants={heroVariants}>
+      {/* Main Navigation */}
+      <MainNavBar />
+
+      {/* Hero Section */}
+      <section className="hero-section-home-modern">
+        <div className="hero-bg-animated"></div>
         <Container fluid>
-          <Row className="align-items-center min-vh-100 flex-column-reverse flex-lg-row">
-            <Col lg={6} className="d-flex flex-column justify-content-center align-items-center text-lg-start text-center mb-5 mb-lg-0">
-              <motion.div
-                variants={heroVariants}
-                initial="hidden"
-                animate="visible"
-                className="hero-text-block hero-text-block-large"
-              >
-                <h1 className="hero-title-home hero-title-home-large mb-4">
-                  <span className="gradient-text">Revolutionize</span> Your Lab Experience
+          <Row className="align-items-center min-vh-100">
+            <Col lg={6} className="hero-text-column">
+              <div className="glass-card-hero animate-fade-in">
+                <h1 className="hero-title-home animate-slide-up">
+                  Complete <span className="gradient-text">Laboratory Management</span> System
                 </h1>
-                <motion.p
-                  className="hero-subtitle-home hero-subtitle-home-large mb-4"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 1 }}
-                >
-                  All-in-one platform for labs, patients, and admins. Fast, secure, and always available.
-                </motion.p>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="cta-btn"
-                  onClick={() => {
-                    const contactSection = document.getElementById('contactSection');
-                    if (contactSection) contactSection.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  Contact Us <ArrowRight size={20} className="ms-2" />
-                </Button>
-              </motion.div>
-            </Col>
-            <Col lg={6} className="d-flex justify-content-center align-items-center position-relative mb-5 mb-lg-0">
-              <motion.div
-                className="glass-card-hero glass-card-hero-large p-1 d-flex flex-column align-items-center"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-              >
-                <img src={heroImage} alt="Doctors at Lab" className="hero-image-home-modern hero-image-home-modern-large" />
-              </motion.div>
-              <div className="hero-bg-animated" />
-            </Col>
-          </Row>
-        </Container>
-      </motion.section>
-      {dividerSVG}
-      {/* Features Section */}
-      <motion.section className="features-section py-5" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={sectionVariants}>
-        <Container>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-5"
-          >
-            <h2 className="section-title">
-              System <span className="text-primary">Features</span>
-            </h2>
-            <p className="section-subtitle">
-              Everything you need to run a modern laboratory
-            </p>
-          </motion.div>
-          <Row>
-            {features.map((feature, idx) => (
-              <Col key={idx} lg={4} md={6} className="mb-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: idx * 0.05 }}
-                  viewport={{ once: true }}
-                >
-                  <Card className="feature-card h-100 text-center">
-                    <Card.Body>
-                      <div className="mb-3">{feature.icon}</div>
-                      <h5 className="feature-title mb-2">{feature.title}</h5>
-                      <p className="feature-desc mb-0">{feature.desc}</p>
-                    </Card.Body>
-                  </Card>
-                </motion.div>
-              </Col>
-            ))}
-          </Row>
-        </Container>
-      </motion.section>
-      {dividerSVGAlt}
-      {/* Workflow Section */}
-      <motion.section className="workflow-section py-5 bg-light" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={sectionVariants}>
-        <Container>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-5"
-          >
-            <h2 className="section-title">
-              How It <span className="text-primary">Works</span>
-            </h2>
-            <p className="section-subtitle">
-              Simple, intuitive workflows for every user
-            </p>
-          </motion.div>
-          <Row>
-            {workflowSteps.map((role, idx) => (
-              <Col key={idx} lg={4} md={6} className="mb-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: idx * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <Card className="workflow-card h-100 text-center">
-                    <Card.Body>
-                      <div className="mb-3">{role.icon}</div>
-                      <h5 className="workflow-title mb-3">{role.title}</h5>
-                      <ul className="workflow-list">
-                        {role.steps.map((step, i) => (
-                          <li key={i}>{step}</li>
-                        ))}
-                      </ul>
-                    </Card.Body>
-                  </Card>
-                </motion.div>
-              </Col>
-            ))}
-          </Row>
-        </Container>
-      </motion.section>
-      {dividerSVG}
-      {/* Contact Section */}
-      <motion.section className="contact-section-home py-5" id="contactSection" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={sectionVariants}>
-        <Container>
-          <Row className="justify-content-center">
-            <Col lg={8} className="text-center">
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                viewport={{ once: true }}
-              >
-                <h2 className="section-title mb-4">
-                  Get in <span className="text-primary">Touch</span>
-                </h2>
-                <p className="section-subtitle mb-5">
-                  Ready to experience the future of lab management? Contact us today.
+                <p className="hero-subtitle-home animate-slide-up-delay">
+                  Simplify lab management—patients, tests, and billing, all in one powerful platform.
                 </p>
-                <div className="contact-info-home">
-                  <p><strong>Email:</strong> <a href="mailto:contact@labmanager.com">contact@labmanager.com</a></p>
-                  <p><strong>Phone:</strong> <a href="tel:+1234567890">+123 456 7890</a></p>
-                  <p><strong>Address:</strong> 123 Lab Street, Science City, SC 12345</p>
+                <div className="hero-buttons animate-slide-up-delay-2">
+                  <Button 
+                    variant="primary" 
+                    size="lg" 
+                    className="me-3 mb-2 hero-btn animate-btn"
+                    onClick={() => setShowDemoModal(true)}
+                  >
+                    <Mail size={20} className="me-2" />
+                    Request Demo
+                  </Button>
+                  <Button 
+                    variant="success" 
+                    size="lg" 
+                    className="me-3 mb-2 hero-btn animate-btn"
+                    onClick={() => navigate('/register')}
+                  >
+                    <CreditCard size={20} className="me-2" />
+                    Register Now
+                  </Button>
+                  <Button 
+                    variant="outline-light" 
+                    size="lg" 
+                    className="mb-2 hero-btn animate-btn"
+                    href="#features"
+                  >
+                    Learn More
+                    <ArrowRight size={20} className="ms-2" />
+                  </Button>
                 </div>
-              </motion.div>
+              </div>
+            </Col>
+            <Col lg={6} className="hero-image-column">
+              <div className="hero-image-container animate-fade-in-delay">
+                <img 
+                  src="/src/assets/heroImage.png" 
+                  alt="Lab Management System" 
+                  className="hero-image animate-float"
+                />
+              </div>
             </Col>
           </Row>
         </Container>
-      </motion.section>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="features-section">
+        <Container>
+          <Row className="text-center mb-5">
+            <Col>
+              <h2 className="display-4 fw-bold mb-3">Why Choose LabManager?</h2>
+              <p className="lead text-muted">Built for modern laboratories with advanced features</p>
+            </Col>
+          </Row>
+          <Row className="g-4">
+            <Col md={4} sm={12}>
+              <Card className="feature-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <Users size={48} className="text-primary" />
+                  </div>
+                  <h4 className="feature-title">Multi-Tenant Architecture</h4>
+                  <p className="text-muted">
+                    Each lab gets its own isolated environment with custom branding, 
+                    settings, and data security.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4} sm={12}>
+              <Card className="feature-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <FlaskConical size={48} className="text-success" />
+                  </div>
+                  <h4 className="feature-title">Complete Lab Operations</h4>
+                  <p className="text-muted">
+                    Manage tests, cultures, antibiotics, patient data, and generate 
+                    professional medical reports.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4} sm={12}>
+              <Card className="feature-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <FileText size={48} className="text-info" />
+                  </div>
+                  <h4 className="feature-title">Professional Reports</h4>
+                  <p className="text-muted">
+                    Generate PDF reports with QR codes, barcodes, and digital signatures 
+                    for complete traceability.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4} sm={12}>
+              <Card className="feature-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <Shield size={48} className="text-warning" />
+                  </div>
+                  <h4 className="feature-title">Enterprise Security</h4>
+                  <p className="text-muted">
+                    Role-based access control, data encryption, and secure authentication 
+                    for your sensitive data.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4} sm={12}>
+              <Card className="feature-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <Zap size={48} className="text-danger" />
+                  </div>
+                  <h4 className="feature-title">Lightning Fast</h4>
+                  <p className="text-muted">
+                    Built with modern technologies for optimal performance and 
+                    responsive user experience.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4} sm={12}>
+              <Card className="feature-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <CheckCircle size={48} className="text-primary" />
+                  </div>
+                  <h4 className="feature-title">Easy Setup</h4>
+                  <p className="text-muted">
+                    Get started in minutes with our trial system. No complex 
+                    installation or configuration required.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+
+      {/* Workflow Section */}
+      <section className="workflow-section">
+        <Container>
+          <Row className="text-center mb-5">
+            <Col>
+              <h2 className="display-4 fw-bold mb-3">How It Works</h2>
+              <p className="lead text-muted">Simple and efficient workflow for your laboratory</p>
+            </Col>
+          </Row>
+          <Row className="g-4">
+            <Col md={3} sm={12}>
+              <Card className="workflow-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <div className="workflow-step">1</div>
+                  </div>
+                  <h4 className="workflow-title">Register & Setup</h4>
+                  <p className="text-muted">
+                    Create your lab account and customize your settings in minutes.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={3} sm={12}>
+              <Card className="workflow-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <div className="workflow-step">2</div>
+                  </div>
+                  <h4 className="workflow-title">Add Patients</h4>
+                  <p className="text-muted">
+                    Register patients and manage their information securely.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={3} sm={12}>
+              <Card className="workflow-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <div className="workflow-step">3</div>
+                  </div>
+                  <h4 className="workflow-title">Conduct Tests</h4>
+                  <p className="text-muted">
+                    Perform tests and record results with our comprehensive test management.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={3} sm={12}>
+              <Card className="workflow-card h-100 border-0 shadow-sm">
+                <Card.Body className="text-center p-4">
+                  <div className="mb-3">
+                    <div className="workflow-step">4</div>
+                  </div>
+                  <h4 className="workflow-title">Generate Reports</h4>
+                  <p className="text-muted">
+                    Create professional reports and invoices automatically.
+                  </p>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+
+      {/* Contact Section */}
+      <section className="contact-section-home">
+        <Container>
+          <Row className="text-center mb-5">
+            <Col>
+              <h2 className="display-4 fw-bold mb-3">Ready to Get Started?</h2>
+              <p className="lead text-muted">Join thousands of laboratories using LabManager</p>
+            </Col>
+          </Row>
+          <Row className="justify-content-center">
+            <Col md={8} className="text-center">
+              <div className="d-flex flex-column flex-md-row gap-3 justify-content-center">
+                <Button 
+                  variant="primary" 
+                  size="lg"
+                  className="luxury-btn"
+                  onClick={() => setShowDemoModal(true)}
+                >
+                  <Mail size={20} className="me-2" />
+                  Request Free Demo
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  size="lg"
+                  className="luxury-btn"
+                  onClick={() => navigate('/register')}
+                >
+                  <CreditCard size={20} className="me-2" />
+                  Start Free Trial
+                </Button>
+              </div>
+            </Col>
+          </Row>
+        </Container>
+      </section>
+
       {/* Footer */}
       <footer className="footer-home">
-        <p>&copy; {new Date().getFullYear()} LabManager. All rights reserved. &mdash; <a href="mailto:contact@labmanager.com">Contact</a></p>
+        <Container>
+          <Row>
+            <Col md={4} sm={12} className="mb-4 mb-md-0">
+              <h5>LabManager</h5>
+              <p>Complete laboratory management solution for modern healthcare facilities.</p>
+            </Col>
+            <Col md={4} sm={12} className="mb-4 mb-md-0">
+              <h5>Features</h5>
+              <ul className="list-unstyled">
+                <li>Patient Management</li>
+                <li>Test Management</li>
+                <li>Report Generation</li>
+                <li>Billing & Invoicing</li>
+              </ul>
+            </Col>
+            <Col md={4} sm={12}>
+              <h5>Contact</h5>
+              <p>Get in touch with our support team for any questions or assistance.</p>
+            </Col>
+          </Row>
+          <hr className="my-4" />
+          <div className="text-center">
+            <p>&copy; 2024 LabManager. All rights reserved.</p>
+          </div>
+        </Container>
       </footer>
+
+      {/* Demo Request Modal */}
+      <Modal show={showDemoModal} onHide={() => setShowDemoModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Request Demo Account</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {demoSuccess ? (
+            <div className="text-center">
+              <CheckCircle size={64} className="text-success mb-3" />
+              <h4>Demo Request Submitted!</h4>
+              <p className="text-muted">
+                We've received your demo request. You'll receive an email within 24 hours 
+                with your trial account credentials and setup instructions.
+              </p>
+              <Button variant="primary" onClick={() => setShowDemoModal(false)}>
+                Close
+              </Button>
+            </div>
+          ) : (
+            <Form onSubmit={handleDemoRequest}>
+              <Alert variant="info" className="mb-3">
+                <strong>Free Trial Includes:</strong>
+                <ul className="mb-0 mt-2">
+                  <li>14-day full access to all features</li>
+                  <li>Up to 100 patients and 500 tests</li>
+                  <li>Custom branding and settings</li>
+                  <li>Professional support during trial</li>
+                </ul>
+              </Alert>
+              
+              {demoError && (
+                <Alert variant="danger" onClose={() => setDemoError('')} dismissible>
+                  {demoError}
+                </Alert>
+              )}
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Email Address *</Form.Label>
+                    <Form.Control
+                      type="email"
+                      name="email"
+                      value={demoForm.email}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="your@email.com"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Lab Name *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="labName"
+                      value={demoForm.labName}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Your Lab Name"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Contact Person *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="contactPerson"
+                      value={demoForm.contactPerson}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Your Name"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Phone Number *</Form.Label>
+                    <Form.Control
+                      type="tel"
+                      name="phone"
+                      value={demoForm.phone}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="+1234567890"
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Region/Country</Form.Label>
+                <Form.Control
+                  type="text"
+                  name="region"
+                  value={demoForm.region}
+                  onChange={handleInputChange}
+                  placeholder="Your Region or Country"
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Additional Message</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  name="message"
+                  value={demoForm.message}
+                  onChange={handleInputChange}
+                  placeholder="Tell us about your lab's needs or any specific requirements..."
+                />
+              </Form.Group>
+            </Form>
+          )}
+        </Modal.Body>
+        {!demoSuccess && (
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowDemoModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={handleDemoRequest}
+              disabled={demoLoading}
+            >
+              {demoLoading ? 'Submitting...' : 'Request Demo'}
+            </Button>
+          </Modal.Footer>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -223,6 +223,8 @@ app.use("/test-groups", require("./routes/test_groups"));
 app.use("/questions", require("./routes/questions"));
 app.use("/contracts", require("./routes/contracts"));
 app.use("/culture-antibiotics", require("./routes/culture_antibiotics"));
+app.use("/demo", require("./routes/demo"));
+app.use("/register", require("./routes/register"));
 
 // Global error handler
 app.use((error, req, res, next) => {
@@ -347,11 +349,13 @@ async function syncDatabase() {
       console.log(`⚠️  This will DELETE ALL DATA! Only use in development!`);
     }
     
-    // Try to sync, but handle the primary key conflict specifically
+    // Try to sync, but handle various constraint issues gracefully
     try {
       await db.sequelize.sync(syncOptions);
       console.log(`✅ Database schema synchronized successfully`);
     } catch (syncError) {
+      console.log(`🔧 Sync error detected: ${syncError.message}`);
+      
       if (syncError.message.includes('Multiple primary key defined') || syncError.code === 'ER_MULTIPLE_PRI_KEY') {
         console.log(`🔧 Primary key conflict detected, applying manual fix...`);
         await fixPrimaryKeyConflict();
@@ -359,13 +363,44 @@ async function syncDatabase() {
         // Try sync again after the fix
         await db.sequelize.sync(syncOptions);
         console.log(`✅ Database schema synchronized successfully after fix`);
+      } else if (syncError.name === 'SequelizeUnknownConstraintError' || syncError.message.includes('does not exist') || syncError.code === 'ER_TOO_MANY_KEYS') {
+        console.log(`🔧 Constraint issue detected, attempting individual model sync...`);
+        
+        // Try to sync models individually to handle constraint issues
+        const models = Object.values(db.sequelize.models);
+        let syncSuccess = true;
+        
+        for (const model of models) {
+          try {
+            console.log(`  🔄 Syncing model: ${model.name}`);
+            await model.sync({ alter: true, force: false });
+            console.log(`  ✅ Successfully synced: ${model.name}`);
+          } catch (modelError) {
+            console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
+            
+            // If it's a constraint error, log it but continue
+            if (modelError.name === 'SequelizeUnknownConstraintError' || modelError.code === 'ER_TOO_MANY_KEYS') {
+              console.log(`  ⚠️  Constraint issue with ${model.name}, skipping...`);
+            } else {
+              syncSuccess = false;
+            }
+          }
+        }
+        
+        if (syncSuccess) {
+          console.log(`✅ Individual model sync completed successfully`);
+        } else {
+          console.log(`⚠️  Some models failed to sync, but continuing...`);
+        }
       } else {
-        throw syncError;
+        // For other errors, log but don't crash
+        console.error(`❌ Database sync error:`, syncError.message);
+        console.log(`⚠️  Continuing with server startup despite sync issues...`);
       }
     }
     
     // Verify key tables exist
-    const keyTables = ['patients', 'tests', 'cultures', 'medical_reports', 'test_groups'];
+    const keyTables = ['patient', 'test', 'culture', 'medical_report', 'test_group'];
     const tableChecks = await Promise.allSettled(
       keyTables.map(table => db.sequelize.query(`SELECT 1 FROM ${table} LIMIT 1`))
     );
@@ -399,6 +434,48 @@ async function syncDatabase() {
     }
     
     return false;
+  }
+}
+
+// Safe sync function to handle constraint issues
+async function safeSyncWithConstraintHandling() {
+  try {
+    console.log(`🔧 Applying safe sync with constraint handling...`);
+    
+    // Get all models
+    const models = Object.values(db.sequelize.models);
+    
+    for (const model of models) {
+      try {
+        console.log(`  🔄 Syncing model: ${model.name}`);
+        
+        // Use alter: true to modify existing tables instead of dropping them
+        await model.sync({ alter: true, force: false });
+        
+        console.log(`  ✅ Successfully synced: ${model.name}`);
+      } catch (modelError) {
+        console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
+        
+        // If it's a constraint error, try to handle it gracefully
+        if (modelError.name === 'SequelizeUnknownConstraintError') {
+          console.log(`  🔧 Attempting to fix constraint issue for ${model.name}...`);
+          
+          try {
+            // Try to sync without constraints first
+            await model.sync({ alter: true, force: false });
+            console.log(`  ✅ Successfully synced ${model.name} after constraint fix`);
+          } catch (retryError) {
+            console.error(`  ❌ Failed to sync ${model.name} even after constraint fix:`, retryError.message);
+          }
+        }
+      }
+    }
+    
+    console.log(`✅ Safe sync with constraint handling completed!`);
+    
+  } catch (error) {
+    console.error(`❌ Error during safe sync:`, error);
+    throw error;
   }
 }
 

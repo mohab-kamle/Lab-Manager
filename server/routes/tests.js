@@ -6,6 +6,7 @@ const { test, sequelize, Sequelize } = require("../models");
 const { sign } = require("jsonwebtoken");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 const db = require("../models");
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });

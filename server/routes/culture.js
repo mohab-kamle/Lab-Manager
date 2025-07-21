@@ -6,6 +6,7 @@ const { culture, sequelize, Sequelize, sample_type, categories_test_and_culture 
 const { sign } = require("jsonwebtoken");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 const multer = require('multer');
 const XLSX = require('xlsx');
 
@@ -27,7 +28,7 @@ const upload = multer({
 });
 
 // GET all cultures with sample type and category info
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
   try {
     const query = `
         SELECT c.id, c.name, c.price, c.sample_type_id, c.category_id,
@@ -35,7 +36,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         FROM culture c 
         LEFT JOIN sample_type s ON c.sample_type_id = s.id
         LEFT JOIN categories_test_and_culture ct ON c.category_id = ct.id
-        ORDER BY c.name;
+        ORDER BY c.name WHERE culture.lab_id = :labId;
     `;
     const cultureList = await sequelize.query(query, {
       type: Sequelize.QueryTypes.SELECT,
@@ -49,7 +50,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 });
 
 // GET sample types for dropdown
-router.get("/sample-types", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/sample-types", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
   try {
     const sampleTypes = await sample_type.findAll({
       attributes: ['id', 'type'],
@@ -63,7 +64,7 @@ router.get("/sample-types", authenticateUser, authorizeRoles("admin", "reception
 });
 
 // GET categories for dropdown
-router.get("/categories", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/categories", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
   try {
     const categories = await categories_test_and_culture.findAll({
       attributes: ['id', 'name'],
@@ -77,7 +78,7 @@ router.get("/categories", authenticateUser, authorizeRoles("admin", "receptionis
 });
 
 // POST - Create new culture
-router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { name, price, sample_type_id, category_id } = req.body;
     
@@ -90,7 +91,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
     }
 
     // Check if name already exists
-    const existingCulture = await culture.findOne({ where: { name: name.trim() } });
+    const existingCulture = await culture.findOne({ where: {  name: name.trim() , lab_id: req.tenant.lab_id } });
     if (existingCulture) {
       return res.status(400).json({ error: 'Culture with this name already exists' });
     }
@@ -113,7 +114,8 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
       name: name.trim(),
       price: price ? parseFloat(price) : 0.00, // Default to 0 if no price provided
       sample_type_id: sample_type_id || null,
-      category_id: parseInt(category_id)
+      category_id: parseInt(category_id),
+      lab_id: req.tenant.lab_id
     });
 
     res.status(201).json(newCulture);
@@ -124,7 +126,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
 });
 
 // PUT - Update culture
-router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, sample_type_id, category_id } = req.body;
@@ -144,9 +146,10 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
 
     // Check if name already exists (excluding current culture)
     const existingCulture = await culture.findOne({ 
-      where: { 
+      where: {  
         name: name.trim(),
-        id: { [Sequelize.Op.ne]: id }
+        id: { [Sequelize.Op.ne]: id },
+        lab_id: req.tenant.lab_id
       } 
     });
     if (existingCulture) {
@@ -182,7 +185,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
 });
 
 // DELETE - Delete culture
-router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.delete('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -243,7 +246,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
 
         // Check if culture already exists
         const existingCulture = await culture.findOne({ 
-          where: { name: name.toString().trim() } 
+          where: {  name: name.toString().trim() , lab_id: req.tenant.lab_id } 
         });
 
         if (existingCulture) {
@@ -253,7 +256,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
 
         // Find category by name
         const category = await categories_test_and_culture.findOne({
-          where: { name: categoryName.toString().trim() }
+          where: {  name: categoryName.toString().trim() , lab_id: req.tenant.lab_id }
         });
 
         if (!category) {
@@ -279,7 +282,8 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
           name: name.toString().trim(),
           price: price ? parseFloat(price) : null,
           sample_type_id: sampleTypeId,
-          category_id: category.id
+          category_id: category.id,
+          lab_id: req.tenant.lab_id
         });
 
         imported++;

@@ -3,6 +3,7 @@ const router = express.Router();
 const { branch, lab, employee } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
+const { tenantContext } = require('../middleware/tenantContext');
 const multer = require('multer');
 const XLSX = require('xlsx');
 
@@ -40,7 +41,7 @@ router.get('/', authenticateUser , authorizeRoles('admin'), async (req, res) => 
 });
 
 // Get a single branch
-router.get('/:id', authenticateUser, async (req, res) => {
+router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         const branchData = await branch.findOne({
             where: { id: req.params.id },
@@ -66,7 +67,7 @@ router.get('/:id', authenticateUser, async (req, res) => {
 });
 
 // Create a new branch
-router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
     try {
         const { name, lab_id, address, landline, branch_number, manager_id } = req.body;
 
@@ -96,7 +97,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
 });
 
 // Update a branch
-router.put('/:id', authenticateUser, async (req, res) => {
+router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         const { name, lab_id, address, landline, branch_number } = req.body;
 
@@ -147,7 +148,7 @@ router.put('/:id', authenticateUser, async (req, res) => {
 });
 
 // Delete a branch
-router.delete('/:id', authenticateUser, async (req, res) => {
+router.delete('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         // Verify that the branch belongs to a lab owned by the user
         const branchData = await branch.findOne({

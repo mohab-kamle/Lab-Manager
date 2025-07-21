@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
+const { tenantContext } = require('../middleware/tenantContext');
 const { Op, where } = require('sequelize');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
@@ -46,7 +47,7 @@ async function updateMedicalReportDates(medicalReportId, stage, transaction = nu
 }
 
 // Get all medical reports
-router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist', 'employee'), async (req, res) => {
+router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist', 'employee'), tenantContext, async (req, res) => {
     try {
         // First, get the count of test groups for each medical report
         const testGroupCounts = await db.medical_report_has_tg.findAll({
@@ -66,6 +67,9 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'receptioni
 
         // Then get all medical reports with their associations
         const reports = await db.medical_report.findAll({
+            where: {
+                lab_id: req.tenant.lab_id
+            },
             include: [
                 {
                     model: db.patient,

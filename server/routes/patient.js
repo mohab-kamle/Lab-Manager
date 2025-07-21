@@ -4,6 +4,7 @@ const { medical_report, patient, admin, chemist, phone, diseases, patient_has_di
 const { sign } = require("jsonwebtoken");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 const multer = require("multer");
 const xlsx = require("xlsx");
 require("dotenv").config();
@@ -18,7 +19,7 @@ const upload = multer({
 });
 
 // Function to generate random patient code (fits within INTEGER range)
-const generatePatientCode = async () => {
+const generatePatientCode = async (labId) => {
   let patientCode;
   let exists = true;
   
@@ -26,8 +27,13 @@ const generatePatientCode = async () => {
     // Generate random 9-digit number (fits within INTEGER range: max 2147483647)
     patientCode = Math.floor(100000000 + Math.random() * 900000000);
     
-    // Check if it exists
-    const existingPatient = await patient.findOne({ where: { patientcode: patientCode } });
+    // Check if it exists within the same lab
+    const existingPatient = await patient.findOne({ 
+      where: { 
+        patientcode: patientCode,
+        lab_id: labId 
+      } 
+    });
     exists = !!existingPatient;
   }
   
@@ -35,17 +41,26 @@ const generatePatientCode = async () => {
 };
 
 router.post("/login", async (req, res) => {
-  const { patientcode } = req.body;
+  const { patientcode, lab_id } = req.body;
 
   try {
-    const Patient = await patient.findOne({ where: { patientcode } });
+    const Patient = await patient.findOne({ 
+      where: { 
+        patientcode,
+        lab_id: lab_id 
+      } 
+    });
 
     if (!Patient) {
-      return res.status(401).json({ error: "Invalid patient code" });
+      return res.status(401).json({ error: "Invalid patient code or lab" });
     }
 
-    // ✅ Generate token with user details
-    const token = sign({ id: Patient.id, role: "patient" }, SECRET_KEY, {
+    // ✅ Generate token with user details including lab_id
+    const token = sign({ 
+      id: Patient.id, 
+      role: "patient",
+      lab_id: Patient.lab_id 
+    }, SECRET_KEY, {
       expiresIn: "3h",
     });
     phones = await phone.findAll({ where: { patient_id: Patient.id } });
@@ -65,6 +80,7 @@ router.get(
   "/reports",
   authenticateUser,
   authorizeRoles("patient"),
+  tenantContext,
   async (req, res) => {
     const userId = req.user.id; // Assuming this comes from JWT
 
@@ -95,13 +111,17 @@ router.get(
         AND TIMESTAMPDIFF(YEAR, p.birth_date, CURDATE()) BETWEEN tc.age_start AND tc.age_end
         AND (tc.gender = p.gender OR tc.gender IS NULL) -- Handling cases where gender might not be required
     WHERE
-    mr.patient_id = :userId;
+    mr.patient_id = :userId
+    AND mr.lab_id = :labId;
     `;
 
     try {
       // Use `sequelize.query` with `SELECT` to ensure array of results
       const results = await sequelize.query(query, {
-        replacements: { userId },
+        replacements: { 
+          userId,
+          labId: req.tenant.lab_id 
+        },
         type: sequelize.QueryTypes.SELECT, // Ensure the type is `SELECT`
       });
       // Process the query result to group by 'medical_report.id'
@@ -145,14 +165,20 @@ router.get(
   }
 );
 
-router.put("/update", authenticateUser, async (req, res) => {
+router.put("/update", authenticateUser, tenantContext, async (req, res) => {
   try {
     const { name, birth_date, gender, primaryPhone, secondaryPhone, email, address, nationality, passport_no, national_id } = req.body;
     const userId = req.user.id; // Assuming user ID is stored in the auth token
 
     const updatedUser = await patient.update(
       { name, birth_date, gender, email, address, nationality, passport_no, national_id },
-      { where: { id: userId }, returning: true }
+      { 
+        where: { 
+          id: userId,
+          lab_id: req.tenant.lab_id 
+        }, 
+        returning: true 
+      }
     );
 
     if (!updatedUser) return res.status(404).json({ success: false, message: "User not found" });
@@ -164,10 +190,13 @@ router.put("/update", authenticateUser, async (req, res) => {
 });
 
 // Get all patients
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee"), tenantContext, async (req, res) => {
     try {
         console.log('Fetching patients...');
         const patients = await patient.findAll({
+            where: {
+                lab_id: req.tenant.lab_id
+            },
             attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address'],
             include: [
                 {
@@ -197,7 +226,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 });
 
 // Create new patient
-router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const { 
             name, 
@@ -218,7 +247,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
         } = req.body;
 
         // Generate unique patient code
-        const patientcode = await generatePatientCode();
+        const patientcode = await generatePatientCode(req.tenant.lab_id);
 
         // Clean up empty strings to null
         const cleanNationalId = national_id && national_id.trim() !== '' ? national_id : null;
@@ -226,17 +255,27 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
         const cleanNationality = nationality && nationality.trim() !== '' ? nationality : null;
         const cleanAddress = address && address.trim() !== '' ? address : null;
 
-        // Check if national ID already exists (if provided)
+        // Check if national ID already exists (if provided) within the same lab
         if (cleanNationalId) {
-            const existingNationalId = await patient.findOne({ where: { national_id: cleanNationalId } });
+            const existingNationalId = await patient.findOne({ 
+                where: { 
+                    national_id: cleanNationalId,
+                    lab_id: req.tenant.lab_id 
+                } 
+            });
             if (existingNationalId) {
                 return res.status(400).json({ error: "National ID already exists" });
             }
         }
 
-        // Check if passport number already exists (if provided)
+        // Check if passport number already exists (if provided) within the same lab
         if (cleanPassportNo) {
-            const existingPassport = await patient.findOne({ where: { passport_no: cleanPassportNo } });
+            const existingPassport = await patient.findOne({ 
+                where: { 
+                    passport_no: cleanPassportNo,
+                    lab_id: req.tenant.lab_id 
+                } 
+            });
             if (existingPassport) {
                 return res.status(400).json({ error: "Passport number already exists" });
             }
@@ -256,7 +295,8 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
             total: total || 0.00,
             paid: paid || 0.00,
             due: due || 0.00,
-            contract_id: contract_id || null
+            contract_id: contract_id || null,
+            lab_id: req.tenant.lab_id
         });
 
         // Add phone numbers if provided

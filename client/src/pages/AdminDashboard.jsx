@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert } from 'react-bootstrap';
-import { Users, FlaskConical, FileText, Plus, Activity, UserPlus, ClipboardList, BarChart2, DollarSign, CreditCard, TrendingUp, Percent } from 'lucide-react';
+import { Users, FlaskConical, FileText, Plus, Activity, UserPlus, ClipboardList, BarChart2, DollarSign, CreditCard, TrendingUp, Percent, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -46,6 +46,12 @@ const AdminDashboard = () => {
       label: 'View Reports', 
       onClick: () => navigate('/admin/dashboard/medical-reports'),
       variant: 'outline-secondary'
+    },
+    { 
+      icon: <Settings size={20} />, 
+      label: 'Lab Management', 
+      onClick: () => navigate('/admin/lab-management'),
+      variant: 'outline-info'
     },
     { 
       icon: <Activity size={20} />, 

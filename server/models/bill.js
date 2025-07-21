@@ -7,6 +7,26 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true, // Changed to true to handle missing lab_id gracefully
+      references: {
+        model: 'lab',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
+    },
+    branch_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true, // Changed to true to handle missing branch_id gracefully
+      references: {
+        model: 'branch',
+        key: 'id'
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
+    },
     date: {
       type: DataTypes.DATE,
       allowNull: true
@@ -47,7 +67,9 @@ module.exports = function(sequelize, DataTypes) {
       references: {
         model: 'receptionist',
         key: 'id'
-      }
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
     },
     patient_id: {
       type: DataTypes.INTEGER,
@@ -55,7 +77,9 @@ module.exports = function(sequelize, DataTypes) {
       references: {
         model: 'patient',
         key: 'id'
-      }
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
     },
     status_id: {
       type: DataTypes.INTEGER,
@@ -63,7 +87,9 @@ module.exports = function(sequelize, DataTypes) {
       references: {
         model: 'status',
         key: 'id'
-      }
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL'
     }
   }, {
     sequelize,
@@ -97,6 +123,20 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "status_id" },
+        ]
+      },
+      {
+        name: "idx_bill_lab",
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" },
+        ]
+      },
+      {
+        name: "idx_bill_branch",
+        using: "BTREE",
+        fields: [
+          { name: "branch_id" },
         ]
       },
     ]
