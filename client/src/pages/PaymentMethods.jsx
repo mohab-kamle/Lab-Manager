@@ -184,7 +184,7 @@ const PaymentMethods = () => {
                 </div>
             ) : (
                 <button 
-                    className="mt-6 w-full flex items-center justify-center px-4 py-2 bg-blue-500   rounded shadow-lg"
+                    className="m-5 w-full flex items-center justify-center px-4 py-2 bg-blue-500   rounded shadow-lg"
                     onClick={() => setShowForm(true)}
                 >
                     <Plus size={18} className="mr-2" /> Add New Method
