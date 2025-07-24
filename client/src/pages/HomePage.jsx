@@ -25,7 +25,7 @@ import {
 import axios from "axios";
 import "../styles/HomePage.css";
 import { useNavigate } from "react-router-dom";
-
+import heroImage from '../assets/heroImage.png';
 const HomePage = () => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoForm, setDemoForm] = useState({
@@ -148,7 +148,7 @@ const HomePage = () => {
                 className="d-flex flex-column align-items-center justify-content-center"
               >
                 <img
-                  src="src/assets/heroImage.png"
+                  src={heroImage}
                   alt="Lab Management System"
                   className="hero-image animate-float image-fluid"
                 />
