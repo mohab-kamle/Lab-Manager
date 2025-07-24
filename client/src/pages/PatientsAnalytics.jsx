@@ -25,7 +25,7 @@ const PatientsAnalytics = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({});
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 

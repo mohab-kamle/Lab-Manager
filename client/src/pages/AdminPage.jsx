@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { Eye, EyeSlash, PersonFill, LockFill } from 'react-bootstrap-icons';
 
 const AdminPage = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const apiUrl = import.meta.env.VITE_API_URL;
     const [apiError, setApiError] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
