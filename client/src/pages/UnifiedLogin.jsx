@@ -119,7 +119,7 @@ const UnifiedLogin = () => {
       }
       // Redirect based on role
       const role = user.role || userType;
-      const prefix = labSubdomain || labPrefix;
+      const prefix =  labPrefix || labSubdomain;
       switch (role) {
         case "admin":
           navigate(`/${prefix}/admin/dashboard`);

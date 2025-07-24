@@ -20,6 +20,7 @@ import {
   Zap,
   Mail,
   CreditCard,
+  ArrowDown,
 } from "lucide-react";
 import axios from "axios";
 import "../styles/HomePage.css";
@@ -147,7 +148,7 @@ const HomePage = () => {
                 className="d-flex flex-column align-items-center justify-content-center"
               >
                 <img
-                  src="../assets/heroImage.png"
+                  src="src/assets/heroImage.png"
                   alt="Lab Management System"
                   className="hero-image animate-float image-fluid"
                 />
@@ -181,7 +182,7 @@ const HomePage = () => {
                     href="#features"
                   >
                     Learn More
-                    <ArrowRight size={20} className="ms-2" />
+                    <ArrowDown size={20} className="ms-2" />
                   </Button>
                 </div>
               </Col>

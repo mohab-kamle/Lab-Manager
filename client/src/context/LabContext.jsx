@@ -50,6 +50,11 @@ export const LabProvider = ({ children }) => {
         }
 
       let lab;
+      if (!labPath) {
+        setError('No lab identifier found. Please log in again or contact support.');
+        setLoading(false);
+        return;
+      }
       if (fetchById) {
         const labResponse = await axios.get(`${apiUrl}/labs/by-id/${labPath}`);
         lab = labResponse.data;
@@ -111,7 +116,11 @@ export const LabProvider = ({ children }) => {
   const updateLabSettings = async (settings) => {
     try {
       setError(null);
-      
+      if (!labInfo || !labInfo.id) {
+        const errorMsg = 'Lab information not loaded. Please wait until lab info is available.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
       const settingsArray = Object.entries(settings).map(([key, value]) => ({
         setting_key: key,
         setting_value: typeof value === 'object' ? JSON.stringify(value) : String(value),
