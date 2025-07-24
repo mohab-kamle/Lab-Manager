@@ -1,24 +1,49 @@
-import React, { useState } from 'react';
-import { Container, Row, Col, Button, Modal, Form, Alert, Card } from 'react-bootstrap';
-import { Play, ArrowRight, CheckCircle, Users, FlaskConical, FileText, Shield, Zap, Mail, CreditCard } from 'lucide-react';
-import axios from 'axios';
-import MainNavBar from '../components/MainNavBar';
-import './HomePage.css';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Button,
+  Modal,
+  Form,
+  Alert,
+  Card,
+} from "react-bootstrap";
+import {
+  Play,
+  ArrowRight,
+  CheckCircle,
+  Users,
+  FlaskConical,
+  FileText,
+  Shield,
+  Zap,
+  Mail,
+  CreditCard,
+} from "lucide-react";
+import axios from "axios";
+import "../styles/HomePage.css";
+import { useNavigate } from "react-router-dom";
 
 const HomePage = () => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoForm, setDemoForm] = useState({
-    email: '',
-    labName: '',
-    contactPerson: '',
-    phone: '',
-    region: '',
-    message: ''
+    email: "",
+    labName: "",
+    contactPerson: "",
+    phone: "",
+    region: "",
+    message: "",
   });
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoSuccess, setDemoSuccess] = useState(false);
-  const [demoError, setDemoError] = useState('');
+  const [demoError, setDemoError] = useState("");
+
+  // Footer modals state
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showRefund, setShowRefund] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
@@ -26,11 +51,16 @@ const HomePage = () => {
   const handleDemoRequest = async (e) => {
     e.preventDefault();
     setDemoLoading(true);
-    setDemoError('');
+    setDemoError("");
 
     // Basic validation
-    if (!demoForm.email || !demoForm.labName || !demoForm.contactPerson || !demoForm.phone) {
-      setDemoError('Please fill in all required fields');
+    if (
+      !demoForm.email ||
+      !demoForm.labName ||
+      !demoForm.contactPerson ||
+      !demoForm.phone
+    ) {
+      setDemoError("Please fill in all required fields");
       setDemoLoading(false);
       return;
     }
@@ -38,15 +68,15 @@ const HomePage = () => {
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(demoForm.email)) {
-      setDemoError('Please enter a valid email address');
+      setDemoError("Please enter a valid email address");
       setDemoLoading(false);
       return;
     }
 
     // Phone validation (basic)
     const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (!phoneRegex.test(demoForm.phone.replace(/\s/g, ''))) {
-      setDemoError('Please enter a valid phone number');
+    if (!phoneRegex.test(demoForm.phone.replace(/\s/g, ""))) {
+      setDemoError("Please enter a valid phone number");
       setDemoLoading(false);
       return;
     }
@@ -55,15 +85,18 @@ const HomePage = () => {
       const response = await axios.post(`${apiUrl}/demo/request`, demoForm);
       setDemoSuccess(true);
       setDemoForm({
-        email: '',
-        labName: '',
-        contactPerson: '',
-        phone: '',
-        region: '',
-        message: ''
+        email: "",
+        labName: "",
+        contactPerson: "",
+        phone: "",
+        region: "",
+        message: "",
       });
     } catch (error) {
-      setDemoError(error.response?.data?.error || 'Failed to submit demo request. Please try again.');
+      setDemoError(
+        error.response?.data?.error ||
+          "Failed to submit demo request. Please try again."
+      );
     } finally {
       setDemoLoading(false);
     }
@@ -72,69 +105,88 @@ const HomePage = () => {
   const handleInputChange = (e) => {
     setDemoForm({
       ...demoForm,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
   return (
     <div className="homepage-root">
-      {/* Main Navigation */}
-      <MainNavBar />
+      {/* Main Navigation handled globally; removed duplicate navbar */}
 
       {/* Hero Section */}
       <section className="hero-section-home-modern">
         <div className="hero-bg-animated"></div>
-        <Container fluid>
-          <Row className="align-items-center min-vh-100">
-            <Col lg={6} className="hero-text-column">
-              <div className="glass-card-hero animate-fade-in">
+        <Container
+          fluid
+          className="hero-text-column align-items-center min-vh-80"
+        >
+          <div className="glass-card-hero animate-fade-in">
+            <Row>
+              <Col
+                md={6}
+                className="d-flex flex-column align-items-start justify-content-start"
+              >
                 <h1 className="hero-title-home animate-slide-up">
-                  Complete <span className="gradient-text">Laboratory Management</span> System
+                  Complete{" "}
+                  <span className="gradient-text">Laboratory Management</span>{" "}
+                  System
                 </h1>
-                <p className="hero-subtitle-home animate-slide-up-delay">
-                  Simplify lab management—patients, tests, and billing, all in one powerful platform.
-                </p>
-                <div className="hero-buttons animate-slide-up-delay-2">
-                  <Button 
-                    variant="primary" 
-                    size="lg" 
-                    className="me-3 mb-2 hero-btn animate-btn"
+                <div className="hero-subtitle-home mt-1 d-flex flex-row flex-wrap gap-2 animate-slide-up-delay flex-column-md">
+                  <div className="d-flex align-items-center">
+                    Streamline patient care, testing, billing, and reporting all
+                    in one secure, modern platform.
+                  </div>
+                  <div className="d-flex align-items-center">
+                    LabManager empowers labs to work faster, smarter, and
+                    deliver results with confidence.
+                  </div>
+                </div>
+              </Col>
+              <Col
+                md={6}
+                className="d-flex flex-column align-items-center justify-content-center"
+              >
+                <img
+                  src="/src/assets/heroImage.png"
+                  alt="Lab Management System"
+                  className="hero-image animate-float image-fluid"
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col md={12} className="align-items-center">
+                <div className="hero-buttons d-flex justify-content-center flex-row animate-slide-up-delay-2 m-3">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="hero-btn animate-btn"
                     onClick={() => setShowDemoModal(true)}
                   >
                     <Mail size={20} className="me-2" />
                     Request Demo
                   </Button>
-                  <Button 
-                    variant="success" 
-                    size="lg" 
-                    className="me-3 mb-2 hero-btn animate-btn"
-                    onClick={() => navigate('/register')}
+                  <Button
+                    variant="success"
+                    size="lg"
+                    className="hero-btn animate-btn"
+                    onClick={() => navigate("/register")}
                   >
                     <CreditCard size={20} className="me-2" />
                     Register Now
                   </Button>
-                  <Button 
-                    variant="outline-light" 
-                    size="lg" 
-                    className="mb-2 hero-btn animate-btn"
+                  <Button
+                    variant="outline-light"
+                    size="lg"
+                    className="hero-btn animate-btn"
                     href="#features"
                   >
                     Learn More
                     <ArrowRight size={20} className="ms-2" />
                   </Button>
                 </div>
-              </div>
-            </Col>
-            <Col lg={6} className="hero-image-column">
-              <div className="hero-image-container animate-fade-in-delay">
-                <img 
-                  src="/src/assets/heroImage.png" 
-                  alt="Lab Management System" 
-                  className="hero-image animate-float"
-                />
-              </div>
-            </Col>
-          </Row>
+              </Col>
+            </Row>
+          </div>
         </Container>
       </section>
 
@@ -143,8 +195,12 @@ const HomePage = () => {
         <Container>
           <Row className="text-center mb-5">
             <Col>
-              <h2 className="display-4 fw-bold mb-3">Why Choose LabManager?</h2>
-              <p className="lead text-muted">Built for modern laboratories with advanced features</p>
+              <h2 className="display-4 fw-bold mb-3 mt-5">
+                Why Choose LabManager?
+              </h2>
+              <p className="lead text-muted">
+                Built for modern laboratories with advanced features
+              </p>
             </Col>
           </Row>
           <Row className="g-4">
@@ -156,8 +212,8 @@ const HomePage = () => {
                   </div>
                   <h4 className="feature-title">Multi-Tenant Architecture</h4>
                   <p className="text-muted">
-                    Each lab gets its own isolated environment with custom branding, 
-                    settings, and data security.
+                    Each lab gets its own isolated environment with custom
+                    branding, settings, and data security.
                   </p>
                 </Card.Body>
               </Card>
@@ -170,8 +226,8 @@ const HomePage = () => {
                   </div>
                   <h4 className="feature-title">Complete Lab Operations</h4>
                   <p className="text-muted">
-                    Manage tests, cultures, antibiotics, patient data, and generate 
-                    professional medical reports.
+                    Manage tests, cultures, antibiotics, patient data, and
+                    generate professional medical reports.
                   </p>
                 </Card.Body>
               </Card>
@@ -184,8 +240,8 @@ const HomePage = () => {
                   </div>
                   <h4 className="feature-title">Professional Reports</h4>
                   <p className="text-muted">
-                    Generate PDF reports with QR codes, barcodes, and digital signatures 
-                    for complete traceability.
+                    Generate PDF reports with QR codes, barcodes, and digital
+                    signatures for complete traceability.
                   </p>
                 </Card.Body>
               </Card>
@@ -198,8 +254,8 @@ const HomePage = () => {
                   </div>
                   <h4 className="feature-title">Enterprise Security</h4>
                   <p className="text-muted">
-                    Role-based access control, data encryption, and secure authentication 
-                    for your sensitive data.
+                    Role-based access control, data encryption, and secure
+                    authentication for your sensitive data.
                   </p>
                 </Card.Body>
               </Card>
@@ -212,7 +268,7 @@ const HomePage = () => {
                   </div>
                   <h4 className="feature-title">Lightning Fast</h4>
                   <p className="text-muted">
-                    Built with modern technologies for optimal performance and 
+                    Built with modern technologies for optimal performance and
                     responsive user experience.
                   </p>
                 </Card.Body>
@@ -226,7 +282,7 @@ const HomePage = () => {
                   </div>
                   <h4 className="feature-title">Easy Setup</h4>
                   <p className="text-muted">
-                    Get started in minutes with our trial system. No complex 
+                    Get started in minutes with our trial system. No complex
                     installation or configuration required.
                   </p>
                 </Card.Body>
@@ -237,12 +293,14 @@ const HomePage = () => {
       </section>
 
       {/* Workflow Section */}
-      <section className="workflow-section">
+      <section id="workflow" className="workflow-section">
         <Container>
           <Row className="text-center mb-5">
             <Col>
-              <h2 className="display-4 fw-bold mb-3">How It Works</h2>
-              <p className="lead text-muted">Simple and efficient workflow for your laboratory</p>
+              <h2 className="display-4 fw-bold mt-5">How It Works</h2>
+              <p className="lead text-muted">
+                Simple and efficient workflow for your laboratory
+              </p>
             </Col>
           </Row>
           <Row className="g-4">
@@ -254,7 +312,8 @@ const HomePage = () => {
                   </div>
                   <h4 className="workflow-title">Register & Setup</h4>
                   <p className="text-muted">
-                    Create your lab account and customize your settings in minutes.
+                    Create your lab account and customize your settings in
+                    minutes.
                   </p>
                 </Card.Body>
               </Card>
@@ -280,7 +339,8 @@ const HomePage = () => {
                   </div>
                   <h4 className="workflow-title">Conduct Tests</h4>
                   <p className="text-muted">
-                    Perform tests and record results with our comprehensive test management.
+                    Perform tests and record results with our comprehensive test
+                    management.
                   </p>
                 </Card.Body>
               </Card>
@@ -303,19 +363,21 @@ const HomePage = () => {
       </section>
 
       {/* Contact Section */}
-      <section className="contact-section-home">
+      <section id="contact" className="contact-section-home">
         <Container>
           <Row className="text-center mb-5">
             <Col>
               <h2 className="display-4 fw-bold mb-3">Ready to Get Started?</h2>
-              <p className="lead text-muted">Join thousands of laboratories using LabManager</p>
+              <p className="lead text-muted">
+                Join thousands of laboratories using LabManager
+              </p>
             </Col>
           </Row>
           <Row className="justify-content-center">
             <Col md={8} className="text-center">
               <div className="d-flex flex-column flex-md-row gap-3 justify-content-center">
-                <Button 
-                  variant="primary" 
+                <Button
+                  variant="primary"
                   size="lg"
                   className="luxury-btn"
                   onClick={() => setShowDemoModal(true)}
@@ -323,11 +385,11 @@ const HomePage = () => {
                   <Mail size={20} className="me-2" />
                   Request Free Demo
                 </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   size="lg"
                   className="luxury-btn"
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate("/register")}
                 >
                   <CreditCard size={20} className="me-2" />
                   Start Free Trial
@@ -344,7 +406,10 @@ const HomePage = () => {
           <Row>
             <Col md={4} sm={12} className="mb-4 mb-md-0">
               <h5>LabManager</h5>
-              <p>Complete laboratory management solution for modern healthcare facilities.</p>
+              <p>
+                Complete laboratory management solution for modern healthcare
+                facilities.
+              </p>
             </Col>
             <Col md={4} sm={12} className="mb-4 mb-md-0">
               <h5>Features</h5>
@@ -357,18 +422,270 @@ const HomePage = () => {
             </Col>
             <Col md={4} sm={12}>
               <h5>Contact</h5>
-              <p>Get in touch with our support team for any questions or assistance.</p>
+              <p>
+                Get in touch with our support team for any questions or
+                assistance.
+              </p>
             </Col>
           </Row>
           <hr className="my-4" />
           <div className="text-center">
-            <p>&copy; 2024 LabManager. All rights reserved.</p>
+            <div
+              className="footer-policy-links d-flex flex-wrap justify-content-center align-items-center gap-2 mb-2"
+              style={{ fontSize: "1rem" }}
+            >
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowTerms(true)}
+              >
+                Terms & Conditions
+              </Button>
+              <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowPrivacy(true)}
+              >
+                Privacy Policy
+              </Button>
+              <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowRefund(true)}
+              >
+                Refund Policy
+              </Button>
+              <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowAbout(true)}
+              >
+                About Us
+              </Button>
+            </div>
+            <p>
+              &copy; {new Date().getFullYear()} LabManager. All rights reserved.
+            </p>
           </div>
         </Container>
+
+        {/* Terms & Conditions Modal */}
+        <Modal
+          show={showTerms}
+          onHide={() => setShowTerms(false)}
+          centered
+          aria-labelledby="terms-modal-title"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title id="terms-modal-title">Terms & Conditions</Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ whiteSpace: "pre-line" }}>
+            <strong>
+              These Terms and Conditions ("Terms") govern your use of our
+              website and services. By accessing or using any part of the site,
+              you agree to be bound by these Terms.
+            </strong>
+            {"\n\n"}
+            <strong>1. Use of Website</strong>
+            {"\n"}
+            You agree to use our site for lawful purposes only and not to
+            violate any laws or regulations.
+            {"\n\n"}
+            <strong>2. Intellectual Property</strong>
+            {"\n"}
+            All content, trademarks, and data on this website are the property
+            of Lab Doctors Laboratories and are protected by applicable
+            intellectual property laws.
+            {"\n\n"}
+            <strong>3. User Accounts</strong>
+            {"\n"}
+            You are responsible for maintaining the confidentiality of your
+            account and password.
+            {"\n\n"}
+            <strong>4. Termination</strong>
+            {"\n"}
+            We reserve the right to suspend or terminate access to our services
+            at any time without notice.
+            {"\n\n"}
+            <strong>5. Modifications</strong>
+            {"\n"}
+            We may revise these Terms from time to time. Continued use of the
+            site means you accept any changes.
+            {"\n\n"}
+            Contact us at{" "}
+            <a href="mailto:techsupport@labdoctors-laboratories.com">
+              techsupport@labdoctors-laboratories.com
+            </a>{" "}
+            with any questions about these Terms.
+          </Modal.Body>
+        </Modal>
+
+        {/* Privacy Policy Modal */}
+        <Modal
+          show={showPrivacy}
+          onHide={() => setShowPrivacy(false)}
+          centered
+          aria-labelledby="privacy-modal-title"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title id="privacy-modal-title">Privacy Policy</Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ whiteSpace: "pre-line" }}>
+            <strong>
+              Your privacy is important to us. This Privacy Policy outlines how
+              we collect, use, and protect your information.
+            </strong>
+            {"\n\n"}
+            <strong>1. Data We Collect</strong>
+            {"\n"}
+            We collect personal data such as name, email, and medical records
+            only when you voluntarily provide it.
+            {"\n\n"}
+            <strong>2. How We Use Your Data</strong>
+            {"\n"}
+            We use your data to deliver services, improve our website, and
+            communicate with you securely.
+            {"\n\n"}
+            <strong>3. Sharing of Data</strong>
+            {"\n"}
+            We do not sell, rent, or share your personal information with third
+            parties, unless required by law.
+            {"\n\n"}
+            <strong>4. Security</strong>
+            {"\n"}
+            We implement industry-standard security measures to protect your
+            information.
+            {"\n\n"}
+            <strong>5. Cookies</strong>
+            {"\n"}
+            Our website may use cookies to enhance your user experience.
+            {"\n\n"}
+            <strong>6. Your Rights</strong>
+            {"\n"}
+            You have the right to request access, correction, or deletion of
+            your data.
+            {"\n\n"}
+            For inquiries, contact:{" "}
+            <a href="mailto:techsupport@labdoctors-laboratories.com">
+              techsupport@labdoctors-laboratories.com
+            </a>
+          </Modal.Body>
+        </Modal>
+
+        {/* Refund Policy Modal */}
+        <Modal
+          show={showRefund}
+          onHide={() => setShowRefund(false)}
+          centered
+          aria-labelledby="refund-modal-title"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title id="refund-modal-title">Refund Policy</Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ whiteSpace: "pre-line" }}>
+            <strong>
+              We aim for complete satisfaction. Here is our refund policy:
+            </strong>
+            {"\n\n"}
+            <strong>1. Services Rendered</strong>
+            {"\n"}
+            Due to the nature of medical and laboratory services, completed
+            services are generally non-refundable.
+            {"\n\n"}
+            <strong>2. Cancellation</strong>
+            {"\n"}
+            If a test is canceled before being processed, a full or partial
+            refund may be issued.
+            {"\n\n"}
+            <strong>3. Errors</strong>
+            {"\n"}
+            In case of technical errors or wrong billing, please contact us
+            within 7 days to review your case.
+            {"\n\n"}
+            <strong>4. Refund Timeline</strong>
+            {"\n"}
+            Approved refunds will be processed within 5-10 business days.
+            {"\n\n"}
+            Contact our support team at{" "}
+            <a href="mailto:techsupport@labdoctors-laboratories.com">
+              techsupport@labdoctors-laboratories.com
+            </a>{" "}
+            for assistance with refunds.
+          </Modal.Body>
+        </Modal>
+
+        {/* About Us Modal (Know Us) */}
+        <Modal
+          show={showAbout}
+          onHide={() => setShowAbout(false)}
+          centered
+          size="lg"
+          aria-labelledby="about-modal-title"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title id="about-modal-title">About Us</Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ whiteSpace: "pre-line" }}>
+            <strong>
+              At Lab Doctors Laboratories, we combine modern technology with
+              expert care to provide fast, accurate, and accessible lab testing
+              services.
+            </strong>
+            {"\n\n"}
+            <span role="img" aria-label="star">
+              🌟
+            </span>{" "}
+            <strong>Our Mission</strong>
+            {"\n"}
+            To make medical diagnostics simpler, faster, and more transparent
+            for everyone.
+            {"\n\n"}
+            <strong>💼 What We Offer</strong>
+            {"\n"}- A wide range of medical lab tests - Home sample collection -
+            Secure patient reports - Doctor-reviewed results
+            {"\n\n"}
+            <strong>
+              📍 Based in Egypt. Proudly serving thousands of patients with
+              excellence and care.
+            </strong>
+            {"\n\n"}
+            For support or inquiries, email:{" "}
+            <a href="mailto:techsupport@labdoctors-laboratories.com">
+              techsupport@labdoctors-laboratories.com
+            </a>
+          </Modal.Body>
+        </Modal>
       </footer>
 
       {/* Demo Request Modal */}
-      <Modal show={showDemoModal} onHide={() => setShowDemoModal(false)} size="lg">
+      <Modal
+        show={showDemoModal}
+        onHide={() => setShowDemoModal(false)}
+        size="lg"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Request Demo Account</Modal.Title>
         </Modal.Header>
@@ -378,8 +695,9 @@ const HomePage = () => {
               <CheckCircle size={64} className="text-success mb-3" />
               <h4>Demo Request Submitted!</h4>
               <p className="text-muted">
-                We've received your demo request. You'll receive an email within 24 hours 
-                with your trial account credentials and setup instructions.
+                We've received your demo request. You'll receive an email within
+                24 hours with your trial account credentials and setup
+                instructions.
               </p>
               <Button variant="primary" onClick={() => setShowDemoModal(false)}>
                 Close
@@ -396,9 +714,13 @@ const HomePage = () => {
                   <li>Professional support during trial</li>
                 </ul>
               </Alert>
-              
+
               {demoError && (
-                <Alert variant="danger" onClose={() => setDemoError('')} dismissible>
+                <Alert
+                  variant="danger"
+                  onClose={() => setDemoError("")}
+                  dismissible
+                >
                   {demoError}
                 </Alert>
               )}
@@ -491,12 +813,12 @@ const HomePage = () => {
             <Button variant="secondary" onClick={() => setShowDemoModal(false)}>
               Cancel
             </Button>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={handleDemoRequest}
               disabled={demoLoading}
             >
-              {demoLoading ? 'Submitting...' : 'Request Demo'}
+              {demoLoading ? "Submitting..." : "Request Demo"}
             </Button>
           </Modal.Footer>
         )}

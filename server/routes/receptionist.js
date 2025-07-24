@@ -3,26 +3,27 @@ const router = express.Router();
 const { receptionist, employee, sequelize } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 
 /**
  * GET /receptionists - Get all receptionists
  */
-router.get("/", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.get("/", authenticateUser , authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
-        const query = `
-            SELECT 
-                r.id,
-                r.no_of_bills,
-                e.name,
-                e.username,
-                e.role
-            FROM receptionist r
-            INNER JOIN employee e ON e.id = r.id
-            ORDER BY r.id ASC;
-        `;
-
-        const receptionists = await sequelize.query(query, {
-            type: sequelize.QueryTypes.SELECT
+        const receptionists = await employee.findAll({
+            where: {
+                lab_id: req.tenant.lab_id,
+                role: 'receptionist'
+            },
+            order: [['id', 'ASC']],
+            include: [
+                {
+                    model: receptionist,
+                    as: 'receptionist',
+                    attributes: ['id', 'no_of_bills']
+                }
+            ],
+            attributes: ['id', 'name', 'username', 'role']
         });
 
         res.json(receptionists);
@@ -35,7 +36,7 @@ router.get("/", authenticateUser, authorizeRoles("admin"), async (req, res) => {
 /**
  * GET /receptionists/:id - Get a specific receptionist
  */
-router.get("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.get("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -46,13 +47,13 @@ router.get("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
                 e.name,
                 e.username,
                 e.role
-            FROM receptionist r
-            INNER JOIN employee e ON e.id = r.id
-            WHERE r.id = :id;
+            FROM receptionist AS r
+            INNER JOIN employee AS e ON e.id = r.id
+            WHERE r.id = :id AND r.lab_id = :labId
         `;
 
         const [receptionistRecord] = await sequelize.query(query, {
-            replacements: { id },
+            replacements: { id, labId: req.tenant.lab_id },
             type: sequelize.QueryTypes.SELECT
         });
 
@@ -70,7 +71,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
 /**
  * POST /receptionists - Create a new receptionist
  */
-router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const { employee_id } = req.body;
@@ -80,13 +81,13 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
         }
 
         // Check if employee exists
-        const employeeExists = await employee.findByPk(employee_id);
+        const employeeExists = await employee.findOne({ where: { id: employee_id, lab_id: req.tenant.lab_id } });
         if (!employeeExists) {
             await transaction.rollback();
             return res.status(400).json({ error: "Employee not found" });
         }
 
-        // Check if already a receptionist
+        // Check if already a receptionist in this lab
         const existingReceptionist = await receptionist.findByPk(employee_id);
         if (existingReceptionist) {
             await transaction.rollback();
@@ -95,7 +96,8 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
 
         // Create new receptionist
         await receptionist.create({
-            id: employee_id,
+            id: employee_id, // This assumes employee.id is the primary key and receptionist.id is a foreign key to employee.id
+            lab_id: req.tenant.lab_id,
             no_of_bills: 0
         }, { transaction });
 
@@ -118,13 +120,13 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
                 e.name,
                 e.username,
                 e.role
-            FROM receptionist r
-            INNER JOIN employee e ON e.id = r.id
-            WHERE r.id = :id;
+            FROM receptionist AS r
+            INNER JOIN employee AS e ON e.id = r.id
+            WHERE r.id = :id AND r.lab_id = :labId
         `;
 
         const [newReceptionist] = await sequelize.query(query, {
-            replacements: { id: employee_id },
+            replacements: { id: employee_id, labId: req.tenant.lab_id },
             type: sequelize.QueryTypes.SELECT
         });
 
@@ -139,12 +141,12 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
 /**
  * PUT /receptionists/:id - Update a receptionist
  */
-router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
         const { no_of_bills } = req.body;
 
-        const receptionistRecord = await receptionist.findByPk(id);
+        const receptionistRecord = await receptionist.findOne({ where: { id, lab_id: req.tenant.lab_id } });
         if (!receptionistRecord) {
             return res.status(404).json({ error: "Receptionist not found" });
         }
@@ -160,13 +162,13 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
                 e.name,
                 e.username,
                 e.role
-            FROM receptionist r
-            INNER JOIN employee e ON e.id = r.id
-            WHERE r.id = :id;
+            FROM receptionist AS r
+            INNER JOIN employee AS e ON e.id = r.id
+            WHERE r.id = :id AND r.lab_id = :labId
         `;
 
         const [updatedReceptionist] = await sequelize.query(query, {
-            replacements: { id },
+            replacements: { id, labId: req.tenant.lab_id },
             type: sequelize.QueryTypes.SELECT
         });
 
@@ -180,12 +182,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
 /**
  * DELETE /receptionists/:id - Delete a receptionist
  */
-router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const { id } = req.params;
 
-        const receptionistRecord = await receptionist.findByPk(id);
+        const receptionistRecord = await receptionist.findOne({ where: { id, lab_id: req.tenant.lab_id } });
         if (!receptionistRecord) {
             await transaction.rollback();
             return res.status(404).json({ error: "Receptionist not found" });
@@ -194,7 +196,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res
         // Update employee role back to 'employee'
         await employee.update(
             { role: 'employee' },
-            { 
+            {
                 where: { id },
                 transaction
             }
@@ -219,14 +221,19 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res
 /**
  * POST /receptionists/:id/increment-bills - Increment the no_of_bills counter for a receptionist
  */
-router.post("/:id/increment-bills", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.post("/:id/increment-bills", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Find the receptionist
-        const receptionistRecord = await receptionist.findByPk(id);
+        // Find the receptionist and ensure the employee is in the correct lab
+        const emp = await employee.findOne({ where: { id, lab_id: req.tenant.lab_id, role: 'receptionist' } });
+        if (!emp) {
+            return res.status(404).json({ error: "Receptionist not found in this lab" });
+        }
+
+        const receptionistRecord = await receptionist.findOne({ where: { id } });
         if (!receptionistRecord) {
-            return res.status(404).json({ error: "Receptionist not found" });
+            return res.status(404).json({ error: "Receptionist record not found" });
         }
 
         // Increment the no_of_bills counter

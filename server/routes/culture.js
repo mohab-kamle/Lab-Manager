@@ -36,7 +36,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         FROM culture c 
         LEFT JOIN sample_type s ON c.sample_type_id = s.id
         LEFT JOIN categories_test_and_culture ct ON c.category_id = ct.id
-        ORDER BY c.name WHERE culture.lab_id = :labId;
+        ORDER BY c.name;
     `;
     const cultureList = await sequelize.query(query, {
       type: Sequelize.QueryTypes.SELECT,

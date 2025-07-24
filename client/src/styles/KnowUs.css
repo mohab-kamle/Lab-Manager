@@ -40,9 +40,10 @@
 }
 
 .hero-image {
-    max-width: 100%;
+    max-width: 75%;
     height: auto;
-    max-height: 400px;
+    max-height: 75%;
+    border-radius: 16px;
     filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.1));
     transition: transform 0.3s ease;
 }

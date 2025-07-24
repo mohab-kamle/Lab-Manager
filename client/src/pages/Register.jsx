@@ -3,7 +3,7 @@ import { Container, Form, Button, Alert, Card, Row, Col, ProgressBar } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle, CreditCard, Building, User, Mail, Phone, MapPin } from 'lucide-react';
 import axios from 'axios';
-import './Register.css';
+import '../styles/Register.css';
 
 const Register = () => {
   const [step, setStep] = useState(1);

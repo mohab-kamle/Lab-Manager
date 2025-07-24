@@ -3,14 +3,16 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const { Lab, Admin, LabSettings } = require('../models');
+const { lab, employee,admin, lab_settings, sequelize } = require('../models');
 
 // Configure email transporter (you'll need to set up your email service)
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // or your preferred email service
+var transporter = nodemailer.createTransport({
+  host: 'smtp.zoho.com',
+  port: 465,
+  secure: true, // use SSL
   auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-app-password'
+      user: process.env.EMAIL_USER || 'myzoho@zoho.com',
+      pass: process.env.EMAIL_PASS || 'myPassword'
   }
 });
 
@@ -37,14 +39,20 @@ router.post('/request', async (req, res) => {
     }
 
     // Check if lab name already exists
-    const existingLab = await Lab.findOne({ where: { name: labName } });
+    const existingLab = await lab.findOne({ where: { name: labName } });
     if (existingLab) {
       return res.status(400).json({ error: 'Lab name already exists. Please choose a different name.' });
     }
 
-    // Check if email already exists
-    const existingAdmin = await Admin.findOne({ where: { email } });
+    // Check if email already exists as admin
+    const existingAdmin = await employee.findOne({ where: { email, role: 'admin' } });
     if (existingAdmin) {
+      return res.status(400).json({ error: 'Email already registered. Please use a different email.' });
+    }
+
+    // Check if email already exists as employee
+    const existingEmployee = await employee.findOne({ where: { email, role: 'employee' } });
+    if (existingEmployee) {
       return res.status(400).json({ error: 'Email already registered. Please use a different email.' });
     }
 
@@ -55,37 +63,51 @@ router.post('/request', async (req, res) => {
       .replace(/^-|-$/g, '');
 
     // Check if lab path already exists
-    const existingLabPath = await Lab.findOne({ where: { path: labPath } });
+    const existingLabPath = await lab.findOne({ where: { path: labPath } });
     if (existingLabPath) {
       return res.status(400).json({ error: 'Lab name too similar to existing lab. Please choose a different name.' });
     }
-
+    // make a transaction to ensure that the lab is created and the admin user is created
+    await sequelize.transaction(async (t) => {
+      // Generate admin credentials
+    const adminPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    
     // Create trial lab
-    const trialLab = await Lab.create({
+    const trialLab = await lab.create({
       name: labName,
       path: labPath,
       contact_person: contactPerson,
       phone: phone,
       region: region || 'Unknown',
       subscription_status: 'trial',
-      trial_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+      trial_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       is_active: true
-    });
-
-    // Generate admin credentials
-    const adminPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
-
-    // Create admin user
-    const adminUser = await Admin.create({
+    }, { transaction: t });
+      
+    // Create admin user in the employee table with generated username
+    const username = email.split('@')[0];
+      const adminUser = await employee.create({
       lab_id: trialLab.id,
       name: contactPerson,
+      username: username,
       email: email,
       password: hashedPassword,
       role: 'admin',
       is_active: true
-    });
+    }, { transaction: t });
 
+    // Create admin user in the admin table containing the id only of the employee
+    const adminUserAdmin = await admin.create({
+      id: adminUser.id,
+    }, { transaction: t });
+    //update the owner and tenant of the lab
+      await trialLab.update({
+        owner: adminUser.name,
+        owner_id: adminUser.id,
+        tenant_id: trialLab.id // or use a UUID or labPath if you want
+      }, { transaction: t });
+      
     // Create default lab settings
     const defaultSettings = [
       { setting_key: 'lab_logo', setting_value: '', setting_type: 'string' },
@@ -110,10 +132,10 @@ router.post('/request', async (req, res) => {
     ];
 
     for (const setting of defaultSettings) {
-      await LabSettings.create({
+        await lab_settings.create({
         lab_id: trialLab.id,
         ...setting
-      });
+      }, { transaction: t });
     }
 
     // Send welcome email
@@ -130,7 +152,7 @@ router.post('/request', async (req, res) => {
           <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0;">Your Login Credentials:</h3>
             <p><strong>Lab URL:</strong> <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/lab/${labPath}">${process.env.FRONTEND_URL || 'http://localhost:5173'}/lab/${labPath}</a></p>
-            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>username:</strong> ${username}</p>
             <p><strong>Password:</strong> ${adminPassword}</p>
           </div>
 
@@ -173,11 +195,11 @@ router.post('/request', async (req, res) => {
         trial_expires_at: trialLab.trial_expires_at
       }
     });
-
+    });
   } catch (error) {
     console.error('Demo request error:', error);
     res.status(500).json({ error: 'Failed to create demo account. Please try again.' });
   }
 });
 
-module.exports = router; 
+module.exports = router;

@@ -19,7 +19,7 @@ import {
   ArrowUp
 } from 'lucide-react';
 import LabIcon from '../assets/LabIcon.png';
-import './KnowUs.css';
+import '../styles/KnowUs.css';
 
 const KnowUs = () => {
     const [showScrollTop, setShowScrollTop] = useState(false);
@@ -79,10 +79,10 @@ const KnowUs = () => {
     ];
 
     const stats = [
-        { number: "50+", label: "Years Experience", icon: <Award size={24} /> },
-        { number: "100K+", label: "Tests Performed", icon: <FlaskConical size={24} /> },
-        { number: "25+", label: "Medical Experts", icon: <Stethoscope size={24} /> },
-        { number: "99.9%", label: "Accuracy Rate", icon: <TrendingUp size={24} /> }
+        { number: "2025", label: "Year Launched", icon: <Award size={24} /> },
+        { number: "100+", label: "Labs Registered", icon: <FlaskConical size={24} /> },
+        { number: "10+", label: "Team Members", icon: <Stethoscope size={24} /> },
+        { number: "100%", label: "Cloud Based", icon: <TrendingUp size={24} /> }
     ];
 
     const services = [
@@ -210,31 +210,18 @@ const KnowUs = () => {
                                 viewport={{ once: true }}
                             >
                                 <h2 className="section-title mb-4">
-                                    About <span className="text-primary">Doctors Lab</span>
+                                    About <span className="text-primary">LabManager</span>
                                 </h2>
                                 <p className="section-text mb-4">
-                                    Founded in 1974, Doctors Lab has grown from a small local laboratory 
-                                    to one of the region's most trusted medical diagnostic centers. 
-                                    Our commitment to excellence, innovation, and patient care has 
-                                    remained unwavering throughout our journey.
+                                    LabManager is dedicated to providing reliable and efficient laboratory management solutions for healthcare providers and patients. Our focus is on delivering accurate results, innovative technology, and excellent service.
                                 </p>
                                 <p className="section-text mb-4">
-                                    We operate state-of-the-art facilities equipped with the latest 
-                                    medical technology, staffed by highly qualified professionals 
-                                    who are passionate about delivering accurate and timely results.
+                                    We utilize modern tools and a passionate team to help labs operate smoothly and deliver quality diagnostics every day.
                                 </p>
                                 <div className="about-features">
                                     <div className="feature-item">
-                                        <Target size={20} className="text-primary me-2" />
-                                        <span>ISO 15189 Accredited</span>
-                                    </div>
-                                    <div className="feature-item">
-                                        <Award size={20} className="text-primary me-2" />
-                                        <span>Multiple Industry Awards</span>
-                                    </div>
-                                    <div className="feature-item">
                                         <Users size={20} className="text-primary me-2" />
-                                        <span>Expert Medical Team</span>
+                                        <span>Professional Team</span>
                                     </div>
                                 </div>
                             </motion.div>
@@ -378,28 +365,9 @@ const KnowUs = () => {
                     </Row>
                     
                     <Row className="justify-content-center" id='getInTouch'>
-                        <Col lg={10}>
+                        <Col lg={8}>
                             <Row>
-                                <Col md={4} className="mb-4">
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 30 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.6, delay: 0.1 }}
-                                        viewport={{ once: true }}
-                                        className="text-center"
-                                    >
-                                        <div className="contact-icon mb-3">
-                                            <MapPin size={32} />
-                                        </div>
-                                        <h5>Visit Us</h5>
-                                        <p className="mb-0">
-                                            123 Medical Center Drive<br />
-                                            Healthcare District<br />
-                                            City, State 12345
-                                        </p>
-                                    </motion.div>
-                                </Col>
-                                <Col md={4} className="mb-4">
+                                <Col md={6} className="mb-4">
                                     <motion.div
                                         initial={{ opacity: 0, y: 30 }}
                                         whileInView={{ opacity: 1, y: 0 }}
@@ -418,7 +386,7 @@ const KnowUs = () => {
                                         </p>
                                     </motion.div>
                                 </Col>
-                                <Col md={4} className="mb-4">
+                                <Col md={6} className="mb-4">
                                     <motion.div
                                         initial={{ opacity: 0, y: 30 }}
                                         whileInView={{ opacity: 1, y: 0 }}

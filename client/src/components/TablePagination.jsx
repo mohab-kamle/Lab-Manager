@@ -32,7 +32,7 @@ const TablePagination = ({ currentPage, pageCount, handlePageChange }) => {
   }
 
   return (
-    <Pagination>
+    <Pagination className="m-3">
       <Pagination.Prev
         disabled={currentPage === 1}
         onClick={() => handlePageChange(currentPage - 1)}

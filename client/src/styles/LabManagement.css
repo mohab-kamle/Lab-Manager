@@ -12,7 +12,6 @@
 .page-title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #2c3e50;
   margin-bottom: 30px;
   text-align: center;
 }
@@ -535,7 +534,7 @@
 }
 
 /* Dark mode support */
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   .lab-management {
     background: #2c3e50;
   }
@@ -571,4 +570,4 @@
     background: #2c3e50;
     color: #ecf0f1;
   }
-} 
+}  */

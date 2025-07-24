@@ -117,34 +117,42 @@ const PaymentMethods = () => {
                 {paymentMethods.length === 0 ? (
                     <p className="text-gray-600 col-span-full text-center">No payment methods available.</p>
                 ) : (
-                    paymentMethods.map((method) => (
-                        <div key={method.id} className="flex flex-col items-center p-4 border rounded-lg shadow-lg bg-gray-50">
-                            {editingMethod === method.id ? (
-                                <input
-                                    type="text"
-                                    value={editName}
-                                    onChange={(e) => setEditName(e.target.value)}
-                                    className="w-full p-2 border rounded text-center"
-                                />
-                            ) : (
-                                <p className="text-lg font-medium text-center">{method.name}</p>
-                            )}
-                            {editingMethod === method.id ? (
-                                <div className="flex mt-2 space-x-2">
-                                    <button className="px-3 py-1 bg-green-500   rounded flex items-center" onClick={() => handleSaveEdit(method.id)} disabled={saving}>
-                                        {saving ? "Saving..." : <Check size={16} />}
+                    paymentMethods.map((method) => {
+                        const isGeneral = method.lab_id == null;
+                        return (
+                            <div key={method.id} className="flex flex-col items-center p-4 border rounded-lg shadow-lg bg-gray-50">
+                                {editingMethod === method.id ? (
+                                    <input
+                                        type="text"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        className="w-full p-2 border rounded text-center"
+                                        disabled={isGeneral}
+                                    />
+                                ) : (
+                                    <p className="text-lg font-medium text-center">{method.name}</p>
+                                )}
+                                {editingMethod === method.id ? (
+                                    <div className="flex mt-2 space-x-2">
+                                        <button className="px-3 py-1 bg-green-500 rounded flex items-center" onClick={() => handleSaveEdit(method.id)} disabled={saving || isGeneral}>
+                                            {saving ? "Saving..." : <Check size={16} />}
+                                        </button>
+                                        <button className="px-3 py-1 bg-gray-300 rounded flex items-center" onClick={() => setEditingMethod(null)}>
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button className={`mt-2 px-3 py-1 border rounded flex items-center ${isGeneral ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500'}`}
+                                            onClick={() => !isGeneral && handleEdit(method)}
+                                            disabled={isGeneral}
+                                    >
+                                        <Pencil size={16} className="mr-2" /> Edit
                                     </button>
-                                    <button className="px-3 py-1 bg-gray-300 rounded flex items-center" onClick={() => setEditingMethod(null)}>
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <button className="mt-2 px-3 py-1 border rounded flex items-center bg-blue-500  " onClick={() => handleEdit(method)}>
-                                    <Pencil size={16} className="mr-2" /> Edit
-                                </button>
-                            )}
-                        </div>
-                    ))
+                                )}
+                                {isGeneral && <span className="mt-1 text-xs text-gray-500">(Global method - uneditable)</span>}
+                            </div>
+                        );
+                    })
                 )}
             </div>
 

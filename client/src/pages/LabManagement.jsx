@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useLab } from '../context/LabContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -6,14 +7,14 @@ import {
   Palette, Settings, CreditCard, Upload, Eye, EyeOff, 
   Save, RefreshCw, AlertTriangle, CheckCircle, Info 
 } from 'lucide-react';
-import './LabManagement.css';
+import '../styles/LabManagement.css';
 
 const LabManagement = () => {
   const { 
     labInfo, 
     labSettings, 
     subscriptionStatus, 
-    updateLabBranding, 
+    updateLabInfo, 
     updateLabSettings,
     upgradeSubscription,
     isTrialExpired,
@@ -32,9 +33,9 @@ const LabManagement = () => {
     lab_address: '',
     lab_email: '',
     lab_website: '',
-    primary_color: '#007bff',
-    secondary_color: '#6c757d',
-    accent_color: '#28a745'
+    primary_color: labInfo?.primary_color || '#007bff',
+    secondary_color: labInfo?.secondary_color || '#6c757d',
+    accent_color: labInfo?.accent_color || '#28a745'
   });
 
   const [settings, setSettings] = useState({
@@ -75,6 +76,9 @@ const LabManagement = () => {
   });
 
   const [activeTab, setActiveTab] = useState('branding');
+
+  // Activity log state
+  const [activityLog, setActivityLog] = useState({ data: [], page: 1, pageSize: 20, total: 0, loading: false });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [logoPreview, setLogoPreview] = useState('');
@@ -91,7 +95,7 @@ const LabManagement = () => {
         lab_website: labInfo.lab_website || '',
         primary_color: labInfo.primary_color || '#007bff',
         secondary_color: labInfo.secondary_color || '#6c757d',
-        accent_color: '#28a745'
+        accent_color: labInfo.accent_color || '#28a745'
       });
       setLogoPreview(labInfo.logo_url || '');
     }
@@ -126,7 +130,7 @@ const LabManagement = () => {
     setLoading(true);
     
     try {
-      await updateLabBranding(branding);
+      await updateLabInfo(branding);
       toast.success('Lab branding updated successfully!');
     } catch (error) {
       toast.error('Failed to update branding: ' + error.message);
@@ -209,6 +213,37 @@ const LabManagement = () => {
     }));
   };
 
+  // Fetch activity log
+  const fetchActivityLog = async (page = 1) => {
+    if (!labInfo) return;
+    try {
+      setActivityLog(prev => ({ ...prev, loading: true }));
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await axios.get(`${apiUrl}/labs/${labInfo.id}/activity-log`, {
+        params: { page, pageSize: activityLog.pageSize },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setActivityLog({
+        data: response.data.data,
+        page: response.data.page,
+        pageSize: response.data.pageSize,
+        total: response.data.total,
+        loading: false
+      });
+    } catch (err) {
+      console.error('Failed to fetch activity log', err);
+      setActivityLog(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Refetch when tab changes or lab changes
+  useEffect(() => {
+    if (activeTab === 'activity') {
+      fetchActivityLog(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, labInfo?.id]);
+
   if (labLoading) {
     return (
       <div className="lab-management">
@@ -235,15 +270,15 @@ const LabManagement = () => {
                 {isSubscriptionActive() ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
                 Subscription Status
               </h3>
-              <p><strong>Status:</strong> {subscriptionStatus.subscription?.status}</p>
-              <p><strong>Duration:</strong> {subscriptionStatus.subscription?.duration}</p>
-              {subscriptionStatus.subscription?.end_date && (
-                <p><strong>End Date:</strong> {new Date(subscriptionStatus.subscription.end_date).toLocaleDateString()}</p>
+              <p><strong>Status:</strong> {subscriptionStatus.status || subscriptionStatus.trial_status}</p>
+              <p><strong>Duration:</strong> {subscriptionStatus.subscriptionDuration || subscriptionStatus.trialDuration}</p>
+              {subscriptionStatus.subscriptionEndDate && (
+                <p><strong>End Date:</strong> {new Date(subscriptionStatus.subscriptionEndDate).toLocaleDateString()}</p>
               )}
               {isTrialExpired() && (
                 <p className="trial-warning">⚠️ Trial expired. Please upgrade to continue.</p>
               )}
-              {!isTrialExpired() && subscriptionStatus.subscription?.status === 'trial' && (
+              {!isTrialExpired() && subscriptionStatus.status === 'trial' && (
                 <p className="trial-info">🕒 {getTrialDaysRemaining()} days remaining in trial</p>
               )}
             </div>
@@ -272,6 +307,13 @@ const LabManagement = () => {
           >
             <CreditCard size={20} />
             Subscription
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
+            onClick={() => setActiveTab('activity')}
+          >
+            <Eye size={20} />
+            Activity Log
           </button>
         </div>
 
@@ -691,6 +733,65 @@ const LabManagement = () => {
           )}
 
           {/* Subscription Tab */}
+          {activeTab === 'activity' && (
+            <div className="tab-panel">
+              <h2>Recent Activity</h2>
+              {activityLog.loading ? (
+                <p>Loading...</p>
+              ) : (
+                <>
+                  <div className="table-responsive">
+                    <table className="table table-striped table-hover">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>User</th>
+                          <th>Role</th>
+                          <th>Action</th>
+                          <th>Entity</th>
+                          <th>Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activityLog.data.length === 0 && (
+                          <tr><td colSpan="6" className="text-center">No activity found.</td></tr>
+                        )}
+                        {activityLog.data.map((log) => (
+                          <tr key={log.id}>
+                            <td>{new Date(log.created_at).toLocaleString()}</td>
+                            <td>{log.user_id}</td>
+                            <td>{log.user_role}</td>
+                            <td>{log.action}</td>
+                            <td>{log.entity_type}</td>
+                            <td>{log.details}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Pagination */}
+                  {activityLog.total > activityLog.pageSize && (
+                    <div className="d-flex justify-content-center align-items-center gap-2 mt-2">
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        disabled={activityLog.page === 1}
+                        onClick={() => fetchActivityLog(activityLog.page - 1)}
+                      >Prev</button>
+                      <span>
+                        Page {activityLog.page} of {Math.ceil(activityLog.total / activityLog.pageSize)}
+                      </span>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        disabled={activityLog.page === Math.ceil(activityLog.total / activityLog.pageSize)}
+                        onClick={() => fetchActivityLog(activityLog.page + 1)}
+                      >Next</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {activeTab === 'subscription' && (
             <div className="tab-panel">
               <h2>Subscription Management</h2>
@@ -791,4 +892,4 @@ const LabManagement = () => {
   );
 };
 
-export default LabManagement; 
+export default LabManagement;

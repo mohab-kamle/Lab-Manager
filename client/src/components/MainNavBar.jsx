@@ -3,9 +3,11 @@ import { Navbar, Nav, Container, NavbarText, Button } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Moon, Sun } from "lucide-react";
+import useLabPrefix from '../hooks/useLabPrefix';
 
 const MainNavBar = () => {
   const { user, loading, error, refreshUser, logout } = useAuth();
+  const prefix = useLabPrefix();
   const [expanded, setExpanded] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -39,12 +41,12 @@ const MainNavBar = () => {
         background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
         boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
         border: 'none',
-        zIndex: 1050 // Ensure the navbar sits above page content (e.g., UnifiedLogin background)
+        zIndex: 1050,
       }}
     >
       <Container>
         <Navbar.Brand as={Link} to="/" onClick={() => setExpanded(false)}>
-          Doctors Lab
+          Lab Manager
         </Navbar.Brand>
         <Navbar.Toggle 
           aria-controls="basic-navbar-nav" 
@@ -53,27 +55,27 @@ const MainNavBar = () => {
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
             {user?.role === "admin" ? (
-              <Nav.Link as={Link} to="/admin/dashboard" onClick={() => setExpanded(false)}>
+              <Nav.Link as={Link} to={`${prefix}/admin/dashboard`} onClick={() => setExpanded(false)}>
                 Admin Dashboard
               </Nav.Link>
             ) : user?.role === "receptionist" ? (
-              <Nav.Link as={Link} to="/receptionist/dashboard" onClick={() => setExpanded(false)}>
+              <Nav.Link as={Link} to={`${prefix}/receptionist/dashboard`} onClick={() => setExpanded(false)}>
                 Receptionist Dashboard
               </Nav.Link>
             ) : user?.role === "chemist" ? (
-              <Nav.Link as={Link} to="/chemist/dashboard" onClick={() => setExpanded(false)}>
+              <Nav.Link as={Link} to={`${prefix}/chemist/dashboard`} onClick={() => setExpanded(false)}>
                 Chemist Dashboard
               </Nav.Link>
             ) : user?.role === "doctor" ? (
-              <Nav.Link as={Link} to="/doctor/dashboard" onClick={() => setExpanded(false)}>
+              <Nav.Link as={Link} to={`${prefix}/doctor/dashboard`} onClick={() => setExpanded(false)}>
                 Doctor Dashboard
               </Nav.Link>
             ) : user?.role === "employee" ? (
-              <Nav.Link as={Link} to="/employee/dashboard" onClick={() => setExpanded(false)}>
+              <Nav.Link as={Link} to={`${prefix}/employee/dashboard`} onClick={() => setExpanded(false)}>
                 Employee Dashboard
               </Nav.Link>
             ) : user?.role === "patient" ? (
-              <Nav.Link as={Link} to="/patient/dashboard" onClick={() => setExpanded(false)}>
+              <Nav.Link as={Link} to={`${prefix}/patient/dashboard`} onClick={() => setExpanded(false)}>
                 Patient Dashboard
               </Nav.Link>
             ) : null}

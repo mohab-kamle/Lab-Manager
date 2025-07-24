@@ -3,6 +3,12 @@ import axios from 'axios';
 
 const LabContext = createContext();
 
+/**
+ * Hook to access the current lab context, which contains information about the current lab such as its name, id, and settings.
+ * Must be used within a LabProvider.
+ * @returns {Object} The lab context object
+ * @throws {Error} If used outside of a LabProvider
+ */
 export const useLab = () => {
   const context = useContext(LabContext);
   if (!context) {
@@ -26,17 +32,31 @@ export const LabProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Get lab ID from URL path (e.g., /lab/labname)
-      const pathSegments = window.location.pathname.split('/');
-      const labPath = pathSegments[2]; // /lab/labname -> labname
+      //use lab_id from JWT token (for authenticated dashboards)
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+          const parseJwt = (t) => {
+            try {
+              return JSON.parse(atob(t.split('.')[1]));
+            } catch (e) {
+              return null;
+            }
+          };
+          const payload = parseJwt(storedToken);
+          if (payload?.lab_id) {
+            var labPath = payload.lab_id; // we will treat as ID
+            var fetchById = true;
+          }
+        }
 
-      if (!labPath) {
-        throw new Error('Lab path not found in URL');
+      let lab;
+      if (fetchById) {
+        const labResponse = await axios.get(`${apiUrl}/labs/by-id/${labPath}`);
+        lab = labResponse.data;
+      } else {
+        const labResponse = await axios.get(`${apiUrl}/labs/by-path/${labPath}`);
+        lab = labResponse.data;
       }
-
-      // Fetch lab info
-      const labResponse = await axios.get(`${apiUrl}/labs/by-path/${labPath}`);
-      const lab = labResponse.data;
 
       // Fetch lab settings
       const settingsResponse = await axios.get(`${apiUrl}/labs/${lab.id}/settings`);
@@ -74,7 +94,9 @@ export const LabProvider = ({ children }) => {
       setSubscriptionStatus({
         status: lab.subscription_status,
         trialExpiresAt: lab.trial_expires_at,
-        isTrialExpired: lab.trial_expires_at ? new Date(lab.trial_expires_at) < new Date() : false
+        isTrialExpired: lab.trial_expires_at ? new Date(lab.trial_expires_at) < new Date() : false,
+        subscriptionDuration: lab.subscription_duration,
+        subscriptionEndDate: lab.subscription_end_date,
       });
 
     } catch (err) {
@@ -156,6 +178,31 @@ export const LabProvider = ({ children }) => {
     return Math.max(0, diffDays);
   };
 
+  // Determine if subscription is currently active
+  const isSubscriptionActive = () => {
+    if (!subscriptionStatus) return false;
+    return subscriptionStatus.status === 'active';
+  };
+
+  // Alias helpers expected by components
+  const getTrialDaysRemaining = () => getTrialDaysLeft();
+  const isOnTrial = () => isInTrial();
+
+  // Upgrade subscription (stub / basic implementation)
+  const upgradeSubscription = async ({ duration, amount }) => {
+    if (!labInfo) throw new Error('Lab information not loaded');
+    try {
+      const response = await axios.post(`${apiUrl}/labs/${labInfo.id}/subscription/upgrade`, { duration, amount });
+      // Refresh local state after upgrade
+      await fetchLabInfo();
+      return { success: true, data: response.data };
+    } catch (err) {
+      console.error('Error upgrading subscription:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to upgrade subscription';
+      throw new Error(errorMsg);
+    }
+  };
+
   // Refresh lab data
   const refreshLabData = () => {
     fetchLabInfo();
@@ -182,6 +229,10 @@ export const LabProvider = ({ children }) => {
     isTrialExpired,
     isInTrial,
     getTrialDaysLeft,
+    getTrialDaysRemaining,
+    upgradeSubscription,
+    isSubscriptionActive,
+    isOnTrial,
     refreshLabData,
     
     // Computed values
@@ -191,7 +242,7 @@ export const LabProvider = ({ children }) => {
     isActive: labInfo?.is_active,
     
     // Common settings with defaults
-    primaryColor: getSetting('primary_color', '#007bff'),
+    primaryColor: getSetting('primary_color', '#1d498e'),
     secondaryColor: getSetting('secondary_color', '#6c757d'),
     labLogo: getSetting('lab_logo', ''),
     labAddress: getSetting('lab_address', ''),

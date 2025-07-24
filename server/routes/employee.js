@@ -38,7 +38,7 @@ router.post("/login", loginLimiter, async (req, res) => {
           } 
         });
       } else {
-        // If no lab_id provided, find the employee (for backward compatibility)
+        // If no lab_id provided, find the employee 
         emp = await employee.findOne({ 
           where: { username: username } 
         });
@@ -74,7 +74,10 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
     try {
         const employees = await employee.findAll({
             attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
-            order: [['name', 'ASC']]
+            order: [['name', 'ASC']],
+            where: {
+                lab_id: req.tenant.lab_id
+            }
         });
         res.json(employees);
     } catch (error) {
@@ -88,7 +91,10 @@ router.get("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
     try {
         const { id } = req.params;
         const emp = await employee.findByPk(id, {
-            attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role']
+            attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
+            where: {
+                lab_id: req.tenant.lab_id
+            }
         });
         
         if (!emp) {
@@ -115,12 +121,13 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
             national_id, 
             nationality, 
             passport_no, 
-            role 
+            role,
+            branch_id
         } = req.body;
 
         // Validate required fields
-        if (!name || !username || !password || !role) {
-            return res.status(400).json({ error: "Name, username, password, and role are required" });
+        if (!name || !username || !password || !role || !branch_id) {
+            return res.status(400).json({ error: "Name, username, password, role, and branch are required" });
         }
 
         // Validate role
@@ -160,6 +167,12 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
             passport_no: passport_no || null,
             role,
             lab_id: req.tenant.lab_id
+        });
+
+        // Assign employee to branch
+        await sequelize.models.branch_has_employee.create({
+            branch_id: branch_id,
+            employee_id: newEmployee.id
         });
 
         // Create role-specific record based on the role
@@ -228,7 +241,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             national_id, 
             nationality, 
             passport_no, 
-            role 
+            role,
+            branch_id
         } = req.body;
 
         // Find employee
@@ -283,6 +297,13 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
         // Update employee
         await emp.update(updateData);
 
+        // Update branch assignment if branch_id is provided
+        if (branch_id) {
+            const BranchHasEmployee = sequelize.models.branch_has_employee;
+            await BranchHasEmployee.destroy({ where: { employee_id: emp.id } });
+            await BranchHasEmployee.create({ branch_id: branch_id, employee_id: emp.id });
+        }
+
         // Handle role changes - delete old role record and create new one
         if (role && role !== emp.role) {
             // Delete old role record
@@ -297,15 +318,15 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
                 case 'receptionist':
                     await sequelize.models.receptionist.destroy({ where: { id: emp.id } });
                     break;
-                            case 'doctor':
-                // Find and delete doctor record by matching employee data
-                await sequelize.models.doctor.destroy({ 
-                    where: { 
-                        name: emp.name,
-                        national_id: emp.national_id 
-                    } 
-                });
-                break;
+                case 'doctor':
+                    // Find and delete doctor record by matching employee data
+                    await sequelize.models.doctor.destroy({ 
+                        where: { 
+                            name: emp.name,
+                            national_id: emp.national_id 
+                        } 
+                    });
+                    break;
             }
 
             // Create new role record

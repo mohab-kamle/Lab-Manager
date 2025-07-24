@@ -1,8 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const { lab, LabSettings, admin, employee } = require('../models');
+const { lab, lab_settings: LabSettings, lab_activity_log: LabActivityLog, employee } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
+
+// List labs (optionally filter by owner_id)
+router.get('/', authenticateUser, async (req, res) => {
+  try {
+    const where = {};
+    // Restrict to labs owned by the user unless they have a super role
+    if (req.user && req.user.role !== 'super') {
+      where.owner_id = req.user.id;
+    }
+    const labsList = await lab.findAll({ where, order: [['name', 'ASC']] });
+    res.json(labsList);
+  } catch (err) {
+    console.error('Error fetching labs list:', err);
+    res.status(500).json({ error: 'Failed to fetch labs' });
+  }
+});
 
 // Get lab by path (for multi-tenant routing)
 router.get('/by-path/:path', async (req, res) => {
@@ -30,6 +46,34 @@ router.get('/by-path/:path', async (req, res) => {
     res.json(labResult);
   } catch (error) {
     console.error('Error fetching lab by path:', error);
+    res.status(500).json({ error: 'Failed to fetch lab information' });
+  }
+});
+
+// Get lab by numeric ID (for authenticated dashboard usage)
+router.get('/by-id/:labId', async (req, res) => {
+  try {
+    const { labId } = req.params;
+
+    const labResult = await lab.findByPk(labId, {
+      include: [
+        {
+          model: employee,
+          as: 'employees',
+          where: { role: 'admin' },
+          attributes: ['id', 'name', 'email', 'role'],
+          required: false
+        }
+      ]
+    });
+
+    if (!labResult) {
+      return res.status(404).json({ error: 'Lab not found' });
+    }
+
+    res.json(labResult);
+  } catch (error) {
+    console.error('Error fetching lab by ID:', error);
     res.status(500).json({ error: 'Failed to fetch lab information' });
   }
 });
@@ -213,6 +257,38 @@ router.get('/:labId/stats', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error('Error fetching lab stats:', error);
     res.status(500).json({ error: 'Failed to fetch lab statistics' });
+  }
+});
+
+// Get activity log
+router.get('/:labId/activity-log', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+  try {
+    const { labId } = req.params;
+    const { page = 1, pageSize = 20 } = req.query;
+
+    // Verify user belongs to this lab
+    if (req.user.lab_id !== parseInt(labId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const offset = (page - 1) * pageSize;
+
+    const { count, rows } = await LabActivityLog.findAndCountAll({
+      where: { lab_id: labId },
+      order: [['created_at', 'DESC']],
+      offset: Number(offset),
+      limit: Number(pageSize)
+    });
+
+    res.json({
+      data: rows,
+      page: Number(page),
+      pageSize: Number(pageSize),
+      total: count
+    });
+  } catch (error) {
+    console.error('Error fetching activity log:', error);
+    res.status(500).json({ error: 'Failed to fetch activity log' });
   }
 });
 

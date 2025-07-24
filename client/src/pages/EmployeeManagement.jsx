@@ -37,8 +37,10 @@ const EmployeeManagement = () => {
     national_id: "",
     nationality: "",
     passport_no: "",
-    role: ""
+    role: "",
+    branch_id: ""
   });
+  const [branches, setBranches] = useState([]);
   const [formErrors, setFormErrors] = useState({});
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -47,17 +49,21 @@ const EmployeeManagement = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const [employeesRes, rolesRes] = await Promise.all([
+        const [employeesRes, rolesRes, branchesRes] = await Promise.all([
           axios.get(`${apiUrl}/emp`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
           axios.get(`${apiUrl}/emp/roles/available`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          axios.get(`${apiUrl}/branches`, {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
 
         setEmployees(employeesRes.data);
         setRoles(rolesRes.data);
+        setBranches(branchesRes.data);
 
         // Set up table headers
         const headers = [
@@ -68,7 +74,8 @@ const EmployeeManagement = () => {
           { field: 'gender', label: 'Gender', sortable: true },
           { field: 'birth_date', label: 'Birth Date', sortable: true },
           { field: 'national_id', label: 'National ID', sortable: true },
-          { field: 'nationality', label: 'Nationality', sortable: true }
+          { field: 'nationality', label: 'Nationality', sortable: true },
+          { field: 'branch', label: 'Branch', sortable: false }
         ];
 
         setTableHeaders(headers);
@@ -239,12 +246,11 @@ const EmployeeManagement = () => {
 
   const validateForm = (employee) => {
     const errors = {};
-    
     if (!employee.name) errors.name = 'Name is required';
     if (!employee.username) errors.username = 'Username is required';
     if (!editingEmployee && !employee.password) errors.password = 'Password is required';
     if (!employee.role) errors.role = 'Role is required';
-
+    if (!employee.branch_id) errors.branch_id = 'Branch is required';
     // Email validation
     if (employee.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -252,23 +258,17 @@ const EmployeeManagement = () => {
         errors.email = 'Invalid email format';
       }
     }
-
-    // Username validation
     if (employee.username && employee.username.length < 3) {
       errors.username = 'Username must be at least 3 characters';
     }
-
-    // Password validation (for new employees)
     if (!editingEmployee && employee.password && employee.password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
     }
-
     return errors;
   };
 
-  const formatCellData = (value, field) => {
+  const formatCellData = (value, field, rowData) => {
     if (value === null || value === undefined) return '-';
-    
     switch (field) {
       case 'birth_date':
         return value ? new Date(value).toLocaleDateString() : '-';
@@ -288,6 +288,10 @@ const EmployeeManagement = () => {
             {value?.charAt(0).toUpperCase() + value?.slice(1)}
           </Badge>
         );
+      case 'branch':
+        if (!rowData) return '-';
+        const branch = branches.find(b => b.id === rowData.branch_id);
+        return branch ? branch.name : '-';
       default:
         return String(value || '-');
     }
@@ -304,7 +308,8 @@ const EmployeeManagement = () => {
       national_id: "",
       nationality: "",
       passport_no: "",
-      role: ""
+      role: "",
+      branch_id: ""
     });
     setFormErrors({});
   };
@@ -422,6 +427,30 @@ const EmployeeManagement = () => {
                       />
                       <Form.Control.Feedback type="invalid">
                         {formErrors.username}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Branch *</Form.Label>
+                      <Form.Select
+                        value={employee.branch_id}
+                        onChange={e => {
+                          setEmployee({ ...employee, branch_id: e.target.value });
+                          if (formErrors.branch_id) setFormErrors({ ...formErrors, branch_id: null });
+                        }}
+                        isInvalid={!!formErrors.branch_id}
+                        required
+                      >
+                        <option value="">Select Branch</option>
+                        {branches.map(branch => (
+                          <option key={branch.id} value={branch.id}>{branch.name}</option>
+                        ))}
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.branch_id}
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>

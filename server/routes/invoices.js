@@ -183,7 +183,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
             total,
             receptionist_id,
             patient_id,
-            status_id
+            status_id,
+            lab_id: req.user.lab_id || patientExists.lab_id,
+            branch_id: patientExists.branch_id || null
         }, { transaction });
 
         // Update patient's financial information
@@ -314,6 +316,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                 // Create the medical report
                 const newMedicalReport = await medical_report.create({
                     date: new Date(),
+                    lab_id: req.user.lab_id || patientExists.lab_id,
                     patient_id: patient_id,
                     bill_id: newBill.id,
                     done: 0,

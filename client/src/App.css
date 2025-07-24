@@ -47,7 +47,7 @@
 
 /* Custom properties for lab branding */
 :root {
-  --lab-primary-color: #007bff;
+  --lab-primary-color: #284889;
   --lab-secondary-color: #6c757d;
 }
 
@@ -190,15 +190,17 @@
 
 /* Custom scrollbar */
 .lab-layout ::-webkit-scrollbar {
-  width: 8px;
+  width: 2px;
 }
 
 .lab-layout ::-webkit-scrollbar-track {
   background: #f1f1f1;
+  border-radius: 4px;
 }
 
 .lab-layout ::-webkit-scrollbar-thumb {
   background: var(--lab-primary-color);
+  width: 2px;
   border-radius: 4px;
 }
 
@@ -206,3 +208,5 @@
   background: var(--lab-primary-color);
   filter: brightness(0.8);
 }
+
+
