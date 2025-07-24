@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert } from 're
 import { Users, FlaskConical, FileText, Plus, Activity, UserPlus, ClipboardList, BarChart2, DollarSign, CreditCard, TrendingUp, Percent, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import useLabPrefix from '../hooks/useLabPrefix';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -28,29 +29,30 @@ const AdminDashboard = () => {
     fetchStats();
   }, [apiUrl]);
 
+  const prefix = useLabPrefix();
   const actions = [
     { 
       icon: <UserPlus size={20} />, 
       label: 'Add Patient', 
-      onClick: () => navigate('/admin/dashboard/patients'),
+      onClick: () => navigate(`${prefix}/admin/dashboard/patients`),
       variant: 'outline-primary'
     },
     { 
       icon: <Plus size={20} />, 
       label: 'Add Test', 
-      onClick: () => navigate('/admin/dashboard/tests'),
+      onClick: () => navigate(`${prefix}/admin/dashboard/tests`),
       variant: 'outline-success'
     },
     { 
       icon: <ClipboardList size={20} />, 
       label: 'View Reports', 
-      onClick: () => navigate('/admin/dashboard/medical-reports'),
+      onClick: () => navigate(`${prefix}/admin/dashboard/medical-reports`),
       variant: 'outline-secondary'
     },
     { 
       icon: <Settings size={20} />, 
       label: 'Lab Management', 
-      onClick: () => navigate('/admin/lab-management'),
+      onClick: () => navigate(`${prefix}/admin/lab-management`),
       variant: 'outline-info'
     },
     { 

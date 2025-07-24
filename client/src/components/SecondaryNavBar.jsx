@@ -4,18 +4,21 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Navbar, Nav, Container, Button, Dropdown } from "react-bootstrap";
 import { Users, FileText, User, FlaskConical, Eye } from "lucide-react";
+import useLabPrefix from '../hooks/useLabPrefix';
 
 const SecondaryNavBar = () => {
   const { user } = useAuth();
+  const prefix = useLabPrefix();
 
   return (
     <Navbar 
       expand="lg" 
-      className="text-white sticky-top" 
+      sticky="top"
+      className="text-white" 
       style={{
         background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
         border: 'none',
-        boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
       }}
     >
       <Container className="d-flex justify-content-evenly">
@@ -53,13 +56,13 @@ const SecondaryNavBar = () => {
               Test Groups
             </Dropdown.Toggle>
             <Dropdown.Menu>
-              <Dropdown.Item as={Link} to="/admin/dashboard/test-groups">
+              <Dropdown.Item as={Link} to={`${prefix}/admin/test-groups`}>
                 Test Groups
               </Dropdown.Item>
-              <Dropdown.Item as={Link} to="/admin/dashboard/test-group-categories">
+              <Dropdown.Item as={Link} to={`${prefix}/admin/test-group-categories`}>
                 Categories
               </Dropdown.Item>
-              <Dropdown.Item as={Link} to="/admin/dashboard/test-group-components">
+              <Dropdown.Item as={Link} to={`${prefix}/admin/test-group-components`}>
                 Components
               </Dropdown.Item>
             </Dropdown.Menu>
@@ -105,52 +108,52 @@ const SecondaryNavBar = () => {
                 <Dropdown.Menu>
                   {user?.role === "admin" && (
                     <>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/categories">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/categories`}>
                         categories
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/tests">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/tests`}>
                         tests
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/sample-types">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/sample-types`}>
                         sample types
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/culture-options">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/culture-options`}>
                         culture options
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/antibiotics">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/antibiotics`}>
                         antibiotics
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/packages-and-offers">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/packages-offers`}>
                         packages & offers
                       </Dropdown.Item>
                     </>
                   )}
                   {(user?.role === "chemist" || user?.role === "employee") && (
                     <>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/categories">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/categories`}>
                         categories
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/tests">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/tests`}>
                         tests
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/sample-types">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/sample-types`}>
                         sample types
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/culture-options">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/culture-options`}>
                         culture options
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/antibiotics">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/antibiotics`}>
                         antibiotics
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/packages-and-offers">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/packages-offers`}>
                         packages & offers
                       </Dropdown.Item>
                     </>
                   )}
-                  <Dropdown.Item as={Link} to="/admin/dashboard/cultures">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/cultures`}>
                     culture
                   </Dropdown.Item>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/diseases">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/diseases`}>
                     diseases
                   </Dropdown.Item>
                 </Dropdown.Menu>
@@ -193,22 +196,22 @@ const SecondaryNavBar = () => {
 
                 <Dropdown.Menu>
                   {user?.role === "admin" && (
-                    <Dropdown.Item as={Link} to="/admin/dashboard/vault">
-                      Vault(under construction)
-                    </Dropdown.Item>
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/vault`}>
+                    Vault(under construction)
+                  </Dropdown.Item>
                   )}
-                  <Dropdown.Item as={Link} to="/admin/dashboard/invoices">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/invoices`}>
                     Invoices
                   </Dropdown.Item>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/patients">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/patients`}>
                     Patients
                   </Dropdown.Item>
                   {user?.role === "admin" && (
                     <>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/patients-analytics">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/patients/analytics`}>
                         Patients Analytics
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to="/admin/dashboard/know-us">
+                      <Dropdown.Item as={Link} to={`${prefix}/admin/know-us`}>
                         Know us
                       </Dropdown.Item>
                     </>
@@ -252,7 +255,7 @@ const SecondaryNavBar = () => {
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/medical-reports">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/medical-reports`}>
                     All Medical Reports
                   </Dropdown.Item>
                 </Dropdown.Menu>
@@ -294,13 +297,13 @@ const SecondaryNavBar = () => {
                   View Only
                 </Dropdown.Toggle>
                 <Dropdown.Menu>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/invoices">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/invoices`}>
                     Invoices
                   </Dropdown.Item>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/payment-methods">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/payment-methods`}>
                     Payment Methods
                   </Dropdown.Item>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/test-groups">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/test-groups`}>
                     Test Groups
                   </Dropdown.Item>
                 </Dropdown.Menu>
@@ -344,7 +347,7 @@ const SecondaryNavBar = () => {
                 <Dropdown.Menu>
                   <Dropdown.Item
                     as={Link}
-                    to="/admin/dashboard/payment-methods"
+                    to={`${prefix}/admin/payment-methods`}
                   >
                     Payment Methods
                   </Dropdown.Item>
@@ -386,11 +389,14 @@ const SecondaryNavBar = () => {
                   Manage Branches
                 </Dropdown.Toggle>
                 <Dropdown.Menu>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/branches">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/branches`}>
                     Branches
                   </Dropdown.Item>
-                  <Dropdown.Item as={Link} to="/admin/dashboard/employees">
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/employees`}>
                     Employee Management
+                  </Dropdown.Item>
+                  <Dropdown.Item as={Link} to={`${prefix}/admin/lab-management`}>
+                    Lab Ops Center
                   </Dropdown.Item>
                 </Dropdown.Menu>
               </Dropdown>
@@ -403,7 +409,7 @@ const SecondaryNavBar = () => {
           <>
             <Nav.Link
               as={Link}
-              to="/patient/dashboard/profile"
+              to={`${prefix}/patient/dashboard/profile`}
               className="text-white d-flex flex-column align-items-center mx-2 mb-1"
               style={{
                 borderRadius: '15px',
@@ -434,7 +440,7 @@ const SecondaryNavBar = () => {
             </Nav.Link>
             <Nav.Link
               as={Link}
-              to="/patient/dashboard/reports"
+              to={`${prefix}/patient/dashboard/reports`}
               className="text-white d-flex flex-column align-items-center mx-2 mb-1"
               style={{
                 borderRadius: '15px',

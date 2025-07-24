@@ -1,12 +1,12 @@
 .register-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  
   padding: 40px 0;
 }
 
 .register-card {
   border: none;
-  border-radius: 15px;
+  border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
@@ -48,9 +48,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  color: #284889;
   font-size: 1.5rem;
   font-weight: 600;
-  color: #2c3e50;
   margin-bottom: 30px;
   padding-bottom: 15px;
   border-bottom: 2px solid #e9ecef;
@@ -59,7 +59,6 @@
 /* Form Styles */
 .form-label {
   font-weight: 600;
-  color: #495057;
   margin-bottom: 8px;
 }
 
@@ -220,7 +219,7 @@
 .order-summary h4 {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: black;
   margin-bottom: 20px;
 }
 
@@ -358,44 +357,37 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .register-page {
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    background: #f8f9fa;
   }
   
   .register-card {
-    background: #34495e;
+
     color: white;
   }
   
   .form-control {
-    background: #2c3e50;
-    border-color: #495057;
-    color: white;
+    color: black;
   }
   
   .form-control:focus {
-    background: #2c3e50;
-  }
-  
-  .step-title {
-    color: #ecf0f1;
+    color: white;
   }
   
   .plan-option {
-    background: #34495e;
     color: white;
   }
   
   .terms-section {
-    background: #2c3e50;
-    color: white;
+    background: #f8f9fa;
+    color: black;
   }
   
   .order-summary {
-    background: #2c3e50;
-    color: white;
+    background: #e7f3ff;
+    color: black;
   }
   
   .form-check-label {
-    color: #ecf0f1;
+    color: black;
   }
 } 

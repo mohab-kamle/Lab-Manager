@@ -9,8 +9,10 @@ const { tenantContext } = require('../middleware/tenantContext');
 // GET: Fetch all payment methods
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
     try {
-        const paymentMethodsList = await payment_method.findAll();
-        res.json(paymentMethodsList);
+        //find all payment methods for the current tenant and the general methods of all labs where lab_id is null
+        const paymentMethodsList = await payment_method.findAll({ where: { lab_id: req.tenant.lab_id } });
+        const generalPaymentMethodsList = await payment_method.findAll({ where: { lab_id: null } });
+        res.json(paymentMethodsList.concat(generalPaymentMethodsList));
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Server error" });
@@ -24,7 +26,10 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
         if (!name) {
             return res.status(400).json({ error: "Payment method name is required" });
         }
-
+        const existingMethod = await payment_method.findOne({ where: { name, lab_id: req.tenant.lab_id } });
+        if (existingMethod) {
+            return res.status(400).json({ error: "Payment method already exists" });
+        }
         const newPaymentMethod = await payment_method.create({ name, lab_id: req.tenant.lab_id });
         res.status(201).json(newPaymentMethod);
     } catch (error) {
@@ -42,8 +47,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
         if (!name) {
             return res.status(400).json({ error: "Payment method name is required" });
         }
-
-        const existingMethod = await payment_method.findByPk(id);
+        const existingMethod = await payment_method.findByPk(id, { where: { lab_id: req.tenant.lab_id } });
         if (!existingMethod) {
             return res.status(404).json({ error: "Payment method not found" });
         }

@@ -4,8 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Eye, EyeOff, User, Lock, Shield, ArrowRight, HelpCircle } from "lucide-react";
 import axios from "axios";
+import useLabPrefix from "../hooks/useLabPrefix";
 
 const UnifiedLogin = () => {
+  const labPrefix = useLabPrefix();
   const [userType, setUserType] = useState("employee"); // Default to employee
   const [credentials, setCredentials] = useState({
     username: "",
@@ -19,7 +21,6 @@ const UnifiedLogin = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
-  console.log(apiUrl);
 
   const userTypes = [
     {
@@ -101,29 +102,45 @@ const UnifiedLogin = () => {
       // Call login function from auth context
       await login(token);
 
+      // Retrieve lab subdomain
+      // TO DO : This needs to be refactored
+      // generalized in lab context
+      let labSubdomain = user.subdomain;
+      if (!labSubdomain && user.lab_id) {
+        try {
+          const labResp = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`);
+          labSubdomain = labResp.data.subdomain;
+        } catch (e) {
+          console.warn('Unable to fetch lab subdomain', e);
+        }
+      }
+      if (labSubdomain) {
+        localStorage.setItem('labSubdomain', labSubdomain);
+      }
       // Redirect based on role
       const role = user.role || userType;
+      const prefix = labSubdomain || labPrefix;
       switch (role) {
         case "admin":
-          navigate("/admin/dashboard");
+          navigate(`/${prefix}/admin/dashboard`);
           break;
         case "receptionist":
-          navigate("/receptionist/dashboard");
+          navigate(`/${prefix}/receptionist/dashboard`);
           break;
         case "chemist":
-          navigate("/chemist/dashboard");
+          navigate(`/${prefix}/chemist/dashboard`);
           break;
         case "doctor":
-          navigate("/doctor/dashboard");
+          navigate(`/${prefix}/doctor/dashboard`);
           break;
         case "employee":
-          navigate("/employee/dashboard");
+          navigate(`/${prefix}/employee/dashboard`);
           break;
         case "patient":
-          navigate("/patient/dashboard");
+          navigate(`/${prefix}/patient/dashboard`);
           break;
         default:
-          navigate("/admin/dashboard");
+          navigate(`/${prefix}/admin/dashboard`);
       }
     } catch (error) {
       console.error("Login error:", error);

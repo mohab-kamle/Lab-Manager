@@ -1,11 +1,12 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import { Container, Alert, Spinner } from 'react-bootstrap';
 import { useLab } from '../context/LabContext';
 import { useAuth } from '../context/AuthContext';
 import MainNavBar from './MainNavBar';
 import SecondaryNavBar from './SecondaryNavBar';
 
-const LabLayout = ({ children }) => {
+const LabLayout = () => {
   const { 
     labInfo, 
     loading, 
@@ -76,26 +77,22 @@ const LabLayout = ({ children }) => {
         </Alert>
       )}
 
-      {/* Main navigation */}
-      <MainNavBar 
-        labName={labName}
-        user={user}
-        isTrialExpired={isTrialExpired()}
-        isInTrial={isInTrial()}
-      />
-
-      {/* Secondary navigation (if user is logged in) */}
-      {user && <SecondaryNavBar userRole={user.role} />}
+      {/* Navbars now rendered globally in App.jsx */}
 
       {/* Main content */}
       <main className="lab-main-content">
-        {children}
+        <Outlet />
       </main>
 
       {/* Footer */}
-      <footer className="lab-footer text-center py-3 mt-5">
+      <footer className="lab-footer text-center py-1 mt-2 justify-content-center align-items-center d-flex text-white"
+      style={{
+        background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
+        boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+        border: 'none',
+      }}>
         <Container>
-          <p className="mb-0 text-muted">
+          <p className="mb-0 text-white">
             © {new Date().getFullYear()} {labName} - Powered by LabManager
           </p>
         </Container>

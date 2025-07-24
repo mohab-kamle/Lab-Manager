@@ -28,6 +28,7 @@ const PatientsAdminView = () => {
   const [patientToDelete, setPatientToDelete] = useState(null);
   const [editingPatient, setEditingPatient] = useState(null);
   const [patient, setPatient] = useState({
+    lab_id: user.lab_id,
     name: "",
     email: "",
     gender: "",

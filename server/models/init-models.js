@@ -676,25 +676,16 @@ function initModels(sequelize) {
   patient.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
   branch.hasMany(patient, { as: "patients", foreignKey: "branch_id" });
 
-  // Multi-tenant associations
-  lab_settings.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(lab_settings, { as: "settings", foreignKey: "lab_id" });
-
-  lab_activity_log.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(lab_activity_log, { as: "activity_logs", foreignKey: "lab_id" });
+  // Multi-tenant associations (removed duplicate 'lab' alias definitions to avoid conflicts)
+  //  NOTE: Associations for lab_settings and lab_activity_log with alias 'lab' are defined above.
 
   // Lab associations for tenant isolation (use unique aliases)
   patient.belongsTo(lab, { as: "patient_lab", foreignKey: "lab_id" });
-  lab.hasMany(patient, { as: "patients", foreignKey: "lab_id" });
-
   bill.belongsTo(lab, { as: "bill_lab", foreignKey: "lab_id" });
-  lab.hasMany(bill, { as: "bills", foreignKey: "lab_id" });
+  medical_report.belongsTo(lab, { as: "medical_report_lab", foreignKey: "lab_id" });
 
   bill.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
   branch.hasMany(bill, { as: "bills", foreignKey: "branch_id" });
-
-  medical_report.belongsTo(lab, { as: "medical_report_lab", foreignKey: "lab_id" });
-  lab.hasMany(medical_report, { as: "medical_reports", foreignKey: "lab_id" });
 
   medical_report.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
   branch.hasMany(medical_report, { as: "medical_reports", foreignKey: "branch_id" });

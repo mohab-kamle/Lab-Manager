@@ -42,6 +42,9 @@ import ErrorPage from './components/ErrorPage';
 
 // Lab-specific components
 import LabLayout from './components/LabLayout';
+import LabRoutes from './LabRoutes';
+import MainNavBar from './components/MainNavBar';
+import SecondaryNavBar from './components/SecondaryNavBar';
 
 import './App.css';
 
@@ -50,6 +53,8 @@ function App() {
     <Router>
       <AuthProvider>
         <div className="App">
+          <MainNavBar />
+          <SecondaryNavBar />
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<HomePage />} />
@@ -57,179 +62,56 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/know-us" element={<KnowUs />} />
             
-            {/* Lab-specific routes (multi-tenant) */}
-            <Route path="/lab/:labPath/*" element={
+            {/* Lab-specific routes (multi-tenant, all under /:lab/*) */}
+            <Route path=":lab/*" element={
               <LabProvider>
-                <LabLayout>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/login" element={<UnifiedLogin />} />
-                    
-                    {/* Admin routes */}
-                    <Route path="/dashboard" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <AdminDashboard />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/lab-management" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <LabManagement />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/patients" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <PatientsAdminView />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/patients/analytics" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <PatientsAnalytics />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/tests" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <Tests />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/test-groups" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <TestGroups />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/test-groups/:id/edit" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <TestGroupEditor />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/test-groups/:id/components" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <TestGroupComponents />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/test-group-categories" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <TestGroupCategories />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/cultures" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <Cultures />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/culture-options" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <CultureOptions />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/antibiotics" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <Antibiotics />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/categories" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <Categories />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/sample-types" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <SampleType />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/diseases" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <Diseases />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/branches" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <Branches />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/employees" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <EmployeeManagement />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/payment-methods" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <PaymentMethods />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/packages-offers" element={
-                      <PrivateRoute allowedRoles={['admin']}>
-                        <PackagesAndOffers />
-                      </PrivateRoute>
-                    } />
-                    
-                    {/* Chemist routes */}
-                    <Route path="/chemist-dashboard" element={
-                      <PrivateRoute allowedRoles={['chemist']}>
-                        <ChemistDashboard />
-                      </PrivateRoute>
-                    } />
-                    
-                    {/* Doctor routes */}
-                    <Route path="/doctor-dashboard" element={
-                      <PrivateRoute allowedRoles={['doctor']}>
-                        <DoctorDashboard />
-                      </PrivateRoute>
-                    } />
-                    
-                    {/* Employee routes */}
-                    <Route path="/employee-dashboard" element={
-                      <PrivateRoute allowedRoles={['employee']}>
-                        <EmployeeDashboard />
-                      </PrivateRoute>
-                    } />
-                    
-                    {/* Patient routes */}
-                    <Route path="/patient-dashboard" element={
-                      <PrivateRoute allowedRoles={['patient']}>
-                        <PatientDashboard />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/patient/profile" element={
-                      <PrivateRoute allowedRoles={['patient']}>
-                        <PatientProfile />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/patient/profile/edit" element={
-                      <PrivateRoute allowedRoles={['patient']}>
-                        <PatientUpdateProfile />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/patient/reports" element={
-                      <PrivateRoute allowedRoles={['patient']}>
-                        <PatientReports />
-                      </PrivateRoute>
-                    } />
-                    
-                    {/* Receptionist routes */}
-                    <Route path="/receptionist-dashboard" element={
-                      <PrivateRoute allowedRoles={['receptionist']}>
-                        <ReceptionistDashboard />
-                      </PrivateRoute>
-                    } />
-                    
-                    {/* Shared routes */}
-                    <Route path="/medical-reports" element={
-                      <PrivateRoute allowedRoles={['admin', 'doctor', 'chemist', 'employee', 'receptionist']}>
-                        <MedicalReports />
-                      </PrivateRoute>
-                    } />
-                    <Route path="/invoices" element={
-                      <PrivateRoute allowedRoles={['admin', 'receptionist']}>
-                        <Invoices />
-                      </PrivateRoute>
-                    } />
-                    
-                    {/* Catch all for lab routes */}
-                    <Route path="*" element={<ErrorPage />} />
-                  </Routes>
-                </LabLayout>
+                <LabLayout />
               </LabProvider>
-            } />
+            }>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              {/* Admin routes */}
+              <Route path="admin/dashboard" element={<PrivateRoute allowedRoles={['admin']}><AdminDashboard /></PrivateRoute>} />
+              <Route path="admin/lab-management" element={<PrivateRoute allowedRoles={['admin']}><LabManagement /></PrivateRoute>} />
+              <Route path="admin/patients" element={<PrivateRoute allowedRoles={['admin']}><PatientsAdminView /></PrivateRoute>} />
+              <Route path="admin/patients/analytics" element={<PrivateRoute allowedRoles={['admin']}><PatientsAnalytics /></PrivateRoute>} />
+              <Route path="admin/know-us" element={<PrivateRoute allowedRoles={['admin']}><KnowUs /></PrivateRoute>} />
+              <Route path="admin/tests" element={<PrivateRoute allowedRoles={['admin']}><Tests /></PrivateRoute>} />
+              <Route path="admin/test-groups" element={<PrivateRoute allowedRoles={['admin']}><TestGroups /></PrivateRoute>} />
+              <Route path="admin/test-groups/:id/edit" element={<PrivateRoute allowedRoles={['admin']}><TestGroupEditor /></PrivateRoute>} />
+              <Route path="admin/test-groups/:id/components" element={<PrivateRoute allowedRoles={['admin']}><TestGroupComponents /></PrivateRoute>} />
+              <Route path="admin/test-group-categories" element={<PrivateRoute allowedRoles={['admin']}><TestGroupCategories /></PrivateRoute>} />
+              <Route path="admin/test-group-components" element={<PrivateRoute allowedRoles={['admin']}><TestGroupComponents /></PrivateRoute>} />
+              <Route path="admin/cultures" element={<PrivateRoute allowedRoles={['admin']}><Cultures /></PrivateRoute>} />
+              <Route path="admin/culture-options" element={<PrivateRoute allowedRoles={['admin']}><CultureOptions /></PrivateRoute>} />
+              <Route path="admin/antibiotics" element={<PrivateRoute allowedRoles={['admin']}><Antibiotics /></PrivateRoute>} />
+              <Route path="admin/categories" element={<PrivateRoute allowedRoles={['admin']}><Categories /></PrivateRoute>} />
+              <Route path="admin/sample-types" element={<PrivateRoute allowedRoles={['admin']}><SampleType /></PrivateRoute>} />
+              <Route path="admin/diseases" element={<PrivateRoute allowedRoles={['admin']}><Diseases /></PrivateRoute>} />
+              <Route path="admin/branches" element={<PrivateRoute allowedRoles={['admin']}><Branches /></PrivateRoute>} />
+              <Route path="admin/employees" element={<PrivateRoute allowedRoles={['admin']}><EmployeeManagement /></PrivateRoute>} />
+              <Route path="admin/payment-methods" element={<PrivateRoute allowedRoles={['admin']}><PaymentMethods /></PrivateRoute>} />
+              <Route path="admin/packages-offers" element={<PrivateRoute allowedRoles={['admin']}><PackagesAndOffers /></PrivateRoute>} />
+              <Route path="admin/medical-reports" element={<PrivateRoute allowedRoles={['admin']}><MedicalReports /></PrivateRoute>} />
+              <Route path="admin/invoices" element={<PrivateRoute allowedRoles={['admin']}><Invoices /></PrivateRoute>} />
+              {/* Chemist routes */}
+              <Route path="chemist-dashboard" element={<PrivateRoute allowedRoles={['chemist']}><ChemistDashboard /></PrivateRoute>} />
+              {/* Doctor routes */}
+              <Route path="doctor-dashboard" element={<PrivateRoute allowedRoles={['doctor']}><DoctorDashboard /></PrivateRoute>} />
+              {/* Employee routes */}
+              <Route path="employee-dashboard" element={<PrivateRoute allowedRoles={['employee']}><EmployeeDashboard /></PrivateRoute>} />
+              {/* Patient routes */}
+              <Route path="patient-dashboard" element={<PrivateRoute allowedRoles={['patient']}><PatientDashboard /></PrivateRoute>} />
+              <Route path="patient/profile" element={<PrivateRoute allowedRoles={['patient']}><PatientProfile /></PrivateRoute>} />
+              <Route path="patient/profile/edit" element={<PrivateRoute allowedRoles={['patient']}><PatientUpdateProfile /></PrivateRoute>} />
+              <Route path="patient/reports" element={<PrivateRoute allowedRoles={['patient']}><PatientReports /></PrivateRoute>} />
+              {/* Receptionist routes */}
+              <Route path="receptionist-dashboard" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDashboard /></PrivateRoute>} />
+              {/* Shared routes */}
+              <Route path="medical-reports" element={<PrivateRoute allowedRoles={['admin', 'doctor', 'chemist', 'employee', 'receptionist']}><MedicalReports /></PrivateRoute>} />
+              <Route path="invoices" element={<PrivateRoute allowedRoles={['admin', 'receptionist']}><Invoices /></PrivateRoute>} />
+              {/* Catch all for lab routes */}
+              <Route path="*" element={<ErrorPage />} />
+            </Route>
             
             {/* Catch all */}
             <Route path="*" element={<ErrorPage />} />

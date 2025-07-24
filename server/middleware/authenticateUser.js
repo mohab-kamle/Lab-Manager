@@ -58,10 +58,7 @@ const authenticateUser = async (req, res, next) => {
         req.user = decoded;
       }
       
-      console.log('Authentication successful for user:', decoded.id, 'with role:', decoded.role, 'lab_id:', req.user.lab_id);
-      const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY, { algorithms: ['HS256'] });
-      req.user = decoded; // { id, role }
-      if (!isProd) console.log('Authentication successful for user:', decoded.id, 'with role:', decoded.role);
+      if (!isProd) console.log('Authentication successful for user:', decoded.id, 'with role:', decoded.role, 'lab_id:', req.user.lab_id);
       next();
     } catch (error) {
       if (!isProd) console.log('Authentication failed: Invalid token -', error.message);
