@@ -147,7 +147,7 @@ const HomePage = () => {
                 className="d-flex flex-column align-items-center justify-content-center"
               >
                 <img
-                  src="/src/assets/heroImage.png"
+                  src="../assets/heroImage.png"
                   alt="Lab Management System"
                   className="hero-image animate-float image-fluid"
                 />
