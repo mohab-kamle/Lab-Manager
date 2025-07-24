@@ -35,5 +35,6 @@ jobs:
       - name: Build and restart Docker containers
         shell: powershell
         run: |
-          docker compose down
-          docker compose up -d --build --no-cache
+          docker compose down --remove-orphans
+          docker compose build --no-cache
+          docker compose up -d
