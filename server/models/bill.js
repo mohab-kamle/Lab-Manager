@@ -90,6 +90,22 @@ module.exports = function(sequelize, DataTypes) {
       },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL'
+    },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
+    },
+    branch_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'branch',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
@@ -125,6 +141,20 @@ module.exports = function(sequelize, DataTypes) {
           { name: "status_id" },
         ]
       },
+      {
+        name: "idx_bill_lab",
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" }
+        ]
+      },
+      {
+        name: "idx_bill_branch",
+        using: "BTREE",
+        fields: [
+          { name: "branch_id" }
+        ]
+      }
       {
         name: "idx_bill_lab",
         using: "BTREE",

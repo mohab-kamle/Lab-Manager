@@ -110,7 +110,7 @@ const TestGroupEditor = ({ testGroupId, onSave, onCancel }) => {
   const [optionField, setOptionField] = useState(null);
   const [optionComponent, setOptionComponent] = useState(null);
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   // Add success state
   const [success, setSuccess] = useState(false);

@@ -68,9 +68,24 @@ module.exports = function(sequelize, DataTypes) {
     patient_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      primaryKey: true,
       references: {
         model: 'patient',
+        key: 'id'
+      }
+    },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
+    },
+    branch_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'branch',
         key: 'id'
       }
     },
@@ -112,8 +127,7 @@ module.exports = function(sequelize, DataTypes) {
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "id" },
-          { name: "patient_id" },
+          { name: "id" }
         ]
       },
       {
@@ -142,6 +156,20 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "bill_id" },
+        ]
+      },
+      {
+        name: "idx_medical_report_lab",
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" }
+        ]
+      },
+      {
+        name: "idx_medical_report_branch",
+        using: "BTREE",
+        fields: [
+          { name: "branch_id" }
         ]
       },
       {

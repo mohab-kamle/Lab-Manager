@@ -27,7 +27,7 @@ const TestGroupCategories = () => {
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const token = localStorage.getItem("token");
