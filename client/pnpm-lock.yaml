@@ -138,6 +138,9 @@ importers:
       vite:
         specifier: ^6.3.5
         version: 6.3.5(sass-embedded@1.85.1)(sass@1.85.1)
+      vite-plugin-remove-console:
+        specifier: ^2.2.0
+        version: 2.2.0
 
 packages:
 
@@ -2608,6 +2611,9 @@ packages:
   vite-compatible-readable-stream@3.6.1:
     resolution: {integrity: sha512-t20zYkrSf868+j/p31cRIGN28Phrjm3nRSLR2fyc2tiWi4cZGVdv68yNlwnIINTkMTmPoMiSlc0OadaO7DXZaQ==}
     engines: {node: '>= 6'}
+
+  vite-plugin-remove-console@2.2.0:
+    resolution: {integrity: sha512-qgjh5pz75MdE9Kzs8J0kBwaCfifHV0ezRbB9rpGsIOxam+ilcGV7WOk91vFJXquzRmiKrFh3Hxlh0JJWAmXTbQ==}
 
   vite@6.3.5:
     resolution: {integrity: sha512-cZn6NDFE7wdTpINgs++ZJ4N49W2vRp8LCKrn3Ob1kYNtOo21vfDoaV5GzBfLU4MovSAB8uNRm4jgzVQZ+mBzPQ==}
@@ -5369,6 +5375,8 @@ snapshots:
       inherits: 2.0.4
       string_decoder: 1.3.0
       util-deprecate: 1.0.2
+
+  vite-plugin-remove-console@2.2.0: {}
 
   vite@6.3.5(sass-embedded@1.85.1)(sass@1.85.1):
     dependencies:
