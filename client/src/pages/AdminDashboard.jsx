@@ -34,25 +34,25 @@ const AdminDashboard = () => {
     { 
       icon: <UserPlus size={20} />, 
       label: 'Add Patient', 
-      onClick: () => navigate(`${prefix}/admin/dashboard/patients`),
+      onClick: () => navigate(`/${prefix}/admin/patients`),
       variant: 'outline-primary'
     },
     { 
       icon: <Plus size={20} />, 
       label: 'Add Test', 
-      onClick: () => navigate(`${prefix}/admin/dashboard/tests`),
+      onClick: () => navigate(`/${prefix}/admin/tests`),
       variant: 'outline-success'
     },
     { 
       icon: <ClipboardList size={20} />, 
       label: 'View Reports', 
-      onClick: () => navigate(`${prefix}/admin/dashboard/medical-reports`),
+      onClick: () => navigate(`/${prefix}/admin/medical-reports`),
       variant: 'outline-secondary'
     },
     { 
       icon: <Settings size={20} />, 
       label: 'Lab Management', 
-      onClick: () => navigate(`${prefix}/admin/lab-management`),
+      onClick: () => navigate(`/${prefix}/admin/lab-management`),
       variant: 'outline-info'
     },
     { 

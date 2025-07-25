@@ -28,9 +28,10 @@ export const AuthProvider = ({ children }) => {
       throw new Error('No user data received');
     } catch (error) {
       console.error("Authentication failed:", error);
-      if (error.response?.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userData");
+      if (error.response?.status === 400) {
+        logout();
+        setError("Invalid credentials");
+        return null;
       }
       setUser(null);
       setError(error.message);
@@ -60,7 +61,7 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error("Error during initialization:", error);
         setError(error.message);
-        
+        logout();
         // If there's stored data, use it as fallback
         if (storedUserData) {
           try {

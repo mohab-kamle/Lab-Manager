@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
+import removeConsole from 'vite-plugin-remove-console';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(),removeConsole()],
   base: "/", // Ensures correct paths for assets
   build: {
     outDir: "dist", // Vercel looks for 'dist' by default

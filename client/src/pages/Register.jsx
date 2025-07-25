@@ -197,7 +197,7 @@ const Register = () => {
             <Card className="register-card">
               <Card.Header className="text-center">
                 <h2>Register Your Lab</h2>
-                <p className="text-muted">Create your lab account and start managing your laboratory operations</p>
+                <p className="text-white-50">Create your lab account and start managing your laboratory operations</p>
               </Card.Header>
               
               <Card.Body>
