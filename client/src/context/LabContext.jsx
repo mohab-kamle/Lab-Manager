@@ -166,7 +166,14 @@ export const LabProvider = ({ children }) => {
   const getSetting = (key, defaultValue = null) => {
     return labSettings[key] !== undefined ? labSettings[key] : defaultValue;
   };
-
+  //terminate old lab info
+  const terminateLabInfo = () => {
+    setLabInfo(null);
+    setLabSettings({});
+    setSubscriptionStatus(null);
+    setLoading(false);
+    setError(null);
+  };
   // Check if lab is in trial and if trial is expired
   const isTrialExpired = () => {
     if (!subscriptionStatus) return false;
@@ -243,6 +250,7 @@ export const LabProvider = ({ children }) => {
     isSubscriptionActive,
     isOnTrial,
     refreshLabData,
+    terminateLabInfo,
     
     // Computed values
     labId: labInfo?.id,

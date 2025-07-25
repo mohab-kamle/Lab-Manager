@@ -5,9 +5,10 @@ import { useAuth } from "../context/AuthContext";
 import { Eye, EyeOff, User, Lock, Shield, ArrowRight, HelpCircle } from "lucide-react";
 import axios from "axios";
 import useLabPrefix from "../hooks/useLabPrefix";
+import { useLab } from "../context/LabContext";
 
 const UnifiedLogin = () => {
-  const labPrefix = useLabPrefix();
+  const { fetchLabInfo, labInfo } = useLab();
   const [userType, setUserType] = useState("employee"); // Default to employee
   const [credentials, setCredentials] = useState({
     username: "",
@@ -72,7 +73,7 @@ const UnifiedLogin = () => {
       bgColor: "rgba(255, 193, 7, 0.1)"
     }
   ];
-
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -101,25 +102,30 @@ const UnifiedLogin = () => {
       
       // Call login function from auth context
       await login(token);
-
-      // Retrieve lab subdomain
-      // TO DO : This needs to be refactored
-      // generalized in lab context
-      let labSubdomain = user.subdomain;
-      if (!labSubdomain && user.lab_id) {
+      
+      // Get lab info - either from the user object or fetch it
+      let labInfo = user.lab || null;
+      
+      if (!labInfo && user.lab_id) {
         try {
-          const labResp = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`);
-          labSubdomain = labResp.data.subdomain;
+          const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          labInfo = labResponse.data;
+          // Update the lab context with the fetched info
+          await fetchLabInfo();
         } catch (e) {
-          console.warn('Unable to fetch lab subdomain', e);
+          console.error('Failed to fetch lab info:', e);
+          throw new Error('Failed to load lab information');
         }
       }
-      if (labSubdomain) {
-        localStorage.setItem('labSubdomain', labSubdomain);
+      
+      if (!labInfo) {
+        throw new Error('No lab information available');
       }
-      // Redirect based on role
+      
       const role = user.role || userType;
-      const prefix =  labPrefix || labSubdomain;
+      const prefix = labInfo.name || labInfo.subdomain;
       switch (role) {
         case "admin":
           navigate(`/${prefix}/admin/dashboard`);

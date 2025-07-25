@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { LabProvider } from './context/LabContext';
 import PrivateRoute from './helpers/PrivateRoute';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -53,6 +55,18 @@ function App() {
     <Router>
       <AuthProvider>
         <div className="App">
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="colored"
+          />
           <MainNavBar />
           <SecondaryNavBar />
           <Routes>
