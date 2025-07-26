@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node sync-version.js",
+    "prebuild": "node sync-version.cjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "postbuild": "node tag-version.js"
+    "postbuild": "node tag-version.cjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.3.0",
