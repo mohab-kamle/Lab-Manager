@@ -1,13 +1,15 @@
 {
   "name": "client",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node ../sync-version.js",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postbuild": "node ../tag-version.js"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.3.0",

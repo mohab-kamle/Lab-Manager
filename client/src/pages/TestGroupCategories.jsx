@@ -239,21 +239,21 @@ const TestGroupCategories = () => {
     <Container fluid className="categories-container">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2>Test Group Categories</h2>
-        <div className="d-flex gap-2 align-items-center">
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              id="includeDeleted"
-              checked={includeDeleted}
-              onChange={(e) => setIncludeDeleted(e.target.checked)}
-            />
-            <label className="form-check-label" htmlFor="includeDeleted">
-              Show Deleted
-            </label>
+        <div className="d-flex flex-wrap gap-2 align-items-center justify-content-end">
+            <div className="form-check mb-0">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="includeDeleted"
+                checked={includeDeleted}
+                onChange={(e) => setIncludeDeleted(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="includeDeleted">
+                Show Deleted
+              </label>
+            </div>
+            <Button variant="primary" onClick={handleAdd}><Plus size={16} className="me-2 " />Add Category</Button>
           </div>
-          <Button variant="primary" onClick={handleAdd}><Plus size={16} className="me-2" />Add Category</Button>
-        </div>
       </div>
       {loading ? (
         <div className="spinner-border text-primary" role="status"></div>
@@ -359,4 +359,4 @@ const TestGroupCategories = () => {
   );
 };
 
-export default TestGroupCategories; 
+export default TestGroupCategories;

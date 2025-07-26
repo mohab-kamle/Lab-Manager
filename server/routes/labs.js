@@ -96,7 +96,7 @@ router.get('/:labId/settings', async (req, res) => {
 });
 
 // Update lab settings
-router.put('/:labId/settings', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { labId } = req.params;
     const { settings } = req.body;
@@ -105,17 +105,17 @@ router.put('/:labId/settings', authenticateUser, authorizeRoles(['admin']), asyn
     if (req.user.lab_id !== parseInt(labId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-
-    // Update or create settings
+    
     for (const setting of settings) {
-      await LabSettings.upsert({
-        lab_id: labId,
-        setting_key: setting.setting_key,
-        setting_value: setting.setting_value,
-        setting_type: setting.setting_type
-      });
-    }
-
+      // Upsert will either insert a new record if it doesn't exist,
+      // or update the existing record if one is found with matching lab_id and setting_key
+  await LabSettings.upsert({
+    lab_id: labId,
+    setting_key: setting.setting_key,
+    setting_value: setting.setting_value,
+    setting_type: setting.setting_type
+  });
+}
     // Fetch updated settings
     const updatedSettings = await LabSettings.findAll({
       where: { lab_id: labId },
@@ -197,7 +197,7 @@ router.get('/:labId/subscription', async (req, res) => {
 });
 
 // Upgrade subscription (placeholder for payment integration)
-router.post('/:labId/upgrade', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+router.post('/:labId/upgrade', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { labId } = req.params;
     const { plan, paymentMethod } = req.body;
@@ -261,7 +261,7 @@ router.get('/:labId/stats', authenticateUser, async (req, res) => {
 });
 
 // Get activity log
-router.get('/:labId/activity-log', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+router.get('/:labId/activity-log', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { labId } = req.params;
     const { page = 1, pageSize = 20 } = req.query;

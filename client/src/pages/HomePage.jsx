@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import VersionBadge from "../components/VersionBadge";
 import {
   Container,
   Row,
@@ -490,6 +491,7 @@ const HomePage = () => {
             <p>
               &copy; {new Date().getFullYear()} LabManager. All rights reserved.
             </p>
+            <VersionBadge />
           </div>
         </Container>
 
