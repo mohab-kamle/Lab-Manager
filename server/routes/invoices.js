@@ -186,7 +186,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
     patient_id,
     status_id,
     lab_id: req.user.lab_id || patientExists.lab_id,
-    branch_id: branch_id || patientExists.branch_id || null // <-- use branch_id from body if provided
+    branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null // <-- robust handling of branch_id
 }, { transaction });
 
         // Update patient's financial information
