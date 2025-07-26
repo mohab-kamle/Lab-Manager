@@ -49,6 +49,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     patient: ""
   });
 
+  const [branches, setBranches] = useState([]);
   const [invoice, setInvoice] = useState({
     patient_id: "",
     date: new Date(),
@@ -64,6 +65,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     due: 0,
     status_id: "",
     receptionist_id: "",
+    branch_id: "",
     test_groups: []
   });
 
@@ -185,7 +187,20 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   };
 
   useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(`${apiUrl}/branches`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setBranches(response.data || []);
+      } catch (error) {
+        console.error("Error fetching branches:", error);
+      }
+    };
+
     fetchData();
+    fetchBranches();
   }, [apiUrl, user?.role]);
 
   useEffect(() => {
@@ -490,7 +505,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         paid: invoice.paid || 0,
         due: invoice.due,
         date: new Date().toISOString(),
-        status_id: finalStatusId
+        status_id: finalStatusId,
+        branch_id: invoice.branch_id,
+        receptionist_id: invoice.receptionist_id
       };
 
       // Only add receptionist_id if it's a valid number
@@ -688,6 +705,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     const errors = {};
     if (!data.patient_id) errors.patient_id = "Patient is required";
     if (!data.receptionist_id) errors.receptionist_id = "Receptionist is required";
+    if (!data.branch_id) errors.branch_id = "Branch is required";
     if (
       (!data.tests || data.tests.length === 0) &&
       (!data.cultures || data.cultures.length === 0) &&
@@ -715,13 +733,15 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       paid: 0,
       due: 0,
       status_id: "",
-      receptionist_id: "",
+      receptionist_id:"",
+      branch_id: "",
       test_groups: []
     });
     setFormErrors({});
     setEditingInvoice(null);
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
+    setDiscountPercentage(0);
   };
 
   const filteredInvoices = invoices.filter(invoice => {
@@ -1303,6 +1323,33 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       </Form.Select>
                       <Form.Control.Feedback type="invalid">
                         {formErrors.receptionist_id}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Branch <span style={{color: 'red'}}>*</span></Form.Label>
+                      <Form.Select
+                        value={invoice.branch_id || ''}
+                        required
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setInvoice({ ...invoice, branch_id: val && !isNaN(Number(val)) ? Number(val) : undefined });
+                          if (formErrors.branch_id) {
+                            setFormErrors({ ...formErrors, branch_id: null });
+                          }
+                        }}
+                        isInvalid={!!formErrors.branch_id}
+                      >
+                        <option value="">Select Branch</option>
+                        {branches.map(branch => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.branch_id}
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
