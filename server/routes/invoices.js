@@ -136,21 +136,22 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
     try {
         const { user } = req;
         const {
-            patient_id,
-            tests = [],
-            cultures = [],
-            packages = [],
-            test_groups = [], 
-            payments = [],
-            subtotal = 0,
-            discount = 0,
-            tax = 0,
-            total = 0,
-            paid = 0,
-            due = 0,
-            status_id,
-            receptionist_id
-        } = req.body;
+    patient_id,
+    tests = [],
+    cultures = [],
+    packages = [],
+    test_groups = [], 
+    payments = [],
+    subtotal = 0,
+    discount = 0,
+    tax = 0,
+    total = 0,
+    paid = 0,
+    due = 0,
+    status_id,
+    receptionist_id,
+    branch_id // <-- add branch_id here
+} = req.body;
 
         // Validate required fields
         if (!patient_id || !status_id || !receptionist_id) {
@@ -174,19 +175,19 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
 
         // Create the bill
         const newBill = await bill.create({
-            date: new Date(),
-            paid,
-            due,
-            subtotal,
-            discount,
-            tax,
-            total,
-            receptionist_id,
-            patient_id,
-            status_id,
-            lab_id: req.user.lab_id || patientExists.lab_id,
-            branch_id: patientExists.branch_id || null
-        }, { transaction });
+    date: new Date(),
+    paid,
+    due,
+    subtotal,
+    discount,
+    tax,
+    total,
+    receptionist_id,
+    patient_id,
+    status_id,
+    lab_id: req.user.lab_id || patientExists.lab_id,
+    branch_id: branch_id || patientExists.branch_id || null // <-- use branch_id from body if provided
+}, { transaction });
 
         // Update patient's financial information
         const currentPatient = await patient.findByPk(patient_id, { transaction });
