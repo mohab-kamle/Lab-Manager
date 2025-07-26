@@ -121,18 +121,34 @@ export const LabProvider = ({ children }) => {
         setError(errorMsg);
         return { success: false, error: errorMsg };
       }
-      const settingsArray = Object.entries(settings).map(([key, value]) => ({
-        setting_key: key,
-        setting_value: typeof value === 'object' ? JSON.stringify(value) : String(value),
-        setting_type: typeof value === 'boolean' ? 'boolean' : 
-                     typeof value === 'number' ? 'number' : 
-                     typeof value === 'object' ? 'json' : 'string'
-      }));
-
-      await axios.put(`${apiUrl}/labs/${labInfo.id}/settings`, { settings: settingsArray });
-      
+      await axios.put(
+        `${apiUrl}/labs/${labInfo.id}/settings`, 
+        { settings: settings },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
       // Update local state
-      setLabSettings(prev => ({ ...prev, ...settings }));
+      // Assuming settings is an array of { setting_key, setting_value, setting_type }
+      // We need to convert it back to an object for the local state
+      const newLabSettings = settings.reduce((acc, setting) => {
+        let value = setting.setting_value;
+        if (setting.setting_type === 'boolean') {
+          value = value === 'true';
+        } else if (setting.setting_type === 'number') {
+          value = Number(value);
+        } else if (setting.setting_type === 'json') {
+          try {
+            value = JSON.parse(value);
+          } catch (e) {
+            console.error('Error parsing JSON setting value:', e);
+          }
+        }
+        return { ...acc, [setting.setting_key]: value };
+      }, {});
+      setLabSettings(prev => ({ ...prev, ...newLabSettings }));
       
       return { success: true };
     } catch (err) {
@@ -289,4 +305,4 @@ export const LabProvider = ({ children }) => {
       {children}
     </LabContext.Provider>
   );
-}; 
+};

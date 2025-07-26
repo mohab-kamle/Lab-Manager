@@ -7,6 +7,7 @@ import useLabPrefix from '../hooks/useLabPrefix';
 import { toast } from 'react-toastify';
 import labIcon from '../assets/LabIcon.png';
 import { useLab } from "../context/LabContext";
+import VersionBadge from "./VersionBadge";
 const MainNavBar = () => {
   const {terminateLabInfo} = useLab();
   const { user, loading: authLoading, refreshUser, logout } = useAuth();
@@ -114,7 +115,8 @@ const MainNavBar = () => {
       <Container>
         <Navbar.Brand as={Link} to="/" onClick={() => setExpanded(false)}>
           <img src={labIcon} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
-          <span style={{ marginLeft: '10px' , marginTop: '15px' , fontSize: '20px' , fontWeight: 'bold' }}>Lab Manager</span>
+          <span style={{ marginLeft: '10px', marginTop: '15px', fontSize: '20px', fontWeight: 'bold' }}>Lab Manager</span>
+          
         </Navbar.Brand>
         <Navbar.Toggle 
           aria-controls="basic-navbar-nav" 

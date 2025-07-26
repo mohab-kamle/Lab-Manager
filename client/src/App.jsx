@@ -5,6 +5,7 @@ import { LabProvider } from './context/LabContext';
 import PrivateRoute from './helpers/PrivateRoute';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import VersionBadge from './components/VersionBadge';
 
 // Pages
 import HomePage from './pages/HomePage';

@@ -261,7 +261,7 @@ const LabManagement = () => {
     <div className="lab-management">
       <div className="container">
         <h1 className="page-title">Lab Management</h1>
-        
+        <h4>Settings are under construction (update coming soon)</h4>
         {/* Subscription Status Banner */}
         {subscriptionStatus && (
           <div className={`subscription-banner ${isSubscriptionActive() ? 'active' : 'expired'}`}>

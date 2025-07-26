@@ -109,7 +109,7 @@ router.post('/', async (req, res) => {
 
     // Update lab with the admin's ID
     await newLab.update({ owner_id: adminEmployee.id }, { transaction });
-
+    
     // Create default lab settings within the same transaction
     await lab_settings.bulkCreate([
       {

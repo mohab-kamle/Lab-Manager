@@ -384,7 +384,16 @@ background: linear-gradient(90deg, #ffffff 0%, #ff8c00 50%, #ffd700 100%);
     font-size: 1.1rem;
   }
 }
-
+@media (max-width: 1920px) {
+  .hero-title-home {
+    font-size: 2.5rem;
+  }
+  
+  .hero-subtitle-home {
+    font-size: 1.8rem;
+  }
+  
+}
 @media (max-width: 1440px) {
   .hero-title-home {
     font-size: 1.8rem;
