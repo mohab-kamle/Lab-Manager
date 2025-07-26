@@ -2,8 +2,8 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm
 COPY . .
-COPY sync-version.js ../sync-version.js
-COPY tag-version.js ../tag-version.js
+COPY sync-version.js ./sync-version.js
+COPY tag-version.js ./tag-version.js
 RUN pnpm install --frozen-lockfile
 RUN pnpm run build -- --mode production
 
