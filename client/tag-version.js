@@ -1,5 +1,5 @@
 const { execSync } = require('child_process');
-const pkg = require('./client/package.json');
+const pkg = require('./package.json');
 
 const version = pkg.version;
 const tag = `v${version}`;
