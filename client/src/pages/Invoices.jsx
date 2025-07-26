@@ -493,6 +493,16 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         }
       }
 
+      // Ensure branch_id is always a number or null
+      let safeBranchId = invoice.branch_id;
+      if (safeBranchId === undefined || safeBranchId === "" || isNaN(Number(safeBranchId))) {
+        safeBranchId = null;
+      } else {
+        safeBranchId = Number(safeBranchId);
+      }
+      // Debug log for branch_id
+      console.log('[INVOICE DEBUG] Outgoing branch_id:', safeBranchId, 'Type:', typeof safeBranchId);
+
       const invoiceData = {
         ...invoice,
         tests: filteredTests,
@@ -506,7 +516,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         due: invoice.due,
         date: new Date().toISOString(),
         status_id: finalStatusId,
-        branch_id: invoice.branch_id,
+        branch_id: safeBranchId,
         receptionist_id: invoice.receptionist_id
       };
 

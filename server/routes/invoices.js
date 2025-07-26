@@ -40,9 +40,9 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         ORDER BY b.id DESC;
         `;
 
-        const results = await sequelize.query(query, { 
+        const results = await sequelize.query(query, {
             replacements: { labId: req.tenant.lab_id },
-            type: sequelize.QueryTypes.SELECT 
+            type: sequelize.QueryTypes.SELECT
         });
         console.log(`Found ${results.length} invoices`);
 
@@ -136,22 +136,22 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
     try {
         const { user } = req;
         const {
-    patient_id,
-    tests = [],
-    cultures = [],
-    packages = [],
-    test_groups = [], 
-    payments = [],
-    subtotal = 0,
-    discount = 0,
-    tax = 0,
-    total = 0,
-    paid = 0,
-    due = 0,
-    status_id,
-    receptionist_id,
-    branch_id // <-- add branch_id here
-} = req.body;
+            patient_id,
+            tests = [],
+            cultures = [],
+            packages = [],
+            test_groups = [],
+            payments = [],
+            subtotal = 0,
+            discount = 0,
+            tax = 0,
+            total = 0,
+            paid = 0,
+            due = 0,
+            status_id,
+            receptionist_id,
+            branch_id // <-- add branch_id here
+        } = req.body;
 
         // Validate required fields
         if (!patient_id || !status_id || !receptionist_id) {
@@ -173,21 +173,23 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
             return res.status(400).json({ error: 'Invalid receptionist_id' });
         }
 
+        // Debug log for branch_id
+        console.log('[INVOICE DEBUG] Incoming branch_id:', branch_id, 'Type:', typeof branch_id);
         // Create the bill
         const newBill = await bill.create({
-    date: new Date(),
-    paid,
-    due,
-    subtotal,
-    discount,
-    tax,
-    total,
-    receptionist_id,
-    patient_id,
-    status_id,
-    lab_id: req.user.lab_id || patientExists.lab_id,
-    branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null // <-- robust handling of branch_id
-}, { transaction });
+            date: new Date(),
+            paid,
+            due,
+            subtotal,
+            discount,
+            tax,
+            total,
+            receptionist_id,
+            patient_id,
+            status_id,
+            lab_id: req.user.lab_id || patientExists.lab_id,
+            branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null // <-- robust handling of branch_id
+        }, { transaction });
 
         // Update patient's financial information
         const currentPatient = await patient.findByPk(patient_id, { transaction });
@@ -195,18 +197,18 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
             const currentTotal = parseFloat(currentPatient.total || 0);
             const currentPaid = parseFloat(currentPatient.paid || 0);
             const currentDue = parseFloat(currentPatient.due || 0);
-            
+
             // Add new invoice amounts to patient totals
             const newTotal = currentTotal + parseFloat(total);
             const newPaid = currentPaid + parseFloat(paid);
             const newDue = currentDue + parseFloat(due);
-            
+
             await currentPatient.update({
                 total: newTotal,
                 paid: newPaid,
                 due: newDue
             }, { transaction });
-            
+
             console.log(`Updated patient ${patient_id} financials:`, {
                 old: { total: currentTotal, paid: currentPaid, due: currentDue },
                 new: { total: newTotal, paid: newPaid, due: newDue },
@@ -318,6 +320,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                 const newMedicalReport = await medical_report.create({
                     date: new Date(),
                     lab_id: req.user.lab_id || patientExists.lab_id,
+                    branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null,
                     patient_id: patient_id,
                     bill_id: newBill.id,
                     done: 0,
@@ -345,22 +348,22 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                         result: null
                     }, { transaction });
                 }
-                
+
                 // Add test groups to medical report
                 if (uniqueTestGroups.length > 0) {
                     console.log(`Creating ${uniqueTestGroups.length} test group associations for medical report ${newMedicalReport.id}`);
                     console.log(`Test groups to create:`, uniqueTestGroups);
                     console.log(`Medical report ID:`, newMedicalReport.id);
-                    
+
                     // Create all test group associations at once
                     const testGroupAssociations = uniqueTestGroups.map(tgId => ({
                         medical_report_id: newMedicalReport.id,
                         test_group_id: parseInt(tgId),
                         value: null  // Add the value field explicitly
                     }));
-                    
+
                     console.log(`Test group associations to create:`, testGroupAssociations);
-                    
+
                     // Check if medical report exists before creating associations
                     const checkMedicalReport = await medical_report.findByPk(newMedicalReport.id, { transaction });
                     console.log(`Medical report exists check:`, checkMedicalReport ? 'YES' : 'NO');
@@ -371,25 +374,25 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                             patient_id: checkMedicalReport.patient_id
                         });
                     }
-                    
+
                     // Check for existing associations
                     const existingAssociations = await medical_report_has_tg.findAll({
                         where: { medical_report_id: newMedicalReport.id },
                         transaction
                     });
                     console.log(`Existing associations for medical report ${newMedicalReport.id}:`, existingAssociations.map(a => ({ medical_report_id: a.medical_report_id, test_group_id: a.test_group_id })));
-                    
+
                     // Check if there are other medical reports with the same bill_id
                     const otherMedicalReports = await medical_report.findAll({
                         where: { bill_id: newMedicalReport.bill_id },
                         transaction
                     });
                     console.log(`Other medical reports with bill_id ${newMedicalReport.bill_id}:`, otherMedicalReports.map(mr => ({ id: mr.id, bill_id: mr.bill_id })));
-                    
+
                     // Check for any existing associations with the same test group for this medical report
                     for (const tgId of uniqueTestGroups) {
                         const existingAssociation = await medical_report_has_tg.findOne({
-                            where: { 
+                            where: {
                                 medical_report_id: newMedicalReport.id,
                                 test_group_id: parseInt(tgId)
                             },
@@ -397,7 +400,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                         });
                         console.log(`Existing association for test group ${tgId}:`, existingAssociation ? 'YES' : 'NO');
                     }
-                    
+
                     try {
                         // Verify test groups exist before creating associations
                         for (const tgId of uniqueTestGroups) {
@@ -407,17 +410,17 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                                 console.log(`Test group details:`, { id: testGroup.id, name: testGroup.name });
                             }
                         }
-                        
+
                         // Check for any existing associations first
                         const existingAssociationsBefore = await medical_report_has_tg.findAll({
                             where: { medical_report_id: newMedicalReport.id },
                             transaction
                         });
-                        console.log(`Existing associations before creation:`, existingAssociationsBefore.map(a => ({ 
-                            medical_report_id: a.medical_report_id, 
-                            test_group_id: a.test_group_id 
+                        console.log(`Existing associations before creation:`, existingAssociationsBefore.map(a => ({
+                            medical_report_id: a.medical_report_id,
+                            test_group_id: a.test_group_id
                         })));
-                        
+
                         // Create associations one by one to ensure they're created
                         const createdAssociations = [];
                         for (const association of testGroupAssociations) {
@@ -429,16 +432,16 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                                     console.error(`❌ Medical report ${association.medical_report_id} does not exist`);
                                     throw new Error(`Medical report ${association.medical_report_id} does not exist`);
                                 }
-                                
+
                                 // Validate that test_group exists
                                 const testGroupExists = await test_group.findByPk(association.test_group_id, { transaction });
                                 if (!testGroupExists) {
                                     console.error(`❌ Test group ${association.test_group_id} does not exist`);
                                     throw new Error(`Test group ${association.test_group_id} does not exist`);
                                 }
-                                
 
-                                
+
+
                                 // Try using findOrCreate to handle potential duplicates more gracefully
                                 const [created, wasCreated] = await medical_report_has_tg.findOrCreate({
                                     where: {
@@ -448,7 +451,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                                     defaults: association,
                                     transaction
                                 });
-                                
+
                                 if (wasCreated) {
                                     createdAssociations.push(created);
                                     console.log(`✅ Successfully created association:`, { medical_report_id: created.medical_report_id, test_group_id: created.test_group_id });
@@ -463,9 +466,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                                     sql: createError.sql,
                                     fields: createError.fields
                                 });
-                                
+
                                 // Handle duplicate key errors gracefully
-                                if (createError.name === 'SequelizeUniqueConstraintError' || 
+                                if (createError.name === 'SequelizeUniqueConstraintError' ||
                                     createError.code === 'ER_DUP_ENTRY') {
                                     console.log(`ℹ️ Association already exists (duplicate key), skipping:`, association);
                                     // Try to find the existing association
@@ -478,9 +481,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                                     });
                                     if (existingAssociation) {
                                         createdAssociations.push(existingAssociation);
-                                        console.log(`✅ Found existing association:`, { 
-                                            medical_report_id: existingAssociation.medical_report_id, 
-                                            test_group_id: existingAssociation.test_group_id 
+                                        console.log(`✅ Found existing association:`, {
+                                            medical_report_id: existingAssociation.medical_report_id,
+                                            test_group_id: existingAssociation.test_group_id
                                         });
                                     }
                                 } else {
@@ -490,20 +493,20 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                             }
                         }
                         console.log(`Successfully created ${createdAssociations.length} test group associations for medical report ${newMedicalReport.id}`);
-                        
+
                         // Verify the associations were created
                         const verifyAssociations = await medical_report_has_tg.findAll({
                             where: { medical_report_id: newMedicalReport.id },
                             transaction
                         });
                         console.log(`Verified associations in database:`, verifyAssociations.map(a => ({ medical_report_id: a.medical_report_id, test_group_id: a.test_group_id })));
-                        
+
                         // Also check outside the transaction to see if they're visible
                         const verifyAssociationsOutside = await medical_report_has_tg.findAll({
                             where: { medical_report_id: newMedicalReport.id }
                         });
                         console.log(`Verified associations outside transaction:`, verifyAssociationsOutside.map(a => ({ medical_report_id: a.medical_report_id, test_group_id: a.test_group_id })));
-                        
+
                     } catch (error) {
                         console.error(`Error creating test group associations:`, error);
                         throw error;
@@ -520,7 +523,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
         // Commit the transaction first
         await transaction.commit();
         console.log('Transaction committed successfully');
-        
+
         // Verify medical report was created
         const verifyMedicalReport = await medical_report.findOne({
             where: { bill_id: newBill.id }
@@ -630,7 +633,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
             await transaction.rollback();
         }
         console.error('Error in POST /invoices:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Failed to create invoice",
             message: error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -643,7 +646,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
  */
 router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
     const { id } = req.params;
-    
+
     try {
         const invoice = await bill.findOne({
             where: { id },
@@ -735,7 +738,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
         res.json(response);
     } catch (error) {
         console.error('Error fetching invoice:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Failed to fetch invoice",
             message: error.message
         });
@@ -747,20 +750,20 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
  */
 router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
     const { id } = req.params;
-    const { 
-        date, 
-        paid = 0, 
-        due = 0, 
-        subtotal = 0, 
+    const {
+        date,
+        paid = 0,
+        due = 0,
+        subtotal = 0,
         discount = 0,
         tax = 0,
-        total = 0, 
-        status_id, 
-        tests, 
-        cultures, 
+        total = 0,
+        status_id,
+        tests,
+        cultures,
         packages,
         test_groups,
-        payments 
+        payments
     } = req.body;
 
     try {
@@ -773,15 +776,15 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
         const oldDue = parseFloat(existingBill.due || 0);
         const patientId = existingBill.patient_id;
 
-        await existingBill.update({ 
-            date, 
-            paid, 
-            due, 
-            subtotal, 
+        await existingBill.update({
+            date,
+            paid,
+            due,
+            subtotal,
             discount,
             tax,
-            total, 
-            status_id 
+            total,
+            status_id
         });
 
         // Update patient's financial information
@@ -790,18 +793,18 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
             const currentTotal = parseFloat(currentPatient.total || 0);
             const currentPaid = parseFloat(currentPatient.paid || 0);
             const currentDue = parseFloat(currentPatient.due || 0);
-            
+
             // Remove old invoice amounts and add new ones
             const newTotal = currentTotal - oldTotal + parseFloat(total);
             const newPaid = currentPaid - oldPaid + parseFloat(paid);
             const newDue = currentDue - oldDue + parseFloat(due);
-            
+
             await currentPatient.update({
                 total: newTotal,
                 paid: newPaid,
                 due: newDue
             });
-            
+
             console.log(`Updated patient ${patientId} financials for invoice ${id}:`, {
                 oldInvoice: { total: oldTotal, paid: oldPaid, due: oldDue },
                 newInvoice: { total, paid, due },
@@ -876,8 +879,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
         if (payments) {
             await bill_has_payment_method.destroy({ where: { bill_id: id } });
             await bill_has_payment_method.bulkCreate(payments.map(({ payment_method_id, paid_amount }) => ({
-                bill_id: id, 
-                payment_method_id: parseInt(payment_method_id), 
+                bill_id: id,
+                payment_method_id: parseInt(payment_method_id),
                 paid_amount: parseFloat(paid_amount)
             })));
         }
@@ -991,7 +994,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
         res.json(response);
     } catch (error) {
         console.error('Error updating bill:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Failed to update bill",
             message: error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -1035,18 +1038,18 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res
             const currentTotal = parseFloat(currentPatient.total || 0);
             const currentPaid = parseFloat(currentPatient.paid || 0);
             const currentDue = parseFloat(currentPatient.due || 0);
-            
+
             // Remove deleted invoice amounts from patient totals
             const newTotal = currentTotal - billTotal;
             const newPaid = currentPaid - billPaid;
             const newDue = currentDue - billDue;
-            
+
             await currentPatient.update({
                 total: newTotal,
                 paid: newPaid,
                 due: newDue
             }, { transaction });
-            
+
             console.log(`Updated patient ${patientId} financials after deleting invoice ${id}:`, {
                 deletedInvoice: { total: billTotal, paid: billPaid, due: billDue },
                 oldPatient: { total: currentTotal, paid: currentPaid, due: currentDue },
@@ -1057,15 +1060,15 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res
         // Commit the transaction
         await transaction.commit();
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Bill deleted successfully",
             data: { id }
         });
     } catch (error) {
         await transaction.rollback();
         console.error('Error deleting bill:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
             error: "Failed to delete bill",
             message: error.message
