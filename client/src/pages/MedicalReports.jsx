@@ -377,7 +377,7 @@ const MedicalReports = () => {
       setTestGroupValues(testGroupValues);
       setFieldOptions(fieldOptions);
       setSelectedReportForResults(fullReport);
-      
+
       // Set initial results data
       const initialResultsData = {
         test_results: tests.map(test => ({
@@ -391,9 +391,18 @@ const MedicalReports = () => {
           status: culture.medical_report_has_culture?.status || 'pending'
         }))
       };
-      
+
       setResultsData(initialResultsData);
-      
+
+      // Ensure correct tab is active for test groups only
+      if (tests.length === 0 && testGroupsData.length > 0) {
+        setActiveTab('test-groups');
+      } else if (tests.length > 0) {
+        setActiveTab('tests');
+      } else if (cultures.length > 0) {
+        setActiveTab('cultures');
+      }
+
       // Initialize culture antibiotics from the fetched data
       const initialCultureAntibiotics = {};
       cultures.forEach(culture => { // Use the same cultures array
