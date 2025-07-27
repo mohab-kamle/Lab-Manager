@@ -73,7 +73,7 @@ router.post('/', authenticateUser, authorizeRoles(...allowedRoles), tenantContex
     }
     
     // Unique test group name
-    const existing = await test_group.findOne({ where: {  name , lab_id: req.tenant.lab_id }, transaction: t });
+    const existing = await test_group.findOne({ where: { name }, transaction: t });
     if (existing) {
       await t.rollback();
       return res.status(400).json({ error: 'Test group name must be unique.' });
