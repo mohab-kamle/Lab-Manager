@@ -289,9 +289,9 @@ const Branches = () => {
 
   return (
     <Container fluid className="branches-container">
-      <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
         <h2>Branches</h2>
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 flex-wrap">
           <Button variant="outline-success" onClick={handleExportXLSX}>
             <Download size={16} className="me-2" />
             Export XLSX

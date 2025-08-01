@@ -51,6 +51,8 @@ var _medical_report_tg_field_value = require("./medical_report_tg_field_value");
 var _medical_report_has_tg = require("./medical_report_has_tg");
 var _bill_has_tg = require("./bill_has_tg");
 var _medical_report_has_culture_antibiotic = require("./medical_report_has_culture_antibiotic");
+var _culture_has_option = require("./culture_has_option");
+var _culture_sub_option = require("./culture_sub_option");
 var _lab_settings = require("./lab_settings");
 var _lab_activity_log = require("./lab_activity_log");
 
@@ -116,6 +118,8 @@ function initModels(sequelize) {
   var medical_report_has_tg = _medical_report_has_tg(sequelize, DataTypes);
   var bill_has_tg = _bill_has_tg(sequelize, DataTypes);
   var medical_report_has_culture_antibiotic = _medical_report_has_culture_antibiotic(sequelize, DataTypes);
+  var culture_has_option = _culture_has_option(sequelize, DataTypes);
+  var culture_sub_option = _culture_sub_option(sequelize, DataTypes);
   var lab_settings = _lab_settings(sequelize, DataTypes);
   var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
 
@@ -709,65 +713,90 @@ function initModels(sequelize) {
   doctor.belongsTo(lab, { as: "doctor_lab", foreignKey: "lab_id" });
   lab.hasMany(doctor, { as: "doctors", foreignKey: "lab_id" });
 
-  chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
-  lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
+chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
+lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
 
-  return {
-    admin,
-    admin_packages_and_offers,
-    antibiotic,
-    bill,
-    bill_has_culture,
-    bill_has_payment_method,
-    bill_has_package,
-    bill_has_test,
-    bill_has_tg,
-    branch,
-    branch_has_employee,
-    categories_test_and_culture,
-    chemist,
-    company,
-    contract,
-    contract_has_culture,
-    contract_has_test,
-    culture,
-    culture_option,
-    diseases,
-    doctor,
-    employee,
-    lab,
-    lab_contracts_company,
-    lab_contracts_doctor,
-    lab_settings,
-    lab_activity_log,
-    medical_report,
-    medical_report_has_test,
-    medical_report_has_culture,
-    medical_report_has_culture_antibiotic,
-    packages_and_offers,
-    pao_has_culture,
-    pao_has_test,
-    patient,
-    patient_has_diseases,
-    payment_method,
-    phone,
-    question,
-    receptionist,
-    sample_type,
-    status,
-    test,
-    test_component,
-    test_group,
-    test_has_question,
-    tgc_category,
-    tg_component,
-    tg_fields,
-    field_comp_options,
-    medical_report_tg_field_value,
-    medical_report_has_tg,
-    lab_settings,
-    lab_activity_log,
-  };
+// Define associations for the new models
+culture.belongsToMany(culture_option, {
+  as: "options",
+  through: culture_has_option,
+  foreignKey: "culture_id",
+  otherKey: "culture_option_id"
+});
+
+culture_option.belongsToMany(culture, {
+  as: "cultures",
+  through: culture_has_option,
+  foreignKey: "culture_option_id",
+  otherKey: "culture_id"
+});
+
+culture_option.hasMany(culture_sub_option, {
+  as: "subOptions",
+  foreignKey: "culture_option_id"
+});
+
+culture_sub_option.belongsTo(culture_option, {
+  as: "option",
+  foreignKey: "culture_option_id"
+});
+
+return {
+  admin,
+  admin_packages_and_offers,
+  antibiotic,
+  bill,
+  bill_has_culture,
+  bill_has_package,
+  bill_has_payment_method,
+  bill_has_tg,
+  bill_has_test,
+  branch,
+  branch_has_employee,
+  categories_test_and_culture,
+  chemist,
+  company,
+  contract,
+  contract_has_culture,
+  contract_has_test,
+  culture,
+  culture_has_option,
+  culture_option,
+  culture_sub_option,
+  diseases,
+  doctor,
+  employee,
+  field_comp_options,
+  lab,
+  lab_activity_log,
+  lab_contracts_company,
+  lab_contracts_doctor,
+  lab_settings,
+  medical_report,
+  medical_report_has_culture,
+  medical_report_has_culture_antibiotic,
+  medical_report_has_test,
+  medical_report_has_tg,
+  medical_report_tg_field_value,
+  packages_and_offers,
+  pao_has_culture,
+  pao_has_test,
+  patient,
+  patient_has_diseases,
+  payment_method,
+  phone,
+  question,
+  receptionist,
+  sample_type,
+  status,
+  test,
+  test_component,
+  test_group,
+  test_has_question,
+  tg_component,
+  tg_fields,
+  tgc_category,
+};
 }
 module.exports = initModels;
 module.exports.initModels = initModels;

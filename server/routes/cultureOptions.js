@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
-const { culture_option } = require("../models");
+const { culture_option, culture_sub_option } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 
@@ -94,6 +94,30 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
   } catch (error) {
     console.error('Error deleting culture option:', error);
     res.status(500).json({ error: 'Failed to delete culture option' });
+  }
+});
+
+// GET all culture options with their sub-options
+router.get("/with-suboptions", authenticateUser, authorizeRoles("admin", "chemist", "employee"), async (req, res) => {
+  try {
+    const cultureOptions = await culture_option.findAll({
+      include: [{
+        model: culture_sub_option,
+        as: 'subOptions',
+        required: false,
+        attributes: ['id', 'name', 'is_active'],
+        paranoid: false
+      }],
+      order: [
+        ['option', 'ASC'],
+        [{ model: culture_sub_option, as: 'subOptions' }, 'name', 'ASC']
+      ]
+    });
+    console.log(cultureOptions);
+    res.json(cultureOptions);
+  } catch (error) {
+    console.error('Error fetching culture options with sub-options:', error);
+    res.status(500).json({ error: "Failed to fetch culture options with sub-options" });
   }
 });
 

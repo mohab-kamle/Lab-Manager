@@ -14,7 +14,7 @@ const SecondaryNavBar = () => {
     <Navbar 
       expand="lg" 
       sticky="top"
-      className="text-white secondary-navbar" 
+      className="text-white pt-4 mt-5" 
       style={{
         background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
         border: 'none',
@@ -22,7 +22,7 @@ const SecondaryNavBar = () => {
         
       }}
     >
-      <Container className="d-flex justify-content-evenly ">
+      <Container className="d-flex justify-content-evenly">
         {/* Test Groups Dropdown for admin, chemist, receptionist */}
         {(user?.role === "admin" || user?.role === "chemist" || user?.role === "receptionist") && (
           <Dropdown className="mx-1 mb-1 ">

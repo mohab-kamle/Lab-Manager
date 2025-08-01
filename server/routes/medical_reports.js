@@ -15,7 +15,7 @@ async function updateMedicalReportDates(medicalReportId, stage, transaction = nu
     try {
         const updateData = {};
         const now = new Date();
-        
+
         switch (stage) {
             case 'registered':
                 updateData.registered_at = now;
@@ -33,12 +33,12 @@ async function updateMedicalReportDates(medicalReportId, stage, transaction = nu
                 console.warn(`Unknown stage: ${stage}`);
                 return;
         }
-        
+
         await db.medical_report.update(updateData, {
             where: { id: medicalReportId },
             transaction: transaction
         });
-        
+
         console.log(`Updated medical report ${medicalReportId} with ${stage} date:`, now);
     } catch (error) {
         console.error(`Error updating medical report dates for stage ${stage}:`, error);
@@ -79,7 +79,7 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'receptioni
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_test,
                         attributes: ['status', 'result']
                     },
@@ -88,7 +88,7 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'receptioni
                 {
                     model: db.culture,
                     as: 'culture_id_culture_medical_report_has_cultures',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_culture,
                         attributes: ['status', 'result']
                     },
@@ -153,12 +153,12 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
     try {
         const report = await db.medical_report.findByPk(req.params.id, {
             include: [
-                { 
-                    model: db.patient, 
+                {
+                    model: db.patient,
                     as: 'patient',
-                    attributes: ['id', 'name', 'birth_date', 'gender', 'patientcode'] 
+                    attributes: ['id', 'name', 'birth_date', 'gender', 'patientcode']
                 },
-                { 
+                {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
                     through: { attributes: ['result', 'status'] },
@@ -170,8 +170,6 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
                         }
                     ]
                 },
-                // Remove the problematic culture association and query it separately
-                // Add the hasMany association for medical_report_has_culture
                 {
                     model: db.medical_report_has_culture,
                     as: 'medical_report_has_cultures',
@@ -229,19 +227,19 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
                     attributes: ['id', 'name'],
                     through: { attributes: [] },
                     include: [
-                        { 
-                            model: db.tg_component, 
-                            as: 'tg_components', 
+                        {
+                            model: db.tg_component,
+                            as: 'tg_components',
                             attributes: ['id', 'name', 'test_category_id'],
-                            required: false, 
-                            include: [ 
-                                { 
-                                    model: db.tgc_category, 
-                                    as: 'category', 
+                            required: false,
+                            include: [
+                                {
+                                    model: db.tgc_category,
+                                    as: 'category',
                                     attributes: ['id', 'name'],
                                     required: false  // Make this LEFT OUTER JOIN
-                                } 
-                            ] 
+                                }
+                            ]
                         },
                         { model: db.tg_fields, as: 'tg_fields', attributes: ['id', 'name'] },
                     ]
@@ -253,11 +251,11 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
                 }
             ]
         });
-        
+
         if (!report) {
             return res.status(404).json({ error: 'Medical report not found' });
         }
-        
+
         // Add top-level tests and cultures fields for frontend compatibility
         const reportData = report.get({ plain: true });
 
@@ -268,7 +266,7 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
 
         // Remap associations to top-level for frontend convenience
         reportData.tests = (reportData.test_id_test_medical_report_has_tests || []).map(t => ({ ...t, ...t.medical_report_has_test }));
-        
+
         // Map cultures from the medical_report_has_cultures association
         reportData.cultures = (reportData.medical_report_has_cultures || []).map(mrc => ({
             ...mrc.culture,
@@ -342,11 +340,11 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
 // Create a new medical report
 router.post('/', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist', 'receptionist'), async (req, res) => {
     try {
-        const { 
-            patient_id, 
-            doctor_id, 
-            diagnosis, 
-            test_ids, 
+        const {
+            patient_id,
+            doctor_id,
+            diagnosis,
+            test_ids,
             culture_ids,
             registered_at,
             collected_at,
@@ -392,7 +390,7 @@ router.post('/', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist', 
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_test,
                         attributes: ['status', 'result']
                     },
@@ -401,7 +399,7 @@ router.post('/', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist', 
                 {
                     model: db.culture,
                     as: 'culture_id_culture_medical_report_has_cultures',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_culture,
                         attributes: ['status', 'result']
                     },
@@ -449,15 +447,15 @@ router.post('/', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist', 
 // Update a medical report
 router.put('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist', 'receptionist'), async (req, res) => {
     try {
-        const { 
-            diagnosis, 
-            test_results, 
-            culture_results, 
-            done, 
-            pending, 
-            comment, 
-            signatory_name, 
-            signatory_id, 
+        const {
+            diagnosis,
+            test_results,
+            culture_results,
+            done,
+            pending,
+            comment,
+            signatory_name,
+            signatory_id,
             signatory_admin_id,
             date,
             registered_at,
@@ -465,7 +463,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
             received_at,
             reported_at
         } = req.body;
-        
+
         const report = await db.medical_report.findByPk(req.params.id);
 
         if (!report) {
@@ -474,7 +472,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
 
         // Update fields if provided
         const updateFields = {};
-        
+
         if (diagnosis !== undefined) updateFields.diagnosis = diagnosis;
         if (done !== undefined) {
             updateFields.done = done;
@@ -544,7 +542,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_test,
                         attributes: ['status', 'result']
                     },
@@ -553,7 +551,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
                 {
                     model: db.culture,
                     as: 'culture_id_culture_medical_report_has_cultures',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_culture,
                         attributes: ['status', 'result']
                     },
@@ -602,7 +600,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
 router.delete('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist', 'receptionist'), async (req, res) => {
     try {
         const report = await db.medical_report.findByPk(req.params.id);
-        
+
         if (!report) {
             return res.status(404).json({ error: 'Medical report not found' });
         }
@@ -622,7 +620,7 @@ router.get('/test/:testId/components', authenticateUser, authorizeRoles('admin',
             where: { test_id: req.params.testId },
             attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end']
         });
-        
+
         res.json(testComponents);
     } catch (error) {
         console.error('Error fetching test components:', error);
@@ -633,24 +631,24 @@ router.get('/test/:testId/components', authenticateUser, authorizeRoles('admin',
 // Update test and culture results with auto-calculation
 router.put('/:id/results', authenticateUser, authorizeRoles('admin', 'chemist'), async (req, res) => {
     try {
-        const { test_results, culture_results} = req.body;
+        const { test_results, culture_results } = req.body;
         const reportId = req.params.id;
 
         // Helper function to calculate test status based on result and normal range
         const calculateTestStatus = (result, normalRange) => {
             if (!result || !normalRange) return 'pending';
-            
+
             const range = normalRange.replace(/\s/g, ''); // Remove spaces
             const match = range.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
-            
+
             if (!match) return 'pending';
-            
+
             const min = parseFloat(match[1]);
             const max = parseFloat(match[2]);
             const value = parseFloat(result);
-            
+
             if (isNaN(value)) return 'pending';
-            
+
             if (value < min) {
                 return value < min * 0.5 ? 'critical low' : 'low';
             } else if (value > max) {
@@ -700,7 +698,7 @@ router.put('/:id/results', authenticateUser, authorizeRoles('admin', 'chemist'),
             for (const cultureResult of culture_results) {
                 // For cultures, we'll set status to 'done' if result is provided
                 const status = cultureResult.result ? 'done' : 'pending';
-                
+
                 await db.medical_report_has_culture.update(
                     {
                         status: status,
@@ -727,7 +725,7 @@ router.put('/:id/results', authenticateUser, authorizeRoles('admin', 'chemist'),
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_test,
                         attributes: ['status', 'result']
                     },
@@ -736,7 +734,7 @@ router.put('/:id/results', authenticateUser, authorizeRoles('admin', 'chemist'),
                 {
                     model: db.culture,
                     as: 'culture_id_culture_medical_report_has_cultures',
-                    through: { 
+                    through: {
                         model: db.medical_report_has_culture,
                         attributes: ['status', 'result']
                     },
@@ -759,32 +757,32 @@ router.put('/:id/results', authenticateUser, authorizeRoles('admin', 'chemist'),
 
 // Get pending reports count
 router.get('/pending-count', authenticateUser, authorizeRoles('admin'), async (req, res) => {
-  try {
-    const count = await db.medical_report.count({ where: { pending: true } });
-    res.json({ count });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get pending reports count' });
-  }
+    try {
+        const count = await db.medical_report.count({ where: { pending: true } });
+        res.json({ count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get pending reports count' });
+    }
 });
 
 // Get recent reports
 router.get('/recent', authenticateUser, authorizeRoles('admin'), async (req, res) => {
-  try {
-    const reports = await db.medical_report.findAll({
-      order: [['date', 'DESC']],
-      limit: 5,
-      include: [
-        { model: db.patient, as: 'patient', attributes: ['id', 'name'] }
-      ]
-    });
-    res.json(reports);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get recent reports' });
-  }
+    try {
+        const reports = await db.medical_report.findAll({
+            order: [['date', 'DESC']],
+            limit: 5,
+            include: [
+                { model: db.patient, as: 'patient', attributes: ['id', 'name'] }
+            ]
+        });
+        res.json(reports);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get recent reports' });
+    }
 });
 
 // Increment prints_number for a medical report
-router.put('/:id/increment-prints', authenticateUser, authorizeRoles('admin','chemist', 'receptionist'), async (req, res) => {
+router.put('/:id/increment-prints', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {
         const report = await db.medical_report.findByPk(req.params.id);
         if (!report) {
@@ -811,21 +809,29 @@ router.get('/:id/test-groups', authenticateUser, authorizeRoles('admin', 'chemis
                 {
                     model: db.test_group,
                     as: 'test_group',
+                    required: false,  // Make this a LEFT JOIN
+                    paranoid: false,  // Include soft-deleted test groups
                     attributes: ['id', 'name', 'price', 'deleted_at'],
                     include: [
                         {
                             model: db.tg_component,
                             as: 'tg_components',
+                            required: false,
+                            paranoid: false,
                             attributes: ['id', 'test_group_id', 'test_category_id', 'name'],
                         },
                         {
                             model: db.tgc_category,
                             as: 'tgc_categories',
+                            required: false,
+                            paranoid: false,
                             attributes: ['id', 'name', 'test_group_id'],
                             include: [
                                 {
                                     model: db.tg_component,
                                     as: 'tg_components',
+                                    required: false,
+                                    paranoid: false,
                                     attributes: ['id', 'test_group_id', 'test_category_id', 'name'],
                                 }
                             ]
@@ -833,12 +839,15 @@ router.get('/:id/test-groups', authenticateUser, authorizeRoles('admin', 'chemis
                         {
                             model: db.tg_fields,
                             as: 'tg_fields',
+                            required: false,
+                            paranoid: false,
                             attributes: ['id', 'name', 'test_group_id']
                         },
                         {
                             model: db.field_comp_options,
                             as: 'field_comp_options',
                             required: false,
+                            paranoid: false,
                             attributes: ['id', 'name', 'tg_component_id', 'tg_fields_id', 'test_group_id']
                         }
                     ]
@@ -846,90 +855,99 @@ router.get('/:id/test-groups', authenticateUser, authorizeRoles('admin', 'chemis
             ]
         });
 
+        // Debug log to see raw data
+        console.log("Raw reportTestGroups:", JSON.stringify(reportTestGroups, null, 2));
+
         // Get all field values for this medical report
         const fieldValues = await db.medical_report_tg_field_value.findAll({
             where: { medical_report_id: req.params.id }
         });
 
         // Format the response
-        const testGroups = reportTestGroups.map(rtg => {
-            const group = rtg.test_group;
-            if (!group) return null;
+        const testGroups = reportTestGroups
+            .filter(rtg => rtg.test_group)  // Only include entries where test_group exists
+            .map(rtg => {
+                const group = rtg.test_group;
 
-            // Create a map of component_id -> field_id -> value
-            const valueMap = {};
-            fieldValues
-                .filter(fv => fv.test_group_id === group.id)
-                .forEach(fv => {
-                    if (!valueMap[fv.tg_component_id]) {
-                        valueMap[fv.tg_component_id] = {};
-                    }
-                    valueMap[fv.tg_component_id][fv.tg_fields_id] = fv.value;
-                });
+                // Create a map of component_id -> field_id -> value
+                const valueMap = {};
+                fieldValues
+                    .filter(fv => fv.test_group_id === group.id)
+                    .forEach(fv => {
+                        if (!valueMap[fv.tg_component_id]) {
+                            valueMap[fv.tg_component_id] = {};
+                        }
+                        valueMap[fv.tg_component_id][fv.tg_fields_id] = fv.value;
+                    });
 
-            // Map field_comp_options to include in the response
-            const fieldCompOptions = group.field_comp_options?.map(opt => ({
-                id: opt.id,
-                name: opt.name,
-                tg_component_id: opt.tg_component_id,
-                tg_fields_id: opt.tg_fields_id,
-                test_group_id: opt.test_group_id
-            })) || [];
+                // Map field_comp_options to include in the response
+                const fieldCompOptions = (group.field_comp_options || []).map(opt => ({
+                    id: opt.id,
+                    name: opt.name,
+                    tg_component_id: opt.tg_component_id,
+                    tg_fields_id: opt.tg_fields_id,
+                    test_group_id: opt.test_group_id
+                }));
 
-            // Direct components: those with test_category_id == null
-            const direct_components = (group.tg_components || []).filter(comp => comp.test_category_id == null).map(comp => ({
-                id: comp.id,
-                name: comp.name,
-                category: null
-            }));
+                // Direct components: those with test_category_id == null
+                const direct_components = (group.tg_components || [])
+                    .filter(comp => comp.test_category_id == null)
+                    .map(comp => ({
+                        id: comp.id,
+                        name: comp.name,
+                        category: null
+                    }));
 
-            // Categories and their components
-            const categories = (group.tgc_categories || []).map(cat => ({
-                id: cat.id,
-                name: cat.name,
-                components: (cat.tg_components || []).map(comp => ({
-                    id: comp.id,
-                    name: comp.name,
-                    category: cat.name
-                }))
-            }));
-
-            // All fields
-            const fields = group.tg_fields?.map(field => ({
-                id: field.id,
-                name: field.name,
-                field_comp_options: fieldCompOptions
-                    .filter(opt => opt.tg_fields_id === field.id)
-                    .map(opt => ({
-                        id: opt.id,
-                        name: opt.name,
-                        tg_component_id: opt.tg_component_id,
-                        tg_fields_id: opt.tg_fields_id
+                // Categories and their components
+                const categories = (group.tgc_categories || []).map(cat => ({
+                    id: cat.id,
+                    name: cat.name,
+                    components: (cat.tg_components || []).map(comp => ({
+                        id: comp.id,
+                        name: comp.name,
+                        category: cat.name
                     }))
-            })) || [];
+                }));
 
-            return {
-                id: group.id,
-                name: group.name,
-                direct_components,
-                categories,
-                fields,
-                values: valueMap
-            };
-        }).filter(Boolean); // Remove any null entries
+                // All fields
+                const fields = (group.tg_fields || []).map(field => ({
+                    id: field.id,
+                    name: field.name,
+                    field_comp_options: fieldCompOptions
+                        .filter(opt => opt.tg_fields_id === field.id)
+                        .map(opt => ({
+                            id: opt.id,
+                            name: opt.name,
+                            tg_component_id: opt.tg_component_id,
+                            tg_fields_id: opt.tg_fields_id
+                        }))
+                }));
+
+                return {
+                    id: group.id,
+                    name: group.name,
+                    direct_components,
+                    categories,
+                    fields,
+                    values: valueMap
+                };
+            });
 
         // Verify the medical report exists
         const report = await db.medical_report.findByPk(req.params.id);
         if (!report) {
             return res.status(404).json({ error: 'Medical report not found' });
         }
+
         res.json(testGroups);
     } catch (error) {
         console.error('Error fetching test groups for report:', error);
-        res.status(500).json({ error: 'Failed to fetch test groups' });
+        res.status(500).json({ 
+            error: 'Failed to fetch test groups',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
-
 // Helper function to save test group values with retry on deadlock
 async function saveTestGroupValuesWithRetry(medical_report_id, test_group_id, values, maxRetries = 3) {
     let retryCount = 0;
@@ -956,20 +974,20 @@ async function saveTestGroupValuesWithRetry(medical_report_id, test_group_id, va
 
             // Prepare operations
             const operations = [];
-            
+
             // Convert values object to array of field values
             Object.entries(values).forEach(([component_id, fields]) => {
                 if (!component_id) {
                     console.warn('Skipping empty component_id');
                     return;
                 }
-                
+
                 Object.entries(fields).forEach(([field_id, value]) => {
                     if (!field_id) {
                         console.warn('Skipping empty field_id for component:', component_id);
                         return;
                     }
-                    
+
                     operations.push({
                         medical_report_id: parseInt(medical_report_id, 10),
                         test_group_id: parseInt(test_group_id, 10),
@@ -1009,7 +1027,7 @@ async function saveTestGroupValuesWithRetry(medical_report_id, test_group_id, va
             await t.commit();
             console.log('Transaction committed successfully');
             return { success: true };
-            
+
         } catch (error) {
             // Always rollback the transaction on error
             if (t && !t.finished) {
@@ -1021,7 +1039,7 @@ async function saveTestGroupValuesWithRetry(medical_report_id, test_group_id, va
             }
 
             // If this is a deadlock and we have retries left, try again
-            if ((error.original?.code === 'ER_LOCK_DEADLOCK' || error.name === 'SequelizeDatabaseError') && 
+            if ((error.original?.code === 'ER_LOCK_DEADLOCK' || error.name === 'SequelizeDatabaseError') &&
                 retryCount < maxRetries - 1) {
                 retryCount++;
                 const delay = Math.pow(2, retryCount) * 100; // Exponential backoff
@@ -1029,13 +1047,13 @@ async function saveTestGroupValuesWithRetry(medical_report_id, test_group_id, va
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
-            
+
             // If we get here, either it's not a deadlock or we're out of retries
             lastError = error;
             throw error;
         }
     }
-    
+
     throw lastError || new Error('Failed to save test group values after multiple attempts');
 }
 
@@ -1053,8 +1071,8 @@ router.post('/:id/test-groups', authenticateUser, authorizeRoles('admin', 'chemi
 
         // Validate required fields
         if (!test_group_id || values === undefined) {
-            return res.status(400).json({ 
-                error: 'Missing required fields: test_group_id and values are required' 
+            return res.status(400).json({
+                error: 'Missing required fields: test_group_id and values are required'
             });
         }
 
@@ -1066,7 +1084,7 @@ router.post('/:id/test-groups', authenticateUser, authorizeRoles('admin', 'chemi
         );
 
         res.json(result);
-        
+
     } catch (error) {
         console.error('Error in save test group values endpoint:', {
             message: error.message,
@@ -1075,11 +1093,11 @@ router.post('/:id/test-groups', authenticateUser, authorizeRoles('admin', 'chemi
             ...(error.errors && { errors: error.errors }),
             ...(error.fields && { fields: error.fields })
         });
-        
+
         const status = error.status || 500;
         const message = error.message || 'Failed to save test group values';
-        
-        res.status(status).json({ 
+
+        res.status(status).json({
             error: message,
             details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
@@ -1188,18 +1206,18 @@ router.post('/:reportId/tests/:testId/result', authenticateUser, authorizeRoles(
                     console.error('Error rolling back transaction:', rollbackError);
                 }
             }
-            
+
             // Provide more detailed error information
             const allTestsInReport = await db.medical_report_has_test.findAll({
                 where: { medical_report_id: reportId },
                 attributes: ['test_id'],
                 transaction: t
             });
-            
-            console.error(`Test association not found. Medical report ${reportId} has ${allTestsInReport.length} tests:`, 
+
+            console.error(`Test association not found. Medical report ${reportId} has ${allTestsInReport.length} tests:`,
                 allTestsInReport.map(t => t.test_id));
-            
-            return res.status(404).json({ 
+
+            return res.status(404).json({
                 error: 'Test not found in this medical report',
                 details: {
                     medicalReportId: reportId,
@@ -1213,7 +1231,7 @@ router.post('/:reportId/tests/:testId/result', authenticateUser, authorizeRoles(
 
         // Update the test result
         await db.medical_report_has_test.update(
-            { 
+            {
                 result: result || null,
                 status: status || 'pending',
                 updatedAt: new Date()
@@ -1260,10 +1278,10 @@ router.post('/:reportId/collected', authenticateUser, authorizeRoles('admin', 'c
     const t = await db.sequelize.transaction();
     try {
         const { reportId } = req.params;
-        
+
         // Update the collected_at date
         await updateMedicalReportDates(reportId, 'collected', t);
-        
+
         await t.commit();
         res.json({ success: true });
     } catch (error) {
@@ -1336,17 +1354,17 @@ router.post('/:reportId/cultures/:cultureId/result', authenticateUser, authorize
                     console.error('Error rolling back transaction:', rollbackError);
                 }
             }
-            
+
             // Provide more detailed error information
             const allCulturesInReport = await db.medical_report_has_culture.findAll({
                 where: { medical_report_id: reportId },
                 attributes: ['culture_id']
             });
-            
-            console.error(`Culture association not found. Medical report ${reportId} has ${allCulturesInReport.length} cultures:`, 
+
+            console.error(`Culture association not found. Medical report ${reportId} has ${allCulturesInReport.length} cultures:`,
                 allCulturesInReport.map(c => c.culture_id));
-            
-            return res.status(404).json({ 
+
+            return res.status(404).json({
                 error: 'Culture not found in this medical report',
                 details: {
                     medicalReportId: reportId,
@@ -1363,7 +1381,7 @@ router.post('/:reportId/cultures/:cultureId/result', authenticateUser, authorize
 
         // Update the culture result
         await db.medical_report_has_culture.update(
-            { 
+            {
                 result: result || null,
                 status: finalStatus,
                 updatedAt: new Date()
@@ -1402,7 +1420,7 @@ router.post('/:reportId/cultures/:cultureId/result', authenticateUser, authorize
 router.get('/:reportId/tests/check', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {
         const { reportId } = req.params;
-        
+
         // Get the medical report with all its test associations
         const medicalReport = await db.medical_report.findByPk(reportId, {
             include: [
@@ -1454,7 +1472,7 @@ router.get('/:reportId/tests/check', authenticateUser, authorizeRoles('admin', '
 router.get('/:reportId/cultures/check', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {
         const { reportId } = req.params;
-        
+
         // Get the medical report with all its culture associations
         const medicalReport = await db.medical_report.findByPk(reportId, {
             include: [
@@ -1504,48 +1522,48 @@ router.get('/:reportId/cultures/check', authenticateUser, authorizeRoles('admin'
 
 // Import medical reports from Excel/CSV
 router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const workbook = XLSX.readFile(req.file.path);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet);
-    let imported = 0, updated = 0, errors = [];
-    for (const row of data) {
-      if (!row['Patient ID']) {
-        errors.push(`Missing required field Patient ID in row: ${JSON.stringify(row)}`);
-        continue;
-      }
-      let report = null;
-      if (row.ID) {
-        report = await db.medical_report.findByPk(row.ID);
-      }
-      const reportData = {
-        patient_id: row['Patient ID'],
-        date: row.Date || null,
-        prints_number: row.Prints || 0,
-        whatsapp_sends: row['WhatsApp Sends'] || 0,
-        done: row.Done || 0,
-        signatory_id: row['Signatory ID'] || null,
-        pending: row.Pending || 0,
-        comment: row.Comment || null,
-        signatory_admin_id: row['Signatory Admin ID'] || null,
-        signatory_name: row['Signatory Name'] || null,
-        bill_id: row['Bill ID'] || null
-      };
-      if (report) {
-        await report.update(reportData);
-        updated++;
-      } else {
-        await db.medical_report.create(reportData);
-        imported++;
-      }
-    }
-    fs.unlinkSync(req.file.path);
-    res.json({ imported, updated, errors });
-  } catch (error) {
-    console.error('Error importing medical reports:', error);
-    res.status(500).json({ error: 'Failed to import medical reports' });
+    try {
+        if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+        const workbook = XLSX.readFile(req.file.path);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+        let imported = 0, updated = 0, errors = [];
+        for (const row of data) {
+            if (!row['Patient ID']) {
+                errors.push(`Missing required field Patient ID in row: ${JSON.stringify(row)}`);
+                continue;
+            }
+            let report = null;
+            if (row.ID) {
+                report = await db.medical_report.findByPk(row.ID);
+            }
+            const reportData = {
+                patient_id: row['Patient ID'],
+                date: row.Date || null,
+                prints_number: row.Prints || 0,
+                whatsapp_sends: row['WhatsApp Sends'] || 0,
+                done: row.Done || 0,
+                signatory_id: row['Signatory ID'] || null,
+                pending: row.Pending || 0,
+                comment: row.Comment || null,
+                signatory_admin_id: row['Signatory Admin ID'] || null,
+                signatory_name: row['Signatory Name'] || null,
+                bill_id: row['Bill ID'] || null
+            };
+            if (report) {
+                await report.update(reportData);
+                updated++;
+            } else {
+                await db.medical_report.create(reportData);
+                imported++;
+            }
+        }
+        fs.unlinkSync(req.file.path);
+        res.json({ imported, updated, errors });
+    } catch (error) {
+        console.error('Error importing medical reports:', error);
+        res.status(500).json({ error: 'Failed to import medical reports' });
     }
 });
 

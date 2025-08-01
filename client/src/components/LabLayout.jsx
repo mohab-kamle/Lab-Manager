@@ -4,7 +4,6 @@ import { Container, Alert, Spinner } from 'react-bootstrap';
 import { useLab } from '../context/LabContext';
 import { useAuth } from '../context/AuthContext';
 import MainNavBar from './MainNavBar';
-import SecondaryNavBar from './SecondaryNavBar';
 
 const LabLayout = () => {
   const { 

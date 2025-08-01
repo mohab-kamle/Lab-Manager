@@ -11,6 +11,7 @@ import { Nav, Tab as TabContent, TabPane } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { formatDate } from "../utils/dateFormatter";
 import * as XLSX from "xlsx";
+import { useLab } from "../context/LabContext";
 
 function calculateAge(birthDate) {
   if (!birthDate) return null;
@@ -27,6 +28,7 @@ function calculateAge(birthDate) {
 
 const MedicalReports = () => {
   const { user } = useAuth();
+  const { labInfo } = useLab();
   const [reports, setReports] = useState([]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -258,7 +260,7 @@ const MedicalReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       // Fetch invoice details
       const response = await axios.get(`${apiUrl}/invoices/${report.bill_id}`, { headers });
       setSelectedInvoice(response.data);
@@ -273,16 +275,16 @@ const MedicalReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       await axios.post(`${apiUrl}/medical-reports/${report.id}/collected`, {}, { headers });
-      
+
       // Update the local state
       setReports(prevReports =>
         prevReports.map(r =>
           r.id === report.id ? { ...r, collected_at: new Date().toISOString() } : r
         )
       );
-      
+
       toast.success("Sample marked as collected");
     } catch (error) {
       console.error("Error marking sample as collected:", error);
@@ -294,29 +296,30 @@ const MedicalReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       // Fetch the full report details first
       const response = await axios.get(`${apiUrl}/medical-reports/${rowData.id}`, { headers });
       const fullReport = response.data;
-      
+
       const tests = fullReport.test_id_test_medical_report_has_tests || [];
       const cultures = fullReport.cultures || []; // Use fullReport.cultures which contains only associated cultures
 
       // Fetch test components for all tests in the report
-      const testComponentsPromises = tests.map(test => 
+      const testComponentsPromises = tests.map(test =>
         axios.get(`${apiUrl}/tests/${test.id}/components`, { headers })
       ) || [];
-      
+
       // Fetch test groups for the report
+      console.log(rowData);
       const testGroupsResponse = await axios.get(
-        `${apiUrl}/medical-reports/${rowData.id}/test-groups`, 
+        `${apiUrl}/medical-reports/${rowData.id}/test-groups`,
         { headers }
       );
-      
+
       // Fetch antibiotics
       const antibioticsResponse = await axios.get(`${apiUrl}/culture-antibiotics`, { headers });
       setAntibiotics(antibioticsResponse.data);
-      
+
       // Process test components
       const testComponentsData = {};
       if (testComponentsPromises.length > 0) {
@@ -327,12 +330,12 @@ const MedicalReports = () => {
           }
         });
       }
-      
+
       // Process test groups
       const testGroupsData = testGroupsResponse.data || [];
       const testGroupValues = {};
       const fieldOptions = {};
-      
+
       testGroupsData.forEach(group => {
         // Initialize group in testGroupValues
         if (!testGroupValues[group.id]) {
@@ -370,7 +373,7 @@ const MedicalReports = () => {
           });
         });
       });
-      
+
       // Set states
       setTestComponents(testComponentsData);
       setTestGroups(testGroupsData);
@@ -416,7 +419,7 @@ const MedicalReports = () => {
         }
       });
       setCultureAntibiotics(initialCultureAntibiotics);
-      
+
       setShowResultsModal(true);
     } catch (error) {
       console.error("Error preparing results entry:", error);
@@ -437,7 +440,7 @@ const MedicalReports = () => {
           }
         }
       };
-      
+
       // Also update the results data if needed
       setResultsData(prevData => ({
         ...prevData,
@@ -453,7 +456,7 @@ const MedicalReports = () => {
           }
         }
       }));
-      
+
       return newState;
     });
   };
@@ -502,11 +505,11 @@ const MedicalReports = () => {
   const handleSaveTestGroupValues = async (reportId, groupId) => {
     try {
       const token = localStorage.getItem("token");
-      const headers = { 
+      const headers = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       };
-      
+
       // Transform the data structure to match backend expectations
       const values = {};
       if (testGroupValues[groupId]) {
@@ -517,7 +520,7 @@ const MedicalReports = () => {
           });
         });
       }
-      
+
       await axios.post(
         `${apiUrl}/medical-reports/${reportId}/test-groups`,
         {
@@ -526,7 +529,7 @@ const MedicalReports = () => {
         },
         { headers }
       );
-      
+
       return true;
     } catch (error) {
       console.error('Error saving test group values:', error);
@@ -546,16 +549,16 @@ const MedicalReports = () => {
   const handleSaveResults = async () => {
     try {
       const token = localStorage.getItem("token");
-      const headers = { 
+      const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       };
 
       // Save test results
-      const testResultsPromises = (resultsData.test_results || []).map(result => 
+      const testResultsPromises = (resultsData.test_results || []).map(result =>
         axios.post(
           `${apiUrl}/medical-reports/${selectedReportForResults.id}/tests/${result.test_id}/result`,
-          { 
+          {
             result: result.result,
             status: result.result && result.result.toString().trim() !== '' ? 'done' : 'pending'
           },
@@ -567,7 +570,7 @@ const MedicalReports = () => {
       const cultureResultsPromises = (resultsData.culture_results || []).map(result =>
         axios.post(
           `${apiUrl}/medical-reports/${selectedReportForResults.id}/cultures/${result.culture_id}/result`,
-          { 
+          {
             result: result.result,
             status: result.result && result.result.toString().trim() !== '' ? 'done' : 'pending'
           },
@@ -638,10 +641,10 @@ const MedicalReports = () => {
         setExpandedSections({});
         setAntibioticSearch({});
         setShowAddAntibioticModal({});
-        
+
         // Refresh the reports list
         await fetchData();
-        
+
         toast.update(toastId, {
           render: "Results saved successfully",
           type: "success",
@@ -685,7 +688,7 @@ const MedicalReports = () => {
     setCultureAntibiotics(prev => {
       const current = prev[cultureResultId] || [];
       const existingIndex = current.findIndex(item => item.antibiotic_id === antibioticId);
-      
+
       if (existingIndex >= 0) {
         // Update existing
         const updated = [...current];
@@ -693,8 +696,8 @@ const MedicalReports = () => {
         return { ...prev, [cultureResultId]: updated };
       } else {
         // Add new
-        return { 
-          ...prev, 
+        return {
+          ...prev,
           [cultureResultId]: [...current, { antibiotic_id: antibioticId, sensitivity }]
         };
       }
@@ -712,8 +715,8 @@ const MedicalReports = () => {
   const updateCultureAntibioticZone = (cultureResultId, antibioticId, zoneSize) => {
     setCultureAntibiotics(prev => {
       const current = prev[cultureResultId] || [];
-      const updated = current.map(item => 
-        item.antibiotic_id === antibioticId 
+      const updated = current.map(item =>
+        item.antibiotic_id === antibioticId
           ? { ...item, zone_size: zoneSize }
           : item
       );
@@ -725,20 +728,20 @@ const MedicalReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const response = await axios.post(`${apiUrl}/antibiotics`, newAntibioticData, { headers });
       const newAntibiotic = response.data;
-      
+
       // Add to local antibiotics list
       setAntibiotics(prev => [...prev, newAntibiotic]);
-      
+
       // Add to culture antibiotics
       updateCultureAntibiotic(cultureResultId, newAntibiotic.id, 'moderate');
-      
+
       // Reset form and close modal
       setNewAntibioticData({ name: '', shortcut: '', commercial_name: '' });
       setShowAddAntibioticModal(prev => ({ ...prev, [cultureResultId]: false }));
-      
+
       toast.success('Antibiotic added successfully!');
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Failed to add antibiotic';
@@ -749,15 +752,15 @@ const MedicalReports = () => {
   const filteredReports = reports.filter(report => {
     const searchMatch = searchQuery
       ? report.comment?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      report.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
 
     const dateMatch =
       (!filters.startDate || new Date(report.date) >= new Date(filters.startDate)) &&
       (!filters.endDate || new Date(report.date) <= new Date(filters.endDate));
 
-    const statusMatch = !filters.status || 
+    const statusMatch = !filters.status ||
       (filters.status === 'done' && report.done === 1) ||
       (filters.status === 'pending' && report.pending === 1) ||
       (filters.status === 'unsigned' && report.done === 0 && report.pending === 0);
@@ -843,10 +846,10 @@ const MedicalReports = () => {
           </Button>
         )}
         {/* Direct PDF Download - fetch and download in one step */}
-        <DirectPDFDownload 
-          reportId={rowData.id} 
-          patient={rowData.patient} 
-          apiUrl={apiUrl} 
+        <DirectPDFDownload
+          reportId={rowData.id}
+          patient={rowData.patient}
+          apiUrl={apiUrl}
         />
         {/* PDF Preview Button */}
         <Button
@@ -856,11 +859,11 @@ const MedicalReports = () => {
             try {
               const token = localStorage.getItem("token");
               const headers = { Authorization: `Bearer ${token}` };
-              
+
               // Fetch the full report details for PDF preview
               const response = await axios.get(`${apiUrl}/medical-reports/${rowData.id}`, { headers });
               const fullReportData = response.data;
-              
+
               setSelectedReportForPDF(fullReportData);
               setShowPDFPreview(true);
             } catch (error) {
@@ -891,7 +894,7 @@ const MedicalReports = () => {
     "date",
     "patient_name",
     "registered_at",
-    "collected_at", 
+    "collected_at",
     "received_at",
     "reported_at",
     "comment",
@@ -961,9 +964,9 @@ const MedicalReports = () => {
         <Alert variant="danger">{error}</Alert>
       ) : (
         <>
-          <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
             <h2>Medical Reports</h2>
-            <div className="d-flex gap-2">
+            <div className="d-flex gap-2 flex-wrap">
               <Button variant="outline-success" as="label">
                 <Download size={16} className="me-2" />
                 Export XLSX
@@ -1158,7 +1161,7 @@ const MedicalReports = () => {
                       <strong>Due:</strong> ${Number(selectedInvoice.due || 0).toFixed(2)}
                     </Col>
                   </Row>
-                  
+
                   {selectedInvoice.tests && selectedInvoice.tests.length > 0 && (
                     <div className="mt-3">
                       <h6>Tests:</h6>
@@ -1180,7 +1183,7 @@ const MedicalReports = () => {
                       </Table>
                     </div>
                   )}
-                  
+
                   {selectedInvoice.cultures && selectedInvoice.cultures.length > 0 && (
                     <div className="mt-3">
                       <h6>Cultures:</h6>
@@ -1202,7 +1205,7 @@ const MedicalReports = () => {
                       </Table>
                     </div>
                   )}
-                  
+
                   {selectedInvoice.packages && selectedInvoice.packages.length > 0 && (
                     <div className="mt-3">
                       <h6>Packages:</h6>
@@ -1226,7 +1229,7 @@ const MedicalReports = () => {
                       </Table>
                     </div>
                   )}
-                  
+
                   {selectedInvoice.test_groups && selectedInvoice.test_groups.length > 0 && (
                     <div className="mt-3">
                       <h6>Test Groups:</h6>
@@ -1291,390 +1294,392 @@ const MedicalReports = () => {
                     </Col>
                   </Row>
 
-                  <Tabs
-                    activeKey={activeTab}
-                    onSelect={setActiveTab}
-                    id="results-tabs"
-                    className="mb-3"
-                  >
-                    <Tab eventKey="tests" title="Tests">
-                      {selectedReportForResults.tests && selectedReportForResults.tests.length > 0 && (
-                        <div className="mb-4">
-                          <h5>Tests</h5>
-                          {selectedReportForResults.tests.map((test, testIndex) => {
-                            const comps = testComponents[test.id] || [];
-                            const patientAge = calculateAge(selectedReportForResults.patient?.birth_date);
-                            const patientGender = selectedReportForResults.patient?.gender;
-                            let selectedComponent = null;
-                            if (comps.length > 0) {
-                              selectedComponent = comps.find(tc => {
-                                const genderMatch = !tc.gender || tc.gender === patientGender;
-                                const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
-                                                 (tc.age_end == null || patientAge <= tc.age_end);
-                                return genderMatch && ageMatch;
-                              }) || comps[0];
-                            }
-                            return (
-                              <div key={test.id} className="border rounded p-3 mb-3">
-                                <h6>{test.name}</h6>
-                                {selectedComponent ? (
-                                  <Row className="mb-2">
-                                    <Col md={3}><strong>{selectedComponent.name}</strong></Col>
-                                    <Col md={2}><small className="text-muted">Normal: {selectedComponent.normal_from} - {selectedComponent.normal_to}</small></Col>
-                                    <Col md={2}><small className="text-muted">Unit: {selectedComponent.unit}</small></Col>
-                                    <Col md={3}>
-                                      <Form.Control
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Enter result"
-                                        value={resultsData.test_results.find(tr => tr.test_id === test.id)?.result || ''}
-                                        onChange={e => updateTestResult(test.id, e.target.value)}
-                                      />
-                                    </Col>
-                                    <Col md={2}>
-                                      <Badge bg="secondary">{test.status || 'pending'}</Badge>
-                                    </Col>
-                                  </Row>
-                                ) : (
-                                  <Row className="mb-2">
-                                    <Col md={3}><strong>{test.name}</strong></Col>
-                                    <Col md={2}></Col>
-                                    <Col md={2}></Col>
-                                    <Col md={3}>
-                                      <Form.Control
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Enter result"
-                                        value={resultsData.test_results.find(tr => tr.test_id === test.id)?.result || ''}
-                                        onChange={e => updateTestResult(test.id, e.target.value)}
-                                      />
-                                    </Col>
-                                    <Col md={2}>
-                                      <Badge bg="secondary">{test.status || 'pending'}</Badge>
-                                    </Col>
-                                  </Row>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </Tab>
-
-                    <Tab eventKey="cultures" title="Cultures">
-                      {selectedReportForResults.cultures && selectedReportForResults.cultures.length > 0 && (
-                        <div className="mb-4">
-                          <h5>Cultures</h5>
-                          {selectedReportForResults.cultures.map((culture, cultureIndex) => {
-                            const cultureResult = resultsData.culture_results.find(cr => cr.culture_id === culture.id);
-                            const cultureResultId = culture.medical_report_has_culture?.id;
-                            const cultureAntibioticsList = cultureAntibiotics[cultureResultId] || [];
-                            
-                            return (
-                              <div key={culture.id} className="border rounded p-3 mb-3">
-                                <Row>
-                                  <Col md={4}><h6>{culture.name}</h6></Col>
-                                  <Col md={6}>
-                                    <Form.Control
-                                      as="textarea"
-                                      rows={3}
-                                      placeholder="Enter culture result"
-                                      value={typeof cultureResult?.result === 'string' ? cultureResult.result : ''}
-                                      onChange={e => updateCultureResult(culture.id, e.target.value)}
-                                    />
-                                  </Col>
-                                  <Col md={2}>
-                                    <Badge bg="secondary">{culture.status || 'pending'}</Badge>
-                                  </Col>
-                                </Row>
-                                
-                                {/* Antibiotic Sensitivity Section - Expandable */}
-                                {cultureResultId && (
-                                  <div className="mt-3">
-                                    <div 
-                                      className="d-flex align-items-center justify-content-between p-2 bg-light rounded cursor-pointer"
-                                      style={{ cursor: 'pointer' }}
-                                      onClick={() => {
-                                        const currentExpanded = expandedSections[cultureResultId] || false;
-                                        setExpandedSections(prev => ({
-                                          ...prev,
-                                          [cultureResultId]: !currentExpanded
-                                        }));
-                                      }}
-                                    >
-                                      <h6 className="mb-0">
-                                        <i className={`fas fa-chevron-${expandedSections[cultureResultId] ? 'up' : 'down'} me-2`}></i>
-                                        Antibiotic Sensitivity Testing
-                                      </h6>
-                                      <Badge bg="info">{cultureAntibioticsList.length} antibiotics</Badge>
-                                    </div>
-                                    
-                                    {expandedSections[cultureResultId] && (
-                                      <div className="mt-3 p-3 border rounded">
-                                        {/* Search and Add Antibiotics */}
-                                        <Row className="mb-3">
-                                          <Col md={6}>
-                                            <Form.Control
-                                              type="text"
-                                              placeholder="Search antibiotics..."
-                                              value={antibioticSearch[cultureResultId] || ''}
-                                              onChange={(e) => setAntibioticSearch(prev => ({
-                                                ...prev,
-                                                [cultureResultId]: e.target.value
-                                              }))}
-                                              size="sm"
-                                            />
-                                          </Col>
-                                          <Col md={6}>
-                                            <div className="d-flex gap-2">
-                                              <Form.Select
-                                                size="sm"
-                                                onChange={(e) => {
-                                                  if (e.target.value) {
-                                                    updateCultureAntibiotic(cultureResultId, parseInt(e.target.value), 'moderate');
-                                                    e.target.value = '';
-                                                  }
-                                                }}
-                                              >
-                                                <option value="">Add from list...</option>
-                                                {antibiotics
-                                                  .filter(ab => {
-                                                    const searchTerm = antibioticSearch[cultureResultId] || '';
-                                                    const matchesSearch = !searchTerm || 
-                                                      ab.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                                      (ab.shortcut && ab.shortcut.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                                                      (ab.commercial_name && ab.commercial_name.toLowerCase().includes(searchTerm.toLowerCase()));
-                                                    const notAlreadyAdded = !cultureAntibioticsList.find(ca => ca.antibiotic_id === ab.id);
-                                                    return matchesSearch && notAlreadyAdded;
-                                                  })
-                                                  .slice(0, 10) // Limit to first 10 results
-                                                  .map(ab => (
-                                                    <option key={ab.id} value={ab.id}>
-                                                      {ab.name} {ab.shortcut ? `(${ab.shortcut})` : ''}
-                                                      {ab.commercial_name ? ` - ${ab.commercial_name}` : ''}
-                                                    </option>
-                                                  ))}
-                                              </Form.Select>
-                                              <Button
-                                                variant="outline-primary"
-                                                size="sm"
-                                                onClick={() => setShowAddAntibioticModal(prev => ({
-                                                  ...prev,
-                                                  [cultureResultId]: true
-                                                }))}
-                                              >
-                                                <Plus size={14} />
-                                              </Button>
-                                            </div>
-                                          </Col>
-                                        </Row>
-                                        
-                                        {/* Antibiotics List */}
-                                        {cultureAntibioticsList.length > 0 && (
-                                          <div className="table-responsive">
-                                            <Table size="sm" bordered className="mb-0">
-                                              <thead className="table-light">
-                                                <tr>
-                                                  <th style={{ width: '40%' }}>Antibiotic</th>
-                                                  <th style={{ width: '35%' }}>Sensitivity</th>
-                                                  <th style={{ width: '15%' }}>Zone (mm)</th>
-                                                  <th style={{ width: '10%' }}>Action</th>
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {cultureAntibioticsList.map((ca, index) => {
-                                                  const antibiotic = antibiotics.find(ab => ab.id === ca.antibiotic_id);
-                                                  return (
-                                                    <tr key={index}>
-                                                      <td>
-                                                        <div>
-                                                          <strong>{antibiotic?.name}</strong>
-                                                          {antibiotic?.shortcut && (
-                                                            <small className="text-muted d-block">({antibiotic.shortcut})</small>
-                                                          )}
-                                                          {antibiotic?.commercial_name && (
-                                                            <small className="text-muted d-block">{antibiotic.commercial_name}</small>
-                                                          )}
-                                                        </div>
-                                                      </td>
-                                                      <td>
-                                                        <Form.Select
-                                                          size="sm"
-                                                          value={ca.sensitivity}
-                                                          onChange={(e) => updateCultureAntibiotic(cultureResultId, ca.antibiotic_id, e.target.value)}
-                                                          className={`border-${ca.sensitivity === 'sensitive' ? 'success' : ca.sensitivity === 'moderate' ? 'warning' : 'danger'}`}
-                                                        >
-                                                          <option value="sensitive">Sensitive (S)</option>
-                                                          <option value="moderate">Intermediate (I)</option>
-                                                          <option value="resistant">Resistant (R)</option>
-                                                        </Form.Select>
-                                                      </td>
-                                                      <td>
-                                                        <Form.Control
-                                                          type="number"
-                                                          size="sm"
-                                                          placeholder="Zone"
-                                                          value={ca.zone_size || ''}
-                                                          onChange={(e) => updateCultureAntibioticZone(cultureResultId, ca.antibiotic_id, e.target.value)}
-                                                          min="0"
-                                                          max="50"
-                                                        />
-                                                      </td>
-                                                      <td>
-                                                        <Button
-                                                          variant="outline-danger"
-                                                          size="sm"
-                                                          onClick={() => removeCultureAntibiotic(cultureResultId, ca.antibiotic_id)}
-                                                          title="Remove antibiotic"
-                                                        >
-                                                          <Trash2 size={14} />
-                                                        </Button>
-                                                      </td>
-                                                    </tr>
-                                                  );
-                                                })}
-                                              </tbody>
-                                            </Table>
-                                          </div>
-                                        )}
-                                        
-                                        {cultureAntibioticsList.length === 0 && (
-                                          <div className="text-center text-muted py-3">
-                                            <TestTube size={24} className="mb-2" />
-                                            <p className="mb-0">No antibiotics added yet. Add antibiotics to test sensitivity.</p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </Tab>
-
-                    {testGroups.length > 0 && (
-                      <Tab eventKey="test-groups" title={`Test Groups (${testGroups.length})`}>
-                      {testGroups.length > 0 && (
-                        <div className="mb-4">
-                          <h5>Test Groups</h5>
-                          {testGroups.map((group) => {
-                            // Combine direct components and categorized components
-                            const allComponents = [
-                              ...(group.direct_components || []).map(comp => ({ ...comp, _category: null })),
-                              ...((group.categories || []).flatMap(cat => (cat.components || []).map(comp => ({ ...comp, _category: cat.name }))) || [])
-                            ];
-                            return (
-                              <div key={group.id} className="border rounded p-3 mb-4">
-                                <h5 className="mb-3">{group.name}</h5>
-                                <div className="table-responsive">
-                                  <Table bordered className="mb-0">
-                                    <thead>
-                                      <tr>
-                                        <th>Component</th>
-                                        <th>Category</th>
-                                        {group.fields.map((field) => (
-                                          <th key={field.id}>{field.name}</th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {allComponents.map((component) => (
-                                        <tr key={component.id}>
-                                          <td className="fw-bold">{component.name}</td>
-                                          <td>{component._category || '-'}</td>
-                                          {group.fields.map((field) => {
-                                            const options = field.field_comp_options
-                                              ?.filter(opt => opt.tg_component_id === component.id && opt.tg_fields_id === field.id)
-                                              .map(opt => ({
-                                                value: opt.name,
-                                                label: opt.name
-                                              })) || [];
-                                            const currentValue = testGroupValues[group.id]?.[component.id]?.[field.id] || '';
-                                            return (
-                                              <td key={`${component.id}-${field.id}`}> 
-                                                {options.length > 0 ? (
-                                                  addingOption[`${group.id}_${field.id}_${component.id}`] ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', minWidth: '150px' }}>
-                                                      <Form.Control
-                                                        ref={addOptionInputRef}
-                                                        type="text"
-                                                        value={newOptionValue[`${group.id}_${field.id}_${component.id}`] || ''}
-                                                        onChange={e => setNewOptionValue(prev => ({ ...prev, [`${group.id}_${field.id}_${component.id}`]: e.target.value }))}
-                                                        size="sm"
-                                                        placeholder="New option"
-                                                        style={{ minWidth: '100px', marginRight: 4 }}
-                                                      />
-                                                      <Button
-                                                        variant="success"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                          const value = newOptionValue[`${group.id}_${field.id}_${component.id}`]?.trim();
-                                                          if (value) handleAddFieldCompOption(group.id, field.id, component.id, value);
-                                                        }}
-                                                      >
-                                                        Add
-                                                      </Button>
-                                                      <Button
-                                                        variant="secondary"
-                                                        size="sm"
-                                                        style={{ marginLeft: 2 }}
-                                                        onClick={() => setAddingOption(prev => ({ ...prev, [`${group.id}_${field.id}_${component.id}`]: false }))}
-                                                      >
-                                                        Cancel
-                                                      </Button>
-                                                    </div>
-                                                  ) : (
-                                                    <Form.Select
-                                                      style={{ minWidth: '150px' }}
-                                                      value={currentValue}
-                                                      onChange={e => {
-                                                        if (e.target.value === '__add_option__') {
-                                                          setAddingOption(prev => ({ ...prev, [`${group.id}_${field.id}_${component.id}`]: true }));
-                                                          setTimeout(() => addOptionInputRef.current?.focus(), 0);
-                                                        } else {
-                                                          handleTestGroupValueChange(group.id, component.id, field.id, e.target.value);
-                                                        }
-                                                      }}
-                                                      size="sm"
-                                                    >
-                                                      <option value="">Select value</option>
-                                                      {options.map((option) => (
-                                                        <option key={option.value} value={option.value}>
-                                                          {option.label}
-                                                        </option>
-                                                      ))}
-                                                      <option value="__add_option__">+ Add option...</option>
-                                                    </Form.Select>
-                                                  )
-                                                ) : (
-                                                  <Form.Control
-                                                    type="text"
-                                                    value={currentValue}
-                                                    onChange={(e) => handleTestGroupValueChange(group.id, component.id, field.id, e.target.value)}
-                                                    size="sm"
-                                                    placeholder="Enter value"
-                                                    style={{ minWidth: '150px' }}
-                                                  />
-                                                )}
-                                              </td>
-                                            );
-                                          })}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </Table>
+                  <div className="scrollable-tabs">
+                    <Tabs
+                      activeKey={activeTab}
+                      onSelect={setActiveTab}
+                      id="results-tabs"
+                      className="mb-3"
+                    >
+                      <Tab eventKey="tests" title="Tests">
+                        {selectedReportForResults.tests && selectedReportForResults.tests.length > 0 && (
+                          <div className="mb-4">
+                            <h5>Tests</h5>
+                            {selectedReportForResults.tests.map((test, testIndex) => {
+                              const comps = testComponents[test.id] || [];
+                              const patientAge = calculateAge(selectedReportForResults.patient?.birth_date);
+                              const patientGender = selectedReportForResults.patient?.gender;
+                              let selectedComponent = null;
+                              if (comps.length > 0) {
+                                selectedComponent = comps.find(tc => {
+                                  const genderMatch = !tc.gender || tc.gender === patientGender;
+                                  const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
+                                    (tc.age_end == null || patientAge <= tc.age_end);
+                                  return genderMatch && ageMatch;
+                                }) || comps[0];
+                              }
+                              return (
+                                <div key={test.id} className="border rounded p-3 mb-3">
+                                  <h6>{test.name}</h6>
+                                  {selectedComponent ? (
+                                    <Row className="mb-2">
+                                      <Col md={3}><strong>{selectedComponent.name}</strong></Col>
+                                      <Col md={2}><small className="text-muted">Normal: {selectedComponent.normal_from} - {selectedComponent.normal_to}</small></Col>
+                                      <Col md={2}><small className="text-muted">Unit: {selectedComponent.unit}</small></Col>
+                                      <Col md={3}>
+                                        <Form.Control
+                                          type="number"
+                                          step="0.01"
+                                          placeholder="Enter result"
+                                          value={resultsData.test_results.find(tr => tr.test_id === test.id)?.result || ''}
+                                          onChange={e => updateTestResult(test.id, e.target.value)}
+                                        />
+                                      </Col>
+                                      <Col md={2}>
+                                        <Badge bg="secondary">{test.status || 'pending'}</Badge>
+                                      </Col>
+                                    </Row>
+                                  ) : (
+                                    <Row className="mb-2">
+                                      <Col md={3}><strong>{test.name}</strong></Col>
+                                      <Col md={2}></Col>
+                                      <Col md={2}></Col>
+                                      <Col md={3}>
+                                        <Form.Control
+                                          type="number"
+                                          step="0.01"
+                                          placeholder="Enter result"
+                                          value={resultsData.test_results.find(tr => tr.test_id === test.id)?.result || ''}
+                                          onChange={e => updateTestResult(test.id, e.target.value)}
+                                        />
+                                      </Col>
+                                      <Col md={2}>
+                                        <Badge bg="secondary">{test.status || 'pending'}</Badge>
+                                      </Col>
+                                    </Row>
+                                  )}
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                              );
+                            })}
+                          </div>
+                        )}
                       </Tab>
-                    )}
-                  </Tabs>
+
+                      <Tab eventKey="cultures" title="Cultures">
+                        {selectedReportForResults.cultures && selectedReportForResults.cultures.length > 0 && (
+                          <div className="mb-4">
+                            <h5>Cultures</h5>
+                            {selectedReportForResults.cultures.map((culture, cultureIndex) => {
+                              const cultureResult = resultsData.culture_results.find(cr => cr.culture_id === culture.id);
+                              const cultureResultId = culture.medical_report_has_culture?.id;
+                              const cultureAntibioticsList = cultureAntibiotics[cultureResultId] || [];
+
+                              return (
+                                <div key={culture.id} className="border rounded p-3 mb-3">
+                                  <Row>
+                                    <Col md={4}><h6>{culture.name}</h6></Col>
+                                    <Col md={6}>
+                                      <Form.Control
+                                        as="textarea"
+                                        rows={3}
+                                        placeholder="Enter culture result"
+                                        value={typeof cultureResult?.result === 'string' ? cultureResult.result : ''}
+                                        onChange={e => updateCultureResult(culture.id, e.target.value)}
+                                      />
+                                    </Col>
+                                    <Col md={2}>
+                                      <Badge bg="secondary">{culture.status || 'pending'}</Badge>
+                                    </Col>
+                                  </Row>
+
+                                  {/* Antibiotic Sensitivity Section - Expandable */}
+                                  {cultureResultId && (
+                                    <div className="mt-3">
+                                      <div
+                                        className="d-flex align-items-center justify-content-between p-2 bg-light rounded cursor-pointer"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => {
+                                          const currentExpanded = expandedSections[cultureResultId] || false;
+                                          setExpandedSections(prev => ({
+                                            ...prev,
+                                            [cultureResultId]: !currentExpanded
+                                          }));
+                                        }}
+                                      >
+                                        <h6 className="mb-0">
+                                          <i className={`fas fa-chevron-${expandedSections[cultureResultId] ? 'up' : 'down'} me-2`}></i>
+                                          Antibiotic Sensitivity Testing
+                                        </h6>
+                                        <Badge bg="info">{cultureAntibioticsList.length} antibiotics</Badge>
+                                      </div>
+
+                                      {expandedSections[cultureResultId] && (
+                                        <div className="mt-3 p-3 border rounded">
+                                          {/* Search and Add Antibiotics */}
+                                          <Row className="mb-3">
+                                            <Col md={6}>
+                                              <Form.Control
+                                                type="text"
+                                                placeholder="Search antibiotics..."
+                                                value={antibioticSearch[cultureResultId] || ''}
+                                                onChange={(e) => setAntibioticSearch(prev => ({
+                                                  ...prev,
+                                                  [cultureResultId]: e.target.value
+                                                }))}
+                                                size="sm"
+                                              />
+                                            </Col>
+                                            <Col md={6}>
+                                              <div className="d-flex gap-2">
+                                                <Form.Select
+                                                  size="sm"
+                                                  onChange={(e) => {
+                                                    if (e.target.value) {
+                                                      updateCultureAntibiotic(cultureResultId, parseInt(e.target.value), 'moderate');
+                                                      e.target.value = '';
+                                                    }
+                                                  }}
+                                                >
+                                                  <option value="">Add from list...</option>
+                                                  {antibiotics
+                                                    .filter(ab => {
+                                                      const searchTerm = antibioticSearch[cultureResultId] || '';
+                                                      const matchesSearch = !searchTerm ||
+                                                        ab.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                        (ab.shortcut && ab.shortcut.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                                                        (ab.commercial_name && ab.commercial_name.toLowerCase().includes(searchTerm.toLowerCase()));
+                                                      const notAlreadyAdded = !cultureAntibioticsList.find(ca => ca.antibiotic_id === ab.id);
+                                                      return matchesSearch && notAlreadyAdded;
+                                                    })
+                                                    .slice(0, 10) // Limit to first 10 results
+                                                    .map(ab => (
+                                                      <option key={ab.id} value={ab.id}>
+                                                        {ab.name} {ab.shortcut ? `(${ab.shortcut})` : ''}
+                                                        {ab.commercial_name ? ` - ${ab.commercial_name}` : ''}
+                                                      </option>
+                                                    ))}
+                                                </Form.Select>
+                                                <Button
+                                                  variant="outline-primary"
+                                                  size="sm"
+                                                  onClick={() => setShowAddAntibioticModal(prev => ({
+                                                    ...prev,
+                                                    [cultureResultId]: true
+                                                  }))}
+                                                >
+                                                  <Plus size={14} />
+                                                </Button>
+                                              </div>
+                                            </Col>
+                                          </Row>
+
+                                          {/* Antibiotics List */}
+                                          {cultureAntibioticsList.length > 0 && (
+                                            <div className="table-responsive">
+                                              <Table size="sm" bordered className="mb-0">
+                                                <thead className="table-light">
+                                                  <tr>
+                                                    <th style={{ width: '40%' }}>Antibiotic</th>
+                                                    <th style={{ width: '35%' }}>Sensitivity</th>
+                                                    <th style={{ width: '15%' }}>Zone (mm)</th>
+                                                    <th style={{ width: '10%' }}>Action</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {cultureAntibioticsList.map((ca, index) => {
+                                                    const antibiotic = antibiotics.find(ab => ab.id === ca.antibiotic_id);
+                                                    return (
+                                                      <tr key={index}>
+                                                        <td>
+                                                          <div>
+                                                            <strong>{antibiotic?.name}</strong>
+                                                            {antibiotic?.shortcut && (
+                                                              <small className="text-muted d-block">({antibiotic.shortcut})</small>
+                                                            )}
+                                                            {antibiotic?.commercial_name && (
+                                                              <small className="text-muted d-block">{antibiotic.commercial_name}</small>
+                                                            )}
+                                                          </div>
+                                                        </td>
+                                                        <td>
+                                                          <Form.Select
+                                                            size="sm"
+                                                            value={ca.sensitivity}
+                                                            onChange={(e) => updateCultureAntibiotic(cultureResultId, ca.antibiotic_id, e.target.value)}
+                                                            className={`border-${ca.sensitivity === 'sensitive' ? 'success' : ca.sensitivity === 'moderate' ? 'warning' : 'danger'}`}
+                                                          >
+                                                            <option value="sensitive">Sensitive (S)</option>
+                                                            <option value="moderate">Intermediate (I)</option>
+                                                            <option value="resistant">Resistant (R)</option>
+                                                          </Form.Select>
+                                                        </td>
+                                                        <td>
+                                                          <Form.Control
+                                                            type="number"
+                                                            size="sm"
+                                                            placeholder="Zone"
+                                                            value={ca.zone_size || ''}
+                                                            onChange={(e) => updateCultureAntibioticZone(cultureResultId, ca.antibiotic_id, e.target.value)}
+                                                            min="0"
+                                                            max="50"
+                                                          />
+                                                        </td>
+                                                        <td>
+                                                          <Button
+                                                            variant="outline-danger"
+                                                            size="sm"
+                                                            onClick={() => removeCultureAntibiotic(cultureResultId, ca.antibiotic_id)}
+                                                            title="Remove antibiotic"
+                                                          >
+                                                            <Trash2 size={14} />
+                                                          </Button>
+                                                        </td>
+                                                      </tr>
+                                                    );
+                                                  })}
+                                                </tbody>
+                                              </Table>
+                                            </div>
+                                          )}
+
+                                          {cultureAntibioticsList.length === 0 && (
+                                            <div className="text-center text-muted py-3">
+                                              <TestTube size={24} className="mb-2" />
+                                              <p className="mb-0">No antibiotics added yet. Add antibiotics to test sensitivity.</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </Tab>
+
+                      {testGroups.length > 0 && (
+                        <Tab eventKey="test-groups" title={`Test Groups (${testGroups.length})`}>
+                          {testGroups.length > 0 && (
+                            <div className="mb-4">
+                              <h5>Test Groups</h5>
+                              {testGroups.map((group) => {
+                                // Combine direct components and categorized components
+                                const allComponents = [
+                                  ...(group.direct_components || []).map(comp => ({ ...comp, _category: null })),
+                                  ...((group.categories || []).flatMap(cat => (cat.components || []).map(comp => ({ ...comp, _category: cat.name }))) || [])
+                                ];
+                                return (
+                                  <div key={group.id} className="border rounded p-3 mb-4">
+                                    <h5 className="mb-3">{group.name}</h5>
+                                    <div className="table-responsive">
+                                      <Table bordered className="mb-0">
+                                        <thead>
+                                          <tr>
+                                            <th>Component</th>
+                                            <th>Category</th>
+                                            {group.fields.map((field) => (
+                                              <th key={field.id}>{field.name}</th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {allComponents.map((component) => (
+                                            <tr key={component.id}>
+                                              <td className="fw-bold">{component.name}</td>
+                                              <td>{component._category || '-'}</td>
+                                              {group.fields.map((field) => {
+                                                const options = field.field_comp_options
+                                                  ?.filter(opt => opt.tg_component_id === component.id && opt.tg_fields_id === field.id)
+                                                  .map(opt => ({
+                                                    value: opt.name,
+                                                    label: opt.name
+                                                  })) || [];
+                                                const currentValue = testGroupValues[group.id]?.[component.id]?.[field.id] || '';
+                                                return (
+                                                  <td key={`${component.id}-${field.id}`}>
+                                                    {options.length > 0 ? (
+                                                      addingOption[`${group.id}_${field.id}_${component.id}`] ? (
+                                                        <div style={{ display: 'flex', alignItems: 'center', minWidth: '150px' }}>
+                                                          <Form.Control
+                                                            ref={addOptionInputRef}
+                                                            type="text"
+                                                            value={newOptionValue[`${group.id}_${field.id}_${component.id}`] || ''}
+                                                            onChange={e => setNewOptionValue(prev => ({ ...prev, [`${group.id}_${field.id}_${component.id}`]: e.target.value }))}
+                                                            size="sm"
+                                                            placeholder="New option"
+                                                            style={{ minWidth: '100px', marginRight: 4 }}
+                                                          />
+                                                          <Button
+                                                            variant="success"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                              const value = newOptionValue[`${group.id}_${field.id}_${component.id}`]?.trim();
+                                                              if (value) handleAddFieldCompOption(group.id, field.id, component.id, value);
+                                                            }}
+                                                          >
+                                                            Add
+                                                          </Button>
+                                                          <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            style={{ marginLeft: 2 }}
+                                                            onClick={() => setAddingOption(prev => ({ ...prev, [`${group.id}_${field.id}_${component.id}`]: false }))}
+                                                          >
+                                                            Cancel
+                                                          </Button>
+                                                        </div>
+                                                      ) : (
+                                                        <Form.Select
+                                                          style={{ minWidth: '150px' }}
+                                                          value={currentValue}
+                                                          onChange={e => {
+                                                            if (e.target.value === '__add_option__') {
+                                                              setAddingOption(prev => ({ ...prev, [`${group.id}_${field.id}_${component.id}`]: true }));
+                                                              setTimeout(() => addOptionInputRef.current?.focus(), 0);
+                                                            } else {
+                                                              handleTestGroupValueChange(group.id, component.id, field.id, e.target.value);
+                                                            }
+                                                          }}
+                                                          size="sm"
+                                                        >
+                                                          <option value="">Select value</option>
+                                                          {options.map((option) => (
+                                                            <option key={option.value} value={option.value}>
+                                                              {option.label}
+                                                            </option>
+                                                          ))}
+                                                          <option value="__add_option__">+ Add option...</option>
+                                                        </Form.Select>
+                                                      )
+                                                    ) : (
+                                                      <Form.Control
+                                                        type="text"
+                                                        value={currentValue}
+                                                        onChange={(e) => handleTestGroupValueChange(group.id, component.id, field.id, e.target.value)}
+                                                        size="sm"
+                                                        placeholder="Enter value"
+                                                        style={{ minWidth: '150px' }}
+                                                      />
+                                                    )}
+                                                  </td>
+                                                );
+                                              })}
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </Table>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </Tab>
+                      )}
+                    </Tabs>
+                  </div>
                 </div>
               )}
             </Modal.Body>
@@ -1716,7 +1721,7 @@ const MedicalReports = () => {
             </Modal.Header>
             <Modal.Body>
               {selectedReportForPDF && selectedReportForPDF.patient && (
-                <PrintPDF patient={selectedReportForPDF.patient} report={selectedReportForPDF} />
+                <PrintPDF patient={selectedReportForPDF.patient} report={selectedReportForPDF} lab={labInfo} />
               )}
             </Modal.Body>
             <Modal.Footer>
@@ -1733,7 +1738,7 @@ const MedicalReports = () => {
           </Modal>
 
           {/* Add Antibiotic Modal */}
-          {Object.keys(showAddAntibioticModal).map(cultureResultId => 
+          {Object.keys(showAddAntibioticModal).map(cultureResultId =>
             showAddAntibioticModal[cultureResultId] && (
               <Modal
                 key={cultureResultId}

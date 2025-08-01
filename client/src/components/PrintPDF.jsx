@@ -58,11 +58,67 @@ function getResultColor(result, normalRange, status) {
 }
 
 const styles = StyleSheet.create({
+  tableContainer: {
+    marginBottom: 20,
+    border: '1px solid #e0e0e0',
+    borderRadius: 15,
+    overflow: 'hidden',
+    pageBreakInside: 'avoid',  // Prevent container from breaking across pages
+  },
+  tableTitle: {
+    backgroundColor: '#f5f5f5',
+    padding: '8px 12px',
+    fontWeight: 'bold',
+    borderBottom: '1px solid #e0e0e0',
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#2d3e8b',
+    color: 'white',
+    padding: '6px 12px',
+    position: 'relative',
+    zIndex: 1,
+  },
+  headerCell: {
+    flex: 1,
+    fontWeight: 'bold',
+    fontSize: 8,
+    textAlign: 'center',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottom: '1px solid #f0f0f0',
+    padding: '8px 12px',
+    pageBreakInside: 'avoid',  // Prevent row from breaking
+    pageBreakAfter: 'auto',    // Let the PDF renderer handle page breaks
+    minHeight: 30,             // Ensure minimum row height
+    alignItems: 'center',      // Center content vertically
+  },
+  evenRow: {
+    backgroundColor: '#f9f9f9',
+  },
+  cell: {
+    flex: 1,
+    fontSize: 8,
+    padding: '2px 4px',
+    textAlign: 'center',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  componentCell: {
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
   page: {
     fontFamily: 'Cairo', // Use Cairo for Arabic support
     fontSize: 10,
     padding: 0,
     backgroundColor: '#fff',
+    paddingBottom: 90,
+    paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'column',
@@ -73,10 +129,11 @@ const styles = StyleSheet.create({
     borderBottom: '1pt solid #e6e6e6',
   },
   headerRow: {
+    border: '1pt solid #e6e6e6',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    justifyContent: 'space-evenly',
+    marginBottom: 12,
   },
   logo: {
     width: 60,
@@ -84,7 +141,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   labName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#2d3e8b',
     marginBottom: 2,
@@ -155,8 +212,8 @@ const styles = StyleSheet.create({
   },
   statusBar: {
     flexDirection: 'row',
-    marginBottom: 18,
-    marginTop: 2,
+    marginBottom: 5,
+    marginTop: 5,
     paddingHorizontal: 20,
   },
   statusItem: {
@@ -401,13 +458,13 @@ function usePageNumber() {
 }
 
 // Header component for every page
-const PDFHeader = ({ patient, report, barcodeUrl }) => (
+const PDFHeader = ({ patient, report, barcodeUrl, lab }) => (
   <View style={styles.header} fixed>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Image src={LabIcon} style={styles.logo} />
         <View>
-          <Text style={styles.labName}>Doctors Lab</Text>
+          <Text style={styles.labName}>{lab.name}</Text>
           <Text style={styles.subtitle}>Medical Laboratories</Text>
         </View>
       </View>
@@ -424,7 +481,7 @@ const PDFHeader = ({ patient, report, barcodeUrl }) => (
 );
 
 // Footer component for every page
-const PDFFooter = ({ qrUrl, signatory }) => (
+const PDFFooter = ({ qrUrl, signatory, lab }) => (
   <View style={styles.footer} fixed>
     <View style={styles.footerLeft}>
       <Text>920002723 | www.doctorslab.com | info@doctorslab.com | License No: 2600032113</Text>
@@ -437,8 +494,8 @@ const PDFFooter = ({ qrUrl, signatory }) => (
 );
 
 // InfoGrid component for every page
-const PDFInfoGrid = ({ patient, report }) => (
-  <View style={styles.infoGridWrapper}>
+const PDFInfoGrid = ({ patient, report, lab }) => (
+  <View style={styles.infoGridWrapper} fixed>
     <View style={styles.infoGrid}>
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>Patient</Text>
@@ -515,7 +572,7 @@ function StatusBarFirstPage({ report }) {
 }
 
 // Professional PDF Document Component
-const ProfessionalPDFDocument = ({ patient, report, qrUrl }) => {
+const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
   // Use report id as barcode, and a URL as QR code (e.g., report view link)
   const barcodeUrl = useBarcode(report?.id ? String(report.id) : '0');
   // const qrUrl = useQRCodeDataUrl(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ''}`); // This line is now passed as a prop
@@ -540,12 +597,10 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl }) => {
           render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
         />
         {/* Header, InfoGrid, Footer on every page */}
-        <PDFHeader patient={patient} report={report} barcodeUrl={barcodeUrl} />
+        <PDFHeader patient={patient} report={report} barcodeUrl={barcodeUrl} lab={lab} />
         <PDFInfoGrid patient={patient} report={report} />
         {/* Status bar only on first page */}
         <StatusBarFirstPage report={report} />
-        <PDFFooter qrUrl={qrUrl} signatory={signatory} fixed wrap={false} />
-        
         {/* Tests Section */}
         {report?.tests && report.tests.length > 0 ? (
           <>
@@ -594,7 +649,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl }) => {
             })}
           </>
         ) : null}
-
+        
         {/* Cultures Section */}
         {report?.cultures && report.cultures.length > 0 ? (
           <>
@@ -736,162 +791,168 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl }) => {
             })}
           </>
         ) : null}
-
+        
         {/* Test Groups Section */}
-        {report?.test_groups && report.test_groups.length > 0 ? (
-          <>
-            <Text style={styles.sectionTitle}>Test Groups</Text>
-            {report.test_groups.map((group, groupIndex) => {
-              const normalRange = group.normal_from && group.normal_to ? `${group.normal_from} - ${group.normal_to}` : group.normal_range;
-              const resultColor = getResultColor(group.result, normalRange, group.status);
-              return (
-                <View
-                  style={groupCardStyle(resultColor)}
-                  key={groupIndex}
-                  wrap={false}
-                  minPresenceAhead={100}
-                >
-                  <Text style={groupTitleStyle}>{group.name || 'Unknown Group'}</Text>
-                  {/* Direct Components */}
-                  {group.direct_components && group.direct_components.length > 0 &&
-                    group.direct_components.map((component, compIndex) => {
-                      const componentNormalRange = component.normal_from && component.normal_to ? `${component.normal_from} - ${component.normal_to}` : component.normal_range;
-                      const componentResultColor = getResultColor(component.result, componentNormalRange, component.status);
-                      return (
-                        <View style={componentCardStyle(componentResultColor)} key={`direct-${compIndex}`}>
-                          <Text style={componentNameStyle}>{component.name || 'Unknown Component'}</Text>
-                          {/* Show result type and reference range if present */}
-                          {component.result_type === 'boolean' ? (
-                            <Text style={styles.testRefRange}>Result Type: Boolean</Text>
-                          ) : (
-                            <Text style={styles.testRefRange}>
-                              {component.normal_from && component.normal_to ? `Ref. Range: ${component.normal_from} - ${component.normal_to}` : component.normal_range ? `Ref. Range: ${component.normal_range}` : ''}
-                              {component.unit ? ` ${component.unit}` : ''}
-                              {component.reference_range ? ` | Ref. Range: ${component.reference_range}` : ''}
+{report?.test_groups && report.test_groups.length > 0 ? (
+  <>
+    <Text style={styles.sectionTitle}>Test Groups</Text>
+    {report.test_groups.map((group, groupIndex) => {
+      // Get all unique fields across all components
+      const allFields = [
+        { id: 'component', name: 'Component', width: 2 },
+        ...(group.fields || []).map(f => ({ ...f, width: 1 })),
+      ];
+
+      // Flatten all components (direct and categorized)
+      const allComponents = [
+        ...(group.direct_components || []).map(c => ({ 
+          ...c, 
+          category: null,
+          type: 'direct'
+        })),
+        ...(group.categories || []).flatMap(cat => 
+          (cat.components || []).map(comp => ({ 
+            ...comp, 
+            category: cat.name,
+            type: 'categorized'
+          }))
+        )
+      ];
+
+      return (
+        <View key={groupIndex} style={styles.tableContainer} wrap={false}>
+          <Text style={styles.tableTitle}>{group.name || 'Unknown Group'}</Text>
+          
+          {/* Table Header */}
+          <View style={styles.tableHeader} fixed>
+            {allFields.map((field, idx) => (
+              <View 
+                key={field.id || idx} 
+                style={[styles.headerCell, { flex: field.width || 1 }]}
+              >
+                <Text style={styles.headerText}>{field.name}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Table Rows */}
+          {allComponents.map((component, compIndex) => {
+            const componentNormalRange = component.normal_from && component.normal_to 
+              ? `${component.normal_from} - ${component.normal_to}` 
+              : component.normal_range;
+
+            return (
+              <View 
+                key={compIndex} 
+                style={[
+                  styles.tableRow,
+                  compIndex % 2 === 0 && styles.evenRow,
+                  component.result && styles.resultRow
+                ]}
+                wrap
+              >
+                {allFields.map((field, fieldIdx) => {
+                  // Component Name Cell
+                  if (field.id === 'component') {
+                    return (
+                      <View 
+                        key={fieldIdx} 
+                        style={[styles.cell, { flex: field.width }, styles.componentCell]}
+                      >
+                        <Text style={styles.componentText}>
+                          {component.category && (
+                            <Text style={styles.categoryText}>
+                              {component.category}:{'\n'}
                             </Text>
                           )}
-                          {group.fields && group.fields.map((field, fieldIndex) => {
-                            let fieldValue = 'N/A';
-                            if (group.values && group.values[component.id]) {
-                              const componentValues = group.values[component.id];
-                              if (typeof componentValues === 'object' && componentValues[field.id]) {
-                                fieldValue = String(componentValues[field.id]);
-                              }
-                            }
-                            // Color for result field
-                            const isResult = field.name.toLowerCase().includes('result');
-                            const fieldNormalRange = field.normal_from && field.normal_to ? `${field.normal_from} - ${field.normal_to}` : field.normal_range;
-                            const resultColor = isResult ? getResultColor(fieldValue, fieldNormalRange, field.status) : '#e9ecef';
-                            // Show boolean/range logic for each field if field.result_type exists, else fallback to component.result_type
-                            const resultType = field.result_type || component.result_type || 'range';
-                            return (
-                              <View style={fieldRowStyle} key={fieldIndex}>
-                                <Text style={fieldLabelStyle}>{field.name}:</Text>
-                                <View style={[
-                                  fieldValueStyle,
-                                  isResult && {
-                                    backgroundColor: resultColor,
-                                    borderRadius: 8,
-                                    padding: 4,
-                                    fontWeight: 'bold'
-                                  }
-                                ]}>
-                                  <Text style={{ color: (resultColor === '#2ecc40' || resultColor === '#ff4136') ? '#fff' : '#333' }}>
-                                    {resultType === 'boolean'
-                                      ? (fieldValue === 'positive' ? 'Positive' : fieldValue === 'negative' ? 'Negative' : fieldValue)
-                                      : fieldValue}
-                                  </Text>
-                                </View>
-                                {/* For range type, show reference range if present */}
-                                {resultType === 'range' && (field.reference_range || component.reference_range) && (
-                                  <Text style={{ fontSize: 8, color: '#666', marginLeft: 6 }}>
-                                    Ref. Range: {field.reference_range || component.reference_range}
-                                  </Text>
-                                )}
-                              </View>
-                            );
-                          })}
-                        </View>
-                      );
-                    })}
-                  {/* Categorized Components */}
-                  {group.categories && group.categories.length > 0 &&
-                    group.categories.map((category, catIndex) => {
-                      const categoryNormalRange = category.normal_from && category.normal_to ? `${category.normal_from} - ${category.normal_to}` : category.normal_range;
-                      const categoryResultColor = getResultColor(category.result, categoryNormalRange, category.status);
-                      return (
-                        <View style={componentCardStyle(categoryResultColor)} key={`category-${catIndex}`}>
-                          <Text style={componentNameStyle}>{category.name || 'Unknown Category'}</Text>
-                          {category.components && category.components.map((component, compIndex) => {
-                            const componentNormalRange = component.normal_from && component.normal_to ? `${component.normal_from} - ${component.normal_to}` : component.normal_range;
-                            const componentResultColor = getResultColor(component.result, componentNormalRange, component.status);
-                            return (
-                              <View style={componentCardStyle(componentResultColor)} key={`cat-comp-${compIndex}`}>
-                                <Text style={componentNameStyle}>• {component.name || 'Unknown Component'}</Text>
-                                {group.fields && group.fields.map((field, fieldIndex) => {
-                                  let fieldValue = 'N/A';
-                                  if (group.values && group.values[component.id]) {
-                                    const componentValues = group.values[component.id];
-                                    if (typeof componentValues === 'object' && componentValues[field.id]) {
-                                      fieldValue = String(componentValues[field.id]);
-                                    }
-                                  }
-                                  const isResult = field.name.toLowerCase().includes('result');
-                                  const fieldNormalRange = field.normal_from && field.normal_to ? `${field.normal_from} - ${field.normal_to}` : field.normal_range;
-                                  const resultColor = isResult ? getResultColor(fieldValue, fieldNormalRange, field.status) : '#e9ecef';
-                                  const resultType = field.result_type || component.result_type || 'range';
-                                  return (
-                                    <View style={fieldRowStyle} key={fieldIndex}>
-                                      <Text style={fieldLabelStyle}>{field.name}:</Text>
-                                      <View style={[
-                                        fieldValueStyle,
-                                        isResult && {
-                                          backgroundColor: resultColor,
-                                          borderRadius: 8,
-                                          padding: 4,
-                                          fontWeight: 'bold'
-                                        }
-                                      ]}>
-                                        <Text style={{ color: (resultColor === '#2ecc40' || resultColor === '#ff4136') ? '#fff' : '#333' }}>
-                                          {resultType === 'boolean'
-                                            ? (fieldValue === 'positive' ? 'Positive' : fieldValue === 'negative' ? 'Negative' : fieldValue)
-                                            : fieldValue}
-                                        </Text>
-                                      </View>
-                                      {resultType === 'range' && (field.reference_range || component.reference_range) && (
-                                        <Text style={{ fontSize: 8, color: '#666', marginLeft: 6 }}>
-                                          Ref. Range: {field.reference_range || component.reference_range}
-                                        </Text>
-                                      )}
-                                    </View>
-                                  );
-                                })}
-                              </View>
-                            );
-                          })}
-                        </View>
-                      );
-                    })}
-                  {/* Legacy fallback - if no direct or categorized components, show fields directly */}
-                  {(!group.direct_components || group.direct_components.length === 0) &&
-                   (!group.categories || group.categories.length === 0) &&
-                    group.fields && group.fields.map((field, fieldIndex) => (
-                      <View style={fieldRowStyle} key={fieldIndex}>
-                        <Text style={fieldLabelStyle}>{field.name}:</Text>
-                        <Text style={fieldValueStyle}>
-                          {group.values && group.values[field.id]
-                            ? (typeof group.values[field.id] === 'object'
-                                ? JSON.stringify(group.values[field.id])
-                                : String(group.values[field.id]))
-                            : 'N/A'}
+                          {component.category ? `• ${component.name}` : component.name}
                         </Text>
                       </View>
-                    ))}
-                </View>
-              );
-            })}
-          </>
-        ) : null}
+                    );
+                  }
+
+                  // Reference Range Cell
+                  if (field.id === 'reference') {
+                    return (
+                      <View 
+                        key={fieldIdx} 
+                        style={[styles.cell, { flex: field.width }]}
+                      >
+                        <Text style={styles.referenceText}>
+                          {componentNormalRange || 'N/A'}
+                        </Text>
+                      </View>
+                    );
+                  }
+
+                  // Unit Cell
+                  if (field.id === 'unit') {
+                    return (
+                      <View 
+                        key={fieldIdx} 
+                        style={[styles.cell, { flex: field.width }]}
+                      >
+                        <Text style={styles.unitText}>
+                          {component.unit || '-'}
+                        </Text>
+                      </View>
+                    );
+                  }
+
+                  // Regular Field Cell
+                  let fieldValue = 'N/A';
+                  if (group.values?.[component.id]?.[field.id] !== undefined) {
+                    fieldValue = String(group.values[component.id][field.id]);
+                  }
+
+                  const isResult = field.name.toLowerCase().includes('result');
+                  const fieldNormalRange = field.normal_from && field.normal_to 
+                    ? `${field.normal_from} - ${field.normal_to}` 
+                    : field.normal_range;
+                  
+                  const resultColor = isResult 
+                    ? getResultColor(fieldValue, fieldNormalRange, field.status) 
+                    : 'transparent';
+
+                  return (
+                    <View 
+                      key={fieldIdx} 
+                      style={[
+                        styles.cell, 
+                        { 
+                          flex: field.width,
+                          backgroundColor: resultColor !== 'transparent' ? resultColor : undefined
+                        },
+                        isResult && styles.resultCell
+                      ]}
+                    >
+                      <Text style={[
+                        styles.cellText,
+                        isResult && { 
+                          color: (resultColor === '#2ecc40' || resultColor === '#ff4136') 
+                            ? '#fff' 
+                            : '#333',
+                          fontWeight: 'bold'
+                        }
+                      ]}>
+                        {fieldValue}
+                      </Text>
+                      {isResult && fieldNormalRange && (
+                        <Text style={styles.rangeText}>
+                          {fieldNormalRange}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+      );
+    })}
+  </>
+) : null}
         {/* Doctor's Comment */}
         {doctorComment && (
           <View style={styles.commentBox}>
@@ -899,13 +960,14 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl }) => {
             <Text style={styles.infoText}>{doctorComment}</Text>
           </View>
         )}
+        <PDFFooter qrUrl={qrUrl} signatory={signatory} fixed />
       </Page>
     </Document>
   );
 };
 
 // Main PrintPDF Component
-const PrintPDF = ({ patient, report }) => {
+const PrintPDF = ({ patient, report, lab }) => {
   // Safety check for valid props
   if (!patient || !report) {
     return (
@@ -943,12 +1005,12 @@ const PrintPDF = ({ patient, report }) => {
     <div>
       <div style={{ height: '90vh', border: '1px solid #ccc', marginBottom: 16 }}>
         <PDFViewer width="100%" height="100%">
-          <ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} />
+          <ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />
         </PDFViewer>
       </div>
       {/* Download button restored below */}
       <PDFDownloadLink
-        document={<ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} />}
+        document={<ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />}
         fileName={`Medical_Report_${patient.name || 'Report'}.pdf`}
       >
         {({ loading, error }) => {
