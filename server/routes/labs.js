@@ -130,7 +130,7 @@ router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), async 
 });
 
 // Update lab information
-router.put('/:labId', authenticateUser, authorizeRoles(['admin']), async (req, res) => {
+router.put('/:labId', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { labId } = req.params;
     const updateData = req.body;

@@ -1,0 +1,11 @@
+.scrollable-tabs {
+  overflow-x: auto;
+  white-space: nowrap;
+  width: 100%;
+}
+.scrollable-tabs .nav-tabs {
+  flex-wrap: nowrap !important;
+}
+.scrollable-tabs .nav-link {
+  white-space: nowrap;
+}

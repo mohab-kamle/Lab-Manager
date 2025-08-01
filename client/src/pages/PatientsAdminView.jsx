@@ -611,9 +611,9 @@ const PatientsAdminView = () => {
         <Alert variant="danger">{error}</Alert>
       ) : (
         <>
-          <div className="d-flex justify-content-between align-items-center mb-3">
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
             <h2>Patients Management</h2>
-            <div className="d-flex gap-2">
+            <div className="d-flex gap-2 flex-wrap">
               {selectedPatients.length > 0 && (
                 <>
                   <Button 

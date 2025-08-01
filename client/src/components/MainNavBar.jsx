@@ -102,7 +102,7 @@ const MainNavBar = () => {
   return (
     <Navbar 
       expand="lg" 
-      sticky="top" 
+      fixed="top" 
       data-bs-theme="dark" 
       expanded={expanded}
       style={{
