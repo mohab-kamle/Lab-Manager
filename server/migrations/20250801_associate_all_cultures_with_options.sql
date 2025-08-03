@@ -1,11 +1,11 @@
 -- +migrate Up
 -- SQL to associate all existing cultures with all available culture options
-INSERT INTO culture_has_option (culture_id, culture_option_id, created_at, updated_at)
+INSERT INTO culture_has_option (culture_id, culture_option_id, createdAt, updatedAt)
 SELECT 
   c.id AS culture_id,
   co.id AS culture_option_id,
-  NOW() AS created_at,
-  NOW() AS updated_at
+  NOW() AS createdAt,
+  NOW() AS updatedAt
 FROM 
   culture c
 CROSS JOIN 

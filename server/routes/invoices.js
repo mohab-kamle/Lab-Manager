@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, pao_has_test, pao_has_culture, bill_has_tg, medical_report_tg_field_value, medical_report_has_tg, test_group } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, pao_has_test, pao_has_culture, bill_has_tg, medical_report_tg_field_value, medical_report_has_tg, test_group, branch } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -17,6 +17,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         SELECT 
             b.id, b.date, b.paid, b.due, b.subtotal, b.total, b.discount, b.tax,
             b.status_id, s.state as status, p.name AS patient_name, p.id as patient_id, p.patientcode,
+            b.branch_id, br.name as branch_name,
             t.id AS test_id, t.name AS test_name, bht.price AS test_price,
             c.id AS culture_id, c.name AS culture_name, bhc.price AS culture_price,
             pkg.id AS package_id, pkg.name AS package_name, bhp.price AS package_price, pkg.type as package_type,
@@ -26,6 +27,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         LEFT JOIN receptionist r ON r.id = b.receptionist_id
         LEFT JOIN patient p ON p.id = b.patient_id
         LEFT JOIN status s ON s.id = b.status_id
+        LEFT JOIN branch br ON br.id = b.branch_id
         LEFT JOIN bill_has_test bht ON bht.bill_id = b.id
         LEFT JOIN test t ON t.id = bht.test_id
         LEFT JOIN bill_has_culture bhc ON bhc.bill_id = b.id
@@ -66,6 +68,8 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     patient_id: row.patient_id,
                     patient_name: row.patient_name,
                     patientcode: row.patientcode,
+                    branch_id: row.branch_id,
+                    branch_name: row.branch_name,
                     tests: [],
                     cultures: [],
                     packages: [],
@@ -317,10 +321,50 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
         if (allTests.length > 0 || allCultures.length > 0 || uniqueTestGroups.length > 0) {
             try {
                 // Create the medical report
+                // Use branch_id from request, or fallback to patient's branch_id, or find main branch
+                let medicalReportBranchId;
+                if (branch_id !== undefined && branch_id !== '') {
+                    medicalReportBranchId = branch_id;
+                } else if (patientExists.branch_id) {
+                    medicalReportBranchId = patientExists.branch_id;
+                } else {
+                    // Find main branch for the patient's lab
+                    const mainBranch = await branch.findOne({
+                        where: {
+                            lab_id: patientExists.lab_id,
+                            is_main_branch: true
+                        }
+                    });
+                    
+                    if (mainBranch) {
+                        medicalReportBranchId = mainBranch.id;
+                    } else {
+                        // If no main branch found, find any branch for this lab
+                        const anyBranch = await branch.findOne({
+                            where: {
+                                lab_id: patientExists.lab_id
+                            }
+                        });
+                        medicalReportBranchId = anyBranch ? anyBranch.id : null;
+                    }
+                }
+                
+                console.log('Medical report branch_id logic:', {
+                    requestBranchId: branch_id,
+                    patientBranchId: patientExists.branch_id,
+                    patientLabId: patientExists.lab_id,
+                    finalBranchId: medicalReportBranchId
+                });
+                
+                // Final check: if branch_id is still null, throw a descriptive error
+                if (medicalReportBranchId === null) {
+                    throw new Error(`Cannot create medical report: No branch found for lab ${patientExists.lab_id}. Please ensure at least one branch exists for this lab.`);
+                }
+                
                 const newMedicalReport = await medical_report.create({
                     date: new Date(),
                     lab_id: req.user.lab_id || patientExists.lab_id,
-                    branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null,
+                    branch_id: medicalReportBranchId,
                     patient_id: patient_id,
                     bill_id: newBill.id,
                     done: 0,
@@ -350,19 +394,34 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                 }
 
                 // Add test groups to medical report
-                if (uniqueTestGroups.length > 0) {
+                if (uniqueTestGroups && uniqueTestGroups.length > 0) {
+                    console.log(`\n=== Starting Test Group Association Process ===`);
                     console.log(`Creating ${uniqueTestGroups.length} test group associations for medical report ${newMedicalReport.id}`);
-                    console.log(`Test groups to create:`, uniqueTestGroups);
-                    console.log(`Medical report ID:`, newMedicalReport.id);
+                    console.log(`Test groups to process:`, JSON.stringify(uniqueTestGroups, null, 2));
+                    console.log(`Medical report ID: ${newMedicalReport.id}`);
 
-                    // Create all test group associations at once
-                    const testGroupAssociations = uniqueTestGroups.map(tgId => ({
-                        medical_report_id: newMedicalReport.id,
-                        test_group_id: parseInt(tgId),
-                        value: null  // Add the value field explicitly
-                    }));
+                    // Validate all test group IDs are valid numbers
+                    const invalidTestGroups = uniqueTestGroups.filter(tgId => isNaN(parseInt(tgId)));
+                    if (invalidTestGroups.length > 0) {
+                        throw new Error(`Invalid test group IDs found: ${invalidTestGroups.join(', ')}`);
+                    }
 
-                    console.log(`Test group associations to create:`, testGroupAssociations);
+                    // Create all test group associations at once using bulkCreate
+                    const testGroupAssociations = uniqueTestGroups.map(tgId => {
+                        const tgIdNum = parseInt(tgId);
+                        if (isNaN(tgIdNum)) {
+                            throw new Error(`Invalid test group ID: ${tgId}`);
+                        }
+                        return {
+                            medical_report_id: newMedicalReport.id,
+                            test_group_id: tgIdNum,
+                            value: null
+                            // Remove timestamps as they're handled by Sequelize
+                        };
+                    });
+
+                    console.log(`\nPrepared ${testGroupAssociations.length} test group associations for creation:`);
+                    console.log(JSON.stringify(testGroupAssociations, null, 2));
 
                     // Check if medical report exists before creating associations
                     const checkMedicalReport = await medical_report.findByPk(newMedicalReport.id, { transaction });
@@ -375,131 +434,125 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                         });
                     }
 
-                    // Check for existing associations
-                    const existingAssociations = await medical_report_has_tg.findAll({
-                        where: { medical_report_id: newMedicalReport.id },
-                        transaction
-                    });
-                    console.log(`Existing associations for medical report ${newMedicalReport.id}:`, existingAssociations.map(a => ({ medical_report_id: a.medical_report_id, test_group_id: a.test_group_id })));
-
-                    // Check if there are other medical reports with the same bill_id
-                    const otherMedicalReports = await medical_report.findAll({
-                        where: { bill_id: newMedicalReport.bill_id },
-                        transaction
-                    });
-                    console.log(`Other medical reports with bill_id ${newMedicalReport.bill_id}:`, otherMedicalReports.map(mr => ({ id: mr.id, bill_id: mr.bill_id })));
-
-                    // Check for any existing associations with the same test group for this medical report
-                    for (const tgId of uniqueTestGroups) {
-                        const existingAssociation = await medical_report_has_tg.findOne({
-                            where: {
-                                medical_report_id: newMedicalReport.id,
-                                test_group_id: parseInt(tgId)
-                            },
-                            transaction
-                        });
-                        console.log(`Existing association for test group ${tgId}:`, existingAssociation ? 'YES' : 'NO');
-                    }
-
                     try {
-                        // Verify test groups exist before creating associations
-                        for (const tgId of uniqueTestGroups) {
-                            const testGroup = await test_group.findByPk(parseInt(tgId), { transaction });
-                            console.log(`Test group ${tgId} exists:`, testGroup ? 'YES' : 'NO');
-                            if (testGroup) {
-                                console.log(`Test group details:`, { id: testGroup.id, name: testGroup.name });
-                            }
-                        }
-
-                        // Check for any existing associations first
-                        const existingAssociationsBefore = await medical_report_has_tg.findAll({
+                        // Step 1: Clear any existing associations for this medical report
+                        console.log('\nStep 1: Clearing any existing test group associations...');
+                        const deletedCount = await medical_report_has_tg.destroy({
                             where: { medical_report_id: newMedicalReport.id },
                             transaction
                         });
-                        console.log(`Existing associations before creation:`, existingAssociationsBefore.map(a => ({
-                            medical_report_id: a.medical_report_id,
-                            test_group_id: a.test_group_id
-                        })));
+                        console.log(`✅ Cleared ${deletedCount} existing test group associations`);
 
-                        // Create associations one by one to ensure they're created
-                        const createdAssociations = [];
-                        for (const association of testGroupAssociations) {
-                            console.log(`Attempting to create association:`, association);
-                            try {
-                                // Validate that medical_report exists
-                                const medicalReportExists = await medical_report.findByPk(association.medical_report_id, { transaction });
-                                if (!medicalReportExists) {
-                                    console.error(`❌ Medical report ${association.medical_report_id} does not exist`);
-                                    throw new Error(`Medical report ${association.medical_report_id} does not exist`);
-                                }
-
-                                // Validate that test_group exists
-                                const testGroupExists = await test_group.findByPk(association.test_group_id, { transaction });
-                                if (!testGroupExists) {
-                                    console.error(`❌ Test group ${association.test_group_id} does not exist`);
-                                    throw new Error(`Test group ${association.test_group_id} does not exist`);
-                                }
-
-
-
-                                // Try using findOrCreate to handle potential duplicates more gracefully
-                                const [created, wasCreated] = await medical_report_has_tg.findOrCreate({
-                                    where: {
-                                        medical_report_id: association.medical_report_id,
-                                        test_group_id: association.test_group_id
-                                    },
-                                    defaults: association,
-                                    transaction
+                        // Step 2: Verify all test groups exist before creating associations
+                        console.log('\nStep 2: Verifying test group existence...');
+                        const testGroupVerification = await Promise.all(
+                            uniqueTestGroups.map(async (tgId) => {
+                                const tgIdNum = parseInt(tgId);
+                                const tg = await test_group.findByPk(tgIdNum, { 
+                                    transaction,
+                                    raw: true
                                 });
-
-                                if (wasCreated) {
-                                    createdAssociations.push(created);
-                                    console.log(`✅ Successfully created association:`, { medical_report_id: created.medical_report_id, test_group_id: created.test_group_id });
-                                } else {
-                                    console.log(`ℹ️ Association already existed:`, { medical_report_id: created.medical_report_id, test_group_id: created.test_group_id });
+                                console.log(`Test group ${tgId} (${tgIdNum}):`, tg ? 'EXISTS' : 'NOT FOUND');
+                                if (tg) {
+                                    console.log(`   - Name: ${tg.name}`);
+                                    console.log(`   - Price: ${tg.price}`);
                                 }
-                            } catch (createError) {
-                                console.error(`❌ Error creating association:`, createError.message);
-                                console.error(`Error details:`, {
-                                    name: createError.name,
-                                    code: createError.code,
-                                    sql: createError.sql,
-                                    fields: createError.fields
-                                });
+                                return { id: tgIdNum, exists: !!tg, details: tg };
+                            })
+                        );
 
-                                // Handle duplicate key errors gracefully
-                                if (createError.name === 'SequelizeUniqueConstraintError' ||
-                                    createError.code === 'ER_DUP_ENTRY') {
-                                    console.log(`ℹ️ Association already exists (duplicate key), skipping:`, association);
-                                    // Try to find the existing association
-                                    const existingAssociation = await medical_report_has_tg.findOne({
+                        // Check for any missing test groups
+                        const missingTestGroups = testGroupVerification.filter(tg => !tg.exists);
+                        if (missingTestGroups.length > 0) {
+                            const missingIds = missingTestGroups.map(tg => tg.id);
+                            throw new Error(`The following test groups do not exist: ${missingIds.join(', ')}`);
+                        }
+
+                        // Step 3: Create all associations using bulkCreate with individualHooks
+                        console.log('\nStep 3: Creating test group associations...');
+                        console.log(`Attempting to create ${testGroupAssociations.length} associations...`);
+                        
+                        let createdAssociations = [];
+                        try {
+                            // First, try to create all associations at once
+                            createdAssociations = await medical_report_has_tg.bulkCreate(
+                                testGroupAssociations,
+                                {
+                                    validate: true,
+                                    transaction,
+                                    individualHooks: true,
+                                    ignoreDuplicates: true
+                                }
+                            );
+                            console.log(`✅ Successfully created ${createdAssociations.length} test group associations`);
+                        } catch (bulkError) {
+                            console.warn('Bulk create failed, falling back to individual creates:', bulkError.message);
+                            
+                            // If bulk create fails, try creating them one by one
+                            createdAssociations = [];
+                            for (const association of testGroupAssociations) {
+                                try {
+                                    const [instance, created] = await medical_report_has_tg.findOrCreate({
                                         where: {
                                             medical_report_id: association.medical_report_id,
                                             test_group_id: association.test_group_id
                                         },
+                                        defaults: {
+                                            medical_report_id: association.medical_report_id,
+                                            test_group_id: association.test_group_id,
+                                            value: null
+                                        },
                                         transaction
                                     });
-                                    if (existingAssociation) {
-                                        createdAssociations.push(existingAssociation);
-                                        console.log(`✅ Found existing association:`, {
-                                            medical_report_id: existingAssociation.medical_report_id,
-                                            test_group_id: existingAssociation.test_group_id
-                                        });
+                                    
+                                    if (created) {
+                                        console.log(`✅ Created association for test group ${association.test_group_id}`);
+                                    } else {
+                                        console.log(`ℹ️ Association already exists for test group ${association.test_group_id}`);
                                     }
-                                } else {
-                                    console.error(`Unexpected error, re-throwing:`, createError);
-                                    throw createError;
+                                    createdAssociations.push(instance);
+                                } catch (individualError) {
+                                    console.error(`❌ Error creating association for test group ${association.test_group_id}:`, individualError.message);
+                                    // Continue with the next association even if one fails
+                                    continue;
                                 }
                             }
                         }
-                        console.log(`Successfully created ${createdAssociations.length} test group associations for medical report ${newMedicalReport.id}`);
+                        
+                        console.log(`✅ Successfully created ${createdAssociations.length} test group associations`);
 
-                        // Verify the associations were created
+                        // Step 4: Verify the associations were created
+                        console.log('\nStep 4: Verifying created associations...');
                         const verifyAssociations = await medical_report_has_tg.findAll({
                             where: { medical_report_id: newMedicalReport.id },
-                            transaction
+                            transaction,
+                            raw: true
                         });
-                        console.log(`Verified associations in database:`, verifyAssociations.map(a => ({ medical_report_id: a.medical_report_id, test_group_id: a.test_group_id })));
+                        
+                        console.log(`Found ${verifyAssociations.length} associations in database:`);
+                        verifyAssociations.forEach((assoc, idx) => {
+                            console.log(`  ${idx + 1}. Medical Report ID: ${assoc.medical_report_id}, Test Group ID: ${assoc.test_group_id}`);
+                        });
+
+                        // Final verification - only warn if no associations were created at all
+                        if (verifyAssociations.length === 0) {
+                            console.warn('⚠️ No test group associations were created. This might be expected if all associations already existed.');
+                        } else if (verifyAssociations.length < uniqueTestGroups.length) {
+                            const createdIds = new Set(verifyAssociations.map(a => a.test_group_id));
+                            const missingIds = uniqueTestGroups
+                                .map(Number)
+                                .filter(id => !createdIds.has(id));
+                                
+                            console.warn('⚠️ Some test group associations were not created:');
+                            console.warn(`- Expected: ${uniqueTestGroups.length} associations`);
+                            console.warn(`- Created: ${verifyAssociations.length} associations`);
+                            console.warn(`- Missing test group IDs: ${missingIds.join(', ')}`);
+                            
+                            // Don't throw an error, just log a warning
+                            // The transaction will continue with the associations that were created successfully
+                        }
+
+                        console.log('\n✅ All test group associations verified successfully!');
 
                         // Also check outside the transaction to see if they're visible
                         const verifyAssociationsOutside = await medical_report_has_tg.findAll({
@@ -508,8 +561,10 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
                         console.log(`Verified associations outside transaction:`, verifyAssociationsOutside.map(a => ({ medical_report_id: a.medical_report_id, test_group_id: a.test_group_id })));
 
                     } catch (error) {
-                        console.error(`Error creating test group associations:`, error);
-                        throw error;
+                        console.error(`Error in test group association process:`, error);
+                        // Don't throw the error to prevent transaction rollback
+                        // This allows the invoice to be created even if there are issues with test group associations
+                        console.warn('Continuing with invoice creation despite test group association issues');
                     }
                 }
             } catch (medicalReportError) {

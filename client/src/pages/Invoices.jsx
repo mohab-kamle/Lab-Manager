@@ -30,6 +30,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [testGroups, setTestGroups] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [diseases, setDiseases] = useState([]);
+  const [referrals, setReferrals] = useState([]); // Add referrals state
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,7 +51,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     patient: ""
   });
 
-  const [branches, setBranches] = useState([]);
   const [invoice, setInvoice] = useState({
     patient_id: "",
     date: new Date(),
@@ -65,8 +66,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     due: 0,
     status_id: "",
     receptionist_id: "",
-    branch_id: "",
-    test_groups: []
+    test_groups: [],
+    branch_id: ""
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -127,7 +128,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         receptionistsRes,
         testGroupsRes,
         contractsRes,
-        diseasesRes
+        diseasesRes,
+        referralsRes,
+        branchesRes
       ] = await Promise.all([
         axios.get(`${apiUrl}/invoices`, { headers }),
         axios.get(`${apiUrl}/patient`, { headers }),
@@ -139,7 +142,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         user?.role === 'admin' ? axios.get(`${apiUrl}/receptionists`, { headers }) : Promise.resolve({ data: [] }),
         axios.get(`${apiUrl}/test-groups?includeDeleted=false`, { headers }),
         axios.get(`${apiUrl}/contracts`, { headers }),
-        axios.get(`${apiUrl}/patient/diseases`, { headers })
+        axios.get(`${apiUrl}/patient/diseases`, { headers }),
+        axios.get(`${apiUrl}/referrals`, { headers }), // Add referrals fetching
+        axios.get(`${apiUrl}/branches`, { headers })
       ]);
 
       setInvoices(invoicesRes.data || []);
@@ -153,6 +158,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       setTestGroups(testGroupsRes.data || []);
       setContracts(contractsRes.data || []);
       setDiseases(diseasesRes.data || []);
+      setReferrals(referralsRes.data.referrals || []); // Set referrals data
+      setBranches(branchesRes.data || []);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -168,6 +175,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       setTestGroups([]);
       setContracts([]);
       setDiseases([]);
+      setReferrals([]); // Set empty referrals array on error
+      setBranches([]);
       setLoading(false);
     }
   };
@@ -187,20 +196,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   };
 
   useEffect(() => {
-    const fetchBranches = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get(`${apiUrl}/branches`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setBranches(response.data || []);
-      } catch (error) {
-        console.error("Error fetching branches:", error);
-      }
-    };
-
     fetchData();
-    fetchBranches();
   }, [apiUrl, user?.role]);
 
   useEffect(() => {
@@ -240,13 +236,23 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     primaryPhone: "",
     secondaryPhone: "",
     diseases: [], // This will store disease IDs
-    contract_id: ""
+    contract_id: "",
+    referral_id: "" // Add referral_id to patient form
   });
   const [patientFormErrors, setPatientFormErrors] = useState({});
   const [showDiseaseCreateModal, setShowDiseaseCreateModal] = useState(false);
   const [newDisease, setNewDisease] = useState({
     name: "",
     details: ""
+  });
+  // Referral modal states
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [newReferral, setNewReferral] = useState({
+    doctor_name: "",
+    specialization: "",
+    phone: "",
+    email: "",
+    address: ""
   });
 
   const handleCreatePatient = async () => {
@@ -263,7 +269,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         primaryPhone: patientForm.primaryPhone || null,
         secondaryPhone: patientForm.secondaryPhone || null,
         diseases: patientForm.diseases || [], // This should be an array of disease IDs
-        contract_id: patientForm.contract_id || null
+        contract_id: patientForm.contract_id || null,
+        referral_id: patientForm.referral_id || null // Include referral_id in patient creation
       };
       const response = await axios.post(`${apiUrl}/patient`, cleanedPatient, {
         headers: { Authorization: `Bearer ${token}` },
@@ -296,7 +303,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         primaryPhone: "",
         secondaryPhone: "",
         diseases: [],
-        contract_id: ""
+        contract_id: "",
+        referral_id: "" // Reset referral_id
       });
       setDiseaseSearchTerm("");
       setPatientFormErrors({});
@@ -353,6 +361,43 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     } catch (error) {
       console.error('Error creating disease:', error);
       setError(error.response?.data?.error || 'Failed to create disease');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle adding new referral
+  const handleAddReferral = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      setLoading(true);
+      setError(null);
+
+      const response = await axios.post(`${apiUrl}/referrals`, newReferral, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Add new referral to the list
+      setReferrals(prevReferrals => [...prevReferrals, response.data]);
+      
+      // Set the new referral as selected
+      setPatientForm(prev => ({ ...prev, referral_id: response.data.id }));
+      
+      setShowReferralModal(false);
+      setNewReferral({
+        doctor_name: "",
+        specialization: "",
+        phone: "",
+        email: "",
+        address: ""
+      });
+      
+      // Show success message
+      setModalSuccessMessage(`Referral "${response.data.doctor_name}" created successfully and selected!`);
+      setTimeout(() => setModalSuccessMessage(""), 3000);
+    } catch (error) {
+      console.error('Error creating referral:', error);
+      setError(error.response?.data?.error || 'Failed to create referral');
     } finally {
       setLoading(false);
     }
@@ -493,16 +538,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         }
       }
 
-      // Ensure branch_id is always a number or null
-      let safeBranchId = invoice.branch_id;
-      if (safeBranchId === undefined || safeBranchId === "" || isNaN(Number(safeBranchId))) {
-        safeBranchId = null;
-      } else {
-        safeBranchId = Number(safeBranchId);
-      }
-      // Debug log for branch_id
-      console.log('[INVOICE DEBUG] Outgoing branch_id:', safeBranchId, 'Type:', typeof safeBranchId);
-
       const invoiceData = {
         ...invoice,
         tests: filteredTests,
@@ -516,8 +551,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         due: invoice.due,
         date: new Date().toISOString(),
         status_id: finalStatusId,
-        branch_id: safeBranchId,
-        receptionist_id: invoice.receptionist_id
+        branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined
       };
 
       // Only add receptionist_id if it's a valid number
@@ -715,7 +749,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     const errors = {};
     if (!data.patient_id) errors.patient_id = "Patient is required";
     if (!data.receptionist_id) errors.receptionist_id = "Receptionist is required";
-    if (!data.branch_id) errors.branch_id = "Branch is required";
     if (
       (!data.tests || data.tests.length === 0) &&
       (!data.cultures || data.cultures.length === 0) &&
@@ -743,15 +776,14 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       paid: 0,
       due: 0,
       status_id: "",
-      receptionist_id:"",
-      branch_id: "",
-      test_groups: []
+      receptionist_id: "",
+      test_groups: [],
+      branch_id: ""
     });
     setFormErrors({});
     setEditingInvoice(null);
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
-    setDiscountPercentage(0);
   };
 
   const filteredInvoices = invoices.filter(invoice => {
@@ -883,7 +915,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             total: Number(rowData.total) || 0,
             paid: Number(rowData.paid) || 0,
             due: Number(rowData.due) || 0,
-            date: new Date(rowData.date)
+            date: new Date(rowData.date),
+            branch_id: rowData.branch_id || ""
           });
           setModalSuccessMessage("");
           setShowAddModal(true);
@@ -1261,11 +1294,42 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                  placeholder="Select a contract"
                                />
                              </Form.Group>
-                                                         {patientForm.contract_id && contracts.find(c => c.id === patientForm.contract_id) && (
+                             
+                             {patientForm.contract_id && contracts.find(c => c.id === patientForm.contract_id) && (
                                <Alert variant="info" className="mt-2 p-2">
                                  Contract: <strong>{contracts.find(c => c.id === patientForm.contract_id).name || `${contracts.find(c => c.id === patientForm.contract_id).region} - ${contracts.find(c => c.id === patientForm.contract_id).governorate}`}</strong> | Discount: <strong>{contracts.find(c => c.id === patientForm.contract_id).discount_amount}%</strong>
                                </Alert>
                              )}
+                            
+                            {/* Referral Selection */}
+                            <Form.Group className="mb-3">
+                              <Form.Label>Referral (Optional)</Form.Label>
+                              <div className="d-flex gap-2">
+                                <Form.Select
+                                  value={patientForm.referral_id || ""}
+                                  onChange={(e) => setPatientForm({ ...patientForm, referral_id: e.target.value || null })}
+                                >
+                                  <option value="">Select Referral</option>
+                                  {Array.isArray(referrals) && referrals.map(referral => (
+                                    <option key={referral.id} value={referral.id}>
+                                      {referral.doctor_name} - {referral.specialization}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                                <Button
+                                  variant="outline-primary"
+                                  size="sm"
+                                  onClick={() => setShowReferralModal(true)}
+                                  title="Add New Referral"
+                                >
+                                  <Plus size={16} />
+                                </Button>
+                              </div>
+                              <Form.Text className="text-muted">
+                                Select an existing referral or add a new one
+                              </Form.Text>
+                            </Form.Group>
+                            
                             <Button 
                               type="button" 
                               variant="success" 
@@ -1336,31 +1400,48 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
-                  <Col md={3}>
+                </Row>
+
+                <Row>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Branch <span style={{color: 'red'}}>*</span></Form.Label>
+                      <Form.Label>Branch (Optional)</Form.Label>
                       <Form.Select
                         value={invoice.branch_id || ''}
-                        required
                         onChange={(e) => {
                           const val = e.target.value;
-                          setInvoice({ ...invoice, branch_id: val && !isNaN(Number(val)) ? Number(val) : undefined });
+                          setInvoice({ ...invoice, branch_id: val && !isNaN(Number(val)) ? Number(val) : "" });
                           if (formErrors.branch_id) {
                             setFormErrors({ ...formErrors, branch_id: null });
                           }
                         }}
                         isInvalid={!!formErrors.branch_id}
                       >
-                        <option value="">Select Branch</option>
+                        <option value="">Select Branch (Optional)</option>
                         {branches.map(branch => (
                           <option key={branch.id} value={branch.id}>
                             {branch.name}
                           </option>
                         ))}
                       </Form.Select>
+                      <Form.Text className="text-muted">
+                        Leave empty to use patient's branch or lab's main branch
+                      </Form.Text>
                       <Form.Control.Feedback type="invalid">
                         {formErrors.branch_id}
                       </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Date</Form.Label>
+                      <DatePicker
+                        className="form-control"
+                        selected={invoice.date}
+                        onChange={(date) => setInvoice({ ...invoice, date })}
+                        dateFormat="yyyy-MM-dd"
+                        placeholderText="Select date"
+                      />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -2029,6 +2110,92 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                 disabled={loading || !newDisease.name.trim()}
               >
                 {loading ? "Creating..." : "Create Disease"}
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Add Referral Modal */}
+          <Modal
+            show={showReferralModal}
+            onHide={() => {
+              setShowReferralModal(false);
+              setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
+            }}
+            size="lg"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Add New Referral</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Form>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Doctor Name *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter doctor name"
+                        value={newReferral.doctor_name}
+                        onChange={(e) => setNewReferral({ ...newReferral, doctor_name: e.target.value })}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Specialization *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter specialization"
+                        value={newReferral.specialization}
+                        onChange={(e) => setNewReferral({ ...newReferral, specialization: e.target.value })}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Phone (Optional)</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter phone number"
+                        value={newReferral.phone}
+                        onChange={(e) => setNewReferral({ ...newReferral, phone: e.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email (Optional)</Form.Label>
+                      <Form.Control
+                        type="email"
+                        placeholder="Enter email address"
+                        value={newReferral.email}
+                        onChange={(e) => setNewReferral({ ...newReferral, email: e.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Form>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  setShowReferralModal(false);
+                  setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleAddReferral}
+                disabled={loading || !newReferral.doctor_name.trim() || !newReferral.specialization.trim()}
+              >
+                {loading ? "Creating..." : "Create Referral"}
               </Button>
             </Modal.Footer>
           </Modal>

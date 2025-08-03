@@ -6,7 +6,7 @@
     "host": "127.0.0.1",
     "dialect": "mysql",
     "pool": {
-      "max": 20,
+      "max": 40,
       "min": 5,
       "acquire": 60000,
       "idle": 10000
@@ -22,26 +22,25 @@
     "host": "127.0.0.1",
     "dialect": "mysql",
     "pool": {
-      "max": 10,
+      "max": 40,
       "min": 2,
       "acquire": 30000,
       "idle": 10000
     }
   },
   "production": {
-    "use_env_variable": "DATABASE_URL",
-    "dialect": "mysql",
     "pool": {
-      "max": 20,
-      "min": 5,
-      "acquire": 60000,
-      "idle": 10000
+      "max": 50,
+      "min": 10,
+      "acquire": 30000,
+      "idle": 10000,
+      "evict": 1000
     },
     "dialectOptions": {
-      "ssl": {
-        "rejectUnauthorized": false
-      },
-      "connectTimeout": 60000
+      "connectTimeout": 30000,
+      "acquireTimeout": 30000,
+      "timeout": 30000
     }
   }
+
 }

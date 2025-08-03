@@ -37,6 +37,7 @@ var _payment_method = require("./payment_method");
 var _phone = require("./phone");
 var _question = require("./question");
 var _receptionist = require("./receptionist");
+var _referral = require("./referral");
 var _sample_type = require("./sample_type");
 var _status = require("./status");
 var _test = require("./test");
@@ -51,6 +52,7 @@ var _medical_report_tg_field_value = require("./medical_report_tg_field_value");
 var _medical_report_has_tg = require("./medical_report_has_tg");
 var _bill_has_tg = require("./bill_has_tg");
 var _medical_report_has_culture_antibiotic = require("./medical_report_has_culture_antibiotic");
+var _medical_report_culture_result = require("./medical_report_culture_result");
 var _culture_has_option = require("./culture_has_option");
 var _culture_sub_option = require("./culture_sub_option");
 var _lab_settings = require("./lab_settings");
@@ -104,6 +106,7 @@ function initModels(sequelize) {
   var phone = _phone(sequelize, DataTypes);
   var question = _question(sequelize, DataTypes);
   var receptionist = _receptionist(sequelize, DataTypes);
+  var referral = _referral(sequelize, DataTypes);
   var sample_type = _sample_type(sequelize, DataTypes);
   var status = _status(sequelize, DataTypes);
   var test = _test(sequelize, DataTypes);
@@ -118,6 +121,7 @@ function initModels(sequelize) {
   var medical_report_has_tg = _medical_report_has_tg(sequelize, DataTypes);
   var bill_has_tg = _bill_has_tg(sequelize, DataTypes);
   var medical_report_has_culture_antibiotic = _medical_report_has_culture_antibiotic(sequelize, DataTypes);
+  var medical_report_culture_result = _medical_report_culture_result(sequelize, DataTypes);
   var culture_has_option = _culture_has_option(sequelize, DataTypes);
   var culture_sub_option = _culture_sub_option(sequelize, DataTypes);
   var lab_settings = _lab_settings(sequelize, DataTypes);
@@ -140,6 +144,10 @@ function initModels(sequelize) {
   // Add association between patient and contract
   patient.belongsTo(contract, { as: "contract", foreignKey: "contract_id" });
   contract.hasMany(patient, { as: "patients", foreignKey: "contract_id" });
+
+  // Add association between patient and referral
+  patient.belongsTo(referral, { as: "referral", foreignKey: "referral_id" });
+  referral.hasMany(patient, { as: "patients", foreignKey: "referral_id" });
 
   admin.belongsToMany(packages_and_offers, {
     as: "package_id_packages_and_offers",
@@ -224,7 +232,13 @@ function initModels(sequelize) {
     through: medical_report_has_tg,
     foreignKey: "medical_report_id",
     otherKey: "test_group_id",
-  })
+  });
+  test_group.belongsToMany(medical_report, {
+    as: "medical_reports",
+    through: medical_report_has_tg,
+    foreignKey: "test_group_id",
+    otherKey: "medical_report_id",
+  });
   medical_report.belongsToMany(culture, {
     as: "culture_id_culture_medical_report_has_cultures",
     through: medical_report_has_culture,
@@ -636,6 +650,7 @@ function initModels(sequelize) {
   test_group.hasMany(medical_report_tg_field_value, { as: "medical_report_tg_field_values", foreignKey: "test_group_id", onDelete: "CASCADE" });
   medical_report_has_tg.belongsTo(test_group, { as: "test_group", foreignKey: "test_group_id", onDelete: "CASCADE" });
   test_group.hasMany(medical_report_has_tg, { as: "medical_report_has_tgs", foreignKey: "test_group_id", onDelete: "CASCADE" });
+  
   tg_component.belongsTo(tgc_category, { as: "category", foreignKey: "test_category_id" });
   tgc_category.hasMany(tg_component, { as: "tg_components", foreignKey: "test_category_id" });
   medical_report_tg_field_value.belongsTo(tg_fields, { as: "tg_fields", foreignKey: "tg_fields_id", onDelete: "CASCADE" });
@@ -656,6 +671,16 @@ function initModels(sequelize) {
   antibiotic.hasMany(medical_report_has_culture_antibiotic, {
     as: "culture_antibiotics",
     foreignKey: "antibiotic_id",
+  });
+
+  // Culture result associations
+  medical_report_culture_result.belongsTo(medical_report_has_culture, {
+    as: "medical_report_has_culture",
+    foreignKey: "medical_report_has_culture_id",
+  });
+  medical_report_has_culture.hasMany(medical_report_culture_result, {
+    as: "culture_results",
+    foreignKey: "medical_report_has_culture_id",
   });
 
   // Tenant associations
@@ -775,6 +800,7 @@ return {
   medical_report,
   medical_report_has_culture,
   medical_report_has_culture_antibiotic,
+  medical_report_culture_result,
   medical_report_has_test,
   medical_report_has_tg,
   medical_report_tg_field_value,
@@ -787,6 +813,7 @@ return {
   phone,
   question,
   receptionist,
+  referral,
   sample_type,
   status,
   test,
