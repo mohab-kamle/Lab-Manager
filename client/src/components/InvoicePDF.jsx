@@ -587,6 +587,14 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
     // eslint-disable-next-line
   }, [previewMode, invoiceData, paperSize, orientation]);
 
+  // Mobile detection function
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (window.innerWidth <= 768);
+  };
+
+  const isMobile = isMobileDevice();
+
   if (previewMode) {
     return (
       <div>
@@ -603,17 +611,66 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
             <option value="pos-80">80mm POS</option>
           </select>
         </div>
-        {pdfUrl ? (
-          <iframe
-            ref={iframeRef}
-            src={pdfUrl}
-            title="Invoice PDF Preview"
-            width="100%"
-            height="600px"
-            style={{ border: "none" }}
-          />
+        
+        {isMobile ? (
+          // Mobile-friendly fallback
+          <div style={{ 
+            height: '300px', 
+            border: '1px solid #ccc', 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center', 
+            justifyContent: 'center',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            padding: '20px',
+            textAlign: 'center'
+          }}>
+            <div style={{ marginBottom: '20px' }}>
+              <Printer size={48} color="#6c757d" />
+            </div>
+            <h5 style={{ color: '#495057', marginBottom: '10px' }}>PDF Preview Not Available</h5>
+            <p style={{ color: '#6c757d', marginBottom: '20px', fontSize: '14px' }}>
+              PDF preview is not supported on mobile devices. Please download the invoice to view it.
+            </p>
+            <button
+              onClick={() => {
+                const isPOS = paperSize.startsWith("pos-");
+                let docDefinition;
+                if (isPOS) {
+                  docDefinition = createPOSReceiptDefinition();
+                } else {
+                  docDefinition = createA4InvoiceDefinition();
+                }
+                pdfMake.createPdf(docDefinition).download(`Invoice_${billId || 'invoice'}.pdf`);
+              }}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Download Invoice PDF
+            </button>
+          </div>
         ) : (
-          <div>Loading PDF preview...</div>
+          // Desktop iframe preview
+          pdfUrl ? (
+            <iframe
+              ref={iframeRef}
+              src={pdfUrl}
+              title="Invoice PDF Preview"
+              width="100%"
+              height="600px"
+              style={{ border: "none" }}
+            />
+          ) : (
+            <div>Loading PDF preview...</div>
+          )
         )}
       </div>
     );

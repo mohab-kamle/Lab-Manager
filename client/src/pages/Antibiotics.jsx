@@ -5,7 +5,7 @@ import Toolbar from "../components/Toolbar"; // Updated Toolbar import
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 
 const Antibiotics = () => {
   const [antibiotics, setAntibiotics] = useState([]);
@@ -186,21 +186,23 @@ const Antibiotics = () => {
     }
   };
 
-  // XLSX Export Handler
-  const handleExportXLSX = () => {
-    const exportData = filteredAntibiotics.map(antibiotic => ({
-      'Name': antibiotic.name,
-      'Shortcut': antibiotic.shortcut,
-      'Commercial Name': antibiotic.commercial_name
-    }));
+  // Excel Export Handler
+  const handleExportXLSX = async () => {
+    try {
+      const exportData = filteredAntibiotics.map(antibiotic => ({
+        'Name': antibiotic.name,
+        'Shortcut': antibiotic.shortcut,
+        'Commercial Name': antibiotic.commercial_name
+      }));
 
-    // Create worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Antibiotics");
-
-    // Generate XLSX file and trigger download
-    XLSX.writeFile(wb, `antibiotics_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const result = await exportToExcel(exportData, 'antibiotics', 'Antibiotics');
+      if (!result.success) {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export antibiotics');
+    }
   };
 
   // XLSX Import Handler

@@ -5,7 +5,7 @@ import Toolbar from "../components/Toolbar"; // Updated Toolbar import
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
@@ -169,19 +169,22 @@ const Categories = () => {
     }
   };
 
-  // XLSX Export Handler
-  const handleExportXLSX = () => {
-    const exportData = filteredCategories.map(category => ({
-      'Name': category.name
-    }));
+  // Excel Export Handler
+  const handleExportXLSX = async () => {
+    try {
+      const exportData = filteredCategories.map(category => ({
+        'Name': category.name,
+        'Details': category.details
+      }));
 
-    // Create worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Categories");
-
-    // Generate XLSX file and trigger download
-    XLSX.writeFile(wb, `categories_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const result = await exportToExcel(exportData, 'categories', 'Categories');
+      if (!result.success) {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export categories');
+    }
   };
 
   // XLSX Import Handler

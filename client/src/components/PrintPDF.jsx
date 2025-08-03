@@ -9,6 +9,7 @@ import ReactDOM from 'react-dom';
 import QRCodeSVG from 'qrcode-svg';
 import { usePDF } from '@react-pdf/renderer';
 import CairoFont from '../assets/fonts/Cairo.ttf';
+import { FileText } from 'lucide-react';
 
 // Register Cairo font for Arabic support
 Font.register({
@@ -1247,39 +1248,110 @@ const PrintPDF = ({ patient, report, lab }) => {
     );
   }
 
-  // === LIVE PDF PREVIEW (DEV ONLY, REMOVE FOR PRODUCTION) ===
-  // To remove the live preview, delete or comment out the following <div> block
+  // Mobile detection function
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (window.innerWidth <= 768);
+  };
+
+  const isMobile = isMobileDevice();
+
+  // === LIVE PDF PREVIEW WITH MOBILE COMPATIBILITY ===
   return (
     <div>
-      <div style={{ height: '90vh', border: '1px solid #ccc', marginBottom: 16 }}>
-        <PDFViewer width="100%" height="100%">
-          <ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />
-        </PDFViewer>
-      </div>
-      {/* Download button restored below */}
-      <PDFDownloadLink
-        document={<ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />}
-        fileName={`Medical_Report_${patient.name || 'Report'}.pdf`}
-      >
-        {({ loading, error }) => {
-          if (error) {
+      {isMobile ? (
+        // Mobile-friendly fallback
+        <div style={{ 
+          height: '300px', 
+          border: '1px solid #ccc', 
+          marginBottom: 16, 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px',
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <div style={{ marginBottom: '20px' }}>
+            <FileText size={48} color="#6c757d" />
+          </div>
+          <h5 style={{ color: '#495057', marginBottom: '10px' }}>PDF Preview Not Available</h5>
+          <p style={{ color: '#6c757d', marginBottom: '20px', fontSize: '14px' }}>
+            PDF preview is not supported on mobile devices. Please download the PDF to view it.
+          </p>
+          <PDFDownloadLink
+            document={<ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />}
+            fileName={`Medical_Report_${patient.name || 'Report'}.pdf`}
+          >
+            {({ loading, error }) => {
+              if (error) {
+                return (
+                  <button style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    fontSize: '14px'
+                  }}>
+                    PDF Error
+                  </button>
+                );
+              }
+              
+              return (
+                <button style={{
+                  padding: '10px 20px',
+                  backgroundColor: loading ? '#6c757d' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '14px',
+                  cursor: loading ? 'not-allowed' : 'pointer'
+                }} disabled={loading}>
+                  {loading ? 'Generating PDF...' : 'Download PDF'}
+                </button>
+              );
+            }}
+          </PDFDownloadLink>
+        </div>
+      ) : (
+        // Desktop PDF viewer
+        <div style={{ height: '90vh', border: '1px solid #ccc', marginBottom: 16 }}>
+          <PDFViewer width="100%" height="100%">
+            <ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />
+          </PDFViewer>
+        </div>
+      )}
+      
+      {/* Download button for desktop */}
+      {!isMobile && (
+        <PDFDownloadLink
+          document={<ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />}
+          fileName={`Medical_Report_${patient.name || 'Report'}.pdf`}
+        >
+          {({ loading, error }) => {
+            if (error) {
+              return (
+                <span style={{ ...styles.btn, ...styles.btnLoading }}>
+                  PDF Error
+                </span>
+              );
+            }
+            
             return (
-              <span style={{ ...styles.btn, ...styles.btnLoading }}>
-                PDF Error
+              <span style={{
+                ...styles.btn,
+                ...(loading ? styles.btnLoading : {}),
+              }}>
+                {loading ? 'Generating PDF...' : 'Download PDF'}
               </span>
             );
-          }
-          
-          return (
-            <span style={{
-              ...styles.btn,
-              ...(loading ? styles.btnLoading : {}),
-            }}>
-              {loading ? 'Generating PDF...' : 'Download PDF'}
-            </span>
-          );
-        }}
-      </PDFDownloadLink>
+          }}
+        </PDFDownloadLink>
+      )}
     </div>
   );
 };
