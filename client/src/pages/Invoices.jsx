@@ -421,7 +421,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     }
   };
 
-  const calculateTotals = (items, selectedPackages = []) => {
+  const calculateTotals = (items, selectedPackages = [], customDiscountPercentage = null) => {
     let subtotal = 0;
     
     // Calculate tests total
@@ -472,13 +472,14 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       });
     }
 
-    // Calculate discount amount from percentage (use discountPercentage from state)
-    const discountAmount = (subtotal * (discountPercentage / 100)) || 0;
+    // Calculate discount amount from percentage (use custom percentage if provided, otherwise use state)
+    const currentDiscountPercentage = customDiscountPercentage !== null ? customDiscountPercentage : discountPercentage;
+    const discountAmount = (subtotal * (currentDiscountPercentage / 100)) || 0;
     
     // Calculate total: subtotal + tax - discount
     const total = subtotal + (items.tax || 0) - discountAmount;
     
-    // Use the paid amount from the invoice object (receptionist can edit this)
+    // Use the paid amount from the invoice object
     const paidAmount = Number(items.paid || 0);
     const due = total - paidAmount;
 
@@ -486,9 +487,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   };
 
   const handleDiscountChange = (discountPercentage) => {
-    setDiscountPercentage(discountPercentage);
+    const numericDiscount = Number(discountPercentage) || 0;
+    setDiscountPercentage(numericDiscount);
     setInvoice(prev => {
-      const { subtotal, discount, total, due, paid } = calculateTotals(prev);
+      // Pass the new discount percentage directly to avoid stale state
+      const { subtotal, discount, total, due, paid } = calculateTotals(prev, [], numericDiscount);
       return {
         ...prev,
         subtotal,
@@ -498,6 +501,26 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         paid
       };
     });
+  };
+
+  // Auto-update calculations whenever invoice data changes
+  const updateInvoiceCalculations = (newInvoice) => {
+    const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
+    return {
+      ...newInvoice,
+      subtotal,
+      discount,
+      total,
+      due,
+      paid
+    };
+  };
+
+  // Auto-update paid amount from payment methods
+  const updatePaidFromPayments = (newInvoice) => {
+    const paymentTotal = calculatePaymentTotal(newInvoice.payments);
+    const updatedInvoice = { ...newInvoice, paid: paymentTotal };
+    return updateInvoiceCalculations(updatedInvoice);
   };
 
   const handleAddInvoice = async (e) => {
@@ -1473,8 +1496,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                 setInvoice(prev => {
                                   const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
                                   const newInvoice = { ...prev, tests: filtered };
-                                  const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
-                                  return { ...newInvoice, subtotal, discount, total, due, paid };
+                                  return updateInvoiceCalculations(newInvoice);
                                 });
                               }}
                             />
@@ -1508,8 +1530,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                 setInvoice(prev => {
                                   const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
                                   const newInvoice = { ...prev, cultures: filtered };
-                                  const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
-                                  return { ...newInvoice, subtotal, discount, total, due, paid };
+                                  return updateInvoiceCalculations(newInvoice);
                                 });
                               }}
                             />
@@ -1543,8 +1564,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                 setInvoice(prev => {
                                   const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
                                   const newInvoice = { ...prev, packages: filtered };
-                                  const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
-                                  return { ...newInvoice, subtotal, discount, total, due, paid };
+                                  return updateInvoiceCalculations(newInvoice);
                                 });
                               }}
                             />
@@ -1582,8 +1602,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                 setInvoice(prev => {
                                   const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
                                   const newInvoice = { ...prev, test_groups: filtered };
-                                  const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
-                                  return { ...newInvoice, subtotal, discount, total, due, paid };
+                                  return updateInvoiceCalculations(newInvoice);
                                 });
                               }}
                             />
@@ -1604,7 +1623,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                             onChange={(e) => {
                               const newPayments = [...invoice.payments];
                               newPayments[index].payment_method_id = e.target.value;
-                              setInvoice({ ...invoice, payments: newPayments });
+                              const newInvoice = { ...invoice, payments: newPayments };
+                              setInvoice(updatePaidFromPayments(newInvoice));
                             }}
                           >
                             <option value="">Select Method</option>
@@ -1621,14 +1641,16 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                             onChange={(e) => {
                               const newPayments = [...invoice.payments];
                               newPayments[index].paid_amount = e.target.value;
-                              setInvoice(prev => ({ ...prev, payments: newPayments }));
+                              const newInvoice = { ...invoice, payments: newPayments };
+                              setInvoice(updatePaidFromPayments(newInvoice));
                             }}
                           />
                           <Button
                             variant="outline-danger"
                             onClick={() => {
                               const newPayments = invoice.payments.filter((_, i) => i !== index);
-                              setInvoice({ ...invoice, payments: newPayments });
+                              const newInvoice = { ...invoice, payments: newPayments };
+                              setInvoice(updatePaidFromPayments(newInvoice));
                             }}
                           >
                             Remove
@@ -1638,13 +1660,14 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       <Button
                         variant="outline-primary"
                         onClick={() => {
-                          setInvoice({
+                          const newInvoice = {
                             ...invoice,
                             payments: [
                               ...invoice.payments,
                               { payment_method_id: "", paid_amount: "" }
                             ]
-                          });
+                          };
+                          setInvoice(updatePaidFromPayments(newInvoice));
                         }}
                       >
                         Add Payment Method
@@ -1673,7 +1696,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       />
                       {discountPercentage > 0 && (
                         <Form.Text className="text-muted">
-                          Discount Amount: EGP {(invoice.subtotal * (parseFloat(discountPercentage) / 100)).toFixed(2)}
+                          Discount Amount: EGP {invoice.discount?.toFixed(2) || "0.00"}
                         </Form.Text>
                       )}
                     </Form.Group>
@@ -1686,8 +1709,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                           const tax = Number(e.target.value) || 0;
                           setInvoice(prev => {
                             const newInvoice = { ...prev, tax };
-                            const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
-                            return { ...newInvoice, subtotal, discount, total, due, paid };
+                            return updateInvoiceCalculations(newInvoice);
                           });
                         }}
                       />
@@ -1725,7 +1747,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                             <Form.Label>Discount ({discountPercentage}%)</Form.Label>
                             <Form.Control
                               type="text"
-                              value={`EGP ${(invoice.subtotal * (parseFloat(discountPercentage) / 100)).toFixed(2) || "0.00"}`}
+                              value={`EGP ${invoice.discount?.toFixed(2) || "0.00"}`}
                               disabled
                             />
                           </Form.Group>
@@ -1746,37 +1768,17 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label>Paid</Form.Label>
-                            <div className="d-flex gap-2">
-                              <Form.Control
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={invoice.paid || ""}
-                                onChange={(e) => {
-                                  const paid = Number(e.target.value) || 0;
-                                  setInvoice(prev => {
-                                    const newInvoice = { ...prev, paid };
-                                    const { subtotal, discount, total, due } = calculateTotals(newInvoice);
-                                    return { ...newInvoice, subtotal, discount, total, due };
-                                  });
-                                }}
-                              />
-                              <Button
-                                variant="outline-secondary"
-                                size="sm"
-                                onClick={() => {
-                                  const paymentTotal = calculatePaymentTotal(invoice.payments);
-                                  setInvoice(prev => {
-                                    const newInvoice = { ...prev, paid: paymentTotal };
-                                    const { subtotal, discount, total, due } = calculateTotals(newInvoice);
-                                    return { ...newInvoice, subtotal, discount, total, due };
-                                  });
-                                }}
-                                title="Auto-fill from payment methods"
-                              >
-                                Auto
-                              </Button>
-                            </div>
+                            <Form.Control
+                              type="text"
+                              value={`EGP ${invoice.paid?.toFixed(2) || "0.00"}`}
+                              disabled
+                              className="fw-bold text-success"
+                            />
+                            {invoice.payments.length === 0 && (
+                              <Form.Text className="text-muted">
+                                Add payment methods above to automatically calculate paid amount
+                              </Form.Text>
+                            )}
                           </Form.Group>
                         </Col>
                         <Col md={6}>

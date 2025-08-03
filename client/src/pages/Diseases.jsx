@@ -5,7 +5,7 @@ import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
 import Toolbar from "../components/Toolbar";
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 
 const Diseases = () => {
   const [diseases, setDiseases] = useState([]);
@@ -118,20 +118,22 @@ const Diseases = () => {
     }
   };
 
-  // XLSX Export Handler
-  const handleExportXLSX = () => {
-    const exportData = filteredDiseases.map(disease => ({
-      'Name': disease.name,
-      'Details': disease.details
-    }));
+  // Excel Export Handler
+  const handleExportXLSX = async () => {
+    try {
+      const exportData = filteredDiseases.map(disease => ({
+        'Name': disease.name,
+        'Details': disease.details
+      }));
 
-    // Create worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Diseases");
-
-    // Generate XLSX file and trigger download
-    XLSX.writeFile(wb, `diseases_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const result = await exportToExcel(exportData, 'diseases', 'Diseases');
+      if (!result.success) {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export diseases');
+    }
   };
 
   // XLSX Import Handler
@@ -405,4 +407,4 @@ const Diseases = () => {
   );
 };
 
-export default Diseases; 
+export default Diseases;

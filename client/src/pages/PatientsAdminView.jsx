@@ -8,7 +8,7 @@ import axios from "axios";
 import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 
 const PatientsAdminView = () => {
   const { user } = useAuth();
@@ -230,36 +230,38 @@ const PatientsAdminView = () => {
     }
   };
 
-  const handleExport = () => {
-    const exportData = patients.map(patient => ({
-      'Patient Code': patient.patientcode,
-      'Name': patient.name,
-      'Email': patient.email,
-      'Gender': patient.gender === 'm' ? 'Male' : patient.gender === 'f' ? 'Female' : '',
-      'Birth Date': patient.birth_date ? new Date(patient.birth_date).toLocaleDateString() : '',
-      'National ID': patient.national_id,
-      'Nationality': patient.nationality,
-      'Passport No': patient.passport_no,
-      'Address': patient.address,
-      'Primary Phone': patient.phones?.[0]?.phone_number || '',
-      'Secondary Phone': patient.phones?.[1]?.phone_number || '',
-      'Total': patient.total ? `EGP ${parseFloat(patient.total).toFixed(2)}` : '',
-      'Paid': patient.paid ? `EGP ${parseFloat(patient.paid).toFixed(2)}` : '',
-      'Due': patient.due ? `EGP ${parseFloat(patient.due).toFixed(2)}` : '',
-      'Contract': patient.contract_id ? (() => {
-        const selectedContract = contracts.find(c => c.id === patient.contract_id);
-        return selectedContract ? (selectedContract.name || `${selectedContract.region} - ${selectedContract.governorate}`) : patient.contract_id;
-      })() : '',
-      'Diseases': patient.diseases_id_diseases?.map(d => d.name).join(', ') || ''
-    }));
+  const handleExport = async () => {
+    try {
+      const exportData = patients.map(patient => ({
+        'Patient Code': patient.patientcode,
+        'Name': patient.name,
+        'Email': patient.email,
+        'Gender': patient.gender === 'm' ? 'Male' : patient.gender === 'f' ? 'Female' : '',
+        'Birth Date': patient.birth_date ? new Date(patient.birth_date).toLocaleDateString() : '',
+        'National ID': patient.national_id,
+        'Nationality': patient.nationality,
+        'Passport No': patient.passport_no,
+        'Address': patient.address,
+        'Primary Phone': patient.phones?.[0]?.phone_number || '',
+        'Secondary Phone': patient.phones?.[1]?.phone_number || '',
+        'Total': patient.total ? `EGP ${parseFloat(patient.total).toFixed(2)}` : '',
+        'Paid': patient.paid ? `EGP ${parseFloat(patient.paid).toFixed(2)}` : '',
+        'Due': patient.due ? `EGP ${parseFloat(patient.due).toFixed(2)}` : '',
+        'Contract': patient.contract_id ? (() => {
+          const selectedContract = contracts.find(c => c.id === patient.contract_id);
+          return selectedContract ? (selectedContract.name || `${selectedContract.region} - ${selectedContract.governorate}`) : patient.contract_id;
+        })() : '',
+        'Diseases': patient.diseases_id_diseases?.map(d => d.name).join(', ') || ''
+      }));
 
-    // Create worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Patients");
-
-    // Generate XLSX file and trigger download
-    XLSX.writeFile(wb, `patients_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const result = await exportToExcel(exportData, 'patients', 'Patients');
+      if (!result.success) {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export patients');
+    }
   };
 
   const handleImport = async () => {

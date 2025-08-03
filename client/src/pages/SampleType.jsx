@@ -5,7 +5,7 @@ import Toolbar from "../components/Toolbar";
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 
 const Samples = () => {
   const [samples, setSamples] = useState([]);
@@ -185,19 +185,21 @@ const Samples = () => {
     }
   };
 
-  // XLSX Export Handler
-  const handleExportXLSX = () => {
-    const exportData = filteredSamples.map(sample => ({
-      'Type': sample.type
-    }));
+  // Excel Export Handler
+  const handleExportXLSX = async () => {
+    try {
+      const exportData = filteredSamples.map(sample => ({
+        'Type': sample.type
+      }));
 
-    // Create worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Sample Types");
-
-    // Generate XLSX file and trigger download
-    XLSX.writeFile(wb, `sample_types_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const result = await exportToExcel(exportData, 'sample_types', 'Sample Types');
+      if (!result.success) {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export sample types');
+    }
   };
 
   // XLSX Import Handler

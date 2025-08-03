@@ -6,7 +6,7 @@ import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
 import axios from "axios";
 import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 
 const Branches = () => {
   const { user } = useAuth();
@@ -167,57 +167,76 @@ const Branches = () => {
     }
   };
 
-  // XLSX Export Handler
-  const handleExportXLSX = () => {
-    const exportData = filteredBranches.map(branch => ({
-      'Name': branch.name,
-      'Address': branch.address,
-      'Landline': branch.landline,
-      'Branch Number': branch.branch_number,
-      'Lab': branch.lab_name
-    }));
+  // Excel Export Handler
+  const handleExportXLSX = async () => {
+    try {
+      const exportData = filteredBranches.map(branch => ({
+        'Name': branch.name,
+        'Address': branch.address,
+        'Landline': branch.landline,
+        'Branch Number': branch.branch_number,
+        'Lab': branch.lab_name
+      }));
 
-    // Create worksheet and workbook
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Branches");
-
-    // Generate XLSX file and trigger download
-    XLSX.writeFile(wb, `branches_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const result = await exportToExcel(exportData, 'branches', 'Branches');
+      if (result.success) {
+        setSuccessMessage('Branches exported successfully!');
+      } else {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export branches');
+    }
   };
 
-  // XLSX Import Handler
+  // Excel Import Handler
   const handleImportXLSX = async () => {
     if (!importFile) {
       setError("Please select a file to import");
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', importFile);
-    
     setImportLoading(true);
     setError(null);
     
     try {
+      // Validate file first
+      const validation = validateExcelFile(importFile);
+      if (!validation.valid) {
+        setError(validation.message);
+        return;
+      }
+
+      // Import from Excel
+      const result = await importFromExcel(importFile);
+      if (!result.success) {
+        setError(result.message);
+        return;
+      }
+
+      // Process the imported data
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${apiUrl}/branches/import`, formData, {
+      const response = await axios.post(`${apiUrl}/branches/bulk`, {
+        branches: result.data
+      }, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'application/json'
         }
       });
       
       setShowImportModal(false);
       setImportFile(null);
-      setSuccessMessage(`Successfully imported ${response.data.imported} branches${response.data.errors.length > 0 ? ` with ${response.data.errors.length} errors` : ''}`);
+      setSuccessMessage(`Successfully imported ${response.data.imported} branches${response.data.errors?.length > 0 ? ` with ${response.data.errors.length} errors` : ''}`);
       
-      if (response.data.errors.length > 0) {
+      if (response.data.errors?.length > 0) {
         console.log('Import errors:', response.data.errors);
       }
       
       await fetchBranches();
     } catch (error) {
+      console.error('Import error:', error);
       setError(error.response?.data?.error || 'Failed to import branches');
     } finally {
       setImportLoading(false);

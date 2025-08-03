@@ -5,12 +5,12 @@ import { useAuth } from "../context/AuthContext";
 import Toolbar from "../components/Toolbar";
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
-import PrintPDF, { DirectPDFDownload } from "../components/PrintPDF";
+import PrintPDF, { DirectPDFDownload } from "../components/printpdf";
 import { Pencil, CheckCircle, Eye, Trash2, Download, FileText, TestTube, Save, Upload, Plus } from "lucide-react";
 import { Nav, Tab as TabContent, TabPane } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { formatDate } from "../utils/dateFormatter";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 import { useLab } from "../context/LabContext";
 
 
@@ -382,10 +382,9 @@ const MedicalReports = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Prepare parallel API calls for better performance
+      // Prepare API calls - now optimized to use single endpoint + conditional antibiotics fetch
       const apiCalls = [
-        axios.get(`${apiUrl}/medical-reports/${rowData.id}`, { headers }),
-        axios.get(`${apiUrl}/medical-reports/${rowData.id}/test-groups`, { headers })
+        axios.get(`${apiUrl}/medical-reports/${rowData.id}/results-data`, { headers })
       ];
 
       // Only fetch antibiotics if not already cached
@@ -393,12 +392,13 @@ const MedicalReports = () => {
         apiCalls.push(axios.get(`${apiUrl}/culture-antibiotics`, { headers }));
       }
 
-      // Execute parallel API calls
+      // Execute API calls in parallel
       const responses = await Promise.all(apiCalls);
-      const [reportResponse, testGroupsResponse, antibioticsResponse] = responses;
+      const [resultsDataResponse, antibioticsResponse] = responses;
       
-      const fullReport = reportResponse.data;
-      const tests = fullReport.test_id_test_medical_report_has_tests || [];
+      // Extract data from the optimized endpoint
+      const { report: fullReport, testGroups: testGroupsData, testComponents: testComponentsData } = resultsDataResponse.data;
+      const tests = fullReport.tests || [];
       const cultures = fullReport.cultures || [];
 
       // Update antibiotics cache if fetched
@@ -407,24 +407,7 @@ const MedicalReports = () => {
         setAntibioticsLoaded(true);
       }
 
-      // Fetch test components for all tests in parallel
-      const testComponentsPromises = tests.map(test =>
-        axios.get(`${apiUrl}/tests/${test.id}/components`, { headers })
-      );
-
-      // Process test components
-      const testComponentsData = {};
-      if (testComponentsPromises.length > 0) {
-        const testComponentsResponses = await Promise.allSettled(testComponentsPromises);
-        testComponentsResponses.forEach((response, index) => {
-          if (response.status === 'fulfilled' && response.value?.data) {
-            testComponentsData[fullReport.tests[index].id] = response.value.data;
-          }
-        });
-      }
-
-      // Process test groups
-      const testGroupsData = testGroupsResponse.data || [];
+      // Process test groups data (already optimized from backend)
       const testGroupValues = {};
       const fieldOptions = {};
 
@@ -435,7 +418,7 @@ const MedicalReports = () => {
         }
         // Combine direct and categorized components
         const allComponents = [
-          ...(group.direct_components || []),
+          ...(group.directComponents || []),
           ...((group.categories || []).flatMap(cat => cat.components || []))
         ];
         allComponents.forEach(component => {
@@ -491,7 +474,7 @@ const MedicalReports = () => {
       }
 
       // Batch all state updates together to minimize re-renders
-      setTestComponents(testComponentsData);
+      setTestComponents(testComponentsData); // Now comes pre-organized from backend
       setTestGroups(testGroupsData);
       setTestGroupValues(testGroupValues);
       setFieldOptions(fieldOptions);
@@ -501,7 +484,7 @@ const MedicalReports = () => {
 
       // Initialize culture antibiotics from the fetched data
       const initialCultureAntibiotics = {};
-      cultures.forEach(culture => { // Use the same cultures array
+      cultures.forEach(culture => {
         const cultureResultId = culture.medical_report_has_culture?.id;
         if (cultureResultId && culture.culture_antibiotics && culture.culture_antibiotics.length > 0) {
           initialCultureAntibiotics[cultureResultId] = culture.culture_antibiotics.map(ca => ({
@@ -516,8 +499,8 @@ const MedicalReports = () => {
       setShowResultsModal(true);
     } catch (error) {
       console.error("Error preparing results entry:", error);
-      setError("Failed to load test components. Please try again.");
-      toast.error("Failed to load test components. Please try again.");
+      setError("Failed to load results data. Please try again.");
+      toast.error("Failed to load results data. Please try again.");
     } finally {
       setEnteringResults(null);
     }
@@ -567,7 +550,8 @@ const MedicalReports = () => {
       const response = await axios.post(`${apiUrl}/field-comp-options`, {
         name: value,
         tg_fields_id: fieldId,
-        tg_component_id: componentId
+        tg_component_id: componentId,
+        test_group_id: groupId
       }, { headers });
       // Update local state
       setTestGroups(prevGroups => prevGroups.map(g => {
@@ -943,6 +927,12 @@ const MedicalReports = () => {
     updateCultureOption(cultureId, optionIndex, 'sub_option_id', subOptionId);
   };
 
+  /**
+   * Update the custom result of a culture option in the selected report.
+   * @param {string} cultureId - The ID of the culture.
+   * @param {number} optionIndex - The index of the culture option in the culture.
+   * @param {string} customResult - The custom result text.
+   */
   const handleCustomResultChange = (cultureId, optionIndex, customResult) => {
     updateCultureOption(cultureId, optionIndex, 'custom_result', customResult);
   };
@@ -1132,30 +1122,36 @@ const MedicalReports = () => {
     "invoice_id"
   ];
 
-  // XLSX Export Handler
-  const handleExportXLSX = () => {
-    const exportData = filteredReports.map(report => ({
-      'Date': formatDate(report.date),
-      'Patient': report.patient?.name || '',
-      'Registered At': report.registered_at ? formatDate(report.registered_at) : '-',
-      'Collected At': report.collected_at ? formatDate(report.collected_at) : '-',
-      'Received At': report.received_at ? formatDate(report.received_at) : '-',
-      'Reported At': report.reported_at ? formatDate(report.reported_at) : '-',
-      'Comment': report.comment || '',
-      'Done': report.done ? 'Yes' : 'No',
-      'Pending': report.pending ? 'Yes' : 'No',
-      'Signatory': report.signatory_name || '',
-      'Prints': report.prints_number || 0,
-      'WhatsApp Sends': report.whatsapp_sends || 0,
-      'Tests Count': report.tests_count || 0,
-      'Cultures Count': report.cultures_count || 0,
-      'Test Groups Count': report.test_groups_count || 0,
-      'Invoice ID': report.invoice_id || ''
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "MedicalReports");
-    XLSX.writeFile(wb, `medical_reports_${new Date().toISOString().split('T')[0]}.xlsx`);
+  // Excel Export Handler
+  const handleExportXLSX = async () => {
+    try {
+      const exportData = filteredReports.map(report => ({
+        'Date': formatDate(report.date),
+        'Patient': report.patient?.name || '',
+        'Registered At': report.registered_at ? formatDate(report.registered_at) : '-',
+        'Collected At': report.collected_at ? formatDate(report.collected_at) : '-',
+        'Received At': report.received_at ? formatDate(report.received_at) : '-',
+        'Reported At': report.reported_at ? formatDate(report.reported_at) : '-',
+        'Comment': report.comment || '',
+        'Done': report.done ? 'Yes' : 'No',
+        'Pending': report.pending ? 'Yes' : 'No',
+        'Signatory': report.signatory_name || '',
+        'Prints': report.prints_number || 0,
+        'WhatsApp Sends': report.whatsapp_sends || 0,
+        'Tests Count': report.tests_count || 0,
+        'Cultures Count': report.cultures_count || 0,
+        'Test Groups Count': report.test_groups_count || 0,
+        'Invoice ID': report.invoice_id || ''
+      }));
+
+      const result = await exportToExcel(exportData, 'medical_reports', 'MedicalReports');
+      if (!result.success) {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export medical reports');
+    }
   };
 
   // XLSX Import Handler (now connected to backend)
@@ -1903,7 +1899,7 @@ const MedicalReports = () => {
                               {testGroups.map((group) => {
                                 // Combine direct components and categorized components
                                 const allComponents = [
-                                  ...(group.direct_components || []).map(comp => ({ ...comp, _category: null })),
+                                  ...(group.directComponents || []).map(comp => ({ ...comp, _category: null })),
                                   ...((group.categories || []).flatMap(cat => (cat.components || []).map(comp => ({ ...comp, _category: cat.name }))) || [])
                                 ];
                                 return (

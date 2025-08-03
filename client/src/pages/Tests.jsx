@@ -5,7 +5,7 @@ import Toolbar from "../components/Toolbar";
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
 import { Pencil, Trash2, Plus, X, Download, Upload } from "lucide-react";
-import * as XLSX from "xlsx";
+import { exportToExcel, importFromExcel, validateExcelFile } from '../utils/excelUtils';
 
 const Tests = () => {
   const [tests, setTests] = useState([]);
@@ -531,24 +531,30 @@ const Tests = () => {
   );
 
   // XLSX Export Handler
-  const handleExportXLSX = () => {
-    const exportData = filteredTests.map(test => ({
-      'Name': test.name,
-      'Shortcut': test.shortcut,
-      'Price': test.price,
-      'Cost': test.cost,
-      'Lab to Lab': test.lab_to_lab === 'IN' ? 'In' : test.lab_to_lab === 'OUT' ? 'Out' : test.lab_to_lab,
-      'Lab Name': test.lab_name,
-      'Category': categories.find(cat => cat.id === test.category_id)?.name || '',
-      'Sample Type': sampleTypes.find(sample => sample.id === test.sample_type_id)?.type || '',
-      'Precautions': test.precautions,
-      'Decreased In': test.decreased_in,
-      'Increased In': test.increased_in
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Tests");
-    XLSX.writeFile(wb, `tests_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const handleExportXLSX = async () => {
+    try {
+      const exportData = filteredTests.map(test => ({
+        'Name': test.name,
+        'Shortcut': test.shortcut,
+        'Price': test.price,
+        'Cost': test.cost,
+        'Lab to Lab': test.lab_to_lab === 'IN' ? 'In' : test.lab_to_lab === 'OUT' ? 'Out' : test.lab_to_lab,
+        'Lab Name': test.lab_name,
+        'Category': categories.find(cat => cat.id === test.category_id)?.name || '',
+        'Sample Type': sampleTypes.find(sample => sample.id === test.sample_type_id)?.type || '',
+        'Precautions': test.precautions,
+        'Decreased In': test.decreased_in,
+        'Increased In': test.increased_in
+      }));
+
+      const result = await exportToExcel(exportData, 'tests', 'Tests');
+      if (!result.success) {
+        setError(`Export failed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      setError('Failed to export tests');
+    }
   };
 
   // XLSX Import Handler (now connected to backend)
