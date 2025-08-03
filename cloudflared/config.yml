@@ -1,0 +1,17 @@
+tunnel: lab-tunnel
+credentials-file: /etc/cloudflared/89525f11-5e5c-4f39-bdb5-44721cf29be1.json
+
+ingress:
+  - hostname: hook.labdoctors-laboratories.com
+    service: http://labmanager-frontend:5050
+
+  - hostname: www.labdoctors-laboratories.com
+    service: http://labmanager-frontend:80
+
+  - hostname: api.labdoctors-laboratories.com
+    service: http://labmanager-backend:3001
+
+  - hostname: db.labdoctors-laboratories.com
+    service: tcp://labmanager-mysql:3306
+
+  - service: http_status:404

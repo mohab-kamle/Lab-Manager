@@ -4,8 +4,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Cloudflare
-cloudflared/
 # Environment variables (DO NOT PUSH SECRETS)
 .env
 .env.local

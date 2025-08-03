@@ -29,18 +29,20 @@
     }
   },
   "production": {
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "mysql",
     "pool": {
       "max": 50,
       "min": 10,
       "acquire": 30000,
       "idle": 10000,
-      "evict": 1000
+      "evict": 10000
     },
     "dialectOptions": {
-      "connectTimeout": 30000,
-      "acquireTimeout": 30000,
-      "timeout": 30000
+      "ssl": {
+        "rejectUnauthorized": false
+      },
+      "connectTimeout": 60000
     }
   }
-
 }
