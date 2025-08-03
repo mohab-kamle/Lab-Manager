@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import Toolbar from "../components/Toolbar";
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
-import PrintPDF, { DirectPDFDownload } from "../components/printpdf";
+import PrintPDF, { DirectPDFDownload } from "../components/PrintPDF";
 import { Pencil, CheckCircle, Eye, Trash2, Download, FileText, TestTube, Save, Upload, Plus } from "lucide-react";
 import { Nav, Tab as TabContent, TabPane } from 'react-bootstrap';
 import { toast } from 'react-toastify';
