@@ -787,6 +787,255 @@ router.put('/:id/increment-prints', authenticateUser, authorizeRoles('admin', 'c
     }
 });
 
+// Optimized endpoint: Get all data needed for results entry in one call
+router.get('/:id/results-data', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
+    try {
+        // Get the medical report with all necessary data in one query
+        const report = await db.medical_report.findByPk(req.params.id, {
+            include: [
+                {
+                    model: db.patient,
+                    as: 'patient',
+                    attributes: ['id', 'name', 'birth_date', 'gender', 'patientcode'],
+                    include: [
+                        {
+                            model: db.referral,
+                            as: 'referral',
+                            attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']
+                        }
+                    ]
+                },
+                {
+                    model: db.test,
+                    as: 'test_id_test_medical_report_has_tests',
+                    through: { attributes: ['result', 'status'] },
+                    include: [
+                        {
+                            model: db.test_component,
+                            as: 'test_components',
+                            attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end', 'reference_range', 'result_type']
+                        }
+                    ]
+                },
+                {
+                    model: db.medical_report_has_culture,
+                    as: 'medical_report_has_cultures',
+                    include: [
+                        {
+                            model: db.culture,
+                            as: 'culture',
+                            attributes: ['id', 'name', 'price', 'sample_type_id', 'category_id']
+                        },
+                        {
+                            model: db.medical_report_has_culture_antibiotic,
+                            as: 'culture_antibiotics',
+                            include: [
+                                {
+                                    model: db.antibiotic,
+                                    as: 'antibiotic',
+                                    attributes: ['id', 'name', 'shortcut', 'commercial_name']
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    model: db.bill,
+                    as: 'bill',
+                    attributes: ['id', 'date']
+                },
+                {
+                    model: db.admin,
+                    as: 'signatory_admin',
+                    attributes: ['id'],
+                    include: [
+                        {
+                            model: db.employee,
+                            as: 'id_employee',
+                            attributes: ['id', 'name']
+                        }
+                    ]
+                },
+                {
+                    model: db.chemist,
+                    as: 'signatory',
+                    attributes: ['id'],
+                    include: [
+                        {
+                            model: db.employee,
+                            as: 'id_employee',
+                            attributes: ['id', 'name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (!report) {
+            return res.status(404).json({ error: 'Medical report not found' });
+        }
+
+        // Get test groups data separately but efficiently
+        const reportTestGroups = await db.medical_report_has_tg.findAll({
+            where: { medical_report_id: req.params.id },
+            attributes: ['medical_report_id', 'test_group_id', 'value'],
+            include: [
+                {
+                    model: db.test_group,
+                    as: 'test_group',
+                    required: true,
+                    paranoid: false,
+                    attributes: ['id', 'name'],
+                    include: [
+                        {
+                            model: db.tg_component,
+                            as: 'tg_components',
+                            required: false,
+                            paranoid: false,
+                            attributes: ['id', 'name', 'test_category_id'],
+                            include: [
+                                {
+                                    model: db.tgc_category,
+                                    as: 'category',
+                                    required: false,
+                                    paranoid: false,
+                                    attributes: ['id', 'name']
+                                }
+                            ]
+                        },
+                        {
+                            model: db.tg_fields,
+                            as: 'tg_fields',
+                            required: false,
+                            paranoid: false,
+                            attributes: ['id', 'name', 'test_group_id']
+                        },
+                        {
+                            model: db.field_comp_options,
+                            as: 'field_comp_options',
+                            required: false,
+                            paranoid: false,
+                            attributes: ['id', 'name', 'tg_component_id', 'tg_fields_id', 'test_group_id']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        // Get all field values for this medical report
+        const fieldValues = await db.medical_report_tg_field_value.findAll({
+            where: { medical_report_id: req.params.id }
+        });
+
+        // Process the data
+        const reportData = report.get({ plain: true });
+        
+        // Remap associations to top-level for frontend convenience
+        reportData.tests = (reportData.test_id_test_medical_report_has_tests || []).map(t => ({ 
+            ...t, 
+            medical_report_has_test: t.medical_report_has_test,
+            test_components: t.test_components || []
+        }));
+
+        // Map cultures from the medical_report_has_cultures association
+        reportData.cultures = (reportData.medical_report_has_cultures || []).map(mrc => ({
+            ...mrc.culture,
+            medical_report_has_culture: {
+                id: mrc.id,
+                result: mrc.result,
+                status: mrc.status
+            },
+            culture_antibiotics: mrc.culture_antibiotics || []
+        }));
+
+        // Process test groups with optimized structure
+        const testGroups = reportTestGroups
+            .filter(rtg => rtg.test_group)
+            .map(rtg => {
+                const group = rtg.test_group;
+                const fieldCompOptions = group.field_comp_options || [];
+
+                // Create a map of component_id -> field_id -> value
+                const valueMap = {};
+                fieldValues
+                    .filter(fv => fv.test_group_id === group.id)
+                    .forEach(fv => {
+                        if (!valueMap[fv.tg_component_id]) {
+                            valueMap[fv.tg_component_id] = {};
+                        }
+                        valueMap[fv.tg_component_id][fv.tg_fields_id] = fv.value;
+                    });
+
+                // Group components by category
+                const componentsByCategory = {};
+                const directComponents = [];
+                
+                (group.tg_components || []).forEach(component => {
+                    if (component.category) {
+                        if (!componentsByCategory[component.category.id]) {
+                            componentsByCategory[component.category.id] = {
+                                id: component.category.id,
+                                name: component.category.name,
+                                components: []
+                            };
+                        }
+                        componentsByCategory[component.category.id].components.push({
+                            id: component.id,
+                            name: component.name
+                        });
+                    } else {
+                        directComponents.push({
+                            id: component.id,
+                            name: component.name
+                        });
+                    }
+                });
+
+                const categories = Object.values(componentsByCategory);
+
+                // All fields with their options
+                const fields = (group.tg_fields || []).map(field => ({
+                    id: field.id,
+                    name: field.name,
+                    field_comp_options: fieldCompOptions
+                        .filter(opt => opt.tg_fields_id === field.id)
+                        .map(opt => ({
+                            id: opt.id,
+                            name: opt.name,
+                            tg_component_id: opt.tg_component_id,
+                            tg_fields_id: opt.tg_fields_id
+                        }))
+                }));
+
+                return {
+                    id: group.id,
+                    name: group.name,
+                    directComponents,
+                    categories,
+                    fields,
+                    values: valueMap
+                };
+            });
+
+        // Return comprehensive data structure
+        res.json({
+            report: reportData,
+            testGroups: testGroups,
+            // Include test components data organized by test_id for easy access
+            testComponents: reportData.tests.reduce((acc, test) => {
+                acc[test.id] = test.test_components || [];
+                return acc;
+            }, {})
+        });
+    } catch (error) {
+        console.error('Error fetching comprehensive results data:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch results data',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
 // Get test groups for a medical report
 router.get('/:id/test-groups', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {

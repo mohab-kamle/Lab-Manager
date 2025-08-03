@@ -36,7 +36,8 @@ router.post('/', authenticateUser, authorizeRoles(...allowedRoles), async (req, 
       where: { 
         name: name.trim(),
         tg_fields_id,
-        tg_component_id
+        tg_component_id,
+        test_group_id: test_group_id || null
       } 
     });
     
@@ -50,7 +51,8 @@ router.post('/', authenticateUser, authorizeRoles(...allowedRoles), async (req, 
     const newOption = await field_comp_options.create({
       name: name.trim(),
       tg_fields_id,
-      tg_component_id
+      tg_component_id,
+      test_group_id: test_group_id || null
     });
 
     res.status(201).json(newOption);

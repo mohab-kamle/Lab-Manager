@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { Moon, Sun } from "lucide-react";
 import useLabPrefix from '../hooks/useLabPrefix';
 import { toast } from 'react-toastify';
-import labIcon from '../assets/LabIcon.png';
+import labIcon from '../assets/LabIcon.webp';
 import { useLab } from "../context/LabContext";
 import VersionBadge from "./VersionBadge";
 const MainNavBar = () => {
