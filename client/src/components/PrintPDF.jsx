@@ -59,72 +59,95 @@ function getResultColor(result, normalRange, status) {
 
 const styles = StyleSheet.create({
   tableContainer: {
-    marginBottom: 20,
+    marginBottom: 5,
+    marginHorizontal: 12,
     border: '1px solid #e0e0e0',
-    borderRadius: 15,
-    overflow: 'hidden',
-    pageBreakInside: 'avoid',  // Prevent container from breaking across pages
+    borderRadius: 6,
+    overflow: 'visible',
+    pageBreakInside: 'avoid', // Prevent breaking inside table
+    backgroundColor: '#fff',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
   },
   tableTitle: {
-    backgroundColor: '#f5f5f5',
-    padding: '8px 12px',
+    backgroundColor: '#fff',
+    paddingVertical: 4,
     fontWeight: 'bold',
-    borderBottom: '1px solid #e0e0e0',
+    borderBottom: '2px solid #e0e0e0',
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 10,
+    color: '#2d3e8b',
+    letterSpacing: 0.5,
+    pageBreakAfter: 'avoid', // Prevent page break immediately after title
+    orphans: 3, // Ensure at least 3 lines follow the title
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#2d3e8b',
     color: 'white',
-    padding: '6px 12px',
+    padding: '4px 12px',
     position: 'relative',
     zIndex: 1,
+  },
+  tableHeaderFixed: {
+    flexDirection: 'row',
+    backgroundColor: '#2d3e8b',
+    color: 'white',
+    position: 'relative',
+    zIndex: 1,
+    minHeight: 20,             // Reduced header height
+    alignItems: 'center',
+    pageBreakAfter: 'avoid', // Prevent page break immediately after header
   },
   headerCell: {
     flex: 1,
     fontWeight: 'bold',
-    fontSize: 8,
+    fontSize: 7,               // Slightly smaller font
     textAlign: 'center',
+    padding: '4px 3px',        // Reduced padding
+    minHeight: 12,             // Reduced minimum height
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tableRow: {
     flexDirection: 'row',
     borderBottom: '1px solid #f0f0f0',
-    padding: '8px 12px',
-    pageBreakInside: 'avoid',  // Prevent row from breaking
-    pageBreakAfter: 'auto',    // Let the PDF renderer handle page breaks
-    minHeight: 30,             // Ensure minimum row height
-    alignItems: 'center',      // Center content vertically
+    padding: '1px 2px',        // Reduced padding for smaller rows
+    minHeight: 8,              // Reduced minimum row height
+    alignItems: 'center',
+    pageBreakInside: 'avoid', // Prevent row breaking
+    orphans: 2, // Minimum lines at bottom of page
+    widows: 2,  // Minimum lines at top of page
   },
   evenRow: {
     backgroundColor: '#f9f9f9',
   },
   cell: {
     flex: 1,
-    fontSize: 8,
-    padding: '2px 4px',
+    fontSize: 6,
+    padding: '3px 4px',        // Reduced padding for smaller cells
     textAlign: 'center',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 4,              // Reduced minimum height
+    lineHeight: 1.0,           // Tighter line height
   },
   componentCell: {
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
+    justifyContent: 'flex-center',
+    alignItems: 'flex-center',
   },
   page: {
     fontFamily: 'Cairo', // Use Cairo for Arabic support
     fontSize: 10,
     padding: 0,
     backgroundColor: '#fff',
-    paddingBottom: 90,
+    paddingBottom: 85,
     paddingHorizontal: 20,
   },
   header: {
     flexDirection: 'column',
     alignItems: 'stretch',
-    padding: 20,
-    paddingBottom: 5,
+    padding: 5,
     backgroundColor: '#fff',
     borderBottom: '1pt solid #e6e6e6',
   },
@@ -136,18 +159,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   logo: {
-    width: 60,
-    height: 70,
+    width: 30,
+    height: 35,
     marginRight: 10,
   },
   labName: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#2d3e8b',
-    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 8,
     color: '#2d3e8b',
     marginBottom: 2,
   },
@@ -168,9 +190,7 @@ const styles = StyleSheet.create({
   infoGridWrapper: {
     alignItems: 'center',
     width: '100%',
-    marginTop: 8,
-    marginBottom: 10,
-    
+    marginTop: 8,    
   },
   infoGrid: {
     flexDirection: 'row',
@@ -178,8 +198,8 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     width: '90%',
     marginHorizontal: 'auto',
-    paddingBottom: 15,
-    marginTop: 0,
+    paddingBottom: 5,
+    marginBottom: 5,
     borderBottom: '1pt solid #e6e6e6',
   },
   infoCard: {
@@ -202,7 +222,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 4,
     marginBottom: 2,
-    fontSize: 8,
+    fontSize: 6,
     backgroundColor: '#dedfeb',
   },
   infoText: {
@@ -212,39 +232,36 @@ const styles = StyleSheet.create({
   },
   statusBar: {
     flexDirection: 'row',
-    marginBottom: 5,
-    marginTop: 5,
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    paddingHorizontal: 10,
   },
   statusItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
     marginHorizontal: 2,
     borderRadius: 4,
-    padding: 6,
   },
   statusLabel: {
-    fontSize: 8,
+    fontSize: 6,
     borderRadius: 4,
-    color: '#5d6481',
+    color: '#5d6481', 
     fontWeight: 'bold',
     marginBottom: 2,
     backgroundColor: '#dedfeb',
-    padding: 4,
+    padding: 2,
   },
   statusValue: {
-    fontSize: 8,
+    fontSize: 6,
     fontWeight: 'bold',
     color: '#333',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#2d3e8b',
-    marginTop: 18,
-    marginBottom: 10,
+    marginTop: 5,
     textAlign: 'center',
   },
   testCard: {
@@ -274,7 +291,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   testResultText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#000',
   },
@@ -284,7 +301,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   testRefRange: {
-    fontSize: 9,
+    fontSize: 8,
     color: '#666',
     marginTop: 2,
   },
@@ -293,7 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 2,
     paddingHorizontal: 8,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#fff',
     backgroundColor: '#2ecc40',
@@ -314,15 +331,15 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 15,
     left: 20,
     right: 20,
     borderTop: '1pt solid #e6e6e6',
-    paddingTop: 10,
+    paddingTop: 5,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    fontSize: 8,
+    fontSize: 6,
     color: '#666',
   },
   footerLeft: {
@@ -337,7 +354,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 10,
     right: 25,
-    fontSize: 9,
+    fontSize: 6,
     color: '#212529',
   },
   commentBox: {
@@ -350,19 +367,120 @@ const styles = StyleSheet.create({
   commentLabel: {
     fontWeight: 'bold',
     color: '#2d3e8b',
-    fontSize: 11,
+    fontSize: 12,
     marginRight: 4,
   },
   signLabel: {
     fontWeight: 'bold',
     color: '#2d3e8b',
-    fontSize: 11,
+    fontSize: 12,
     marginRight: 4,
   },
   signText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#333',
   },
+  // Additional styles for enhanced test groups rendering
+  categoryText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2d3e8b',
+    textAlign: 'center',
+  },
+  componentText: {
+    fontSize: 8,
+    color: '#333',
+    fontWeight: 'bold',
+    textAlign: 'left',
+    lineHeight: 1.3,
+    wordWrap: 'break-word',
+    maxWidth: '100%',
+  },
+  referenceText: {
+    fontSize: 8,
+    color: '#666',
+    textAlign: 'center',
+  },
+  unitText: {
+    fontSize: 8,
+    color: '#666',
+    textAlign: 'center',
+  },
+  cellText: {
+    fontSize: 8,
+    color: '#333',
+    textAlign: 'center',
+    lineHeight: 1.1,
+  },
+  rangeText: {
+    fontSize: 6,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 1,
+  },
+  resultCell: {
+    fontWeight: 'bold',
+    fontSize: 10,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
+    padding: '6px 8px',
+  },
+  headerText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  // New styles for better page break handling
+  categoryContainer: {
+    pageBreakInside: 'avoid', // Prevent category sections from breaking
+    marginBottom: 1,           // Reduced margin for compactness
+    minHeight: 30,             // Reduced minimum height
+    orphans: 2, // Minimum lines at bottom of page
+    widows: 2,  // Minimum lines at top of page
+  },
+  categoryHeader: {
+    backgroundColor: '#f8f9fa',
+    border: '2pt solid #2d3e8b',
+    display: 'flex',
+    paddingBottom: 3,          // Reduced padding
+    flexDirection: 'row',
+    textAlign: 'center',
+    minHeight: 30,             // Reduced height
+    justifyContent: 'center',
+    alignItems: 'center',
+    pageBreakAfter: 'avoid', // Prevent page break immediately after header
+    orphans: 3, // Ensure at least 3 lines follow the header
+  },
+  tableSection: {
+    pageBreakInside: 'avoid', // Keep table sections together
+    marginBottom: 2,           // Reduced margin
+    minHeight: 25,             // Reduced minimum height
+    orphans: 2, // Minimum lines at bottom of page
+    widows: 2,  // Minimum lines at top of page
+  },
+  // Small header row under category names
+  categorySubHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#e8f0fe',
+    borderBottom: '1px solid #d0d7de',
+    minHeight: 14,             // Reduced height for compactness
+    alignItems: 'center',
+    marginBottom: 0.5,         // Reduced margin
+  },
+  categorySubHeaderCell: {
+    flex: 1,
+    fontSize: 6,
+    fontWeight: 'bold',
+    color: '#5d6481',
+    textAlign: 'center',
+    padding: '2px 3px',
+    minHeight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
 });
 
 // Add styles for group and component cards
@@ -378,7 +496,7 @@ const groupCardStyle = (resultColor = '#303d85') => ({
 const groupTitleStyle = {
   fontWeight: 'bold',
   color: '#2d3e8b',
-  fontSize: 14,
+  fontSize: 12,
   marginBottom: 8,
 };
 const componentCardStyle = (resultColor = '#303d85') => ({
@@ -469,7 +587,7 @@ const PDFHeader = ({ patient, report, barcodeUrl, lab }) => (
         </View>
       </View>
       <View style={{ alignItems: 'flex-end', justifyContent: 'flex-start' }}>
-        {barcodeUrl && <Image src={barcodeUrl} style={{ width: 120, height: 40 }} />}
+        {barcodeUrl && <Image src={barcodeUrl} style={{ width: 60, height: 20 }} />}
       </View>
     </View>
     {/* <View style={styles.accreditations}>
@@ -484,11 +602,11 @@ const PDFHeader = ({ patient, report, barcodeUrl, lab }) => (
 const PDFFooter = ({ qrUrl, signatory, lab }) => (
   <View style={styles.footer} fixed>
     <View style={styles.footerLeft}>
-      <Text>920002723 | www.doctorslab.com | info@doctorslab.com | License No: 2600032113</Text>
-      <Text>Validated By: {signatory || 'Dr. Abanoub'} | Approved By: {signatory || 'Dr. Abanoub'}</Text>
+      <Text>www.labdoctors-laboratories.com | techsupport@labdoctors-laboratories.com | License No: 2600032113</Text>
+      <Text>Validated By: {signatory || 'N/A'} | Approved By: {signatory || 'N/A'}</Text>
     </View>
     <View style={styles.footerRight}>
-      {qrUrl && <Image src={qrUrl} style={{ width: 50, height: 50}} />}
+      {qrUrl && <Image src={qrUrl} style={{ width: 35 , height: 35 }} />}
     </View>
   </View>
 );
@@ -524,8 +642,8 @@ const PDFInfoGrid = ({ patient, report, lab }) => (
       <View style={[styles.infoCard, styles.infoCardLast]}>
         <Text style={styles.infoTitle}>Referral</Text>
         <Text style={styles.infoText}>
-          Doctor: {report?.signatory_name || 'N/A'}{'\n'}
-          MRN: {patient?.patientcode || 'N/A'}{'\n'}
+          Doctor: {patient?.referral?.doctor_name || 'N/A'}{'\n'}
+          Specialization: {patient?.referral?.specialization || 'N/A'}{'\n'}
           Status: {report?.done === 1 ? 'Completed' : report?.pending === 1 ? 'Pending' : 'Unsigned'}
         </Text>
       </View>
@@ -612,8 +730,6 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                 <View
                   style={styles.testCard}
                   key={testIndex}
-                  wrap={false}
-                  minPresenceAhead={70}
                 >
                   <View style={styles.testCardCol}>
                     <Text style={styles.testName}>{test.name || 'Unknown Test'}</Text>
@@ -664,8 +780,6 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                   {/* Culture Header Card */}
                   <View
                     style={styles.testCard}
-                    wrap={false}
-                    minPresenceAhead={cultureAntibiotics.length > 0 ? 150 : 100}
                   >
                     <View style={styles.testCardCol}>
                       <Text style={styles.testName}>{culture.name || 'Unknown Culture'}</Text>
@@ -698,8 +812,6 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                       marginHorizontal: 20,
                       marginBottom: 12
                     }}
-                    wrap={false}
-                    minPresenceAhead={120}
                     >
                       <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 5, color: '#2d3e8b' }}>
                         Antibiotic Sensitivity Testing:
@@ -786,165 +898,301 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                       </View>
                     </View>
                   )}
+
+                  {/* Culture Options and Results */}
+                  {culture.culture_results && culture.culture_results.length > 0 && (
+                    <View style={{ 
+                      marginTop: 8, 
+                      marginHorizontal: 20,
+                      marginBottom: 12
+                    }}>
+                      <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 5, color: '#2d3e8b' }}>
+                        Culture Results:
+                      </Text>
+                      <View style={{ 
+                        border: '1pt solid #e6e6e6', 
+                        borderRadius: 4, 
+                        padding: 8,
+                        backgroundColor: '#fafafa'
+                      }}>
+                        {culture.culture_results.map((result, resultIndex) => (
+                          <View 
+                            key={resultIndex}
+                            style={{
+                              marginBottom: resultIndex < culture.culture_results.length - 1 ? 8 : 0,
+                              paddingBottom: resultIndex < culture.culture_results.length - 1 ? 8 : 0,
+                              borderBottom: resultIndex < culture.culture_results.length - 1 ? '1pt solid #f0f0f0' : 'none'
+                            }}
+                          >
+                            {result.result_type === 'predefined' ? (
+                              <View>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#2d3e8b', marginBottom: 2 }}>
+                                  {result.culture_option_name}
+                                </Text>
+                                {result.culture_sub_option_name && (
+                                  <Text style={{ fontSize: 9, color: '#333', marginLeft: 10 }}>
+                                    • {result.culture_sub_option_name}
+                                  </Text>
+                                )}
+                              </View>
+                            ) : (
+                              <View>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#2d3e8b', marginBottom: 2 }}>
+                                  Custom Result:
+                                </Text>
+                                <Text style={{ fontSize: 9, color: '#333', marginLeft: 10 }}>
+                                  {result.custom_result}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
                 </View>
               );
             })}
           </>
         ) : null}
         
-        {/* Test Groups Section */}
+        {/* Test Groups Section - Enhanced with Category Grouping */}
 {report?.test_groups && report.test_groups.length > 0 ? (
   <>
     <Text style={styles.sectionTitle}>Test Groups</Text>
     {report.test_groups.map((group, groupIndex) => {
       // Get all unique fields across all components
       const allFields = [
-        { id: 'component', name: 'Component', width: 2 },
-        ...(group.fields || []).map(f => ({ ...f, width: 1 })),
+        { id: 'component', name: 'Component', width: 3 },
+        ...(group.fields || []).map(f => ({ ...f, width: 1.2 })),
       ];
 
-      // Flatten all components (direct and categorized)
-      const allComponents = [
-        ...(group.direct_components || []).map(c => ({ 
-          ...c, 
-          category: null,
-          type: 'direct'
-        })),
-        ...(group.categories || []).flatMap(cat => 
-          (cat.components || []).map(comp => ({ 
+      // Organize components by category for better rendering
+      const directComponents = (group.direct_components || []).map(c => ({ 
+        ...c, 
+        category: null,
+        type: 'direct'
+      }));
+
+      // Group categorized components by category
+      const categorizedGroups = {};
+      (group.categories || []).forEach(cat => {
+        if (cat.components && cat.components.length > 0) {
+          categorizedGroups[cat.name] = cat.components.map(comp => ({ 
             ...comp, 
             category: cat.name,
             type: 'categorized'
-          }))
-        )
-      ];
+          }));
+        }
+      });
+
+      // Helper function to render component rows
+      const renderComponentRow = (component, compIndex, isEven) => {
+        const componentNormalRange = component.normal_from && component.normal_to 
+          ? `${component.normal_from} - ${component.normal_to}` 
+          : component.normal_range;
+
+        return (
+          <View 
+            key={`comp-${component.id}-${compIndex}`}
+            style={[
+              styles.tableRow,
+              isEven && styles.evenRow,
+              component.result && styles.resultRow,
+              {
+                pageBreakInside: 'avoid', // Prevent component row from breaking
+                orphans: 2, // Minimum lines at bottom of page
+                widows: 2,  // Minimum lines at top of page
+              }
+            ]}
+          >
+            {allFields.map((field, fieldIdx) => {
+              // Component Name Cell
+              if (field.id === 'component') {
+                return (
+                  <View 
+                    key={fieldIdx} 
+                    style={[styles.cell, { flex: field.width }, styles.componentCell]}
+                  >
+                    <Text style={styles.componentText}>
+                      {component.name}
+                    </Text>
+                  </View>
+                );
+              }
+
+              // Reference Range Cell
+              if (field.id === 'reference') {
+                return (
+                  <View 
+                  key={fieldIdx} 
+                  style={[styles.cell, { flex: field.width, minWidth: 80, padding: '4px 2px' }]}
+                >
+                  <Text style={[styles.referenceText, { fontSize: 7, lineHeight: 1.2 }]}>
+                    {componentNormalRange || 'N/A'}
+                  </Text>
+                </View>
+                );
+              }
+
+              // Unit Cell
+              if (field.id === 'unit') {
+                return (
+                  <View 
+                  key={fieldIdx} 
+                  style={[styles.cell, { flex: field.width, minWidth: 40 }]}
+                >
+                  <Text style={[styles.unitText, { fontSize: 8 }]}>
+                    {component.unit || '-'}
+                  </Text>
+                </View>
+                );
+              }
+
+              // Regular Field Cell
+              let fieldValue = 'N/A';
+              if (group.values?.[component.id]?.[field.id] !== undefined) {
+                fieldValue = String(group.values[component.id][field.id]);
+              }
+
+              const isResult = field.name.toLowerCase().includes('result');
+              const fieldNormalRange = field.normal_from && field.normal_to 
+                ? `${field.normal_from} - ${field.normal_to}` 
+                : field.normal_range;
+              
+              const resultColor = isResult 
+                ? getResultColor(fieldValue, fieldNormalRange, field.status) 
+                : 'transparent';
+
+              return (
+                <View 
+                  key={fieldIdx} 
+                  style={[
+                    styles.cell, 
+                    { 
+                      flex: field.width,
+                      backgroundColor: resultColor !== 'transparent' ? resultColor : undefined
+                    },
+                    isResult && styles.resultCell
+                  ]}
+                >
+                  <Text style={[
+                    styles.cellText,
+                    isResult && { 
+                      color: (resultColor === '#2ecc40' || resultColor === '#ff4136') 
+                        ? '#fff' 
+                        : '#333',
+                      fontWeight: 'bold'
+                    }
+                  ]}>
+                    {fieldValue}
+                  </Text>
+                  {isResult && fieldNormalRange && (
+                    <Text style={styles.rangeText}>
+                      {fieldNormalRange}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        );
+      };
+
+      // Helper function to render category header with improved page break handling
+      const renderCategoryHeader = (categoryName) => (
+        <View 
+          key={`category-${categoryName}`}
+          style={styles.categoryHeader}
+        >
+          <View style={[styles.cell, { flex: allFields.reduce((sum, f) => sum + (f.width || 1), 0), justifyContent: 'flex-start' }]}>
+            <Text style={[
+              styles.categoryText,
+              {
+                fontSize: 11,              // Slightly smaller font
+                fontWeight: 'bold',
+                color: '#2d3e8b',
+                textAlign: 'center',
+                paddingVertical: 3,        // Reduced padding
+              }
+            ]}>
+              {categoryName}
+            </Text>
+          </View>
+        </View>
+      );
+
+      // Helper function to render small header row under category names
+      const renderCategorySubHeader = () => (
+        <View style={styles.categorySubHeader}>
+          {allFields.map((field, idx) => (
+            <View 
+              key={`sub-header-${field.id || idx}`} 
+              style={[styles.categorySubHeaderCell, { flex: field.width || 1 }]}
+            >
+              <Text style={{
+                fontSize: 6,
+                fontWeight: 'bold',
+                color: '#5d6481',
+                textAlign: 'center'
+              }}>
+                {field.name}
+              </Text>
+            </View>
+          ))}
+        </View>
+      );
 
       return (
-        <View key={groupIndex} style={styles.tableContainer} wrap={false}>
+        <View key={groupIndex} style={[styles.tableContainer, { marginTop: groupIndex === 0 ? 20 : 10 }]}>
           <Text style={styles.tableTitle}>{group.name || 'Unknown Group'}</Text>
           
-          {/* Table Header */}
-          <View style={styles.tableHeader} fixed>
+          {/* Table Header - Enhanced visibility with fixed positioning */}
+          <View style={styles.tableHeaderFixed} wrap={false} fixed>
             {allFields.map((field, idx) => (
               <View 
                 key={field.id || idx} 
                 style={[styles.headerCell, { flex: field.width || 1 }]}
               >
-                <Text style={styles.headerText}>{field.name}</Text>
+                <Text style={[styles.headerText, { fontSize: 8, fontWeight: 'bold' }]}>{field.name}</Text>
               </View>
             ))}
           </View>
 
-          {/* Table Rows */}
-          {allComponents.map((component, compIndex) => {
-            const componentNormalRange = component.normal_from && component.normal_to 
-              ? `${component.normal_from} - ${component.normal_to}` 
-              : component.normal_range;
+          {/* Render Direct Components First - wrapped in section */}
+          {directComponents.length > 0 && (
+            <View style={styles.tableSection}>
+              {directComponents.map((component, compIndex) => 
+                renderComponentRow(component, compIndex, compIndex % 2 === 0)
+              )}
+            </View>
+          )}
 
+          {/* Render Categorized Components Grouped by Category */}
+          {Object.entries(categorizedGroups).map(([categoryName, components], catIndex) => {
+            const startIndex = directComponents.length + 
+              Object.entries(categorizedGroups)
+                .slice(0, catIndex)
+                .reduce((sum, [, comps]) => sum + comps.length + 1, 0); // +1 for category header
+            
             return (
-              <View 
-                key={compIndex} 
-                style={[
-                  styles.tableRow,
-                  compIndex % 2 === 0 && styles.evenRow,
-                  component.result && styles.resultRow
-                ]}
-                wrap
-              >
-                {allFields.map((field, fieldIdx) => {
-                  // Component Name Cell
-                  if (field.id === 'component') {
-                    return (
-                      <View 
-                        key={fieldIdx} 
-                        style={[styles.cell, { flex: field.width }, styles.componentCell]}
-                      >
-                        <Text style={styles.componentText}>
-                          {component.category && (
-                            <Text style={styles.categoryText}>
-                              {component.category}:{'\n'}
-                            </Text>
-                          )}
-                          {component.category ? `• ${component.name}` : component.name}
-                        </Text>
-                      </View>
-                    );
-                  }
-
-                  // Reference Range Cell
-                  if (field.id === 'reference') {
-                    return (
-                      <View 
-                        key={fieldIdx} 
-                        style={[styles.cell, { flex: field.width }]}
-                      >
-                        <Text style={styles.referenceText}>
-                          {componentNormalRange || 'N/A'}
-                        </Text>
-                      </View>
-                    );
-                  }
-
-                  // Unit Cell
-                  if (field.id === 'unit') {
-                    return (
-                      <View 
-                        key={fieldIdx} 
-                        style={[styles.cell, { flex: field.width }]}
-                      >
-                        <Text style={styles.unitText}>
-                          {component.unit || '-'}
-                        </Text>
-                      </View>
-                    );
-                  }
-
-                  // Regular Field Cell
-                  let fieldValue = 'N/A';
-                  if (group.values?.[component.id]?.[field.id] !== undefined) {
-                    fieldValue = String(group.values[component.id][field.id]);
-                  }
-
-                  const isResult = field.name.toLowerCase().includes('result');
-                  const fieldNormalRange = field.normal_from && field.normal_to 
-                    ? `${field.normal_from} - ${field.normal_to}` 
-                    : field.normal_range;
-                  
-                  const resultColor = isResult 
-                    ? getResultColor(fieldValue, fieldNormalRange, field.status) 
-                    : 'transparent';
-
-                  return (
-                    <View 
-                      key={fieldIdx} 
-                      style={[
-                        styles.cell, 
-                        { 
-                          flex: field.width,
-                          backgroundColor: resultColor !== 'transparent' ? resultColor : undefined
-                        },
-                        isResult && styles.resultCell
-                      ]}
-                    >
-                      <Text style={[
-                        styles.cellText,
-                        isResult && { 
-                          color: (resultColor === '#2ecc40' || resultColor === '#ff4136') 
-                            ? '#fff' 
-                            : '#333',
-                          fontWeight: 'bold'
-                        }
-                      ]}>
-                        {fieldValue}
-                      </Text>
-                      {isResult && fieldNormalRange && (
-                        <Text style={styles.rangeText}>
-                          {fieldNormalRange}
-                        </Text>
-                      )}
-                    </View>
-                  );
-                })}
+              <View key={`category-group-${categoryName}`} style={styles.categoryContainer}>
+                {/* Category Header */}
+                {renderCategoryHeader(categoryName)}
+                
+                {/* Small Header Row under Category Name */}
+                {/* {renderCategorySubHeader()} */}
+                
+                {/* Category Components - wrapped in section to prevent breaks */}
+                <View style={styles.tableSection}>
+                  {components.map((component, compIndex) => 
+                    renderComponentRow(
+                      component, 
+                      startIndex + compIndex + 1, // +1 for category header
+                      (startIndex + compIndex + 1) % 2 === 0
+                    )
+                  )}
+                </View>
               </View>
             );
           })}

@@ -71,11 +71,7 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'receptioni
                 lab_id: req.tenant.lab_id
             },
             include: [
-                {
-                    model: db.patient,
-                    as: 'patient',
-                    attributes: ['id', 'name', 'patientcode', 'birth_date', 'gender']
-                },
+                {                    model: db.patient,                    as: 'patient',                    attributes: ['id', 'name', 'patientcode', 'birth_date', 'gender'],                    include: [                        {                            model: db.referral,                            as: 'referral',                            attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']                        }                    ]                },
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
@@ -153,11 +149,7 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
     try {
         const report = await db.medical_report.findByPk(req.params.id, {
             include: [
-                {
-                    model: db.patient,
-                    as: 'patient',
-                    attributes: ['id', 'name', 'birth_date', 'gender', 'patientcode']
-                },
+                {                    model: db.patient,                    as: 'patient',                    attributes: ['id', 'name', 'birth_date', 'gender', 'patientcode'],                    include: [                        {                            model: db.referral,                            as: 'referral',                            attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']                        }                    ]                },
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
@@ -189,6 +181,12 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
                                     attributes: ['id', 'name', 'shortcut', 'commercial_name']
                                 }
                             ]
+                        },
+                        {
+                            model: db.medical_report_culture_result,
+                            as: 'culture_results',
+                            attributes: ['id', 'culture_option_name', 'culture_sub_option_name', 'custom_result', 'result_type'],
+                            required: false
                         }
                     ]
                 },
@@ -382,11 +380,7 @@ router.post('/', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist', 
         // Fetch the created report with associations
         const createdReport = await db.medical_report.findByPk(report.id, {
             include: [
-                {
-                    model: db.patient,
-                    as: 'patient',
-                    attributes: ['id', 'name', 'patientcode', 'birth_date', 'gender']
-                },
+                {                    model: db.patient,                    as: 'patient',                    attributes: ['id', 'name', 'patientcode', 'birth_date', 'gender'],                    include: [                        {                            model: db.referral,                            as: 'referral',                            attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']                        }                    ]                },
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
@@ -534,11 +528,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin', 'doctor', 'chemist'
         // Fetch the updated report with associations
         const updatedReport = await db.medical_report.findByPk(report.id, {
             include: [
-                {
-                    model: db.patient,
-                    as: 'patient',
-                    attributes: ['id', 'name', 'patientcode', 'birth_date', 'gender']
-                },
+                {                    model: db.patient,                    as: 'patient',                    attributes: ['id', 'name', 'patientcode', 'birth_date', 'gender'],                    include: [                        {                            model: db.referral,                            as: 'referral',                            attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']                        }                    ]                },
                 {
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
@@ -1416,6 +1406,93 @@ router.post('/:reportId/cultures/:cultureId/result', authenticateUser, authorize
     }
 });
 
+// Save culture options data to medical_report_culture_result table
+router.post('/:reportId/cultures/:cultureId/culture-result', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
+    const t = await db.sequelize.transaction();
+    try {
+        const { reportId, cultureId } = req.params;
+        const { 
+            medical_report_has_culture_id, 
+            culture_option_name, 
+            culture_sub_option_name, 
+            custom_result, 
+            result_type 
+        } = req.body;
+
+        console.log(`Attempting to save culture options data:`, {
+            reportId,
+            cultureId,
+            medical_report_has_culture_id,
+            culture_option_name,
+            culture_sub_option_name,
+            custom_result,
+            result_type
+        });
+
+        // Verify the medical report exists
+        const medicalReport = await db.medical_report.findByPk(reportId, { transaction: t });
+        if (!medicalReport) {
+            await t.rollback();
+            return res.status(404).json({ error: 'Medical report not found' });
+        }
+
+        // Verify the culture exists
+        const culture = await db.culture.findByPk(cultureId, { transaction: t });
+        if (!culture) {
+            await t.rollback();
+            return res.status(404).json({ error: 'Culture not found' });
+        }
+
+        // Verify the medical_report_has_culture association exists
+        const reportCulture = await db.medical_report_has_culture.findByPk(medical_report_has_culture_id, { transaction: t });
+        if (!reportCulture || reportCulture.medical_report_id != reportId || reportCulture.culture_id != cultureId) {
+            await t.rollback();
+            return res.status(404).json({ error: 'Culture association not found in this medical report' });
+        }
+
+        // Check if a culture result already exists for this association
+        const existingResult = await db.medical_report_culture_result.findOne({
+            where: { medical_report_has_culture_id },
+            transaction: t
+        });
+
+        if (existingResult) {
+            // Update existing result
+            await existingResult.update({
+                culture_option_name,
+                culture_sub_option_name,
+                custom_result,
+                result_type,
+                updated_at: new Date()
+            }, { transaction: t });
+            console.log(`Updated existing culture options data for medical report ${reportId}, culture ${cultureId}`);
+        } else {
+            // Create new result
+            await db.medical_report_culture_result.create({
+                medical_report_has_culture_id,
+                culture_option_name,
+                culture_sub_option_name,
+                custom_result,
+                result_type
+            }, { transaction: t });
+            console.log(`Created new culture options data for medical report ${reportId}, culture ${cultureId}`);
+        }
+
+        await t.commit();
+        res.json({ success: true });
+    } catch (error) {
+        if (t && !t.finished) {
+            try {
+                await t.rollback();
+            } catch (rollbackError) {
+                console.error('Error rolling back transaction:', rollbackError);
+            }
+        }
+        console.error('Error saving culture options data:', error);
+        res.status(500).json({ error: 'Failed to save culture options data' });
+    }
+});
+
 // Diagnostic endpoint to check test associations
 router.get('/:reportId/tests/check', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {
@@ -1567,4 +1644,4 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
     }
 });
 
-module.exports = router; 
+module.exports = router;

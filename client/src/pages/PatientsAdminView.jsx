@@ -15,6 +15,7 @@ const PatientsAdminView = () => {
   const [patients, setPatients] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [contracts, setContracts] = useState([]);
+  const [referrals, setReferrals] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,7 +44,8 @@ const PatientsAdminView = () => {
     total: "",
     paid: "",
     due: "",
-    contract_id: ""
+    contract_id: "",
+    referral_id: ""
   });
   const [formErrors, setFormErrors] = useState({});
   const [lastAttemptedPatient, setLastAttemptedPatient] = useState(null);
@@ -60,6 +62,7 @@ const PatientsAdminView = () => {
   const [selectedDisease, setSelectedDisease] = useState(null);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showDiseaseCreateModal, setShowDiseaseCreateModal] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
   const [newContract, setNewContract] = useState({
     name: "",
     region: "",
@@ -72,6 +75,13 @@ const PatientsAdminView = () => {
     name: "",
     details: ""
   });
+  const [newReferral, setNewReferral] = useState({
+    doctor_name: "",
+    specialization: "",
+    phone: "",
+    email: "",
+    address: ""
+  });
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -79,7 +89,7 @@ const PatientsAdminView = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const [patientsRes, diseasesRes, contractsRes] = await Promise.all([
+        const [patientsRes, diseasesRes, contractsRes, referralsRes] = await Promise.all([
           axios.get(`${apiUrl}/patient`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
@@ -88,12 +98,16 @@ const PatientsAdminView = () => {
           }),
           axios.get(`${apiUrl}/contracts`, {
             headers: { Authorization: `Bearer ${token}` }
+          }),
+          axios.get(`${apiUrl}/referrals`, {
+            headers: { Authorization: `Bearer ${token}` }
           })
         ]);
 
-        setPatients(patientsRes.data);
-        setDiseases(diseasesRes.data);
-        setContracts(contractsRes.data);
+        setPatients(Array.isArray(patientsRes.data) ? patientsRes.data : []);
+        setDiseases(Array.isArray(diseasesRes.data) ? diseasesRes.data : []);
+        setContracts(Array.isArray(contractsRes.data) ? contractsRes.data : []);
+        setReferrals(Array.isArray(referralsRes.data.referrals) ? referralsRes.data.referrals: []);
 
         // Set up table headers
         const headers = [
@@ -110,6 +124,7 @@ const PatientsAdminView = () => {
           { field: 'paid', label: 'Paid', sortable: true },
           { field: 'due', label: 'Due', sortable: true },
           { field: 'contract_id', label: 'Contract', sortable: true },
+          { field: 'referral_id', label: 'Referral', sortable: true },
           { field: 'diseases_id_diseases', label: 'Diseases', sortable: false }
         ];
 
@@ -138,7 +153,8 @@ const PatientsAdminView = () => {
         total: patient.total ? parseFloat(patient.total) : null,
         paid: patient.paid ? parseFloat(patient.paid) : null,
         due: patient.due ? parseFloat(patient.due) : null,
-        contract_id: patient.contract_id || null
+        contract_id: patient.contract_id || null,
+        referral_id: patient.referral_id || null
       };
 
       // Validate the cleaned patient
@@ -421,14 +437,22 @@ const PatientsAdminView = () => {
           setEditingPatient(rowData);
           setPatient({
             ...rowData,
+            name: rowData.name || "",
+            email: rowData.email || "",
+            gender: rowData.gender || "",
             birth_date: rowData.birth_date ? new Date(rowData.birth_date) : null,
+            national_id: rowData.national_id || "",
+            nationality: rowData.nationality || "",
+            passport_no: rowData.passport_no || "",
+            address: rowData.address || "",
             primaryPhone: rowData.phones?.[0]?.phone_number || "",
             secondaryPhone: rowData.phones?.[1]?.phone_number || "",
             diseases: rowData.diseases_id_diseases?.map(d => d.id) || [],
             total: rowData.total || "",
             paid: rowData.paid || "",
             due: rowData.due || "",
-            contract_id: rowData.contract_id || ""
+            contract_id: rowData.contract_id || "",
+            referral_id: rowData.referral_id || ""
           });
           setShowAddModal(true);
         }}
@@ -490,6 +514,10 @@ const PatientsAdminView = () => {
         if (!value) return '-';
         const selectedContract = contracts.find(c => c.id === value);
         return selectedContract ? (selectedContract.name || `${selectedContract.region} - ${selectedContract.governorate}`) : value;
+      case 'referral_id':
+        if (!value) return '-';
+        const selectedReferral = referrals.find(r => r.id === value);
+        return selectedReferral ? `${selectedReferral.doctor_name} - ${selectedReferral.specialization}` : value;
       case 'diseases_id_diseases':
         if (!Array.isArray(value) || value.length === 0) return '-';
         return (
@@ -517,6 +545,7 @@ const PatientsAdminView = () => {
 
   const handleResetForm = () => {
     setPatient({
+      lab_id: user.lab_id,
       name: "",
       email: "",
       gender: "",
@@ -531,7 +560,8 @@ const PatientsAdminView = () => {
       total: "",
       paid: "",
       due: "",
-      contract_id: ""
+      contract_id: "",
+      referral_id: ""
     });
     setFormErrors({});
   };
@@ -564,6 +594,38 @@ const PatientsAdminView = () => {
     } catch (error) {
       console.error('Error creating contract:', error);
       setError(error.response?.data?.error || 'Failed to create contract');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddReferral = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      setLoading(true);
+      setError(null);
+
+      const response = await axios.post(`${apiUrl}/referrals`, newReferral, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Add new referral to the list
+      setReferrals(prevReferrals => [...prevReferrals, response.data]);
+      
+      // Set the new referral as selected
+      setPatient(prev => ({ ...prev, referral_id: response.data.id }));
+      
+      setShowReferralModal(false);
+      setNewReferral({
+        doctor_name: "",
+        specialization: "",
+        phone: "",
+        email: "",
+        address: ""
+      });
+    } catch (error) {
+      console.error('Error creating referral:', error);
+      setError(error.response?.data?.error || 'Failed to create referral');
     } finally {
       setLoading(false);
     }
@@ -651,6 +713,7 @@ const PatientsAdminView = () => {
                 onClick={() => {
                   setEditingPatient(null);
                   setPatient({
+                    lab_id: user.lab_id,
                     name: "",
                     email: "",
                     gender: "",
@@ -665,7 +728,8 @@ const PatientsAdminView = () => {
                     total: "",
                     paid: "",
                     due: "",
-                    contract_id: ""
+                    contract_id: "",
+                    referral_id: ""
                   });
                   setShowAddModal(true);
                 }}
@@ -759,7 +823,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter patient name"
-                        value={patient.name}
+                        value={patient.name || ''}
                         onChange={(e) => {
                           setPatient({ ...patient, name: e.target.value });
                           if (formErrors.name) setFormErrors({ ...formErrors, name: null });
@@ -777,7 +841,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="email"
                         placeholder="Enter email address"
-                        value={patient.email}
+                        value={patient.email || ''}
                         onChange={(e) => {
                           setPatient({ ...patient, email: e.target.value });
                           if (formErrors.email) setFormErrors({ ...formErrors, email: null });
@@ -841,7 +905,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter national ID"
-                        value={patient.national_id}
+                        value={patient.national_id || ''}
                         onChange={(e) => {
                           setPatient({ ...patient, national_id: e.target.value });
                           if (formErrors.national_id) setFormErrors({ ...formErrors, national_id: null });
@@ -859,7 +923,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter nationality"
-                        value={patient.nationality}
+                        value={patient.nationality || ''}
                         onChange={(e) => setPatient({ ...patient, nationality: e.target.value })}
                       />
                     </Form.Group>
@@ -873,7 +937,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter passport number"
-                        value={patient.passport_no}
+                        value={patient.passport_no || ''}
                         onChange={(e) => setPatient({ ...patient, passport_no: e.target.value })}
                       />
                     </Form.Group>
@@ -884,7 +948,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter address"
-                        value={patient.address}
+                        value={patient.address || ''}
                         onChange={(e) => setPatient({ ...patient, address: e.target.value })}
                       />
                     </Form.Group>
@@ -898,7 +962,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter primary phone"
-                        value={patient.primaryPhone}
+                        value={patient.primaryPhone || ''}
                         onChange={(e) => {
                           setPatient({ ...patient, primaryPhone: e.target.value });
                           if (formErrors.primaryPhone) setFormErrors({ ...formErrors, primaryPhone: null });
@@ -916,7 +980,7 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter secondary phone"
-                        value={patient.secondaryPhone}
+                        value={patient.secondaryPhone || ''}
                         onChange={(e) => {
                           setPatient({ ...patient, secondaryPhone: e.target.value });
                           if (formErrors.secondaryPhone) setFormErrors({ ...formErrors, secondaryPhone: null });
@@ -942,7 +1006,7 @@ const PatientsAdminView = () => {
                       }}
                       className="flex-grow-1"
                     >
-                      {diseases.map(disease => (
+                      {Array.isArray(diseases) && diseases.map(disease => (
                         <option key={disease.id} value={disease.id}>
                           {disease.name} {disease.details && `(${disease.details})`}
                         </option>
@@ -970,7 +1034,7 @@ const PatientsAdminView = () => {
                         type="number"
                         step="0.01"
                         placeholder="Enter total amount"
-                        value={patient.total}
+                        value={patient.total || ''}
                         onChange={(e) => setPatient({ ...patient, total: e.target.value })}
                       />
                     </Form.Group>
@@ -982,7 +1046,7 @@ const PatientsAdminView = () => {
                         type="number"
                         step="0.01"
                         placeholder="Enter paid amount"
-                        value={patient.paid}
+                        value={patient.paid || ''}
                         onChange={(e) => setPatient({ ...patient, paid: e.target.value })}
                       />
                     </Form.Group>
@@ -997,7 +1061,7 @@ const PatientsAdminView = () => {
                         type="number"
                         step="0.01"
                         placeholder="Enter due amount"
-                        value={patient.due}
+                        value={patient.due || ''}
                         onChange={(e) => setPatient({ ...patient, due: e.target.value })}
                       />
                     </Form.Group>
@@ -1011,7 +1075,7 @@ const PatientsAdminView = () => {
                           onChange={(e) => setPatient({ ...patient, contract_id: e.target.value || null })}
                         >
                           <option value="">Select Contract</option>
-                          {contracts.map(contract => (
+                          {Array.isArray(contracts) && contracts.map(contract => (
                             <option key={contract.id} value={contract.id}>
                               {contract.name || `${contract.region} - ${contract.governorate}`} ({contract.discount_type})
                             </option>
@@ -1028,6 +1092,38 @@ const PatientsAdminView = () => {
                       </div>
                       <Form.Text className="text-muted">
                         Select an existing contract or add a new one
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Referral</Form.Label>
+                      <div className="d-flex gap-2">
+                        <Form.Select
+                          value={patient.referral_id || ""}
+                          onChange={(e) => setPatient({ ...patient, referral_id: e.target.value || null })}
+                        >
+                          <option value="">Select Referral</option>
+                          {Array.isArray(referrals) && referrals.map(referral => (
+                            <option key={referral.id} value={referral.id}>
+                              {referral.doctor_name} - {referral.specialization}
+                            </option>
+                          ))}
+                        </Form.Select>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => setShowReferralModal(true)}
+                          title="Add New Referral"
+                        >
+                          <Plus size={16} />
+                        </Button>
+                      </div>
+                      <Form.Text className="text-muted">
+                        Select an existing referral or add a new one
                       </Form.Text>
                     </Form.Group>
                   </Col>
@@ -1169,7 +1265,7 @@ const PatientsAdminView = () => {
                           setBulkUpdateData({ ...bulkUpdateData, diseases: selected });
                         }}
                       >
-                        {diseases.map(disease => (
+                        {Array.isArray(diseases) && diseases.map(disease => (
                           <option key={disease.id} value={disease.id}>
                             {disease.name} {disease.details && `(${disease.details})`}
                           </option>
@@ -1390,10 +1486,101 @@ const PatientsAdminView = () => {
               </Button>
             </Modal.Footer>
           </Modal>
+
+          {/* Add Referral Modal */}
+          <Modal show={showReferralModal} onHide={() => setShowReferralModal(false)}>
+            <Modal.Header closeButton>
+              <Modal.Title>Add New Referral</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {error && (
+                <Alert variant="danger" className="mb-3">
+                  {error}
+                </Alert>
+              )}
+              <Form>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Doctor Name *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter doctor name"
+                        value={newReferral.doctor_name}
+                        onChange={(e) => setNewReferral({ ...newReferral, doctor_name: e.target.value })}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Specialization *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter specialization"
+                        value={newReferral.specialization}
+                        onChange={(e) => setNewReferral({ ...newReferral, specialization: e.target.value })}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Phone</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter phone number"
+                        value={newReferral.phone}
+                        onChange={(e) => setNewReferral({ ...newReferral, phone: e.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        placeholder="Enter email address"
+                        value={newReferral.email}
+                        onChange={(e) => setNewReferral({ ...newReferral, email: e.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Address</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter address"
+                        value={newReferral.address}
+                        onChange={(e) => setNewReferral({ ...newReferral, address: e.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Form>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowReferralModal(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleAddReferral}
+                disabled={loading || !newReferral.doctor_name.trim() || !newReferral.specialization.trim()}
+              >
+                {loading ? "Creating..." : "Create Referral"}
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </>
       )}
     </Container>
   );
 };
 
-export default PatientsAdminView; 
+export default PatientsAdminView;

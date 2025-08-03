@@ -36,6 +36,7 @@ services:
       context: ./server
       dockerfile: Dockerfile
     container_name: labmanager-backend
+    command: node --max-old-space-size=2048 index.js
     restart: unless-stopped
     env_file: .docker.env
     environment:

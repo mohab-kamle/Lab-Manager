@@ -21,7 +21,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "chemist", "employee")
       where: whereClause,
       include: [{
         model: culture_option,
-        as: 'culture_option',
+        as: 'option',
         attributes: ['id', 'option']
       }],
       order: [['name', 'ASC']]
@@ -46,7 +46,7 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'chemist', 'employe
       },
       include: [{
         model: culture_option,
-        as: 'culture_option',
+        as: 'option',
         attributes: ['id', 'option']
       }]
     });
@@ -106,10 +106,10 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
     // Include the culture_option in the response
     const createdSubOption = await culture_sub_option.findByPk(newSubOption.id, {
       include: [{
-        model: culture_option,
-        as: 'culture_option',
-        attributes: ['id', 'option']
-      }]
+      model: culture_option,
+      as: 'option',
+      attributes: ['id', 'option']
+    }]
     });
 
     res.status(201).json(createdSubOption);

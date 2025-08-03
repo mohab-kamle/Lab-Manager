@@ -84,6 +84,14 @@ module.exports = function (sequelize, DataTypes) {
           key: 'id',
         },
       },
+      referral_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'referral',
+          key: 'id',
+        },
+      },
     },
     {
       sequelize,
@@ -112,6 +120,11 @@ module.exports = function (sequelize, DataTypes) {
           name: 'fk_patient_contract1_idx',
           using: 'BTREE',
           fields: [{ name: 'contract_id' }],
+        },
+        {
+          name: 'fk_patient_referral_idx',
+          using: 'BTREE',
+          fields: [{ name: 'referral_id' }],
         },
         // Unique constraints scoped per lab
         {

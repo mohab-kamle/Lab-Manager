@@ -66,12 +66,24 @@ const MedicalReports = () => {
   const [antibioticSearch, setAntibioticSearch] = useState({}); // { cultureResultId: string }
   const [showAddAntibioticModal, setShowAddAntibioticModal] = useState({}); // { cultureResultId: boolean }
   const [newAntibioticData, setNewAntibioticData] = useState({ name: '', shortcut: '', commercial_name: '' });
+  // Culture options and sub-options state
+  const [cultureOptions, setCultureOptions] = useState([]);
+  const [cultureSubOptions, setCultureSubOptions] = useState({});
+  const [selectedCultureOptions, setSelectedCultureOptions] = useState({}); // { cultureId: [{ option_id, sub_option_id, custom_result, result_type, id }] }
   const [formData, setFormData] = useState({
     comment: "",
     done: 0,
     pending: 0
   });
   const [pdfLoadingId, setPdfLoadingId] = useState(null);
+  // Loading states for various operations
+  const [enteringResults, setEnteringResults] = useState(false);
+  const [signingReport, setSigningReport] = useState(null); // reportId being signed
+  const [updatingReport, setUpdatingReport] = useState(false);
+  const [deletingReport, setDeletingReport] = useState(false);
+  const [markingCollected, setMarkingCollected] = useState(null); // reportId being marked
+  const [savingResults, setSavingResults] = useState(false);
+  const [loadingInvoice, setLoadingInvoice] = useState(null); // reportId for invoice loading
   // Add state for inline add option
   const [addingOption, setAddingOption] = useState({}); // { [groupId_fieldId_componentId]: true }
   const [newOptionValue, setNewOptionValue] = useState({}); // { [groupId_fieldId_componentId]: "" }
@@ -105,9 +117,38 @@ const MedicalReports = () => {
     }
   }, [apiUrl]);
 
+  // Fetch culture options and sub-options
+  const fetchCultureOptions = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const headers = { Authorization: `Bearer ${token}` };
+      const [optionsRes, subOptionsRes] = await Promise.all([
+        axios.get(`${apiUrl}/culture-options/with-suboptions`, { headers }),
+        axios.get(`${apiUrl}/culture-sub-options`, { headers })
+      ]);
+
+      setCultureOptions(optionsRes.data);
+      
+      // Group sub-options by culture_option_id for easier access
+      const subOptionsMap = {};
+      subOptionsRes.data.forEach(subOption => {
+        if (!subOptionsMap[subOption.culture_option_id]) {
+          subOptionsMap[subOption.culture_option_id] = [];
+        }
+        subOptionsMap[subOption.culture_option_id].push(subOption);
+      });
+      setCultureSubOptions(subOptionsMap);
+    } catch (error) {
+      console.error("Error fetching culture options:", error);
+    }
+  }, [apiUrl]);
+
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    fetchCultureOptions();
+  }, [fetchData, fetchCultureOptions]);
 
   useEffect(() => {
     if (selectedReportForResults && selectedReportForResults.cultures) {
@@ -159,7 +200,11 @@ const MedicalReports = () => {
   };
 
   const handleSign = async (report) => {
+    // Prevent multiple clicks
+    if (signingReport === report.id) return;
+    
     try {
+      setSigningReport(report.id);
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
@@ -191,15 +236,24 @@ const MedicalReports = () => {
 
       setShowEditModal(false);
       setEditingReport(null);
+      toast.success("Report signed successfully");
     } catch (error) {
       console.error("Error signing report:", error);
       setError("Failed to sign report");
+      toast.error("Failed to sign report");
+    } finally {
+      setSigningReport(null);
     }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (updatingReport) return;
+    
     try {
+      setUpdatingReport(true);
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
@@ -232,14 +286,22 @@ const MedicalReports = () => {
 
       setShowEditModal(false);
       setEditingReport(null);
+      toast.success("Report updated successfully");
     } catch (error) {
       console.error("Error updating report:", error);
       setError("Failed to update report");
+      toast.error("Failed to update report");
+    } finally {
+      setUpdatingReport(false);
     }
   };
 
   const handleDelete = async () => {
+    // Prevent multiple clicks
+    if (deletingReport) return;
+    
     try {
+      setDeletingReport(true);
       const token = localStorage.getItem("token");
       await axios.delete(`${apiUrl}/medical-reports/${reportToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -250,14 +312,22 @@ const MedicalReports = () => {
       );
       setShowDeleteModal(false);
       setReportToDelete(null);
+      toast.success("Report deleted successfully");
     } catch (error) {
       console.error("Error deleting report:", error);
       setError("Failed to delete report");
+      toast.error("Failed to delete report");
+    } finally {
+      setDeletingReport(false);
     }
   };
 
   const handleViewInvoice = async (report) => {
+    // Prevent multiple clicks
+    if (loadingInvoice === report.id) return;
+    
     try {
+      setLoadingInvoice(report.id);
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
@@ -268,11 +338,18 @@ const MedicalReports = () => {
     } catch (error) {
       console.error("Error fetching invoice:", error);
       setError("Failed to fetch invoice details");
+      toast.error("Failed to fetch invoice details");
+    } finally {
+      setLoadingInvoice(null);
     }
   };
 
   const handleMarkCollected = async (report) => {
+    // Prevent multiple clicks
+    if (markingCollected === report.id) return;
+    
     try {
+      setMarkingCollected(report.id);
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
@@ -289,11 +366,17 @@ const MedicalReports = () => {
     } catch (error) {
       console.error("Error marking sample as collected:", error);
       toast.error("Failed to mark sample as collected");
+    } finally {
+      setMarkingCollected(null);
     }
   };
 
   const handleEnterResults = async (rowData) => {
+    // Prevent multiple clicks
+    if (enteringResults === rowData.id) return;
+    
     try {
+      setEnteringResults(rowData.id);
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
@@ -424,6 +507,9 @@ const MedicalReports = () => {
     } catch (error) {
       console.error("Error preparing results entry:", error);
       setError("Failed to load test components. Please try again.");
+      toast.error("Failed to load test components. Please try again.");
+    } finally {
+      setEnteringResults(null);
     }
   };
 
@@ -470,8 +556,7 @@ const MedicalReports = () => {
       const response = await axios.post(`${apiUrl}/field-comp-options`, {
         name: value,
         tg_fields_id: fieldId,
-        tg_component_id: componentId,
-        test_group_id: groupId
+        tg_component_id: componentId
       }, { headers });
       // Update local state
       setTestGroups(prevGroups => prevGroups.map(g => {
@@ -547,7 +632,11 @@ const MedicalReports = () => {
   };
 
   const handleSaveResults = async () => {
+    // Prevent multiple clicks
+    if (savingResults) return;
+    
     try {
+      setSavingResults(true);
       const token = localStorage.getItem("token");
       const headers = {
         'Content-Type': 'application/json',
@@ -592,6 +681,46 @@ const MedicalReports = () => {
         }
       });
 
+      // Save multiple culture options data
+      const cultureOptionsPromises = [];
+      Object.entries(selectedCultureOptions).forEach(([cultureId, optionsArray]) => {
+        if (optionsArray && optionsArray.length > 0) {
+          // Find the culture result ID from the selected report
+          const culture = selectedReportForResults.cultures?.find(c => c.id.toString() === cultureId.toString());
+          const cultureResultId = culture?.medical_report_has_culture?.id;
+          
+          if (cultureResultId) {
+            // Save each culture option/result
+            optionsArray.forEach(optionData => {
+              if (optionData.option_id || optionData.custom_result) {
+                // Get the option and sub-option names for storage
+                const selectedOption = cultureOptions.find(opt => opt.id.toString() === optionData.option_id?.toString());
+                const selectedSubOption = optionData.sub_option_id ? 
+                  cultureSubOptions[optionData.option_id]?.find(sub => sub.id.toString() === optionData.sub_option_id?.toString()) : null;
+
+                cultureOptionsPromises.push(
+                  axios.post(
+                    `${apiUrl}/medical-reports/${selectedReportForResults.id}/cultures/${cultureId}/culture-result`,
+                    {
+                      medical_report_has_culture_id: cultureResultId,
+                      culture_option_name: selectedOption?.option || null,
+                      culture_sub_option_name: selectedSubOption?.name || null,
+                      custom_result: optionData.custom_result || null,
+                      result_type: optionData.result_type || 'custom'
+                    },
+                    { headers }
+                  ).catch(error => {
+                    console.error(`Error saving culture options for culture ${cultureId}:`, error);
+                    // Don't throw error to prevent blocking other saves
+                    return null;
+                  })
+                );
+              }
+            });
+          }
+        }
+      });
+
       // Save test group values if any
       const testGroupPromises = [];
       Object.entries(testGroupValues).forEach(([groupId, components]) => {
@@ -629,6 +758,7 @@ const MedicalReports = () => {
           ...testResultsPromises,
           ...cultureResultsPromises,
           ...cultureAntibioticPromises,
+          ...cultureOptionsPromises,
           ...testGroupPromises
         ]);
 
@@ -638,6 +768,7 @@ const MedicalReports = () => {
         setResultsData({ test_results: [], culture_results: [] });
         setTestGroupValues({});
         setCultureAntibiotics({});
+        setSelectedCultureOptions({});
         setExpandedSections({});
         setAntibioticSearch({});
         setShowAddAntibioticModal({});
@@ -663,6 +794,8 @@ const MedicalReports = () => {
     } catch (error) {
       console.error("Error saving results:", error);
       toast.error(error.response?.data?.message || "Failed to save results. Please try again.");
+    } finally {
+      setSavingResults(false);
     }
   };
 
@@ -749,6 +882,60 @@ const MedicalReports = () => {
     }
   };
 
+  // Culture options handler functions for multiple selections
+  const addCultureOption = (cultureId) => {
+    setSelectedCultureOptions(prev => ({
+      ...prev,
+      [cultureId]: [
+        ...(prev[cultureId] || []),
+        {
+          id: Date.now(), // Temporary ID for new entries
+          result_type: 'custom',
+          option_id: null,
+          sub_option_id: null,
+          custom_result: ''
+        }
+      ]
+    }));
+  };
+
+  const removeCultureOption = (cultureId, optionIndex) => {
+    setSelectedCultureOptions(prev => ({
+      ...prev,
+      [cultureId]: (prev[cultureId] || []).filter((_, index) => index !== optionIndex)
+    }));
+  };
+
+  const updateCultureOption = (cultureId, optionIndex, field, value) => {
+    setSelectedCultureOptions(prev => ({
+      ...prev,
+      [cultureId]: (prev[cultureId] || []).map((option, index) => 
+        index === optionIndex ? { ...option, [field]: value } : option
+      )
+    }));
+  };
+
+  const handleCultureResultTypeChange = (cultureId, optionIndex, resultType) => {
+    updateCultureOption(cultureId, optionIndex, 'result_type', resultType);
+    if (resultType === 'custom') {
+      updateCultureOption(cultureId, optionIndex, 'option_id', null);
+      updateCultureOption(cultureId, optionIndex, 'sub_option_id', null);
+    }
+  };
+
+  const handleCultureOptionChange = (cultureId, optionIndex, optionId) => {
+    updateCultureOption(cultureId, optionIndex, 'option_id', optionId);
+    updateCultureOption(cultureId, optionIndex, 'sub_option_id', null); // Reset sub-option
+  };
+
+  const handleCultureSubOptionChange = (cultureId, optionIndex, subOptionId) => {
+    updateCultureOption(cultureId, optionIndex, 'sub_option_id', subOptionId);
+  };
+
+  const handleCustomResultChange = (cultureId, optionIndex, customResult) => {
+    updateCultureOption(cultureId, optionIndex, 'custom_result', customResult);
+  };
+
   const filteredReports = reports.filter(report => {
     const searchMatch = searchQuery
       ? report.comment?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -811,8 +998,13 @@ const MedicalReports = () => {
             size="sm"
             onClick={() => handleSign(rowData)}
             title="Sign Report"
+            disabled={signingReport === rowData.id}
           >
-            <CheckCircle size={16} />
+            {signingReport === rowData.id ? (
+              <div className="spinner-border spinner-border-sm" role="status" />
+            ) : (
+              <CheckCircle size={16} />
+            )}
           </Button>
         )}
         {rowData.bill_id && (
@@ -821,8 +1013,13 @@ const MedicalReports = () => {
             size="sm"
             onClick={() => handleViewInvoice(rowData)}
             title="View Invoice"
+            disabled={loadingInvoice === rowData.id}
           >
-            <FileText size={16} />
+            {loadingInvoice === rowData.id ? (
+              <div className="spinner-border spinner-border-sm" role="status" />
+            ) : (
+              <FileText size={16} />
+            )}
           </Button>
         )}
         {(user.role === 'admin' || user.role === 'chemist') && (
@@ -831,8 +1028,13 @@ const MedicalReports = () => {
             size="sm"
             onClick={() => handleEnterResults(rowData)}
             title="Enter Results"
+            disabled={enteringResults === rowData.id}
           >
-            <TestTube size={16} />
+            {enteringResults === rowData.id ? (
+              <div className="spinner-border spinner-border-sm" role="status" />
+            ) : (
+              <TestTube size={16} />
+            )}
           </Button>
         )}
         {!rowData.collected_at && (
@@ -841,8 +1043,13 @@ const MedicalReports = () => {
             size="sm"
             onClick={() => handleMarkCollected(rowData)}
             title="Mark as Collected"
+            disabled={markingCollected === rowData.id}
           >
-            <Save size={16} />
+            {markingCollected === rowData.id ? (
+              <div className="spinner-border spinner-border-sm" role="status" />
+            ) : (
+              <Save size={16} />
+            )}
           </Button>
         )}
         {/* Direct PDF Download - fetch and download in one step */}
@@ -883,8 +1090,13 @@ const MedicalReports = () => {
             setShowDeleteModal(true);
           }}
           title="Delete Report"
+          disabled={deletingReport}
         >
-          <Trash2 size={16} />
+          {deletingReport ? (
+            <div className="spinner-border spinner-border-sm" role="status" />
+          ) : (
+            <Trash2 size={16} />
+          )}
         </Button>
       </div>
     );
@@ -1088,8 +1300,16 @@ const MedicalReports = () => {
               <Button
                 variant="primary"
                 onClick={handleUpdate}
+                disabled={updatingReport}
               >
-                Update Report
+                {updatingReport ? (
+                  <>
+                    <div className="spinner-border spinner-border-sm me-2" role="status" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Report"
+                )}
               </Button>
             </Modal.Footer>
           </Modal>
@@ -1116,8 +1336,16 @@ const MedicalReports = () => {
               <Button
                 variant="danger"
                 onClick={handleDelete}
+                disabled={deletingReport}
               >
-                Delete
+                {deletingReport ? (
+                  <>
+                    <div className="spinner-border spinner-border-sm me-2" role="status" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
               </Button>
             </Modal.Footer>
           </Modal>
@@ -1379,13 +1607,110 @@ const MedicalReports = () => {
                                   <Row>
                                     <Col md={4}><h6>{culture.name}</h6></Col>
                                     <Col md={6}>
-                                      <Form.Control
-                                        as="textarea"
-                                        rows={3}
-                                        placeholder="Enter culture result"
-                                        value={typeof cultureResult?.result === 'string' ? cultureResult.result : ''}
-                                        onChange={e => updateCultureResult(culture.id, e.target.value)}
-                                      />
+                                      {/* Multiple Culture Options Selection */}
+                                      <div className="mb-3">
+                                        <div className="d-flex justify-content-between align-items-center mb-2">
+                                          <Form.Label className="mb-0">Culture Results</Form.Label>
+                                          <Button
+                                            variant="outline-primary"
+                                            size="sm"
+                                            onClick={() => addCultureOption(culture.id)}
+                                          >
+                                            <Plus size={14} className="me-1" />
+                                            Add Result
+                                          </Button>
+                                        </div>
+                                        
+                                        {/* Display existing culture options */}
+                                        {(selectedCultureOptions[culture.id] || []).map((optionData, optionIndex) => (
+                                          <div key={optionIndex} className="border rounded p-3 mb-3 bg-light">
+                                            <div className="d-flex justify-content-between align-items-start mb-2">
+                                              <h6 className="mb-0">Result #{optionIndex + 1}</h6>
+                                              <Button
+                                                variant="outline-danger"
+                                                size="sm"
+                                                onClick={() => removeCultureOption(culture.id, optionIndex)}
+                                              >
+                                                <Trash2 size={14} />
+                                              </Button>
+                                            </div>
+                                            
+                                            {/* Result Type Selection */}
+                                            <div className="mb-2">
+                                              <Form.Label>Result Type</Form.Label>
+                                              <Form.Select
+                                                value={optionData.result_type || 'custom'}
+                                                onChange={(e) => handleCultureResultTypeChange(culture.id, optionIndex, e.target.value)}
+                                                size="sm"
+                                              >
+                                                <option value="custom">Custom Text</option>
+                                                <option value="predefined">Predefined Options</option>
+                                              </Form.Select>
+                                            </div>
+
+                                            {/* Predefined Options Section */}
+                                            {optionData.result_type === 'predefined' && (
+                                              <div className="mb-2">
+                                                <Form.Label>Culture Option</Form.Label>
+                                                <Form.Select
+                                                  value={optionData.option_id || ''}
+                                                  onChange={(e) => handleCultureOptionChange(culture.id, optionIndex, e.target.value)}
+                                                  size="sm"
+                                                >
+                                                  <option value="">Select an option...</option>
+                                                  {cultureOptions.map(option => (
+                                                    <option key={option.id} value={option.id}>
+                                                      {option.option}
+                                                    </option>
+                                                  ))}
+                                                </Form.Select>
+
+                                                {/* Sub-options */}
+                                                {optionData.option_id && cultureSubOptions[optionData.option_id] && (
+                                                  <div className="mt-2">
+                                                    <Form.Label>Sub-option</Form.Label>
+                                                    <Form.Select
+                                                      value={optionData.sub_option_id || ''}
+                                                      onChange={(e) => handleCultureSubOptionChange(culture.id, optionIndex, e.target.value)}
+                                                      size="sm"
+                                                    >
+                                                      <option value="">Select a sub-option...</option>
+                                                      {cultureSubOptions[optionData.option_id].map(subOption => (
+                                                        <option key={subOption.id} value={subOption.id}>
+                                                          {subOption.name}
+                                                        </option>
+                                                      ))}
+                                                    </Form.Select>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {/* Custom Text or Additional Notes */}
+                                            <div className="mb-2">
+                                              <Form.Label>
+                                                {optionData.result_type === 'predefined' ? 'Additional Notes' : 'Culture Result'}
+                                              </Form.Label>
+                                              <Form.Control
+                                                as="textarea"
+                                                rows={2}
+                                                placeholder={optionData.result_type === 'predefined' ? 'Enter additional notes (optional)' : 'Enter culture result'}
+                                                value={optionData.custom_result || ''}
+                                                onChange={e => handleCustomResultChange(culture.id, optionIndex, e.target.value)}
+                                                size="sm"
+                                              />
+                                            </div>
+                                          </div>
+                                        ))}
+                                        
+                                        {/* Show message when no results added */}
+                                        {(!selectedCultureOptions[culture.id] || selectedCultureOptions[culture.id].length === 0) && (
+                                          <div className="text-center text-muted py-3 border rounded">
+                                            <TestTube size={24} className="mb-2" />
+                                            <p className="mb-0">No culture results added yet. Click "Add Result" to start.</p>
+                                          </div>
+                                        )}
+                                      </div>
                                     </Col>
                                     <Col md={2}>
                                       <Badge bg="secondary">{culture.status || 'pending'}</Badge>
@@ -1694,6 +2019,7 @@ const MedicalReports = () => {
                   setExpandedSections({});
                   setAntibioticSearch({});
                   setShowAddAntibioticModal({});
+                  setSelectedCultureOptions({}); // Reset culture options state
                 }}
               >
                 Cancel
@@ -1701,8 +2027,16 @@ const MedicalReports = () => {
               <Button
                 variant="primary"
                 onClick={handleSaveResults}
+                disabled={savingResults}
               >
-                Save Results
+                {savingResults ? (
+                  <>
+                    <div className="spinner-border spinner-border-sm me-2" role="status" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Results"
+                )}
               </Button>
             </Modal.Footer>
           </Modal>
@@ -1805,4 +2139,4 @@ const MedicalReports = () => {
   );
 };
 
-export default MedicalReports; 
+export default MedicalReports;

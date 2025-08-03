@@ -64,6 +64,10 @@ app.use(express.json());
 // Apply security headers
 app.use(helmet());
 
+// Compress responses
+const compression = require('compression');
+app.use(compression());
+
 // Apply CORS to all routes
 app.use(cors(corsOptions));
 
@@ -160,6 +164,7 @@ app.get('/railway-health', (req, res) => {
   });
 });
 
+
 // Database health check
 app.get('/health', async (req, res) => {
   try {
@@ -198,6 +203,16 @@ app.get('/health', async (req, res) => {
     });
   }
 });
+// detailed Health check
+app.get('/health/detailed', async (req, res) => {
+  const health = {
+    database: await checkDatabaseHealth(),
+    memory: process.memoryUsage(),
+    uptime: process.uptime(),
+    connections: getActiveConnections()
+  };
+  res.json(health);
+});
 
 // =========================
 // Routers
@@ -210,6 +225,7 @@ app.use("/tests", require("./routes/tests"));
 app.use("/samples", require("./routes/samples"));
 app.use("/cultures", require("./routes/culture"));
 app.use("/culture-options", require("./routes/cultureOptions"));
+app.use("/culture-sub-options", require("./routes/cultureSubOptions"));
 app.use("/antibiotics", require("./routes/antibiotics"));
 app.use("/payment-methods", require("./routes/paymentMethods"));
 app.use("/invoices", require("./routes/invoices"));
@@ -222,11 +238,13 @@ app.use("/admin", require('./routes/admin'));
 app.use("/bill", require('./routes/bill'));
 app.use("/diseases", require('./routes/diseases'));
 app.use("/receptionists", require('./routes/receptionist'));
+app.use("/referrals", require('./routes/referrals'));
 app.use("/tgc-categories", require("./routes/tgc_categories"));
 app.use("/test-groups", require("./routes/test_groups"));
 app.use("/questions", require("./routes/questions"));
 app.use("/contracts", require("./routes/contracts"));
 app.use("/culture-antibiotics", require("./routes/culture_antibiotics"));
+app.use("/field-comp-options", require("./routes/field_comp_options"));
 app.use("/demo", require("./routes/demo"));
 app.use("/register", require("./routes/register"));
 

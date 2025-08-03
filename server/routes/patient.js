@@ -197,7 +197,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
             where: {
                 lab_id: req.tenant.lab_id
             },
-            attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address'],
+            attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address', 'total', 'paid', 'due', 'contract_id', 'referral_id'],
             include: [
                 {
                     model: phone,
@@ -209,6 +209,18 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     as: 'diseases_id_diseases',
                     through: { attributes: [] },
                     attributes: ['id', 'name', 'details']
+                },
+                {
+                    model: sequelize.models.contract,
+                    as: 'contract',
+                    attributes: ['id', 'name'],
+                    required: false
+                },
+                {
+                    model: sequelize.models.referral,
+                    as: 'referral',
+                    attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email'],
+                    required: false
                 }
             ],
             order: [['name', 'ASC']]
@@ -243,6 +255,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             paid,
             due,
             contract_id,
+            referral_id,
             diseases = [] // Array of disease IDs
         } = req.body;
 
@@ -296,6 +309,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             paid: paid || 0.00,
             due: due || 0.00,
             contract_id: contract_id || null,
+            referral_id: referral_id || null,
             lab_id: req.tenant.lab_id
         });
 
@@ -341,6 +355,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                     model: sequelize.models.contract,
                     as: 'contract',
                     attributes: ['id', 'name']
+                },
+                {
+                    model: sequelize.models.referral,
+                    as: 'referral',
+                    attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']
                 }
             ]
         });
@@ -374,6 +393,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
             paid,
             due,
             contract_id,
+            referral_id,
             diseases = [] // Array of disease IDs
         } = req.body;
 
@@ -418,7 +438,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
             total: total !== undefined ? total : existingPatient.total,
             paid: paid !== undefined ? paid : existingPatient.paid,
             due: due !== undefined ? due : existingPatient.due,
-            contract_id: contract_id !== undefined ? contract_id : existingPatient.contract_id
+            contract_id: contract_id !== undefined ? contract_id : existingPatient.contract_id,
+            referral_id: referral_id !== undefined ? referral_id : existingPatient.referral_id
         }, { where: { id: patientId } });
 
         // Update phone numbers
@@ -471,6 +492,11 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
                     model: sequelize.models.contract,
                     as: 'contract',
                     attributes: ['id', 'name']
+                },
+                {
+                    model: sequelize.models.referral,
+                    as: 'referral',
+                    attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']
                 }
             ]
         });
