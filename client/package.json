@@ -63,6 +63,12 @@
   "pnpm": {
     "overrides": {
       "@emotion/react": "^11.11.4"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "@swc/core",
+      "core-js",
+      "esbuild"
+    ]
   }
 }
