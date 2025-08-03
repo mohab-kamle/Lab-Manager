@@ -13,6 +13,7 @@ import { formatDate } from "../utils/dateFormatter";
 import * as XLSX from "xlsx";
 import { useLab } from "../context/LabContext";
 
+
 function calculateAge(birthDate) {
   if (!birthDate) return null;
   const birth = new Date(birthDate);
@@ -61,6 +62,7 @@ const MedicalReports = () => {
     culture_results: []
   });
   const [antibiotics, setAntibiotics] = useState([]);
+  const [antibioticsLoaded, setAntibioticsLoaded] = useState(false); // Cache flag for antibiotics
   const [cultureAntibiotics, setCultureAntibiotics] = useState({}); // { cultureResultId: [{ antibiotic_id, sensitivity, zone_size }] }
   const [expandedSections, setExpandedSections] = useState({}); // { cultureResultId: boolean }
   const [antibioticSearch, setAntibioticSearch] = useState({}); // { cultureResultId: string }
@@ -380,28 +382,35 @@ const MedicalReports = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch the full report details first
-      const response = await axios.get(`${apiUrl}/medical-reports/${rowData.id}`, { headers });
-      const fullReport = response.data;
+      // Prepare parallel API calls for better performance
+      const apiCalls = [
+        axios.get(`${apiUrl}/medical-reports/${rowData.id}`, { headers }),
+        axios.get(`${apiUrl}/medical-reports/${rowData.id}/test-groups`, { headers })
+      ];
 
+      // Only fetch antibiotics if not already cached
+      if (!antibioticsLoaded) {
+        apiCalls.push(axios.get(`${apiUrl}/culture-antibiotics`, { headers }));
+      }
+
+      // Execute parallel API calls
+      const responses = await Promise.all(apiCalls);
+      const [reportResponse, testGroupsResponse, antibioticsResponse] = responses;
+      
+      const fullReport = reportResponse.data;
       const tests = fullReport.test_id_test_medical_report_has_tests || [];
-      const cultures = fullReport.cultures || []; // Use fullReport.cultures which contains only associated cultures
+      const cultures = fullReport.cultures || [];
 
-      // Fetch test components for all tests in the report
+      // Update antibiotics cache if fetched
+      if (antibioticsResponse && !antibioticsLoaded) {
+        setAntibiotics(antibioticsResponse.data);
+        setAntibioticsLoaded(true);
+      }
+
+      // Fetch test components for all tests in parallel
       const testComponentsPromises = tests.map(test =>
         axios.get(`${apiUrl}/tests/${test.id}/components`, { headers })
-      ) || [];
-
-      // Fetch test groups for the report
-      console.log(rowData);
-      const testGroupsResponse = await axios.get(
-        `${apiUrl}/medical-reports/${rowData.id}/test-groups`,
-        { headers }
       );
-
-      // Fetch antibiotics
-      const antibioticsResponse = await axios.get(`${apiUrl}/culture-antibiotics`, { headers });
-      setAntibiotics(antibioticsResponse.data);
 
       // Process test components
       const testComponentsData = {};
@@ -457,14 +466,7 @@ const MedicalReports = () => {
         });
       });
 
-      // Set states
-      setTestComponents(testComponentsData);
-      setTestGroups(testGroupsData);
-      setTestGroupValues(testGroupValues);
-      setFieldOptions(fieldOptions);
-      setSelectedReportForResults(fullReport);
-
-      // Set initial results data
+      // Prepare initial results data
       const initialResultsData = {
         test_results: tests.map(test => ({
           test_id: test.id,
@@ -478,16 +480,24 @@ const MedicalReports = () => {
         }))
       };
 
-      setResultsData(initialResultsData);
-
-      // Ensure correct tab is active for test groups only
+      // Determine active tab
+      let activeTabToSet = 'tests'; // default
       if (tests.length === 0 && testGroupsData.length > 0) {
-        setActiveTab('test-groups');
+        activeTabToSet = 'test-groups';
       } else if (tests.length > 0) {
-        setActiveTab('tests');
+        activeTabToSet = 'tests';
       } else if (cultures.length > 0) {
-        setActiveTab('cultures');
+        activeTabToSet = 'cultures';
       }
+
+      // Batch all state updates together to minimize re-renders
+      setTestComponents(testComponentsData);
+      setTestGroups(testGroupsData);
+      setTestGroupValues(testGroupValues);
+      setFieldOptions(fieldOptions);
+      setSelectedReportForResults(fullReport);
+      setResultsData(initialResultsData);
+      setActiveTab(activeTabToSet);
 
       // Initialize culture antibiotics from the fetched data
       const initialCultureAntibiotics = {};
@@ -513,7 +523,8 @@ const MedicalReports = () => {
     }
   };
 
-  const handleTestGroupValueChange = (groupId, componentId, fieldId, value) => {
+  // Memoized function to prevent unnecessary re-renders
+  const handleTestGroupValueChange = useCallback((groupId, componentId, fieldId, value) => {
     setTestGroupValues(prev => {
       // Create a deep copy of the previous state to avoid direct mutation
       const newState = {
@@ -545,7 +556,7 @@ const MedicalReports = () => {
 
       return newState;
     });
-  };
+  }, []); // Empty dependency array since we're using functional updates
 
   // Add option handler
   const handleAddFieldCompOption = async (groupId, fieldId, componentId, value) => {
@@ -581,7 +592,7 @@ const MedicalReports = () => {
         };
       }));
       setAddingOption(prev => ({ ...prev, [`${groupId}_${fieldId}_${componentId}`]: false }));
-      setNewOptionValue(prev => ({ ...prev, [`${groupId}_${field.id}_${component.id}`]: "" }));
+      setNewOptionValue(prev => ({ ...prev, [`${groupId}_${fieldId}_${componentId}`]: "" }));
     } catch (error) {
       alert("Failed to add option");
     }
