@@ -93,8 +93,52 @@ const MedicalReports = () => {
   const addOptionInputRef = useRef(null);
   const [showPDFPreview, setShowPDFPreview] = useState(false); // PDF preview modal
   const [selectedReportForPDF, setSelectedReportForPDF] = useState(null); // Report to preview
+  // Patient data editing states
+  const [editingPatientData, setEditingPatientData] = useState(false);
+  const [patientEditData, setPatientEditData] = useState({
+    gender: '',
+    birth_date: ''
+  });
 
   const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Function to update patient data
+  const updatePatientData = async (patientId, updatedData) => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      await axios.put(`${apiUrl}/patient/${patientId}`, updatedData, { headers });
+      
+      // Update the selected report with new patient data
+      setSelectedReportForResults(prev => ({
+        ...prev,
+        patient: {
+          ...prev.patient,
+          ...updatedData
+        }
+      }));
+      
+      // Update the reports list
+      setReports(prev => prev.map(report => 
+        report.id === selectedReportForResults.id 
+          ? {
+              ...report,
+              patient: {
+                ...report.patient,
+                ...updatedData
+              }
+            }
+          : report
+      ));
+      
+      toast.success('Patient data updated successfully');
+      setEditingPatientData(false);
+    } catch (error) {
+      console.error('Error updating patient data:', error);
+      toast.error('Failed to update patient data');
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -1599,12 +1643,131 @@ const MedicalReports = () => {
             <Modal.Body>
               {selectedReportForResults && (
                 <div>
-                  <Row className="mb-3">
-                    <Col>
-                      <h6>Patient: {selectedReportForResults?.patient?.name}</h6>
-                      <h6>Report Date: {formatDate(selectedReportForResults.date)}</h6>
-                    </Col>
-                  </Row>
+                  {/* Enhanced Patient Information Section */}
+                  <div className="patient-info-section mb-4 p-3 border rounded bg-light">
+                    <Row className="align-items-center mb-2">
+                      <Col>
+                        <h5 className="mb-0">Patient Information</h5>
+                      </Col>
+                      <Col xs="auto">
+                        {!editingPatientData ? (
+                          <Button 
+                            variant="outline-primary" 
+                            size="sm"
+                            onClick={() => {
+                              setEditingPatientData(true);
+                              setPatientEditData({
+                                gender: selectedReportForResults?.patient?.gender || '',
+                                birth_date: selectedReportForResults?.patient?.birth_date || ''
+                              });
+                            }}
+                          >
+                            <Pencil size={16} className="me-1" />
+                            Edit Patient Data
+                          </Button>
+                        ) : (
+                          <div>
+                            <Button 
+                              variant="success" 
+                              size="sm" 
+                              className="me-2"
+                              onClick={() => {
+                                updatePatientData(selectedReportForResults.patient.id, patientEditData);
+                              }}
+                            >
+                              <Save size={16} className="me-1" />
+                              Save
+                            </Button>
+                            <Button 
+                              variant="secondary" 
+                              size="sm"
+                              onClick={() => {
+                                setEditingPatientData(false);
+                                setPatientEditData({ gender: '', birth_date: '' });
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        )}
+                      </Col>
+                    </Row>
+                    
+                    <Row>
+                      <Col md={6}>
+                        <div className="mb-2">
+                          <strong>Name:</strong> {selectedReportForResults?.patient?.name}
+                        </div>
+                        <div className="mb-2">
+                          <strong>Report Date:</strong> {formatDate(selectedReportForResults.date)}
+                        </div>
+                      </Col>
+                      <Col md={6}>
+                        <div className="mb-2">
+                          <strong>Gender:</strong> 
+                          {!editingPatientData ? (
+                            <span className={`ms-2 ${!selectedReportForResults?.patient?.gender ? 'text-muted fst-italic' : ''}`}>
+                              {selectedReportForResults?.patient?.gender || 'Not specified'}
+                            </span>
+                          ) : (
+                            <Form.Select 
+                              size="sm" 
+                              className="d-inline-block ms-2" 
+                              style={{ width: 'auto' }}
+                              value={patientEditData.gender}
+                              onChange={(e) => setPatientEditData(prev => ({ ...prev, gender: e.target.value }))}
+                            >
+                              <option value="">Select Gender</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                            </Form.Select>
+                          )}
+                        </div>
+                        <div className="mb-2">
+                          <strong>Birth Date:</strong> 
+                          {!editingPatientData ? (
+                            <span className={`ms-2 ${!selectedReportForResults?.patient?.birth_date ? 'text-muted fst-italic' : ''}`}>
+                              {selectedReportForResults?.patient?.birth_date ? formatDate(selectedReportForResults.patient.birth_date) : 'Not specified'}
+                            </span>
+                          ) : (
+                            <Form.Control 
+                              type="date" 
+                              size="sm" 
+                              className="d-inline-block ms-2" 
+                              style={{ width: 'auto' }}
+                              value={patientEditData.birth_date}
+                              onChange={(e) => setPatientEditData(prev => ({ ...prev, birth_date: e.target.value }))}
+                            />
+                          )}
+                        </div>
+                        <div className="mb-2">
+                          <strong>Age:</strong> 
+                          <span className="ms-2">
+                            {selectedReportForResults?.patient?.birth_date 
+                              ? `${calculateAge(selectedReportForResults.patient.birth_date)} years`
+                              : 'Unknown'
+                            }
+                          </span>
+                        </div>
+                      </Col>
+                    </Row>
+                    
+                    {/* Show filtering status */}
+                    {(!selectedReportForResults?.patient?.gender || !selectedReportForResults?.patient?.birth_date) && (
+                      <Alert variant="info" className="mt-2 mb-0">
+                        <small>
+                          <strong>Note:</strong> 
+                          {!selectedReportForResults?.patient?.gender && !selectedReportForResults?.patient?.birth_date 
+                            ? ' Both gender and birth date are missing. Showing all test components.'
+                            : !selectedReportForResults?.patient?.gender 
+                            ? ' Gender is missing. Showing components for all genders.'
+                            : ' Birth date is missing. Showing components for all ages.'
+                          }
+                          {' You can update this information using the "Edit Patient Data" button above.'}
+                        </small>
+                      </Alert>
+                    )}
+                  </div>
 
                   <div className="scrollable-tabs">
                     <Tabs
@@ -1623,15 +1786,33 @@ const MedicalReports = () => {
                               const patientGender = selectedReportForResults.patient?.gender;
                               
                               // Filter components based on patient age and gender
-                              // If patient data is missing (gender or birth_date), show all components as fallback
-                              const applicableComponents = (!patientGender || !selectedReportForResults.patient?.birth_date) 
-                                ? comps // Show all components when patient data is missing
-                                : comps.filter(tc => {
-                                    const genderMatch = !tc.gender || tc.gender === patientGender;
-                                    const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
-                                      (tc.age_end == null || patientAge <= tc.age_end);
-                                    return genderMatch && ageMatch;
-                                  });
+                              let applicableComponents;
+                              
+                              if (!patientGender && !selectedReportForResults.patient?.birth_date) {
+                                // Both gender and birth date missing - show all components
+                                applicableComponents = comps;
+                              } else if (!patientGender) {
+                                // Only gender missing - filter by age but show all genders
+                                applicableComponents = comps.filter(tc => {
+                                  const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
+                                    (tc.age_end == null || patientAge <= tc.age_end);
+                                  return ageMatch;
+                                });
+                              } else if (!selectedReportForResults.patient?.birth_date) {
+                                // Only birth date missing - filter by gender but show all ages
+                                applicableComponents = comps.filter(tc => {
+                                  const genderMatch = !tc.gender || tc.gender === patientGender;
+                                  return genderMatch;
+                                });
+                              } else {
+                                // Both available - filter by both gender and age
+                                applicableComponents = comps.filter(tc => {
+                                  const genderMatch = !tc.gender || tc.gender === patientGender;
+                                  const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
+                                    (tc.age_end == null || patientAge <= tc.age_end);
+                                  return genderMatch && ageMatch;
+                                });
+                              }
                               
                               return (
                                 <div key={test.id} className="border rounded p-3 mb-3">
@@ -1651,9 +1832,41 @@ const MedicalReports = () => {
                                       {/* Component rows */}
                                       {applicableComponents.map((component, compIndex) => {
                                         const componentResult = resultsData.test_component_results[test.id]?.[component.id];
+                                        
+                                        // Helper function to format age range
+                                        const formatAgeRange = (ageStart, ageEnd) => {
+                                          if (ageStart == null && ageEnd == null) return 'All ages';
+                                          if (ageStart == null) return `≤ ${ageEnd} years`;
+                                          if (ageEnd == null) return `≥ ${ageStart} years`;
+                                          return `${ageStart}-${ageEnd} years`;
+                                        };
+                                        
+                                        // Helper function to format gender
+                                        const formatGender = (gender) => {
+                                          if (!gender) return 'All genders';
+                                          return gender === 'm' ? 'Male' : gender === 'f' ? 'Female' : gender;
+                                        };
+                                        
                                         return (
                                           <Row key={component.id} className="mb-2 align-items-center">
-                                            <Col md={3}><strong>{component.name}</strong></Col>
+                                            <Col md={3}>
+                                              <div>
+                                                <strong>{component.name}</strong>
+                                                {/* Show metadata when patient data is missing or when showing fallback components */}
+                                                {(!patientGender || !selectedReportForResults.patient?.birth_date) && (
+                                                  <div className="mt-1">
+                                                    <small className="text-info d-block">
+                                                      <i className="fas fa-info-circle me-1"></i>
+                                                      {formatGender(component.gender)}
+                                                    </small>
+                                                    <small className="text-info d-block">
+                                                      <i className="fas fa-calendar me-1"></i>
+                                                      {formatAgeRange(component.age_start, component.age_end)}
+                                                    </small>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </Col>
                                             <Col md={2}>
                                               <small className="text-muted">
                                                 {component.normal_from !== null && component.normal_to !== null 
