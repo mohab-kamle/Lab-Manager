@@ -53,6 +53,7 @@ var _medical_report_has_tg = require("./medical_report_has_tg");
 var _bill_has_tg = require("./bill_has_tg");
 var _medical_report_has_culture_antibiotic = require("./medical_report_has_culture_antibiotic");
 var _medical_report_culture_result = require("./medical_report_culture_result");
+var _medical_report_test_component_result = require("./medical_report_test_component_result");
 var _culture_has_option = require("./culture_has_option");
 var _culture_sub_option = require("./culture_sub_option");
 var _lab_settings = require("./lab_settings");
@@ -122,6 +123,7 @@ function initModels(sequelize) {
   var bill_has_tg = _bill_has_tg(sequelize, DataTypes);
   var medical_report_has_culture_antibiotic = _medical_report_has_culture_antibiotic(sequelize, DataTypes);
   var medical_report_culture_result = _medical_report_culture_result(sequelize, DataTypes);
+  var medical_report_test_component_result = _medical_report_test_component_result(sequelize, DataTypes);
   var culture_has_option = _culture_has_option(sequelize, DataTypes);
   var culture_sub_option = _culture_sub_option(sequelize, DataTypes);
   var lab_settings = _lab_settings(sequelize, DataTypes);
@@ -766,6 +768,34 @@ culture_sub_option.belongsTo(culture_option, {
   foreignKey: "culture_option_id"
 });
 
+// Associations for medical_report_test_component_result
+medical_report_test_component_result.belongsTo(medical_report, {
+  as: "medical_report",
+  foreignKey: "medical_report_id"
+});
+medical_report.hasMany(medical_report_test_component_result, {
+  as: "test_component_results",
+  foreignKey: "medical_report_id"
+});
+
+medical_report_test_component_result.belongsTo(test, {
+  as: "test",
+  foreignKey: "test_id"
+});
+test.hasMany(medical_report_test_component_result, {
+  as: "component_results",
+  foreignKey: "test_id"
+});
+
+medical_report_test_component_result.belongsTo(test_component, {
+  as: "test_component",
+  foreignKey: "test_component_id"
+});
+test_component.hasMany(medical_report_test_component_result, {
+  as: "results",
+  foreignKey: "test_component_id"
+});
+
 return {
   admin,
   admin_packages_and_offers,
@@ -802,6 +832,7 @@ return {
   medical_report_has_culture_antibiotic,
   medical_report_culture_result,
   medical_report_has_test,
+  medical_report_test_component_result,
   medical_report_has_tg,
   medical_report_tg_field_value,
   packages_and_offers,
