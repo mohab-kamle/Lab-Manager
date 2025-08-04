@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from 'react';
-import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, PDFViewer, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image, PDFViewer, Font, pdf } from '@react-pdf/renderer';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import LabIcon from '../assets/LabIcon.png';
@@ -55,6 +55,8 @@ function getResultColor(result, normalRange, status) {
       }
     }
   }
+  if (status && status.toLowerCase() === 'critical high' || status && status.toLowerCase() === 'critical low') return '#ff4136';
+  
   return '#e9ecef'; // light grey
 }
 
@@ -620,7 +622,7 @@ const PDFInfoGrid = ({ patient, report, lab }) => (
         <Text style={styles.infoTitle}>Patient</Text>
         <Text style={styles.infoText}>
           <Text>{patient?.name || 'N/A'}</Text>{'\n'}
-          {patient?.gender === 'm' ? 'Male' : patient?.gender === 'f' ? 'Female' : 'N/A'} - {patient?.birth_date ? calculateAge(patient.birth_date) : 'N/A'}{'\n'}
+          {patient?.gender ? patient.gender :'N/A'} - {patient?.birth_date ? calculateAge(patient.birth_date) : 'N/A'}{'\n'}
           Code: {patient?.patientcode || 'N/A'}
         </Text>
       </View>
@@ -725,44 +727,245 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
           <>
             <Text style={styles.sectionTitle}>Tests</Text>
             {report.tests.map((test, testIndex) => {
-              const normalRange = test.normal_from && test.normal_to ? `${test.normal_from} - ${test.normal_to}` : test.normal_range;
-              const resultColor = getResultColor(test.result, normalRange, test.status);
-              return (
-                <View
-                  style={styles.testCard}
-                  key={testIndex}
-                >
-                  <View style={styles.testCardCol}>
-                    <Text style={styles.testName}>{test.name || 'Unknown Test'}</Text>
-                    {test.result_type === 'boolean' ? (
-                      <Text style={styles.testRefRange}>Result Type: Boolean</Text>
-                    ) : (
-                      <Text style={styles.testRefRange}>
-                        {test.normal_from && test.normal_to ? `Ref. Range: ${test.normal_from} - ${test.normal_to}` : test.normal_range ? `Ref. Range: ${test.normal_range}` : 'N/A'}
-                        {test.unit ? ` ${test.unit}` : ''}
-                        {test.reference_range ? ` | Ref. Range: ${test.reference_range}` : ''}
-                      </Text>
+              // Check if we have component-level results to display
+              if (test.has_component_results) {
+                // Display test with individual component results
+                return (
+                  <View key={testIndex}>
+                    {/* Test Header */}
+                    <View style={[styles.testCard, { backgroundColor: '#f8f9fa', borderLeft: '3pt solid #2d3e8b' }]}>
+                      <View style={styles.testCardCol}>
+                        <Text style={styles.testName}>{test.name || 'Unknown Test'}</Text>
+                        <Text style={[styles.testRefRange, { color: '#2d3e8b', fontWeight: 'bold' }]}>
+                          Multi-Component Test Results
+                        </Text>
+                        <Text style={styles.testRefRange}>
+                          Overall Status: {test.status || 'Pending'}
+                        </Text>
+                      </View>
+                      {test.status && (
+                        <Text style={[
+                          styles.testStatusBadge,
+                          test.status.toLowerCase() === 'normal' || test.status.toLowerCase() === 'n' ? styles.normalBadge :
+                            test.status.toLowerCase() === 'abnormal' || test.status.toLowerCase() === 'a' ? styles.abnormalBadge :
+                              styles.otherBadge
+                        ]}>
+                          {test.status}
+                        </Text>
+                      )}
+                    </View>
+                    
+                    {/* Component Results Table */}
+                    <View style={{
+                      marginHorizontal: 20,
+                      marginBottom: 12,
+                      backgroundColor: '#fff',
+                      borderRadius: 4,
+                      border: '1pt solid #dee2e6'
+                    }}>
+                      {/* Table Header */}
+                      <View style={{
+                        flexDirection: 'row',
+                        backgroundColor: '#2d3e8b',
+                        paddingVertical: 4
+                      }}>
+                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#fff', flex: 2, textAlign: 'center', padding: 2 }}>Component</Text>
+                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#fff', flex: 1.5, textAlign: 'center', padding: 2 }}>Result</Text>
+                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#fff', flex: 1, textAlign: 'center', padding: 2 }}>Unit</Text>
+                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#fff', flex: 2, textAlign: 'center', padding: 2 }}>Normal Range</Text>
+                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#fff', flex: 1, textAlign: 'center', padding: 2 }}>Status</Text>
+                      </View>
+                      
+                      {/* Component Rows */}
+                      {test.component_results.map((componentResult, compIndex) => {
+                        const component = componentResult.test_component;
+                        const normalRange = component?.normal_from && component?.normal_to
+                          ? `${component.normal_from} - ${component.normal_to}`
+                          : component?.reference_range || 'N/A';
+                        const resultColor = getResultColor(componentResult.result, normalRange, componentResult.status);
+                        
+                        return (
+                          <View key={compIndex} style={{
+                            flexDirection: 'row',
+                            paddingVertical: 4,
+                            borderBottom: compIndex < test.component_results.length - 1 ? '1pt solid #e9ecef' : 'none',
+                            backgroundColor: compIndex % 2 === 0 ? '#f8f9fa' : '#fff'
+                          }}>
+                            <Text style={{ fontSize: 8, color: '#333', flex: 2, textAlign: 'center', padding: 2 }}>
+                              {component?.name || 'Component'}
+                            </Text>
+                            <View style={{ flex: 1.5, alignItems: 'center', justifyContent: 'center' }}>
+                              <View style={[{
+                                borderRadius: 4,
+                                paddingVertical: 2,
+                                paddingHorizontal: 6,
+                                minWidth: 40
+                              }]}>
+                                <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#000', textAlign: 'center' }}>
+                                  {componentResult.result || 'N/A'}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text style={{ fontSize: 8, color: '#666', flex: 1, textAlign: 'center', padding: 2 }}>
+                              {component?.unit || 'N/A'}
+                            </Text>
+                            <Text style={{ fontSize: 8, color: '#333', flex: 2, textAlign: 'center', padding: 2 }}>
+                              {normalRange}
+                            </Text>
+                            <Text style={[{
+                              fontSize: 7,
+                              fontWeight: 'bold',
+                              flex: 1,
+                              textAlign: 'center',
+                              padding: 2,
+                              color: resultColor
+                            }]}>
+                              {componentResult.status || 'Pending'}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              } else {
+                // Display traditional single-component test result
+                const normalRange = test.normal_from && test.normal_to ? `${test.normal_from} - ${test.normal_to}` : test.normal_range;
+                const resultColor = getResultColor(test.result, normalRange, test.status);
+                
+                // Check if we have multiple components to display for manual determination
+                const hasMultipleComponents = test.all_components && test.all_components.length > 1;
+                const showAllComponents = hasMultipleComponents && (!test.normal_from || !test.normal_to || test.normal_from === 'N/A' || test.normal_to === 'N/A');
+                
+                return (
+                  <View key={testIndex}>
+                    <View style={styles.testCard}>
+                      <View style={styles.testCardCol}>
+                        <Text style={styles.testName}>{test.name || 'Unknown Test'}</Text>
+                        {/* Display component name if available */}
+                        {test.component_name && (
+                          <Text style={[styles.testRefRange, { color: '#2d3e8b', fontWeight: 'bold' }]}>
+                            Component: {test.component_name}
+                          </Text>
+                        )}
+                        {test.result_type === 'boolean' ? (
+                          <Text style={styles.testRefRange}>Result Type: Boolean</Text>
+                        ) : (
+                          <Text style={styles.testRefRange}>
+                            {test.normal_from && test.normal_to && test.normal_from !== 'N/A' && test.normal_to !== 'N/A'
+                              ? `Ref. Range: ${test.normal_from} - ${test.normal_to}`
+                              : test.normal_range ? `Ref. Range: ${test.normal_range}` : 'N/A'}
+                            {test.unit ? ` ${test.unit}` : ''}
+                            {test.reference_range ? ` | Ref. Range: ${test.reference_range}` : ''}
+                          </Text>
+                        )}
+                        {/* Display critical values if available */}
+                        {(test.c_low !== null || test.c_high !== null) && test.result_type !== 'boolean' && (
+                          <Text style={[styles.testRefRange, { color: '#dc3545', fontWeight: 'bold' }]}>
+                            Critical: {test.c_low !== null ? `Low < ${test.c_low}` : ''}
+                            {test.c_low !== null && test.c_high !== null ? ' | ' : ''}
+                            {test.c_high !== null ? `High > ${test.c_high}` : ''}
+                            {test.unit ? ` ${test.unit}` : ''}
+                          </Text>
+                        )}
+                        {showAllComponents && (
+                          <Text style={[styles.testRefRange, { color: '#ff6b35', fontWeight: 'bold' }]}>
+                            Multiple components available - Manual determination required
+                          </Text>
+                        )}
+                      </View>
+                      <View style={[styles.testResultBox, { backgroundColor: resultColor }]}>
+                        <Text style={styles.testResultText}>
+                          {test.result_type === 'boolean'
+                            ? (test.result === 'positive' ? 'Positive' : test.result === 'negative' ? 'Negative' : test.result || 'N/A')
+                            : `${test.result || 'N/A'}${test.unit ? ` ${test.unit}` : ''}`}
+                        </Text>
+                      </View>
+                      {test.status && (
+                        <Text style={[
+                          styles.testStatusBadge,
+                          test.status.toLowerCase() === 'normal' || test.status.toLowerCase() === 'n' ? styles.normalBadge :
+                            test.status.toLowerCase() === 'abnormal' || test.status.toLowerCase() === 'a' ? styles.abnormalBadge :
+                              styles.otherBadge
+                        ]}>
+                          {test.status}
+                        </Text>
+                      )}
+                    </View>
+                  
+                    {/* Display all components when manual determination is needed */}
+                    {showAllComponents && (
+                      <View style={{
+                        marginHorizontal: 20,
+                        marginBottom: 12,
+                        padding: 10,
+                        backgroundColor: '#f8f9fa',
+                        borderRadius: 4,
+                        border: '1pt solid #dee2e6'
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: 'bold',
+                          color: '#2d3e8b',
+                          marginBottom: 8,
+                          textAlign: 'center'
+                        }}>
+                          Available Components for Manual Selection:
+                        </Text>
+                        {/* Header for component table */}
+                        <View style={{
+                          flexDirection: 'row',
+                          backgroundColor: '#e8f0fe',
+                          paddingVertical: 3,
+                          borderBottom: '1pt solid #d0d7de',
+                          marginBottom: 4
+                        }}>
+                          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#2d3e8b', flex: 2, textAlign: 'center' }}>Component</Text>
+                          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#2d3e8b', flex: 1, textAlign: 'center' }}>Gender</Text>
+                          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#2d3e8b', flex: 1, textAlign: 'center' }}>Age</Text>
+                          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#2d3e8b', flex: 1, textAlign: 'center' }}>Type</Text>
+                          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#2d3e8b', flex: 2, textAlign: 'center' }}>Normal Range</Text>
+                          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#2d3e8b', flex: 2, textAlign: 'center' }}>Critical Values</Text>
+                        </View>
+                        {test.all_components.map((component, compIndex) => (
+                          <View key={compIndex} style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            paddingVertical: 4,
+                            borderBottom: compIndex < test.all_components.length - 1 ? '1pt solid #e9ecef' : 'none'
+                          }}>
+                            <Text style={{ fontSize: 8, color: '#333', flex: 2, textAlign: 'center' }}>
+                              {component.name || 'Component'}
+                            </Text>
+                            <Text style={{ fontSize: 8, color: '#666', flex: 1, textAlign: 'center' }}>
+                              {component.gender ? component.gender : 'Any'}
+                            </Text>
+                            <Text style={{ fontSize: 8, color: '#666', flex: 1, textAlign: 'center' }}>
+                              {component.age_start || 'Any'}-{component.age_end || 'Any'}
+                            </Text>
+                            <Text style={{ fontSize: 8, color: '#666', flex: 1, textAlign: 'center' }}>
+                              {component.result_type || 'range'}
+                            </Text>
+                            <Text style={{ fontSize: 8, color: '#333', flex: 2, textAlign: 'center' }}>
+                              {component.result_type === 'boolean' ? 'Boolean' :
+                                component.normal_from && component.normal_to
+                                  ? `${component.normal_from}-${component.normal_to}${component.unit ? ` ${component.unit}` : ''}`
+                                  : component.reference_range || 'N/A'}
+                            </Text>
+                            <Text style={{ fontSize: 8, color: '#dc3545', flex: 2, textAlign: 'center' }}>
+                              {component.result_type === 'boolean' ? 'N/A' :
+                                (component.c_low !== null || component.c_high !== null) ?
+                                  `${component.c_low !== null ? `L<${component.c_low}` : ''}${component.c_low !== null && component.c_high !== null ? ' | ' : ''}${component.c_high !== null ? `H>${component.c_high}` : ''}` :
+                                  'None'}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
                     )}
                   </View>
-                  <View style={[styles.testResultBox, { backgroundColor: resultColor }]}> 
-                    <Text style={styles.testResultText}>
-                      {test.result_type === 'boolean'
-                        ? (test.result === 'positive' ? 'Positive' : test.result === 'negative' ? 'Negative' : test.result || 'N/A')
-                        : `${test.result || 'N/A'}${test.unit ? ` ${test.unit}` : ''}`}
-                    </Text>
-                  </View>
-                  {test.status && (
-                    <Text style={[
-                      styles.testStatusBadge,
-                      test.status.toLowerCase() === 'normal' || test.status.toLowerCase() === 'n' ? styles.normalBadge :
-                      test.status.toLowerCase() === 'abnormal' || test.status.toLowerCase() === 'a' ? styles.abnormalBadge :
-                      styles.otherBadge
-                    ]}>
-                      {test.status}
-                    </Text>
-                  )}
-                </View>
-              );
+                );
+              
+              }
             })}
           </>
         ) : null}
@@ -1052,7 +1255,14 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
 
               // Regular Field Cell
               let fieldValue = 'N/A';
-              if (group.values?.[component.id]?.[field.id] !== undefined) {
+              
+              // Try to get value from transformed component first (new API structure)
+              const fieldKey = field.name.toLowerCase().replace(/\s+/g, '_');
+              if (component[fieldKey] !== undefined && component[fieldKey] !== '') {
+                fieldValue = String(component[fieldKey]);
+              }
+              // Fallback to old structure
+              else if (group.values?.[component.id]?.[field.id] !== undefined) {
                 fieldValue = String(group.values[component.id][field.id]);
               }
 
@@ -1236,9 +1446,14 @@ const PrintPDF = ({ patient, report, lab }) => {
     );
   }
 
-  // Defensive check for required data
+  // Defensive check for required data - support both old and new API structure
   const hasValidData = patient && report && 
-    (report.tests?.length > 0 || report.cultures?.length > 0 || report.test_groups?.length > 0);
+    (report.tests?.length > 0 || 
+     report.cultures?.length > 0 || 
+     report.test_groups?.length > 0 ||
+     report.test_id_test_medical_report_has_tests?.length > 0 ||
+     report.medical_report_has_cultures?.length > 0 ||
+     report.tg_id_test_groups?.length > 0);
 
   if (!hasValidData) {
     return (
@@ -1255,6 +1470,9 @@ const PrintPDF = ({ patient, report, lab }) => {
   };
 
   const isMobile = isMobileDevice();
+
+  // Transform the report data for PDF rendering
+  const transformedReport = transformReportForPDF(report, patient);
 
   // === LIVE PDF PREVIEW WITH MOBILE COMPATIBILITY ===
   return (
@@ -1282,7 +1500,7 @@ const PrintPDF = ({ patient, report, lab }) => {
             PDF preview is not supported on mobile devices. Please download the PDF to view it.
           </p>
           <PDFDownloadLink
-            document={<ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />}
+            document={<ProfessionalPDFDocument patient={patient} report={transformedReport} qrUrl={qrUrl} lab={lab} />}
             fileName={`Medical_Report_${patient.name || 'Report'}.pdf`}
           >
             {({ loading, error }) => {
@@ -1321,7 +1539,7 @@ const PrintPDF = ({ patient, report, lab }) => {
         // Desktop PDF viewer
         <div style={{ height: '90vh', border: '1px solid #ccc', marginBottom: 16 }}>
           <PDFViewer width="100%" height="100%">
-            <ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />
+            <ProfessionalPDFDocument patient={patient} report={transformedReport} qrUrl={qrUrl} lab={lab} />
           </PDFViewer>
         </div>
       )}
@@ -1329,7 +1547,7 @@ const PrintPDF = ({ patient, report, lab }) => {
       {/* Download button for desktop */}
       {!isMobile && (
         <PDFDownloadLink
-          document={<ProfessionalPDFDocument patient={patient} report={report} qrUrl={qrUrl} lab={lab} />}
+          document={<ProfessionalPDFDocument patient={patient} report={transformedReport} qrUrl={qrUrl} lab={lab} />}
           fileName={`Medical_Report_${patient.name || 'Report'}.pdf`}
         >
           {({ loading, error }) => {
@@ -1359,37 +1577,103 @@ const PrintPDF = ({ patient, report, lab }) => {
 // Helper function to transform report data for PDF
 function transformReportForPDF(report, patient) {
   const patientAge = calculateAge(patient.birth_date);
+  // Map patient gender from database format to frontend format for consistent comparison
   const patientGender = patient.gender;
 
-  const tests = (report.tests || []).map(test => {
+  // Handle both old and new API structure for tests
+  const testsData = report.test_id_test_medical_report_has_tests||  report.tests || [];
+  const tests = testsData.map(test => {
     let selectedComponent = null;
+    let allComponents = [];
+    let hasComponentResults = false;
+    let componentResults = [];
+    
     if (Array.isArray(test.test_components) && test.test_components.length > 0) {
-      selectedComponent = test.test_components.find(tc => {
-        const genderMatch = !tc.gender || tc.gender === patientGender;
+      const mappedComponents = test.test_components.map(component => ({
+        ...component,
+        gender: component.gender
+      }));
+      
+      allComponents = mappedComponents;
+      
+      // Check if we have component-level results from the new structure
+      if (report.testComponentResults && report.testComponentResults[test.id]) {
+        hasComponentResults = true;
+        componentResults = report.testComponentResults[test.id].map(cr => {
+          // Use the component data from the backend response (cr.test_component) or find it in mappedComponents
+          const component = cr.test_component || mappedComponents.find(c => c.id === cr.test_component_id);
+          return {
+            ...cr,
+            component: component
+          };
+        });
+      }
+      
+      // Find component that matches patient's age and gender (for fallback display)
+      selectedComponent = mappedComponents.find(tc => {
+        const genderMatch = !tc.gender || tc.gender == patientGender;
         const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
                          (tc.age_end == null || patientAge <= tc.age_end);
         return genderMatch && ageMatch;
       });
-      // If no match, fallback to first component for unit/normal_range
+      
+      // If no exact match found, try to find a component without gender/age restrictions
       if (!selectedComponent) {
-        selectedComponent = test.test_components[0];
+        selectedComponent = mappedComponents.find(tc => !tc.gender && tc.age_start == null && tc.age_end == null);
+      }
+      
+      // If still no match, fallback to first component
+      if (!selectedComponent) {
+        selectedComponent = mappedComponents[0];
       }
     }
+    
+    // Access result and status from the medical_report_has_test relationship
+    // Based on API structure: test.medical_report_has_test.result and test.medical_report_has_test.status
+    const testResult = test.medical_report_has_test?.result ?? test.result ?? '';
+    const testStatus = test.medical_report_has_test?.status ?? test.status ?? '';
+    
     return {
       ...test,
       unit: selectedComponent ? selectedComponent.unit : '',
-      normal_from: selectedComponent ? selectedComponent.normal_from : '',
-      normal_to: selectedComponent ? selectedComponent.normal_to : '',
+      normal_from: Number.isNaN(selectedComponent ? selectedComponent.normal_from : 0) ? '' : selectedComponent ? selectedComponent.normal_from : '0',
+      normal_to: Number.isNaN(selectedComponent ? selectedComponent.normal_to : 0) ? '' : selectedComponent ? selectedComponent.normal_to : '0',
       reference_range: selectedComponent ? selectedComponent.reference_range : '',
       result_type: selectedComponent ? selectedComponent.result_type : 'range',
-      result: test.result ?? '',
-      status: test.status ?? ''
+      // Add support for critical values (c_low, c_high)
+      c_low: selectedComponent ? selectedComponent.c_low : null,
+      c_high: selectedComponent ? selectedComponent.c_high : null,
+      // Add component name for better identification
+      component_name: selectedComponent ? selectedComponent.name : '',
+      component_id: selectedComponent ? selectedComponent.id : null,
+      result: testResult,
+      status: testStatus,
+      // Include all components for manual determination if needed
+      all_components: allComponents,
+      // Include component-level results
+      has_component_results: hasComponentResults,
+      component_results: componentResults
     };
   });
 
-  const cultures = (report.cultures || []).map(culture => ({
-    ...culture
-  }));
+  // Handle both old and new API structure for cultures
+  const culturesData = report.cultures || report.medical_report_has_cultures || [];
+  const cultures = culturesData.map(culture => {
+    // Get culture results from the new structure if available
+    let cultureResults = [];
+    if (culture.culture_results && Array.isArray(culture.culture_results)) {
+      cultureResults = culture.culture_results;
+    } else if (culture.medical_report_has_culture && culture.medical_report_has_culture.culture_results) {
+      cultureResults = culture.medical_report_has_culture.culture_results;
+    }
+    
+    return {
+      ...culture,
+      result: culture.result ?? '',
+      status: culture.status ?? '',
+      culture_results: cultureResults
+    };
+  });
 
   const culture_results = (report.medical_report_has_cultures || []).map(cr => ({
     culture_id: cr.culture_id,
@@ -1397,14 +1681,42 @@ function transformReportForPDF(report, patient) {
     status: cr.status
   }));
 
-  const test_groups = (report.test_groups || []).map(tg => ({
-    ...tg,
-    fields: tg.fields || tg.tg_fields, // Ensure fields are passed correctly
-    components: tg.components || tg.tg_components, // legacy fallback
-    direct_components: tg.direct_components || [],
-    categories: tg.categories || [],
-    values: tg.values || tg.medical_report_tg_field_values || [] // Ensure values are passed correctly
-  }));
+  // Handle both old and new API structure for test groups
+  const testGroupsData = report.test_groups || report.tg_id_test_groups || [];
+  const test_groups = testGroupsData.map(tg => {
+    // Create a map of field values for easy lookup
+    const fieldValuesMap = new Map();
+    if (report.medical_report_tg_field_values) {
+      report.medical_report_tg_field_values.forEach(fv => {
+        const key = `${fv.tg_component_id}_${fv.tg_fields_id}`;
+        fieldValuesMap.set(key, fv.value);
+      });
+    }
+
+    // Transform components with their field values
+    const transformedComponents = (tg.tg_components || tg.components || []).map(component => {
+      const componentWithValues = { ...component };
+      
+      // Add field values to component
+      (tg.tg_fields || tg.fields || []).forEach(field => {
+        const key = `${component.id}_${field.id}`;
+        const value = fieldValuesMap.get(key) || '';
+        componentWithValues[field.name.toLowerCase().replace(/\s+/g, '_')] = value;
+      });
+      
+      return componentWithValues;
+    });
+
+    return {
+      ...tg,
+      name: tg.name,
+      fields: tg.tg_fields || tg.fields || [],
+      components: transformedComponents,
+      direct_components: tg.direct_components || [],
+      categories: tg.categories || [],
+      values: tg.values || report.medical_report_tg_field_values || []
+    };
+  });
 
   return {
     ...report,
@@ -1451,16 +1763,25 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
       const headers = { Authorization: `Bearer ${token}` };
       // Fetch the full report with all details
       const response = await axios.get(`${apiUrl}/medical-reports/${reportId}`, { headers });
-      const fullReportData = response.data;
-      console.log('Full report data received:', fullReportData);
-      console.log('Test groups in report:', fullReportData.test_groups);
-      console.log('Tests in report:', fullReportData.tests);
-      console.log('Cultures in report:', fullReportData.cultures);
+      const responseData = response.data;
+      console.log('Full response data received:', responseData);
+      
+      // Check if the response has nested structure or direct structure
+      const fullReportData = responseData.report ? {
+        ...responseData.report,
+        testComponentResults: responseData.test_component_results
+      } : {
+        ...responseData,
+        // Ensure testComponentResults is properly included
+        testComponentResults: responseData.test_component_results || {}
+      };
+      
+      console.log('Extracted report data:', fullReportData);
+      console.log('Test component results:', responseData.test_component_results);
+      console.log('Full report data:', fullReportData.test_component_results);
       
       // Transform the full report data for PDF
       const transformedReport = transformReportForPDF(fullReportData, fullReportData.patient);
-      console.log('Transformed report data:', transformedReport);
-      console.log('Transformed test groups:', transformedReport.test_groups);
       // Create a temporary div to render the PDF component
       const tempDiv = document.createElement('div');
       tempDiv.style.position = 'absolute';
@@ -1468,40 +1789,23 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
       tempDiv.style.top = '-9999px';
       document.body.appendChild(tempDiv);
       // Create a temporary React component that will trigger the download
-      const TempDownloadComponent = () => (
-        <PDFDownloadLink
-          document={<ProfessionalPDFDocument patient={transformedReport.patient} report={transformedReport} qrUrl={qrUrl} />}
-          fileName={`Medical_Report_${transformedReport.patient.name || 'Report'}.pdf`}
-        >
-          {({ loading: pdfLoading, error, url }) => {
-            if (error) {
-              toast.error("Failed to generate PDF");
-              return null;
-            }
-            if (url && !pdfLoading && !downloadTriggeredRef.current) {
-              downloadTriggeredRef.current = true;
-              // Trigger download
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `Medical_Report_${transformedReport.patient.name || 'Report'}.pdf`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              // Clean up temporary div
-              setTimeout(() => {
-                if (document.body.contains(tempDiv)) {
-                  document.body.removeChild(tempDiv);
-                }
-              }, 1000);
-            }
-            return null;
-          }}
-        </PDFDownloadLink>
-      );
-      // Render the temporary component using React 18 createRoot
-      const ReactDOMClient = await import('react-dom/client');
-      const root = ReactDOMClient.createRoot(tempDiv);
-      root.render(<TempDownloadComponent />);
+      const doc = <ProfessionalPDFDocument patient={transformedReport.patient} report={transformedReport} qrUrl={qrUrl} lab={fullReportData.lab} />;
+      const pdfInstance = pdf(doc);
+      const blob = await pdfInstance.toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Medical_Report_${transformedReport.patient.name || 'Report'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Clean up temporary div (though not strictly needed with usePDF, good practice)
+      if (document.body.contains(tempDiv)) {
+        document.body.removeChild(tempDiv);
+      }
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Failed to generate PDF");

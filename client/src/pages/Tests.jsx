@@ -1131,7 +1131,7 @@ const Tests = () => {
                               )}
                               <div className="mb-2"><strong>C Low:</strong> {component.c_low || <span className="text-muted">N/A</span>}</div>
                               <div className="mb-2"><strong>C High:</strong> {component.c_high || <span className="text-muted">N/A</span>}</div>
-                              <div className="mb-2"><strong>Gender:</strong> {component.gender === 'Male' ? 'Male' : component.gender === 'Female' ? 'Female' : <span className="text-muted">Any</span>}</div>
+                              <div className="mb-2"><strong>Gender:</strong> {component.gender === 'm' ? 'Male' : component.gender === 'f' ? 'Female' : <span className="text-muted">Any</span>}</div>
                               <div className="mb-2"><strong>Age Start:</strong> {component.age_start || <span className="text-muted">Any</span>}</div>
                               <div className="mb-2"><strong>Age End:</strong> {component.age_end || <span className="text-muted">Any</span>}</div>
                             </Card.Body>

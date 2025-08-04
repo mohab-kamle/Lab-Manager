@@ -35,28 +35,24 @@ function generateMedicalReportPDF(patient, report) {
   let testsWithResults = [];
   if (report.tests && Array.isArray(report.tests)) {
     testsWithResults = report.tests.map(test => {
-      if (test.components && Array.isArray(test.components) && test.components.length > 0) {
-        const mergedComponents = test.components.map(component => {
-          let resultObj = null;
-          if (report.test_results && Array.isArray(report.test_results)) {
-            resultObj = report.test_results.find(r => r.test_id === test.id && r.component_id === component.id);
-          }
+      // Handle multi-component tests with component-level results
+      if (test.has_component_results && test.component_results && test.component_results.length > 0) {
+        const mergedComponents = test.component_results.map(componentResult => {
+          const component = componentResult.component || componentResult.test_component;
           return {
             ...component,
-            result: resultObj ? resultObj.result : '',
-            status: resultObj ? resultObj.status : ''
+            result: componentResult.result || '',
+            status: componentResult.status || '',
+            name: component ? component.name : 'Unknown Component'
           };
         });
         return { ...test, components: mergedComponents };
       } else {
-        let resultObj = null;
-        if (report.test_results && Array.isArray(report.test_results)) {
-          resultObj = report.test_results.find(r => r.test_id === test.id);
-        }
+        // Handle single-component tests or tests without component results
         return {
           ...test,
-          result: resultObj ? resultObj.result : '',
-          status: resultObj ? resultObj.status : ''
+          result: test.result || '',
+          status: test.status || ''
         };
       }
     });
@@ -150,27 +146,49 @@ function calculateAge(birthDate) {
 }
 
 function transformReportForPDF(report, patient) {
-  const test_results = (report.medical_report_has_tests || []).map(tr => ({
-    test_id: tr.test_id,
-    result: tr.result,
-    status: tr.status
-  }));
-
   const patientAge = calculateAge(patient.birth_date);
   const patientGender = patient.gender;
 
-  const tests = (report.test_id_test_medical_report_has_tests || []).map(test => {
-    // Find the result for this test
-    const resultObj = test_results.find(r => r.test_id === test.id);
-
+  // Handle both old and new API structure for tests
+  const testsData = report.test_id_test_medical_report_has_tests || report.tests || [];
+  const tests = testsData.map(test => {
     let selectedComponent = null;
+    let allComponents = [];
+    let hasComponentResults = false;
+    let componentResults = [];
+    
     if (Array.isArray(test.test_components) && test.test_components.length > 0) {
-      selectedComponent = test.test_components.find(tc => {
-        const genderMatch = !tc.gender || tc.gender === patientGender;
+      const mappedComponents = test.test_components.map(component => ({
+        ...component,
+        gender: component.gender
+      }));
+      
+      allComponents = mappedComponents;
+      
+      // Check if we have component-level results from the new structure
+      if (report.testComponentResults && report.testComponentResults[test.id]) {
+        hasComponentResults = true;
+        componentResults = report.testComponentResults[test.id].map(cr => ({
+          ...cr,
+          component: mappedComponents.find(c => c.id === cr.test_component_id)
+        }));
+      }
+      
+      // Find component that matches patient's age and gender (for fallback display)
+      selectedComponent = mappedComponents.find(tc => {
+        const genderMatch = !tc.gender || tc.gender == patientGender;
         const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
                          (tc.age_end == null || patientAge <= tc.age_end);
         return genderMatch && ageMatch;
       });
+    }
+
+    // Get test result from medical_report_has_test
+    let testResult = '';
+    let testStatus = '';
+    if (test.medical_report_has_test) {
+      testResult = test.medical_report_has_test.result || '';
+      testStatus = test.medical_report_has_test.status || '';
     }
 
     return {
@@ -178,8 +196,20 @@ function transformReportForPDF(report, patient) {
       unit: selectedComponent ? selectedComponent.unit : '',
       normal_from: selectedComponent ? selectedComponent.normal_from : '',
       normal_to: selectedComponent ? selectedComponent.normal_to : '',
-      result: resultObj ? resultObj.result : '',
-      status: resultObj ? resultObj.status : ''
+      reference_range: selectedComponent ? selectedComponent.reference_range : '',
+      result_type: selectedComponent ? selectedComponent.result_type : test.result_type,
+      c_low: selectedComponent ? selectedComponent.c_low : null,
+      c_high: selectedComponent ? selectedComponent.c_high : null,
+      // Add component name for better identification
+      component_name: selectedComponent ? selectedComponent.name : '',
+      component_id: selectedComponent ? selectedComponent.id : null,
+      result: testResult,
+      status: testStatus,
+      // Include all components for manual determination if needed
+      all_components: allComponents,
+      // Include component-level results
+      has_component_results: hasComponentResults,
+      component_results: componentResults
     };
   });
 
@@ -195,7 +225,6 @@ function transformReportForPDF(report, patient) {
   return {
     ...report,
     tests,
-    test_results,
     cultures,
     culture_results
   };
@@ -386,10 +415,14 @@ const PatientReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      const response = await axios.get(`${apiUrl}/patient/reports/${rowData.id}`, { headers });
-      const fullReport = response.data;
-      const transformed = transformReportForPDF(fullReport, user);
-      generateMedicalReportPDF(user, transformed);
+      // Use the correct endpoint that returns comprehensive data including testComponentResults
+      const response = await axios.get(`${apiUrl}/medical-reports/${rowData.id}`, { headers });
+      const fullReportData = response.data;
+      
+      // Use the patient data from the report response, not the user
+      const patient = fullReportData.patient || rowData.patient || user;
+      const transformed = transformReportForPDF(fullReportData, patient);
+      generateMedicalReportPDF(patient, transformed);
     } catch (error) {
       console.error("Failed to fetch full report for PDF", error);
     } finally {

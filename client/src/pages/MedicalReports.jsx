@@ -59,7 +59,8 @@ const MedicalReports = () => {
   const [activeTab, setActiveTab] = useState('tests');
   const [resultsData, setResultsData] = useState({
     test_results: [],
-    culture_results: []
+    culture_results: [],
+    test_component_results: {} // { testId: { componentId: { result: '', status: '' } } }
   });
   const [antibiotics, setAntibiotics] = useState([]);
   const [antibioticsLoaded, setAntibioticsLoaded] = useState(false); // Cache flag for antibiotics
@@ -449,6 +450,22 @@ const MedicalReports = () => {
         });
       });
 
+      // Transform testComponentResults from backend format to frontend format
+      // Backend: {testId: [array of component results]}
+      // Frontend: {testId: {componentId: {result: value}}}
+      const transformedTestComponentResults = {};
+      const backendTestComponentResults = resultsDataResponse.data.testComponentResults || {};
+      
+      Object.entries(backendTestComponentResults).forEach(([testId, componentResultsArray]) => {
+        transformedTestComponentResults[testId] = {};
+        componentResultsArray.forEach(componentResult => {
+          transformedTestComponentResults[testId][componentResult.test_component_id] = {
+            result: componentResult.result || '',
+            status: componentResult.status || 'pending'
+          };
+        });
+      });
+
       // Prepare initial results data
       const initialResultsData = {
         test_results: tests.map(test => ({
@@ -460,7 +477,8 @@ const MedicalReports = () => {
           culture_id: culture.id,
           result: culture.medical_report_has_culture?.result || '',
           status: culture.medical_report_has_culture?.status || 'pending'
-        }))
+        })),
+        test_component_results: transformedTestComponentResults
       };
 
       // Determine active tab
@@ -637,8 +655,38 @@ const MedicalReports = () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       };
+      console.log(resultsData);
+      console.log(resultsData.test_component_results);
+      // Save test component results
+      const testComponentResultsPromises = [];
+      Object.entries(resultsData.test_component_results || {}).forEach(([testId, components]) => {
+        // Get valid component IDs for this test to filter out invalid entries
+        const validComponentIds = (testComponents[testId] || []).map(comp => comp.id);
+        
+        Object.entries(components).forEach(([componentId, componentData]) => {
+          // Convert componentId to number and validate it's a valid component ID
+          const numericComponentId = parseInt(componentId, 10);
+          const isValidComponentId = !isNaN(numericComponentId) && validComponentIds.includes(numericComponentId);
+          
+          if (isValidComponentId && componentData.result !== undefined && componentData.result !== '') {
+            console.log(`Saving test component result for test ${testId} and component ${componentId}:`, componentData.result);
+            testComponentResultsPromises.push(
+              axios.post(
+                `${apiUrl}/medical-reports/${selectedReportForResults.id}/tests/${testId}/component-results`,
+                {
+                  component_results: [{
+                    test_component_id: numericComponentId, // Use the validated numeric component ID
+                    result: componentData.result
+                  }]
+                },
+                { headers }
+              )
+            );
+          }
+        });
+      });
 
-      // Save test results
+      // Save test results (for tests without components)
       const testResultsPromises = (resultsData.test_results || []).map(result =>
         axios.post(
           `${apiUrl}/medical-reports/${selectedReportForResults.id}/tests/${result.test_id}/result`,
@@ -750,6 +798,7 @@ const MedicalReports = () => {
       try {
         // Wait for all requests to complete
         await Promise.all([
+          ...testComponentResultsPromises,
           ...testResultsPromises,
           ...cultureResultsPromises,
           ...cultureAntibioticPromises,
@@ -760,7 +809,7 @@ const MedicalReports = () => {
         // Close the modal and refresh the data
         setShowResultsModal(false);
         setSelectedReportForResults(null);
-        setResultsData({ test_results: [], culture_results: [] });
+        setResultsData({ test_results: [], culture_results: [], test_component_results: {} });
         setTestGroupValues({});
         setCultureAntibiotics({});
         setSelectedCultureOptions({});
@@ -803,6 +852,22 @@ const MedicalReports = () => {
     }));
   };
 
+  const updateTestComponentResult = (testId, componentId, result) => {
+    setResultsData(prev => ({
+      ...prev,
+      test_component_results: {
+        ...prev.test_component_results,
+        [testId]: {
+          ...prev.test_component_results[testId],
+          [componentId]: {
+            ...prev.test_component_results[testId]?.[componentId],
+            result
+          }
+        }
+      }
+    }));
+  };
+
   const updateCultureResult = (cultureId, result) => {
     setResultsData(prev => ({
       ...prev,
@@ -810,6 +875,18 @@ const MedicalReports = () => {
         cr.culture_id === cultureId ? { ...cr, result } : cr
       )
     }));
+  };
+
+  const getStatusBadgeColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'normal': return 'success';
+      case 'high': case 'low': return 'warning';
+      case 'critical high': case 'critical low': return 'danger';
+      case 'abnormal': return 'warning';
+      case 'done': return 'info';
+      case 'pending': return 'secondary';
+      default: return 'secondary';
+    }
   };
 
   const updateCultureAntibiotic = (cultureResultId, antibioticId, sensitivity) => {
@@ -1508,7 +1585,7 @@ const MedicalReports = () => {
             onHide={() => {
               setShowResultsModal(false);
               setSelectedReportForResults(null);
-              setResultsData({ test_results: [], culture_results: [] });
+              setResultsData({ test_results: [], culture_results: [], test_component_results: {} });
               setCultureAntibiotics({});
               setExpandedSections({});
               setAntibioticSearch({});
@@ -1544,37 +1621,67 @@ const MedicalReports = () => {
                               const comps = testComponents[test.id] || [];
                               const patientAge = calculateAge(selectedReportForResults.patient?.birth_date);
                               const patientGender = selectedReportForResults.patient?.gender;
-                              let selectedComponent = null;
-                              if (comps.length > 0) {
-                                selectedComponent = comps.find(tc => {
-                                  const genderMatch = !tc.gender || tc.gender === patientGender;
-                                  const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
-                                    (tc.age_end == null || patientAge <= tc.age_end);
-                                  return genderMatch && ageMatch;
-                                }) || comps[0];
-                              }
+                              
+                              // Filter components based on patient age and gender
+                              // If patient data is missing (gender or birth_date), show all components as fallback
+                              const applicableComponents = (!patientGender || !selectedReportForResults.patient?.birth_date) 
+                                ? comps // Show all components when patient data is missing
+                                : comps.filter(tc => {
+                                    const genderMatch = !tc.gender || tc.gender === patientGender;
+                                    const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
+                                      (tc.age_end == null || patientAge <= tc.age_end);
+                                    return genderMatch && ageMatch;
+                                  });
+                              
                               return (
                                 <div key={test.id} className="border rounded p-3 mb-3">
-                                  <h6>{test.name}</h6>
-                                  {selectedComponent ? (
-                                    <Row className="mb-2">
-                                      <Col md={3}><strong>{selectedComponent.name}</strong></Col>
-                                      <Col md={2}><small className="text-muted">Normal: {selectedComponent.normal_from} - {selectedComponent.normal_to}</small></Col>
-                                      <Col md={2}><small className="text-muted">Unit: {selectedComponent.unit}</small></Col>
-                                      <Col md={3}>
-                                        <Form.Control
-                                          type="number"
-                                          step="0.01"
-                                          placeholder="Enter result"
-                                          value={resultsData.test_results.find(tr => tr.test_id === test.id)?.result || ''}
-                                          onChange={e => updateTestResult(test.id, e.target.value)}
-                                        />
-                                      </Col>
-                                      <Col md={2}>
-                                        <Badge bg="secondary">{test.status || 'pending'}</Badge>
-                                      </Col>
-                                    </Row>
+                                  <h6>{test.name} <Badge bg="secondary">{test.medical_report_has_test?.status || 'pending'}</Badge></h6>
+                                  
+                                  {applicableComponents.length > 0 ? (
+                                    <div>
+                                      {/* Header row for components */}
+                                      <Row className="mb-2 fw-bold text-muted">
+                                        <Col md={3}>Component</Col>
+                                        <Col md={2}>Normal Range</Col>
+                                        <Col md={2}>Unit</Col>
+                                        <Col md={3}>Result</Col>
+                                        <Col md={2}>Status</Col>
+                                      </Row>
+                                      
+                                      {/* Component rows */}
+                                      {applicableComponents.map((component, compIndex) => {
+                                        const componentResult = resultsData.test_component_results[test.id]?.[component.id];
+                                        return (
+                                          <Row key={component.id} className="mb-2 align-items-center">
+                                            <Col md={3}><strong>{component.name}</strong></Col>
+                                            <Col md={2}>
+                                              <small className="text-muted">
+                                                {component.normal_from !== null && component.normal_to !== null 
+                                                  ? `${component.normal_from} - ${component.normal_to}` 
+                                                  : component.reference_range || 'N/A'}
+                                              </small>
+                                            </Col>
+                                            <Col md={2}><small className="text-muted">{component.unit || 'N/A'}</small></Col>
+                                            <Col md={3}>
+                                              <Form.Control
+                                                type={component.result_type === 'text' ? 'text' : 'number'}
+                                                step={component.result_type === 'number' ? '0.01' : undefined}
+                                                placeholder="Enter result"
+                                                value={componentResult?.result || ''}
+                                                onChange={e => updateTestComponentResult(test.id, component.id, e.target.value)}
+                                              />
+                                            </Col>
+                                            <Col md={2}>
+                                              <Badge bg={getStatusBadgeColor(componentResult?.status || 'pending')}>
+                                                {componentResult?.status || 'pending'}
+                                              </Badge>
+                                            </Col>
+                                          </Row>
+                                        );
+                                      })}
+                                    </div>
                                   ) : (
+                                    // Fallback for tests without components
                                     <Row className="mb-2">
                                       <Col md={3}><strong>{test.name}</strong></Col>
                                       <Col md={2}></Col>
@@ -1589,7 +1696,7 @@ const MedicalReports = () => {
                                         />
                                       </Col>
                                       <Col md={2}>
-                                        <Badge bg="secondary">{test.status || 'pending'}</Badge>
+                                        <Badge bg="secondary">{test.medical_report_has_test?.status || 'pending'}</Badge>
                                       </Col>
                                     </Row>
                                   )}
@@ -2021,7 +2128,7 @@ const MedicalReports = () => {
                 onClick={() => {
                   setShowResultsModal(false);
                   setSelectedReportForResults(null);
-                  setResultsData({ test_results: [], culture_results: [] });
+                  setResultsData({ test_results: [], culture_results: [], test_component_results: {} });
                   setCultureAntibiotics({});
                   setExpandedSections({});
                   setAntibioticSearch({});
