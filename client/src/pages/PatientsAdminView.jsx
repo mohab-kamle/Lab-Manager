@@ -236,7 +236,7 @@ const PatientsAdminView = () => {
         'Patient Code': patient.patientcode,
         'Name': patient.name,
         'Email': patient.email,
-        'Gender': patient.gender === 'm' ? 'Male' : patient.gender === 'f' ? 'Female' : '',
+        'Gender': patient.gender? patient.gender :'',
         'Birth Date': patient.birth_date ? new Date(patient.birth_date).toLocaleDateString() : '',
         'National ID': patient.national_id,
         'Nationality': patient.nationality,
@@ -503,7 +503,7 @@ const PatientsAdminView = () => {
       case 'birth_date':
         return value ? new Date(value).toLocaleDateString() : '-';
       case 'gender':
-        return value === 'm' ? 'Male' : value === 'f' ? 'Female' : '-';
+        return value;
       case 'patientcode':
         return value ? value.toString() : '-';
       case 'total':
@@ -870,8 +870,8 @@ const PatientsAdminView = () => {
                         isInvalid={!!formErrors.gender}
                       >
                         <option value="">Select Gender</option>
-                        <option value="m">Male</option>
-                        <option value="f">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
                       </Form.Select>
                       <Form.Control.Feedback type="invalid">
                         {formErrors.gender}
@@ -1167,7 +1167,7 @@ const PatientsAdminView = () => {
                   onChange={(e) => setImportFile(e.target.files[0])}
                 />
                 <Form.Text className="text-muted">
-                  File should contain columns: Name (required), Primary Phone (required), Email, Gender (m/f), Birth Date (YYYY-MM-DD), National ID, Nationality, Passport No, Address, Secondary Phone, Total, Paid, Due, Contract (format: "Region - Governorate"), Diseases (comma-separated disease names)
+                  File should contain columns: Name (required), Primary Phone (required), Email, Gender (Male/Female), Birth Date (YYYY-MM-DD), National ID, Nationality, Passport No, Address, Secondary Phone, Total, Paid, Due, Contract (format: "Region - Governorate"), Diseases (comma-separated disease names)
                 </Form.Text>
               </Form.Group>
             </Modal.Body>
