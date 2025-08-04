@@ -204,15 +204,14 @@ app.get('/health', async (req, res) => {
   }
 });
 // detailed Health check
-app.get('/health/detailed', async (req, res) => {
-  const health = {
-    database: await checkDatabaseHealth(),
-    memory: process.memoryUsage(),
-    uptime: process.uptime(),
-    connections: getActiveConnections()
-  };
-  res.json(health);
-});
+// app.get('/health/detailed', async (req, res) => {
+//   const health = {
+//     memory: process.memoryUsage(),
+//     uptime: process.uptime(),
+//     connections: getActiveConnections()
+//   };
+//   res.json(health);
+// });
 
 // =========================
 // Routers
