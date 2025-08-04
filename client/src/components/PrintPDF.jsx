@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 4,
     marginBottom: 2,
-    fontSize: 6,
+    fontSize: 9,
     backgroundColor: '#dedfeb',
   },
   infoText: {
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   testResultBox: {
     minWidth: 80,
     borderRadius: 16,
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -839,7 +839,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                 
                 return (
                   <View key={testIndex}>
-                    <View style={styles.testCard}>
+                    <View style={styles.testCard} wrap={false}>
                       <View style={styles.testCardCol}>
                         <Text style={styles.testName}>{test.name || 'Unknown Test'}</Text>
                         {/* Display component name if available */}
@@ -874,7 +874,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                           </Text>
                         )}
                       </View>
-                      <View style={[styles.testResultBox, { backgroundColor: resultColor }]}>
+                      <View style={[styles.testResultBox, { borderColor:resultColor , borderWidth: 1 }]}>
                         <Text style={styles.testResultText}>
                           {test.result_type === 'boolean'
                             ? (test.result === 'positive' ? 'Positive' : test.result === 'negative' ? 'Negative' : test.result || 'N/A')
@@ -884,8 +884,8 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                       {test.status && (
                         <Text style={[
                           styles.testStatusBadge,
-                          test.status.toLowerCase() === 'normal' || test.status.toLowerCase() === 'n' ? styles.normalBadge :
-                            test.status.toLowerCase() === 'abnormal' || test.status.toLowerCase() === 'a' ? styles.abnormalBadge :
+                          test.status.toLowerCase() === 'done' || test.status.toLowerCase() === 'd' ? styles.normalBadge :
+                            test.status.toLowerCase() === 'pending' || test.status.toLowerCase() === 'p' ? styles.abnormalBadge :
                               styles.otherBadge
                         ]}>
                           {test.status}
@@ -1594,38 +1594,92 @@ function transformReportForPDF(report, patient) {
         gender: component.gender
       }));
       
-      allComponents = mappedComponents;
+      // Smart filtering logic based on available patient data
+      let finalFilteredComponents;
       
-      // Check if we have component-level results from the new structure
-      if (report.testComponentResults && report.testComponentResults[test.id]) {
+      // Check what patient data is available
+      const hasGender = patientGender && patientGender !== 'N/A';
+      const hasAge = patientAge !== null && patientAge !== undefined && !isNaN(patientAge);
+      
+      if (!hasGender && !hasAge) {
+        // If both gender and age are missing, show all components
+        finalFilteredComponents = mappedComponents;
+      } else if (!hasGender && hasAge) {
+        // If only gender is missing, filter by age only
+        const ageFilteredComponents = mappedComponents.filter(tc => {
+          const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
+                           (tc.age_end == null || patientAge <= tc.age_end);
+          return ageMatch;
+        });
+        finalFilteredComponents = ageFilteredComponents.length > 0 ? ageFilteredComponents : mappedComponents;
+      } else if (hasGender && !hasAge) {
+        // If only age is missing, filter by gender only
+        const genderFilteredComponents = mappedComponents.filter(tc => {
+          return !tc.gender || tc.gender == patientGender;
+        });
+        finalFilteredComponents = genderFilteredComponents.length > 0 ? genderFilteredComponents : mappedComponents;
+      } else {
+        // Both gender and age are available, filter by both
+        const genderFilteredComponents = mappedComponents.filter(tc => {
+          return !tc.gender || tc.gender == patientGender;
+        });
+        
+        const componentsToFilter = genderFilteredComponents.length > 0 ? genderFilteredComponents : mappedComponents;
+        
+        const ageFilteredComponents = componentsToFilter.filter(tc => {
+          const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
+                           (tc.age_end == null || patientAge <= tc.age_end);
+          return ageMatch;
+        });
+        
+        finalFilteredComponents = ageFilteredComponents.length > 0 ? ageFilteredComponents : componentsToFilter;
+      }
+      
+      allComponents = finalFilteredComponents;
+      
+      // Check if we have component-level results from the API structure
+      if (test.component_results && test.component_results.length > 0) {
+        // Use component results directly from the API
+        hasComponentResults = true;
+        componentResults = test.component_results.filter(cr => {
+          // Filter component results by gender and age if component data is available
+          const component = cr.test_component;
+          if (!component) return true; // Keep if no component data to filter by
+          
+          // Filter by gender
+          if (component.gender && component.gender !== 'both' && component.gender !== patient.gender) {
+            return false;
+          }
+          
+          // Filter by age
+          if (component.age_start !== null && component.age_start !== undefined && patientAge < component.age_start) {
+            return false;
+          }
+          if (component.age_end !== null && component.age_end !== undefined && patientAge > component.age_end) {
+            return false;
+          }
+          
+          return true;
+        });
+      } else if (report.testComponentResults && report.testComponentResults[test.id]) {
+        // Fallback to testComponentResults structure
         hasComponentResults = true;
         componentResults = report.testComponentResults[test.id].map(cr => {
-          // Use the component data from the backend response (cr.test_component) or find it in mappedComponents
-          const component = cr.test_component || mappedComponents.find(c => c.id === cr.test_component_id);
+          const component = cr.test_component || finalFilteredComponents.find(c => c.id === cr.test_component_id);
           return {
             ...cr,
-            component: component
+            test_component: component
           };
         });
+      } else if (finalFilteredComponents.length > 1) {
+        // Only treat as multi-component test if there are actual saved results
+        // Don't create empty placeholder results for PDF generation
+        hasComponentResults = false;
+        componentResults = [];
       }
       
-      // Find component that matches patient's age and gender (for fallback display)
-      selectedComponent = mappedComponents.find(tc => {
-        const genderMatch = !tc.gender || tc.gender == patientGender;
-        const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
-                         (tc.age_end == null || patientAge <= tc.age_end);
-        return genderMatch && ageMatch;
-      });
-      
-      // If no exact match found, try to find a component without gender/age restrictions
-      if (!selectedComponent) {
-        selectedComponent = mappedComponents.find(tc => !tc.gender && tc.age_start == null && tc.age_end == null);
-      }
-      
-      // If still no match, fallback to first component
-      if (!selectedComponent) {
-        selectedComponent = mappedComponents[0];
-      }
+      // Select the first component from the filtered set as the primary component
+      selectedComponent = finalFilteredComponents[0] || mappedComponents[0];
     }
     
     // Access result and status from the medical_report_has_test relationship
