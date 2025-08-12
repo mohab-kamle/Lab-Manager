@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, pao_has_test, pao_has_culture, bill_has_tg, medical_report_tg_field_value, medical_report_has_tg, test_group, branch } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, medical_report_culture_result, pao_has_test, pao_has_culture, bill_has_tg, medical_report_has_tg, test_group, branch } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -962,6 +962,97 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
             await bill_has_tg.bulkCreate(testGroupRecords);
         }
 
+        // Find the associated medical report
+        const medicalReport = await medical_report.findOne({ where: { bill_id: id } });
+
+        if (medicalReport) {
+            // Update medical_report_has_test
+            if (tests) {
+                // Get existing medical report tests
+                const existingMedicalReportTests = await medical_report_has_test.findAll({ where: { medical_report_id: medicalReport.id } });
+                const existingTestIds = new Set(existingMedicalReportTests.map(t => t.test_id));
+
+                // Identify tests to add
+                const testsToAdd = tests.filter(test_id => !existingTestIds.has(parseInt(test_id)))
+                                        .map(test_id => ({
+                                            medical_report_id: medicalReport.id,
+                                            test_id: parseInt(test_id),
+                                            status: 'pending' // Default status
+                                        }));
+
+                // Identify tests to remove
+                const testsToRemoveIds = existingMedicalReportTests.filter(existingTest => !tests.includes(existingTest.test_id.toString()))
+                                                                .map(t => t.id);
+
+                // Perform deletions and additions
+                if (testsToRemoveIds.length > 0) {
+                    await medical_report_has_test.destroy({ where: { id: testsToRemoveIds } });
+                }
+                if (testsToAdd.length > 0) {
+                    await medical_report_has_test.bulkCreate(testsToAdd);
+                }
+            }
+
+            // Update medical_report_has_culture
+            if (cultures) {
+                // Get existing medical report cultures
+                const existingMedicalReportCultures = await medical_report_has_culture.findAll({ where: { medical_report_id: medicalReport.id } });
+                const existingCultureIds = new Set(existingMedicalReportCultures.map(c => c.culture_id));
+
+                // Identify cultures to add
+                const culturesToAdd = cultures.filter(culture_id => !existingCultureIds.has(parseInt(culture_id)))
+                                            .map(culture_id => ({
+                                                medical_report_id: medicalReport.id,
+                                                culture_id: parseInt(culture_id),
+                                                status: 'pending' // Default status
+                                            }));
+
+                // Identify cultures to remove
+                const culturesToRemove = existingMedicalReportCultures.filter(existingCulture => !cultures.includes(existingCulture.culture_id.toString()));
+                const culturesToRemoveIds = culturesToRemove.map(c => c.id);
+
+                // Delete dependent records in medical_report_culture_result first for cultures being removed
+                if (culturesToRemoveIds.length > 0) {
+                    await medical_report_culture_result.destroy({ where: { medical_report_has_culture_id: culturesToRemoveIds } });
+                }
+
+                // Perform deletions and additions
+                if (culturesToRemoveIds.length > 0) {
+                    await medical_report_has_culture.destroy({ where: { id: culturesToRemoveIds } });
+                }
+                if (culturesToAdd.length > 0) {
+                    await medical_report_has_culture.bulkCreate(culturesToAdd);
+                }
+            }
+
+            // Update medical_report_has_tg
+            if (test_groups) {
+                // Get existing medical report test groups
+                const existingMedicalReportTGs = await medical_report_has_tg.findAll({ where: { medical_report_id: medicalReport.id } });
+                const existingTGIds = new Set(existingMedicalReportTGs.map(tg => tg.test_group_id));
+
+                // Identify test groups to add
+                const tgsToAdd = test_groups.filter(tg_id => !existingTGIds.has(parseInt(tg_id)))
+                                            .map(tg_id => ({
+                                                medical_report_id: medicalReport.id,
+                                                test_group_id: parseInt(tg_id),
+                                                value: null // Default value
+                                            }));
+
+                // Identify test groups to remove
+                const tgsToRemoveIds = existingMedicalReportTGs.filter(existingTG => !test_groups.includes(existingTG.test_group_id.toString()))
+                                                                .map(tg => tg.id);
+
+                // Perform deletions and additions
+                if (tgsToRemoveIds.length > 0) {
+                    await medical_report_has_tg.destroy({ where: { id: tgsToRemoveIds } });
+                }
+                if (tgsToAdd.length > 0) {
+                    await medical_report_has_tg.bulkCreate(tgsToAdd);
+                }
+            }
+        }
+
         // Fetch the updated bill with all associations
         const updatedBill = await bill.findOne({
             where: { id },
@@ -1083,6 +1174,15 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res
         await bill_has_package.destroy({ where: { bill_id: id }, transaction });
         await bill_has_payment_method.destroy({ where: { bill_id: id }, transaction });
         await bill_has_tg.destroy({ where: { bill_id: id }, transaction });
+
+        // Find and delete associated medical report and its entries
+        const medicalReport = await medical_report.findOne({ where: { bill_id: id }, transaction });
+        if (medicalReport) {
+            await medical_report_has_test.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
+            await medical_report_has_culture.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
+            await medical_report_has_tg.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
+            await medicalReport.destroy({ transaction });
+        }
 
         // Delete the bill
         await existingBill.destroy({ transaction });

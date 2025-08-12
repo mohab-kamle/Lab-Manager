@@ -20,6 +20,7 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-labmanager}
       MYSQL_USER: ${MYSQL_USER:-labuser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-labpassword}
+    command: --max_connections=2000
     ports:
       - "3306:3306"
     volumes:
@@ -36,7 +37,7 @@ services:
       context: ./server
       dockerfile: Dockerfile
     container_name: labmanager-backend
-    command: node --max-old-space-size=2048 index.js
+    # Removed custom command to use PM2 cluster mode from Dockerfile
     restart: unless-stopped
     env_file: .docker.env
     environment:
@@ -49,6 +50,7 @@ services:
       - "3001:3001"
     volumes:
       - ./server/uploads:/app/uploads
+      - ./server/logs:/app/logs
     depends_on:
       mysql:
         condition: service_healthy

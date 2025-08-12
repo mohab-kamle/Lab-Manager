@@ -163,8 +163,17 @@ export const LabProvider = ({ children }) => {
   const updateLabInfo = async (labData) => {
     try {
       setError(null);
-      
-      await axios.put(`${apiUrl}/labs/${labInfo.id}`, labData);
+      //missing authorization headers
+      if (!labInfo || !labInfo.id) {
+        const errorMsg = 'Lab information not loaded. Please wait until lab info is available.';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+      await axios.put(`${apiUrl}/labs/${labInfo.id}`, labData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       
       // Update local state
       setLabInfo(prev => ({ ...prev, ...labData }));
@@ -220,19 +229,9 @@ export const LabProvider = ({ children }) => {
   const getTrialDaysRemaining = () => getTrialDaysLeft();
   const isOnTrial = () => isInTrial();
 
-  // Upgrade subscription (stub / basic implementation)
-  const upgradeSubscription = async ({ duration, amount }) => {
-    if (!labInfo) throw new Error('Lab information not loaded');
-    try {
-      const response = await axios.post(`${apiUrl}/labs/${labInfo.id}/subscription/upgrade`, { duration, amount });
-      // Refresh local state after upgrade
-      await fetchLabInfo();
-      return { success: true, data: response.data };
-    } catch (err) {
-      console.error('Error upgrading subscription:', err);
-      const errorMsg = err.response?.data?.error || 'Failed to upgrade subscription';
-      throw new Error(errorMsg);
-    }
+  // Refresh lab data after subscription upgrade
+  const refreshAfterUpgrade = async () => {
+    await fetchLabInfo();
   };
 
   // Refresh lab data
@@ -262,7 +261,7 @@ export const LabProvider = ({ children }) => {
     isInTrial,
     getTrialDaysLeft,
     getTrialDaysRemaining,
-    upgradeSubscription,
+    refreshAfterUpgrade,
     isSubscriptionActive,
     isOnTrial,
     refreshLabData,

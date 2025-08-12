@@ -1,0 +1,83 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      redis:
+        specifier: ^5.7.0
+        version: 5.7.0
+
+packages:
+
+  '@redis/bloom@5.7.0':
+    resolution: {integrity: sha512-KtBHDH2Aw1BxYDQd87PJsdEmZcpMbD4oPzdBwB4IvSRmMovukO2NNGi5vpCHhCoicS83zu7cjX1fw79uFBZFJA==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      '@redis/client': ^5.7.0
+
+  '@redis/client@5.7.0':
+    resolution: {integrity: sha512-YV3Knspdj9k6H6s4v8QRcj1WBxHt40vtPmszLKGwRUOUpUOLWSlI9oCUjprMDcQNzgSCXGXYdL/Aj6nT2+Ub0w==}
+    engines: {node: '>= 18'}
+
+  '@redis/json@5.7.0':
+    resolution: {integrity: sha512-VP3wtse1PSB/UjZAV1lWyDrWrrZcwi/cjb3L0lIarcIJ+EbHliB2QPml0Bvjz8F8F0eDJRtChJVXFc+jhGxCtA==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      '@redis/client': ^5.7.0
+
+  '@redis/search@5.7.0':
+    resolution: {integrity: sha512-dDZIq8pZJnT+kZ9xRlLLi2Rvkd792z9eh31QRIwPr5wXjAXeaQ+Nf65em6dLpsxZ60MmhwDwLrBPJpYVjKPBPQ==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      '@redis/client': ^5.7.0
+
+  '@redis/time-series@5.7.0':
+    resolution: {integrity: sha512-AJTF9sz3y1MJAukgQW4Jw8zt8qGOE3+1d87pufOP35zsFBlHipGscpctoXiNMebfy0114y/FjSprr65LjbJQSQ==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      '@redis/client': ^5.7.0
+
+  cluster-key-slot@1.1.2:
+    resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
+    engines: {node: '>=0.10.0'}
+
+  redis@5.7.0:
+    resolution: {integrity: sha512-ZRbiWYBUYdDTopodRjCVwwCLThrkciPW3bOrkdMCW3nYEelBwUGN6SovmACDsiLUB7mnU3mXnaI5f0W7bDcwng==}
+    engines: {node: '>= 18'}
+
+snapshots:
+
+  '@redis/bloom@5.7.0(@redis/client@5.7.0)':
+    dependencies:
+      '@redis/client': 5.7.0
+
+  '@redis/client@5.7.0':
+    dependencies:
+      cluster-key-slot: 1.1.2
+
+  '@redis/json@5.7.0(@redis/client@5.7.0)':
+    dependencies:
+      '@redis/client': 5.7.0
+
+  '@redis/search@5.7.0(@redis/client@5.7.0)':
+    dependencies:
+      '@redis/client': 5.7.0
+
+  '@redis/time-series@5.7.0(@redis/client@5.7.0)':
+    dependencies:
+      '@redis/client': 5.7.0
+
+  cluster-key-slot@1.1.2: {}
+
+  redis@5.7.0:
+    dependencies:
+      '@redis/bloom': 5.7.0(@redis/client@5.7.0)
+      '@redis/client': 5.7.0
+      '@redis/json': 5.7.0(@redis/client@5.7.0)
+      '@redis/search': 5.7.0(@redis/client@5.7.0)
+      '@redis/time-series': 5.7.0(@redis/client@5.7.0)

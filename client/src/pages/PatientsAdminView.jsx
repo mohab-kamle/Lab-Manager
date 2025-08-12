@@ -34,6 +34,11 @@ const PatientsAdminView = () => {
     email: "",
     gender: "",
     birth_date: "",
+    birth_day: "",
+    birth_month: "",
+    birth_year: "",
+    age: "",
+    use_age: false,
     national_id: "",
     nationality: "",
     passport_no: "",
@@ -47,6 +52,36 @@ const PatientsAdminView = () => {
     contract_id: "",
     referral_id: ""
   });
+
+  // Helper function to calculate birth date from age
+  const calculateBirthDateFromAge = (age) => {
+    const currentDate = new Date();
+    const birthYear = currentDate.getFullYear() - parseInt(age);
+    return `${birthYear}-01-01`; // Default to January 1st
+  };
+
+  // Helper function to update birth_date when day/month/year change
+  const updateBirthDateFromComponents = (day, month, year) => {
+    if (day && month && year) {
+      const formattedDay = day.toString().padStart(2, '0');
+      const formattedMonth = month.toString().padStart(2, '0');
+      return `${year}-${formattedMonth}-${formattedDay}`;
+    }
+    return null;
+  };
+
+  // Helper function to parse birth_date into components
+  const parseBirthDate = (birthDate) => {
+    if (birthDate) {
+      const date = new Date(birthDate);
+      return {
+        day: date.getDate().toString(),
+        month: (date.getMonth() + 1).toString(),
+        year: date.getFullYear().toString()
+      };
+    }
+    return { day: "", month: "", year: "" };
+  };
   const [formErrors, setFormErrors] = useState({});
   const [lastAttemptedPatient, setLastAttemptedPatient] = useState(null);
   const [showRetryButton, setShowRetryButton] = useState(false);
@@ -143,10 +178,20 @@ const PatientsAdminView = () => {
   const handleAddPatient = async (e) => {
     e.preventDefault();
     try {
+      // Calculate birth_date based on input method
+      let finalBirthDate = null;
+      if (patient.use_age && patient.age) {
+        finalBirthDate = calculateBirthDateFromAge(patient.age);
+      } else if (patient.birth_day && patient.birth_month && patient.birth_year) {
+        finalBirthDate = updateBirthDateFromComponents(patient.birth_day, patient.birth_month, patient.birth_year);
+      } else if (patient.birth_date) {
+        finalBirthDate = new Date(patient.birth_date).toISOString().split('T')[0];
+      }
+
       // Clean up the patient object
       const cleanedPatient = {
         ...patient,
-        birth_date: patient.birth_date ? new Date(patient.birth_date).toISOString().split('T')[0] : null,
+        birth_date: finalBirthDate,
         primaryPhone: patient.primaryPhone || null,
         secondaryPhone: patient.secondaryPhone || null,
         diseases: patient.diseases || [],
@@ -437,12 +482,27 @@ const PatientsAdminView = () => {
         size="sm"
         onClick={() => {
           setEditingPatient(rowData);
+          
+          // Parse birth date components if birth_date exists
+          let birthComponents = { birth_day: "", birth_month: "", birth_year: "", age: "", use_age: false };
+          if (rowData.birth_date) {
+            const parsed = parseBirthDate(rowData.birth_date);
+            birthComponents = {
+              birth_day: parsed.day,
+              birth_month: parsed.month,
+              birth_year: parsed.year,
+              age: "",
+              use_age: false
+            };
+          }
+          
           setPatient({
             ...rowData,
             name: rowData.name || "",
             email: rowData.email || "",
             gender: rowData.gender || "",
             birth_date: rowData.birth_date ? new Date(rowData.birth_date) : null,
+            ...birthComponents,
             national_id: rowData.national_id || "",
             nationality: rowData.nationality || "",
             passport_no: rowData.passport_no || "",
@@ -552,6 +612,11 @@ const PatientsAdminView = () => {
       email: "",
       gender: "",
       birth_date: "",
+      birth_day: "",
+      birth_month: "",
+      birth_year: "",
+      age: "",
+      use_age: false,
       national_id: "",
       nationality: "",
       passport_no: "",
@@ -880,17 +945,106 @@ const PatientsAdminView = () => {
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Birth Date *</Form.Label>
-                      <DatePicker
-                        selected={patient.birth_date}
-                        onChange={(date) => {
-                          setPatient({ ...patient, birth_date: date });
-                          if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
-                        }}
-                        className={`form-control ${formErrors.birth_date ? 'is-invalid' : ''}`}
-                        dateFormat="yyyy-MM-dd"
-                        maxDate={new Date()}
-                      />
+                      <Form.Label>Birth Date / Age *</Form.Label>
+                      <div className="mb-2">
+                        <Form.Check
+                          type="radio"
+                          name="birthDateMethod"
+                          id="use-date"
+                          label="Enter Birth Date"
+                          checked={!patient.use_age}
+                          onChange={() => setPatient({ ...patient, use_age: false, age: "" })}
+                          inline
+                        />
+                        <Form.Check
+                          type="radio"
+                          name="birthDateMethod"
+                          id="use-age"
+                          label="Enter Age"
+                          checked={patient.use_age}
+                          onChange={() => setPatient({ ...patient, use_age: true, birth_day: "", birth_month: "", birth_year: "" })}
+                          inline
+                        />
+                      </div>
+                      {!patient.use_age ? (
+                        <Row>
+                          <Col xs={4}>
+                            <Form.Control
+                              type="number"
+                              placeholder="Day"
+                              value={patient.birth_day}
+                              onChange={(e) => {
+                                const day = e.target.value;
+                                const newPatient = { ...patient, birth_day: day };
+                                if (day && patient.birth_month && patient.birth_year) {
+                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
+                                }
+                                setPatient(newPatient);
+                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
+                              }}
+                              min="1"
+                              max="31"
+                              className={formErrors.birth_date ? 'is-invalid' : ''}
+                            />
+                          </Col>
+                          <Col xs={4}>
+                            <Form.Control
+                              type="number"
+                              placeholder="Month"
+                              value={patient.birth_month}
+                              onChange={(e) => {
+                                const month = e.target.value;
+                                const newPatient = { ...patient, birth_month: month };
+                                if (patient.birth_day && month && patient.birth_year) {
+                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
+                                }
+                                setPatient(newPatient);
+                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
+                              }}
+                              min="1"
+                              max="12"
+                              className={formErrors.birth_date ? 'is-invalid' : ''}
+                            />
+                          </Col>
+                          <Col xs={4}>
+                            <Form.Control
+                              type="number"
+                              placeholder="Year"
+                              value={patient.birth_year}
+                              onChange={(e) => {
+                                const year = e.target.value;
+                                const newPatient = { ...patient, birth_year: year };
+                                if (patient.birth_day && patient.birth_month && year) {
+                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
+                                }
+                                setPatient(newPatient);
+                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
+                              }}
+                              min="1900"
+                              max={new Date().getFullYear()}
+                              className={formErrors.birth_date ? 'is-invalid' : ''}
+                            />
+                          </Col>
+                        </Row>
+                      ) : (
+                        <Form.Control
+                          type="number"
+                          placeholder="Enter age in years"
+                          value={patient.age}
+                          onChange={(e) => {
+                            const age = e.target.value;
+                            const newPatient = { ...patient, age };
+                            if (age) {
+                              newPatient.birth_date = new Date(calculateBirthDateFromAge(age));
+                            }
+                            setPatient(newPatient);
+                            if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
+                          }}
+                          min="0"
+                          max="150"
+                          className={formErrors.birth_date ? 'is-invalid' : ''}
+                        />
+                      )}
                       {formErrors.birth_date && (
                         <div className="invalid-feedback d-block">
                           {formErrors.birth_date}

@@ -229,6 +229,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     email: "",
     gender: "",
     birth_date: "",
+    birth_day: "",
+    birth_month: "",
+    birth_year: "",
+    age: "",
+    use_age: false,
     national_id: "",
     nationality: "",
     passport_no: "",
@@ -243,8 +248,37 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [showDiseaseCreateModal, setShowDiseaseCreateModal] = useState(false);
   const [newDisease, setNewDisease] = useState({
     name: "",
-    details: ""
+    description: ""
   });
+
+  // Helper function to calculate birth date from age
+  const calculateBirthDateFromAge = (age) => {
+    if (!age || isNaN(age)) return null;
+    const currentYear = new Date().getFullYear();
+    const birthYear = currentYear - parseInt(age);
+    return `${birthYear}-01-01`;
+  };
+
+  // Helper function to update birth_date when day/month/year change
+  const updateBirthDateFromComponents = (day, month, year) => {
+    if (day && month && year) {
+      const formattedDay = day.toString().padStart(2, '0');
+      const formattedMonth = month.toString().padStart(2, '0');
+      return `${year}-${formattedMonth}-${formattedDay}`;
+    }
+    return "";
+  };
+
+  // Helper function to parse birth_date into components
+  const parseBirthDate = (birthDate) => {
+    if (!birthDate) return { day: "", month: "", year: "" };
+    const date = new Date(birthDate);
+    return {
+      day: date.getDate().toString(),
+      month: (date.getMonth() + 1).toString(),
+      year: date.getFullYear().toString()
+    };
+  };
   // Referral modal states
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [newReferral, setNewReferral] = useState({
@@ -263,9 +297,19 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         return;
       }
       const token = localStorage.getItem("token");
+      // Calculate birth_date based on input method
+      let finalBirthDate = null;
+      if (patientForm.use_age && patientForm.age) {
+        finalBirthDate = calculateBirthDateFromAge(patientForm.age);
+      } else if (patientForm.birth_day && patientForm.birth_month && patientForm.birth_year) {
+        finalBirthDate = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, patientForm.birth_year);
+      } else if (patientForm.birth_date) {
+        finalBirthDate = new Date(patientForm.birth_date).toISOString().split('T')[0];
+      }
+
       const cleanedPatient = {
         ...patientForm,
-        birth_date: patientForm.birth_date ? new Date(patientForm.birth_date).toISOString().split('T')[0] : null,
+        birth_date: finalBirthDate,
         primaryPhone: patientForm.primaryPhone || null,
         secondaryPhone: patientForm.secondaryPhone || null,
         diseases: patientForm.diseases || [], // This should be an array of disease IDs
@@ -296,6 +340,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         email: "",
         gender: "",
         birth_date: "",
+        birth_day: "",
+        birth_month: "",
+        birth_year: "",
+        age: "",
+        use_age: false,
         national_id: "",
         nationality: "",
         passport_no: "",
@@ -860,7 +909,19 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     currentPage * itemsPerPage
   );
 
-  const formatCellData = (value, header) => {
+  // State to track expanded cells for each row and column
+  const [expandedCells, setExpandedCells] = useState({});
+
+  // Function to toggle cell expansion
+  const toggleCellExpansion = (rowId, columnType) => {
+    const cellKey = `${rowId}-${columnType}`;
+    setExpandedCells(prev => ({
+      ...prev,
+      [cellKey]: !prev[cellKey]
+    }));
+  };
+
+  const formatCellData = (value, header, rowData) => {
     if (value === null || value === undefined) return '-';
     
     switch (header) {
@@ -869,27 +930,201 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       case 'patient_name':
         return value;
       case 'tests':
-      case 'cultures':
-      case 'packages':
-      case 'test_groups':
-        if (!Array.isArray(value) || value.length === 0) return '-';
-        return (
-          <table style={{ borderCollapse: 'collapse', width: '100%', border: '1px solid #ddd', fontSize: '0.9rem' }}>
-            <thead>
-              <tr>
-                <th style={{ border: '1px solid #ddd', padding: '4px', background: '#f5f5f5' }}>Name</th>
-                <th style={{ border: '1px solid #ddd', padding: '4px', background: '#f5f5f5' }}>Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {value.map((item, index) => (
-                <tr key={index}>
-                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>{item.name}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>EGP {item.price}</td>
-                </tr>
+        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No tests</span>;
+        
+        const testsExpanded = expandedCells[`${rowData.id}-tests`];
+        
+        if (value.length <= 3 || testsExpanded) {
+          return (
+            <div className="d-flex flex-wrap">
+              {value.length > 3 && (
+                <div className="mt-2">
+                  <Button 
+                    variant="outline-success" 
+                    size="sm" 
+                    onClick={() => toggleCellExpansion(rowData.id, 'tests')}
+                    style={{fontSize: '0.7em', padding: '2px 6px'}}
+                  >
+                    {testsExpanded ? '▲ Show Less' : '▼ Show All'}
+                  </Button>
+                </div>
+              )}
+              {value.map((test, index) => (
+                <Badge key={index} bg="success" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
+                  {test.name} (EGP {test.price})
+                </Badge>
               ))}
-            </tbody>
-          </table>
+              
+            </div>
+          );
+        }
+        
+        return (
+          <div>
+            <Badge bg="success" className="me-2" style={{fontSize: '0.8em'}}>
+              🧪 {value.length} Tests
+            </Badge>
+            <Button 
+              variant="outline-success" 
+              size="sm" 
+              onClick={() => toggleCellExpansion(rowData.id, 'tests')}
+              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
+            >
+              ▼ Expand
+            </Button>
+            <br />
+            <small className="text-muted">
+              Total: EGP {value.reduce((sum, test) => sum + parseFloat(test.price || 0), 0).toFixed(2)}
+            </small>
+          </div>
+        );
+        
+      case 'cultures':
+        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No cultures</span>;
+        
+        const culturesExpanded = expandedCells[`${rowData.id}-cultures`];
+        
+        if (value.length <= 3 || culturesExpanded) {
+          return (
+            <div className="d-flex flex-wrap">
+              {value.length > 3 && (
+                <div className="mt-2">
+                  <Button 
+                    variant="outline-info" 
+                    size="sm" 
+                    onClick={() => toggleCellExpansion(rowData.id, 'cultures')}
+                    style={{fontSize: '0.7em', padding: '2px 6px'}}
+                  >
+                    {culturesExpanded ? '▲ Show Less' : '▼ Show All'}
+                  </Button>
+                </div>
+              )}
+              {value.map((culture, index) => (
+                <Badge key={index} bg="info" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
+                  {culture.name} (EGP {culture.price})
+                </Badge>
+              ))}
+              
+            </div>
+          );
+        }
+        
+        return (
+          <div>
+            <Badge bg="info" className="me-2" style={{fontSize: '0.8em'}}>
+              🦠 {value.length} Cultures
+            </Badge>
+            <Button 
+              variant="outline-info" 
+              size="sm" 
+              onClick={() => toggleCellExpansion(rowData.id, 'cultures')}
+              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
+            >
+              ▼ Expand
+            </Button>
+            <br />
+            <small className="text-muted">
+              Total: EGP {value.reduce((sum, culture) => sum + parseFloat(culture.price || 0), 0).toFixed(2)}
+            </small>
+          </div>
+        );
+        
+      case 'packages':
+        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No packages</span>;
+        
+        const packagesExpanded = expandedCells[`${rowData.id}-packages`];
+        
+        if (value.length <= 3 || packagesExpanded) {
+          return (
+            <div>
+              {value.map((pkg, index) => (
+                <Badge key={index} bg="warning" text="dark" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
+                  {pkg.name} (EGP {pkg.price})
+                </Badge>
+              ))}
+              {value.length > 3 && (
+                <div className="mt-2">
+                  <Button 
+                    variant="outline-warning" 
+                    size="sm" 
+                    onClick={() => toggleCellExpansion(rowData.id, 'packages')}
+                    style={{fontSize: '0.7em', padding: '2px 6px'}}
+                  >
+                    {packagesExpanded ? '▲ Show Less' : '▼ Show All'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        }
+        
+        return (
+          <div>
+            <Badge bg="warning" text="dark" className="me-2" style={{fontSize: '0.8em'}}>
+              📦 {value.length} Packages
+            </Badge>
+            <Button 
+              variant="outline-warning" 
+              size="sm" 
+              onClick={() => toggleCellExpansion(rowData.id, 'packages')}
+              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
+            >
+              ▼ Expand
+            </Button>
+            <br />
+            <small className="text-muted">
+              Total: EGP {value.reduce((sum, pkg) => sum + parseFloat(pkg.price || 0), 0).toFixed(2)}
+            </small>
+          </div>
+        );
+        
+      case 'test_groups':
+        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No test groups</span>;
+        
+        const testGroupsExpanded = expandedCells[`${rowData.id}-test_groups`];
+        
+        if (value.length <= 3 || testGroupsExpanded) {
+          return (
+            <div>
+              {value.map((tg, index) => (
+                <Badge key={index} bg="secondary" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
+                  {tg.name} (EGP {tg.price})
+                </Badge>
+              ))}
+              {value.length > 3 && (
+                <div className="mt-2">
+                  <Button 
+                    variant="outline-secondary" 
+                    size="sm" 
+                    onClick={() => toggleCellExpansion(rowData.id, 'test_groups')}
+                    style={{fontSize: '0.7em', padding: '2px 6px'}}
+                  >
+                    {testGroupsExpanded ? '▲ Show Less' : '▼ Show All'}
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        }
+        
+        return (
+          <div>
+            <Badge bg="secondary" className="me-2" style={{fontSize: '0.8em'}}>
+              🔬 {value.length} Test Groups
+            </Badge>
+            <Button 
+              variant="outline-secondary" 
+              size="sm" 
+              onClick={() => toggleCellExpansion(rowData.id, 'test_groups')}
+              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
+            >
+              ▼ Expand
+            </Button>
+            <br />
+            <small className="text-muted">
+              Total: EGP {value.reduce((sum, tg) => sum + parseFloat(tg.price || 0), 0).toFixed(2)}
+            </small>
+          </div>
         );
       case 'payments':
         if (!Array.isArray(value) || value.length === 0) return '-';
@@ -930,8 +1165,28 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         size="sm"
         onClick={() => {
           setEditingInvoice(rowData);
+          // Extract IDs from the nested objects for editing
+          const testIds = rowData.tests ? rowData.tests.map(t => String(t.id)) : [];
+          const cultureIds = rowData.cultures ? rowData.cultures.map(c => String(c.id)) : [];
+          const packageIds = rowData.packages ? rowData.packages.map(p => String(p.id)) : [];
+          const testGroupIds = rowData.test_groups ? rowData.test_groups.map(tg => String(tg.id)) : [];
+          const paymentMethods = rowData.payments ? rowData.payments.map(p => ({
+            payment_method_id: String(p.payment_method_id),
+            paid_amount: String(p.paid_amount)
+          })) : [];
+          
+          // Calculate discount percentage from discount amount and subtotal
+          const calculatedDiscountPercentage = rowData.subtotal > 0 ? 
+            ((Number(rowData.discount) || 0) / Number(rowData.subtotal)) * 100 : 0;
+          
+          setDiscountPercentage(calculatedDiscountPercentage);
           setInvoice({
             ...rowData,
+            tests: testIds,
+            cultures: cultureIds,
+            packages: packageIds,
+            test_groups: testGroupIds,
+            payments: paymentMethods,
             subtotal: Number(rowData.subtotal) || 0,
             discount: Number(rowData.discount) || 0,
             tax: Number(rowData.tax) || 0,
@@ -939,7 +1194,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             paid: Number(rowData.paid) || 0,
             due: Number(rowData.due) || 0,
             date: new Date(rowData.date),
-            branch_id: rowData.branch_id || ""
+            branch_id: rowData.branch_id || "",
+            patient_id: rowData.patient_id,
+            status_id: rowData.status_id,
+            receptionist_id: rowData.receptionist_id
           });
           setModalSuccessMessage("");
           setShowAddModal(true);
@@ -1106,8 +1364,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                 <strong>Note:</strong> When you save this invoice, the patient's total, paid, and due amounts will be automatically updated in their profile.
               </Alert>
               <Form onSubmit={handleAddInvoice}>
+                {/* Patient Selection and Creation - Full Width Row */}
                 <Row>
-                  <Col md={6}>
+                  <Col md={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Patient</Form.Label>
                       <div className="d-flex align-items-center gap-2">
@@ -1176,13 +1435,98 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                               </Col>
                               <Col md={6}>
                                 <Form.Group className="mb-3">
-                                  <Form.Label>Birth Date (Optional)</Form.Label>
-                                  <DatePicker
-                                    className="form-control"
-                                    selected={patientForm.birth_date ? new Date(patientForm.birth_date) : null}
-                                    onChange={(date) => setPatientForm({ ...patientForm, birth_date: date ? date.toISOString().split('T')[0] : null })}
-                                    placeholderText="e.g., 2000-01-01"
-                                  />
+                                  <Form.Label>Birth Date / Age (Optional)</Form.Label>
+                                  <div className="mb-2">
+                                    <Form.Check
+                                      type="radio"
+                                      name="birthDateMethod"
+                                      id="use-date"
+                                      label="Enter Birth Date"
+                                      checked={!patientForm.use_age}
+                                      onChange={() => setPatientForm({ ...patientForm, use_age: false, age: "" })}
+                                      inline
+                                    />
+                                    <Form.Check
+                                      type="radio"
+                                      name="birthDateMethod"
+                                      id="use-age"
+                                      label="Enter Age"
+                                      checked={patientForm.use_age}
+                                      onChange={() => setPatientForm({ ...patientForm, use_age: true, birth_day: "", birth_month: "", birth_year: "" })}
+                                      inline
+                                    />
+                                  </div>
+                                  {!patientForm.use_age ? (
+                                    <Row>
+                                      <Col xs={4}>
+                                        <Form.Control
+                                          type="number"
+                                          placeholder="Day"
+                                          value={patientForm.birth_day}
+                                          onChange={(e) => {
+                                            const day = e.target.value;
+                                            const newForm = { ...patientForm, birth_day: day };
+                                            if (day && patientForm.birth_month && patientForm.birth_year) {
+                                              newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                            }
+                                            setPatientForm(newForm);
+                                          }}
+                                          min="1"
+                                          max="31"
+                                        />
+                                      </Col>
+                                      <Col xs={4}>
+                                        <Form.Control
+                                          type="number"
+                                          placeholder="Month"
+                                          value={patientForm.birth_month}
+                                          onChange={(e) => {
+                                            const month = e.target.value;
+                                            const newForm = { ...patientForm, birth_month: month };
+                                            if (patientForm.birth_day && month && patientForm.birth_year) {
+                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                            }
+                                            setPatientForm(newForm);
+                                          }}
+                                          min="1"
+                                          max="12"
+                                        />
+                                      </Col>
+                                      <Col xs={4}>
+                                        <Form.Control
+                                          type="number"
+                                          placeholder="Year"
+                                          value={patientForm.birth_year}
+                                          onChange={(e) => {
+                                            const year = e.target.value;
+                                            const newForm = { ...patientForm, birth_year: year };
+                                            if (patientForm.birth_day && patientForm.birth_month && year) {
+                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                            }
+                                            setPatientForm(newForm);
+                                          }}
+                                          min="1900"
+                                          max={new Date().getFullYear()}
+                                        />
+                                      </Col>
+                                    </Row>
+                                  ) : (
+                                    <Form.Control
+                                      type="number"
+                                      placeholder="Enter age in years"
+                                      value={patientForm.age}
+                                      onChange={(e) => {
+                                        const age = e.target.value;
+                                        const newForm = { ...patientForm, age };
+                                        if (age) {
+                                          newForm.birth_date = calculateBirthDateFromAge(age);
+                                        }
+                                        setPatientForm(newForm);
+                                      }}
+                                      min="0"
+                                      max="150"
+                                    />
+                                  )}
                                 </Form.Group>
                               </Col>
                             </Row>
@@ -1367,7 +1711,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       )}
                     </Form.Group>
                   </Col>
-                  <Col md={user?.role === 'admin' ? 3 : 6}>
+                </Row>
+
+                {/* Status and Receptionist Row */}
+                <Row>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Status</Form.Label>
                       <Form.Select
@@ -1387,7 +1735,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                           </option>
                         ))}
                       </Form.Select>
-                      <Form.Text className="text-muted">
+                      <Form.Text className="text-muted ">
                         Leave empty to automatically set: Pending (if due), Done (if fully paid), or Overpaid (if negative due)
                       </Form.Text>
                       <Form.Control.Feedback type="invalid">
@@ -1395,7 +1743,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
-                  <Col md={3}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Receptionist <span style={{color: 'red'}}>*</span></Form.Label>
                       <Form.Select
@@ -1424,6 +1772,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                     </Form.Group>
                   </Col>
                 </Row>
+
+                {/* Branch and Date Selection */}
 
                 <Row>
                   <Col md={6}>
@@ -1468,6 +1818,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                     </Form.Group>
                   </Col>
                 </Row>
+
+                {/* Tests, Cultures, Packages, and Test Groups Selection */}
 
                 <Row>
                   <Col md={4}>
@@ -1612,75 +1964,142 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                   </Col>
                 </Row>
 
+                {/* Selected Items Summary - Restructured with two rows for better visual layout */}
+                {(invoice.tests.length > 0 || invoice.cultures.length > 0 || invoice.packages.length > 0 || invoice.test_groups.length > 0) && (
+                  <Row className="mb-4">
+                    <Col md={12}>
+                      <div className="border rounded p-3 bg-light">
+                        <h6 className="mb-3 text-primary">📋 Selected Items Summary</h6>
+                        
+                        {/* First Row: Tests and Cultures */}
+                        <Row className="mb-3">
+                          {invoice.tests.length > 0 && (
+                            <Col md={6}>
+                              <div className="mb-3">
+                                <strong className="text-success">🧪 Tests ({invoice.tests.length})</strong>
+                                <div className="mt-2">
+                                  {invoice.tests.map(testId => {
+                                    const test = tests.find(t => t.id === parseInt(testId));
+                                    return test ? (
+                                      <Badge key={testId} bg="success" className="me-1 mb-1 d-inline-flex align-items-center">
+                                        {test.name} (EGP {test.price})
+                                        <button 
+                                          type="button" 
+                                          className="btn-close btn-close-white ms-2" 
+                                          style={{fontSize: '0.6em'}}
+                                          onClick={() => {
+                                            const filtered = invoice.tests.filter(id => id !== String(test.id));
+                                            setInvoice(prev => {
+                                              const newInvoice = { ...prev, tests: filtered };
+                                              return updateInvoiceCalculations(newInvoice);
+                                            });
+                                          }}
+                                        ></button>
+                                      </Badge>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            </Col>
+                          )}
+                          {invoice.cultures.length > 0 && (
+                            <Col md={6}>
+                              <div className="mb-3">
+                                <strong className="text-info">🦠 Cultures ({invoice.cultures.length})</strong>
+                                <div className="mt-2">
+                                  {invoice.cultures.map(cultureId => {
+                                    const culture = cultures.find(c => c.id === parseInt(cultureId));
+                                    return culture ? (
+                                      <Badge key={cultureId} bg="info" className="me-1 mb-1 d-inline-flex align-items-center">
+                                        {culture.name} (EGP {culture.price})
+                                        <button 
+                                          type="button" 
+                                          className="btn-close btn-close-white ms-2" 
+                                          style={{fontSize: '0.6em'}}
+                                          onClick={() => {
+                                            const filtered = invoice.cultures.filter(id => id !== String(culture.id));
+                                            setInvoice(prev => {
+                                              const newInvoice = { ...prev, cultures: filtered };
+                                              return updateInvoiceCalculations(newInvoice);
+                                            });
+                                          }}
+                                        ></button>
+                                      </Badge>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            </Col>
+                          )}
+                        </Row>
+                        
+                        {/* Second Row: Packages and Test Groups */}
+                        <Row>
+                          {invoice.packages.length > 0 && (
+                            <Col md={6}>
+                              <div className="mb-3">
+                                <strong className="text-warning">📦 Packages ({invoice.packages.length})</strong>
+                                <div className="mt-2">
+                                  {invoice.packages.map(packageId => {
+                                    const pkg = packages.find(p => p.id === parseInt(packageId));
+                                    return pkg ? (
+                                      <Badge key={packageId} bg="warning" text="dark" className="me-1 mb-1 d-inline-flex align-items-center">
+                                        {pkg.name} (EGP {pkg.price})
+                                        <button 
+                                          type="button" 
+                                          className="btn-close ms-2" 
+                                          style={{fontSize: '0.6em'}}
+                                          onClick={() => {
+                                            const filtered = invoice.packages.filter(id => id !== String(pkg.id));
+                                            setInvoice(prev => {
+                                              const newInvoice = { ...prev, packages: filtered };
+                                              return updateInvoiceCalculations(newInvoice);
+                                            });
+                                          }}
+                                        ></button>
+                                      </Badge>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            </Col>
+                          )}
+                          {invoice.test_groups.length > 0 && (
+                            <Col md={6}>
+                              <div className="mb-3">
+                                <strong className="text-secondary">🔬 Test Groups ({invoice.test_groups.length})</strong>
+                                <div className="mt-2">
+                                  {invoice.test_groups.map(tgId => {
+                                    const tg = testGroups.find(t => t.id === parseInt(tgId));
+                                    return tg ? (
+                                      <Badge key={tgId} bg="secondary" className="me-1 mb-1 d-inline-flex align-items-center">
+                                        {tg.name} (EGP {tg.price})
+                                        <button 
+                                          type="button" 
+                                          className="btn-close btn-close-white ms-2" 
+                                          style={{fontSize: '0.6em'}}
+                                          onClick={() => {
+                                            const filtered = invoice.test_groups.filter(id => id !== String(tg.id));
+                                            setInvoice(prev => {
+                                              const newInvoice = { ...prev, test_groups: filtered };
+                                              return updateInvoiceCalculations(newInvoice);
+                                            });
+                                          }}
+                                        ></button>
+                                      </Badge>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            </Col>
+                          )}
+                        </Row>
+                      </div>
+                    </Col>
+                  </Row>
+                )}
+
                 <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Payment Methods</Form.Label>
-                      {invoice.payments.map((payment, index) => (
-                        <div key={index} className="d-flex gap-2 mb-2">
-                          <Form.Select
-                            value={payment.payment_method_id}
-                            onChange={(e) => {
-                              const newPayments = [...invoice.payments];
-                              newPayments[index].payment_method_id = e.target.value;
-                              const newInvoice = { ...invoice, payments: newPayments };
-                              setInvoice(updatePaidFromPayments(newInvoice));
-                            }}
-                          >
-                            <option value="">Select Method</option>
-                            {paymentMethods.map(method => (
-                              <option key={method.id} value={method.id}>
-                                {method.name}
-                              </option>
-                            ))}
-                          </Form.Select>
-                          <Form.Control
-                            type="number"
-                            placeholder="Amount"
-                            value={payment.paid_amount}
-                            onChange={(e) => {
-                              const newPayments = [...invoice.payments];
-                              newPayments[index].paid_amount = e.target.value;
-                              const newInvoice = { ...invoice, payments: newPayments };
-                              setInvoice(updatePaidFromPayments(newInvoice));
-                            }}
-                          />
-                          <Button
-                            variant="outline-danger"
-                            onClick={() => {
-                              const newPayments = invoice.payments.filter((_, i) => i !== index);
-                              const newInvoice = { ...invoice, payments: newPayments };
-                              setInvoice(updatePaidFromPayments(newInvoice));
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        variant="outline-primary"
-                        onClick={() => {
-                          const newInvoice = {
-                            ...invoice,
-                            payments: [
-                              ...invoice.payments,
-                              { payment_method_id: "", paid_amount: "" }
-                            ]
-                          };
-                          setInvoice(updatePaidFromPayments(newInvoice));
-                        }}
-                      >
-                        Add Payment Method
-                      </Button>
-                      {invoice.payments.length > 0 && (
-                        <div className="mt-2">
-                          <small className="text-muted">
-                            Payment Methods Total: EGP {calculatePaymentTotal(invoice.payments).toFixed(2)}
-                          </small>
-                        </div>
-                      )}
-                    </Form.Group>
-                  </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Discount (%)</Form.Label>
@@ -1700,6 +2119,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         </Form.Text>
                       )}
                     </Form.Group>
+                  </Col>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Tax</Form.Label>
                       <Form.Control
@@ -1776,7 +2197,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                             />
                             {invoice.payments.length === 0 && (
                               <Form.Text className="text-muted">
-                                Add payment methods above to automatically calculate paid amount
+                                Add payment methods below to automatically calculate paid amount
                               </Form.Text>
                             )}
                           </Form.Group>
@@ -1793,6 +2214,98 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                           </Form.Group>
                         </Col>
                       </Row>
+                    </div>
+                  </Col>
+                </Row>
+
+                {/* Payment Methods Section - Final Step */}
+                <Row className="mt-4">
+                  <Col md={12}>
+                    <div className="border rounded p-3 bg-light">
+                      <h6 className="mb-3 text-primary">💳 Payment Methods - Final Step</h6>
+                      <p className="text-muted mb-3">Now that you know the total amount (EGP {invoice.total?.toFixed(2) || "0.00"}), choose how the payment will be made:</p>
+                      
+                      {invoice.payments.map((payment, index) => (
+                        <div key={index} className="d-flex gap-2 mb-2">
+                          <Form.Select
+                            value={payment.payment_method_id}
+                            onChange={(e) => {
+                              const newPayments = [...invoice.payments];
+                              newPayments[index].payment_method_id = e.target.value;
+                              const newInvoice = { ...invoice, payments: newPayments };
+                              setInvoice(updatePaidFromPayments(newInvoice));
+                            }}
+                            style={{ minWidth: '200px' }}
+                          >
+                            <option value="">Select Payment Method</option>
+                            {paymentMethods.map(method => (
+                              <option key={method.id} value={method.id}>
+                                {method.name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          <Form.Control
+                            type="number"
+                            placeholder="Amount to pay"
+                            value={payment.paid_amount}
+                            onChange={(e) => {
+                              const newPayments = [...invoice.payments];
+                              newPayments[index].paid_amount = e.target.value;
+                              const newInvoice = { ...invoice, payments: newPayments };
+                              setInvoice(updatePaidFromPayments(newInvoice));
+                            }}
+                            style={{ minWidth: '150px' }}
+                          />
+                          <Button
+                            variant="outline-danger"
+                            onClick={() => {
+                              const newPayments = invoice.payments.filter((_, i) => i !== index);
+                              const newInvoice = { ...invoice, payments: newPayments };
+                              setInvoice(updatePaidFromPayments(newInvoice));
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                      
+                      <div className="d-flex gap-2 align-items-center mt-3">
+                        <Button
+                          variant="outline-primary"
+                          onClick={() => {
+                            const newInvoice = {
+                              ...invoice,
+                              payments: [
+                                ...invoice.payments,
+                                { payment_method_id: "", paid_amount: "" }
+                              ]
+                            };
+                            setInvoice(updatePaidFromPayments(newInvoice));
+                          }}
+                        >
+                          + Add Payment Method
+                        </Button>
+                        
+                        {invoice.payments.length > 0 && (
+                          <div className="ms-3">
+                            <Badge bg="info" className="fs-6">
+                              Total Paid: EGP {calculatePaymentTotal(invoice.payments).toFixed(2)}
+                            </Badge>
+                            {calculatePaymentTotal(invoice.payments) < (invoice.total || 0) && (
+                              <Badge bg="warning" text="dark" className="ms-2 fs-6">
+                                Remaining: EGP {((invoice.total || 0) - calculatePaymentTotal(invoice.payments)).toFixed(2)}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {invoice.payments.length === 0 && (
+                        <Alert variant="info" className="mt-3 mb-0">
+                          <i className="fas fa-info-circle me-2"></i>
+                          You can add multiple payment methods if the customer pays using different methods (e.g., cash + card).
+                        </Alert>
+                      )}
                     </div>
                   </Col>
                 </Row>

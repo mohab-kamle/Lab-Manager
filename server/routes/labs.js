@@ -155,14 +155,15 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), async (req, res
     }
 
     // Update lab
-    const lab = await lab.findByPk(labId);
-    if (!lab) {
+    //change name of the object to not conflict with the lab model
+    const labToUpdate = await lab.findByPk(labId);
+    if (!labToUpdate) {
       return res.status(404).json({ error: 'Lab not found' });
     }
 
-    await lab.update(updateData);
+    await labToUpdate.update(updateData);
 
-    res.json(lab);
+    res.json(labToUpdate);
   } catch (error) {
     console.error('Error updating lab:', error);
     res.status(500).json({ error: 'Failed to update lab information' });
@@ -196,27 +197,71 @@ router.get('/:labId/subscription', async (req, res) => {
   }
 });
 
-// Upgrade subscription (placeholder for payment integration)
+// Upgrade subscription after successful payment
 router.post('/:labId/upgrade', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { labId } = req.params;
-    const { plan, paymentMethod } = req.body;
+    const { plan, paymentMethod, merchant_order_id } = req.body;
 
     // Verify user belongs to this lab
     if (req.user.lab_id !== parseInt(labId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // TODO: Integrate with payment gateway (Stripe/local payment methods)
-    // For now, simulate successful payment
-    const lab = await lab.findByPk(labId);
-    if (!lab) {
+    const labRecord = await lab.findByPk(labId);
+    if (!labRecord) {
       return res.status(404).json({ error: 'Lab not found' });
     }
 
-    // Update subscription status
-    await lab.update({
+    // If merchant_order_id is provided, verify payment was successful and get payment amount
+    let paymentAmount = 0;
+    if (merchant_order_id) {
+      const { lab_payment } = require('../models');
+      const payment = await lab_payment.findOne({
+        where: { 
+          merchant_order_id: merchant_order_id,
+          lab_id: labId,
+          payment_status: 'paid',
+          confirmed: true
+        }
+      });
+      
+      if (!payment) {
+        return res.status(400).json({ error: 'Payment not found or not confirmed' });
+      }
+      
+      // Get the payment amount from the payment record
+      paymentAmount = payment.amount || 0;
+    }
+
+    // Calculate subscription dates based on plan
+    const startDate = new Date();
+    let endDate = new Date();
+    
+    switch (plan) {
+      case 'monthly':
+        endDate.setMonth(endDate.getMonth() + 1);
+        break;
+      case '3_months':
+        endDate.setMonth(endDate.getMonth() + 3);
+        break;
+      case '6_months':
+        endDate.setMonth(endDate.getMonth() + 6);
+        break;
+      case 'yearly':
+        endDate.setFullYear(endDate.getFullYear() + 1);
+        break;
+      default:
+        endDate.setMonth(endDate.getMonth() + 1); // Default to monthly
+    }
+
+    // Update subscription status and amount
+    await labRecord.update({
       subscription_status: 'active',
+      subscription_start_date: startDate.toISOString().split('T')[0],
+      subscription_end_date: endDate.toISOString().split('T')[0],
+      subscription_duration: plan,
+      subscription_amount: paymentAmount,
       trial_expires_at: null
     });
 
@@ -225,7 +270,9 @@ router.post('/:labId/upgrade', authenticateUser, authorizeRoles('admin'), async 
       message: 'Subscription upgraded successfully',
       subscription: {
         status: 'active',
-        plan: plan
+        plan: plan,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
       }
     });
   } catch (error) {
@@ -292,4 +339,4 @@ router.get('/:labId/activity-log', authenticateUser, authorizeRoles('admin'), as
   }
 });
 
-module.exports = router; 
+module.exports = router;

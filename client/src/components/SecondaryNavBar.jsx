@@ -3,8 +3,9 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Navbar, Nav, Container, Button, Dropdown } from "react-bootstrap";
-import { Users, FileText, User, FlaskConical, Eye } from "lucide-react";
+import { Users, FileText, User, FlaskConical, Eye, Database, DollarSignIcon, Settings } from "lucide-react";
 import useLabPrefix from '../hooks/useLabPrefix';
+import './SecondaryNavBar.css';
 
 const SecondaryNavBar = () => {
   const { user } = useAuth();
@@ -22,38 +23,15 @@ const SecondaryNavBar = () => {
         
       }}
     >
-      <Container className="d-flex justify-content-evenly">
+      <Container className="d-flex align-items-center justify-content-center">
         {/* Test Groups Dropdown for admin, chemist, receptionist */}
         {(user?.role === "admin" || user?.role === "chemist" || user?.role === "receptionist") && (
-          <Dropdown className="mx-1 mb-1 ">
+          <Dropdown className="mx-1 mb-1">
             <Dropdown.Toggle 
-              variant="outline-light" 
-              id="dropdown-testgroups"
-              style={{
-                borderRadius: '20px',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                padding: '6px 12px',
-                fontSize: '0.85rem',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                whiteSpace: 'nowrap',
-                transform: 'translateY(0)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0) scale(1)';
-                e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-              }}
+              id="dropdown-basic"
+              className="nav-button"
             >
+              <FlaskConical size={18} className="me-1 mb-1" />
               Test Groups
             </Dropdown.Toggle>
             <Dropdown.Menu>
@@ -76,34 +54,9 @@ const SecondaryNavBar = () => {
             {(user?.role === "admin" || user?.role === "chemist" || user?.role === "employee") && (
               <Dropdown className="mx-1 mb-1">
                 <Dropdown.Toggle 
-                  variant="outline-light" 
                   id="dropdown-basic"
-                  style={{
-                    borderRadius: '20px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    whiteSpace: 'nowrap',
-                    transform: 'translateY(0)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0) scale(1)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
                 >
-                  Tests & Cultures
+                  <Database size={18} className="me-1 mb-1"/>Tests & Cultures
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu>
@@ -165,34 +118,9 @@ const SecondaryNavBar = () => {
             {(user?.role === "admin" || user?.role === "receptionist") && (
               <Dropdown className="mx-1 mb-1">
                 <Dropdown.Toggle 
-                  variant="outline-light" 
                   id="dropdown-basic"
-                  style={{
-                    borderRadius: '20px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    whiteSpace: 'nowrap',
-                    transform: 'translateY(0)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0) scale(1)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
                 >
-                  Reception
+                  <Users size={18} className="me-1 mb-1"/>Reception
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu>
@@ -227,32 +155,9 @@ const SecondaryNavBar = () => {
                 <Dropdown.Toggle 
                   variant="outline-light" 
                   id="dropdown-basic"
-                  style={{
-                    borderRadius: '20px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    whiteSpace: 'nowrap',
-                    transform: 'translateY(0)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0) scale(1)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
+                  className="nav-button"
                 >
-                  Medical Reports
+                  <FileText size={18} className="me-1 mb-1"/>Medical Reports
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu>
@@ -269,30 +174,7 @@ const SecondaryNavBar = () => {
                 <Dropdown.Toggle 
                   variant="outline-light" 
                   id="dropdown-employee-view"
-                  style={{
-                    borderRadius: '20px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    whiteSpace: 'nowrap',
-                    transform: 'translateY(0)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0) scale(1)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
+                  className="nav-button"
                 >
                   <Eye size={16} className="me-1" />
                   View Only
@@ -315,34 +197,9 @@ const SecondaryNavBar = () => {
             {user?.role === "admin" && (
               <Dropdown className="mx-1 mb-1">
                 <Dropdown.Toggle 
-                  variant="outline-light" 
                   id="dropdown-basic"
-                  style={{
-                    borderRadius: '20px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    whiteSpace: 'nowrap',
-                    transform: 'translateY(0)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0) scale(1)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
                 >
-                  Accounting
+                  <DollarSignIcon size={18} className="me-1 mb-1"/>Accounting
                 </Dropdown.Toggle>
 
                 <Dropdown.Menu>
@@ -359,34 +216,10 @@ const SecondaryNavBar = () => {
             {/* Admin-only links */}
             {user?.role === "admin" && (
               <Dropdown className="mx-1 mb-1">
-                <Dropdown.Toggle 
-                  variant="outline-light" 
-                  id="dropdown-manage-branches"
-                  style={{
-                    borderRadius: '20px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    whiteSpace: 'nowrap',
-                    transform: 'translateY(0)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0) scale(1)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
+                <Dropdown.Toggle  
+                  id="dropdown-basic"
                 >
+                  <Settings size={18} className="me-1 mb-1"/>
                   Manage Branches
                 </Dropdown.Toggle>
                 <Dropdown.Menu>
@@ -411,64 +244,16 @@ const SecondaryNavBar = () => {
             <Nav.Link
               as={Link}
               to={`${prefix}/patient/dashboard/profile`}
-              className="text-white d-flex flex-column align-items-center mx-2 mb-1"
-              style={{
-                borderRadius: '15px',
-                padding: '8px 12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                fontSize: '0.85rem',
-                whiteSpace: 'nowrap',
-                transform: 'translateY(0)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0) scale(1)';
-                e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-              }}
+              className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
             >
-              <User size={20} className="mb-1" /> Profile
+              <User size={18} className="mb-1" /> Profile
             </Nav.Link>
             <Nav.Link
               as={Link}
               to={`${prefix}/patient/dashboard/reports`}
-              className="text-white d-flex flex-column align-items-center mx-2 mb-1"
-              style={{
-                borderRadius: '15px',
-                padding: '8px 12px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                fontSize: '0.85rem',
-                whiteSpace: 'nowrap',
-                transform: 'translateY(0)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                e.target.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0) scale(1)';
-                e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-              }}
+              className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
             >
-              <FlaskConical size={20} className="mb-1" /> Reports
+              <FlaskConical size={18} className="mb-1" /> Reports
             </Nav.Link>
           </>
         )}

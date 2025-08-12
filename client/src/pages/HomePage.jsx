@@ -10,6 +10,10 @@ import {
   Alert,
   Card,
 } from "react-bootstrap";
+import PrivacyPolicy from "../components/PrivacyPolicy";
+import RefundPolicy from "../components/RefundPolicy";
+import AboutUs from "../components/AboutUs";
+import TermsAndConditions from "../components/TermsAndConditions";
 import {
   Play,
   ArrowRight,
@@ -495,192 +499,13 @@ const HomePage = () => {
           </div>
         </Container>
 
-        {/* Terms & Conditions Modal */}
-        <Modal
-          show={showTerms}
-          onHide={() => setShowTerms(false)}
-          centered
-          aria-labelledby="terms-modal-title"
-        >
-          <Modal.Header closeButton>
-            <Modal.Title id="terms-modal-title">Terms & Conditions</Modal.Title>
-          </Modal.Header>
-          <Modal.Body style={{ whiteSpace: "pre-line" }}>
-            <strong>
-              These Terms and Conditions ("Terms") govern your use of our
-              website and services. By accessing or using any part of the site,
-              you agree to be bound by these Terms.
-            </strong>
-            {"\n\n"}
-            <strong>1. Use of Website</strong>
-            {"\n"}
-            You agree to use our site for lawful purposes only and not to
-            violate any laws or regulations.
-            {"\n\n"}
-            <strong>2. Intellectual Property</strong>
-            {"\n"}
-            All content, trademarks, and data on this website are the property
-            of Lab Doctors Laboratories and are protected by applicable
-            intellectual property laws.
-            {"\n\n"}
-            <strong>3. User Accounts</strong>
-            {"\n"}
-            You are responsible for maintaining the confidentiality of your
-            account and password.
-            {"\n\n"}
-            <strong>4. Termination</strong>
-            {"\n"}
-            We reserve the right to suspend or terminate access to our services
-            at any time without notice.
-            {"\n\n"}
-            <strong>5. Modifications</strong>
-            {"\n"}
-            We may revise these Terms from time to time. Continued use of the
-            site means you accept any changes.
-            {"\n\n"}
-            Contact us at{" "}
-            <a href="mailto:techsupport@labdoctors-laboratories.com">
-              techsupport@labdoctors-laboratories.com
-            </a>{" "}
-            with any questions about these Terms.
-          </Modal.Body>
-        </Modal>
 
-        {/* Privacy Policy Modal */}
-        <Modal
-          show={showPrivacy}
-          onHide={() => setShowPrivacy(false)}
-          centered
-          aria-labelledby="privacy-modal-title"
-        >
-          <Modal.Header closeButton>
-            <Modal.Title id="privacy-modal-title">Privacy Policy</Modal.Title>
-          </Modal.Header>
-          <Modal.Body style={{ whiteSpace: "pre-line" }}>
-            <strong>
-              Your privacy is important to us. This Privacy Policy outlines how
-              we collect, use, and protect your information.
-            </strong>
-            {"\n\n"}
-            <strong>1. Data We Collect</strong>
-            {"\n"}
-            We collect personal data such as name, email, and medical records
-            only when you voluntarily provide it.
-            {"\n\n"}
-            <strong>2. How We Use Your Data</strong>
-            {"\n"}
-            We use your data to deliver services, improve our website, and
-            communicate with you securely.
-            {"\n\n"}
-            <strong>3. Sharing of Data</strong>
-            {"\n"}
-            We do not sell, rent, or share your personal information with third
-            parties, unless required by law.
-            {"\n\n"}
-            <strong>4. Security</strong>
-            {"\n"}
-            We implement industry-standard security measures to protect your
-            information.
-            {"\n\n"}
-            <strong>5. Cookies</strong>
-            {"\n"}
-            Our website may use cookies to enhance your user experience.
-            {"\n\n"}
-            <strong>6. Your Rights</strong>
-            {"\n"}
-            You have the right to request access, correction, or deletion of
-            your data.
-            {"\n\n"}
-            For inquiries, contact:{" "}
-            <a href="mailto:techsupport@labdoctors-laboratories.com">
-              techsupport@labdoctors-laboratories.com
-            </a>
-          </Modal.Body>
-        </Modal>
 
-        {/* Refund Policy Modal */}
-        <Modal
-          show={showRefund}
-          onHide={() => setShowRefund(false)}
-          centered
-          aria-labelledby="refund-modal-title"
-        >
-          <Modal.Header closeButton>
-            <Modal.Title id="refund-modal-title">Refund Policy</Modal.Title>
-          </Modal.Header>
-          <Modal.Body style={{ whiteSpace: "pre-line" }}>
-            <strong>
-              We aim for complete satisfaction. Here is our refund policy:
-            </strong>
-            {"\n\n"}
-            <strong>1. Services Rendered</strong>
-            {"\n"}
-            Due to the nature of medical and laboratory services, completed
-            services are generally non-refundable.
-            {"\n\n"}
-            <strong>2. Cancellation</strong>
-            {"\n"}
-            If a test is canceled before being processed, a full or partial
-            refund may be issued.
-            {"\n\n"}
-            <strong>3. Errors</strong>
-            {"\n"}
-            In case of technical errors or wrong billing, please contact us
-            within 7 days to review your case.
-            {"\n\n"}
-            <strong>4. Refund Timeline</strong>
-            {"\n"}
-            Approved refunds will be processed within 5-10 business days.
-            {"\n\n"}
-            Contact our support team at{" "}
-            <a href="mailto:techsupport@labdoctors-laboratories.com">
-              techsupport@labdoctors-laboratories.com
-            </a>{" "}
-            for assistance with refunds.
-          </Modal.Body>
-        </Modal>
+        <PrivacyPolicy showPrivacy={showPrivacy} setShowPrivacy={setShowPrivacy} />
+        <RefundPolicy showRefund={showRefund} setShowRefund={setShowRefund} />
+        <TermsAndConditions showTerms={showTerms} setShowTerms={setShowTerms} />
 
-        {/* About Us Modal (Know Us) */}
-        <Modal
-          show={showAbout}
-          onHide={() => setShowAbout(false)}
-          centered
-          size="lg"
-          aria-labelledby="about-modal-title"
-        >
-          <Modal.Header closeButton>
-            <Modal.Title id="about-modal-title">About Us</Modal.Title>
-          </Modal.Header>
-          <Modal.Body style={{ whiteSpace: "pre-line" }}>
-            <strong>
-              At Lab Doctors Laboratories, we combine modern technology with
-              expert care to provide fast, accurate, and accessible lab testing
-              services.
-            </strong>
-            {"\n\n"}
-            <span role="img" aria-label="star">
-              🌟
-            </span>{" "}
-            <strong>Our Mission</strong>
-            {"\n"}
-            To make medical diagnostics simpler, faster, and more transparent
-            for everyone.
-            {"\n\n"}
-            <strong>💼 What We Offer</strong>
-            {"\n"}- A wide range of medical lab tests - Home sample collection -
-            Secure patient reports - Doctor-reviewed results
-            {"\n\n"}
-            <strong>
-              📍 Based in Egypt. Proudly serving thousands of patients with
-              excellence and care.
-            </strong>
-            {"\n\n"}
-            For support or inquiries, email:{" "}
-            <a href="mailto:techsupport@labdoctors-laboratories.com">
-              techsupport@labdoctors-laboratories.com
-            </a>
-          </Modal.Body>
-        </Modal>
+        <AboutUs showAbout={showAbout} setShowAbout={setShowAbout} />
       </footer>
 
       {/* Demo Request Modal */}

@@ -32,16 +32,13 @@
     "use_env_variable": "DATABASE_URL",
     "dialect": "mysql",
     "pool": {
-      "max": 50,
-      "min": 10,
+      "max": 100,
+      "min": 20,
       "acquire": 30000,
       "idle": 10000,
       "evict": 10000
     },
     "dialectOptions": {
-      "ssl": {
-        "rejectUnauthorized": false
-      },
       "connectTimeout": 60000
     }
   }

@@ -1,6 +1,20 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('medical_report_has_culture', {
+  class MedicalReportHasCulture extends sequelize.Sequelize.Model {
+    static associate(models) {
+      // Define hasMany association with medical_report_culture_result
+      MedicalReportHasCulture.hasMany(models.medical_report_culture_result, {
+        as: "culture_results",
+        foreignKey: "medical_report_has_culture_id",
+      });
+      // Define hasMany association with medical_report_has_culture_antibiotic
+      MedicalReportHasCulture.hasMany(models.medical_report_has_culture_antibiotic, {
+        as: "culture_antibiotics",
+        foreignKey: "medical_report_has_culture_id",
+      });
+    }
+  }
+  MedicalReportHasCulture.init({
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
@@ -70,4 +84,5 @@ module.exports = function(sequelize, DataTypes) {
       },
     ]
   });
-}; 
+  return MedicalReportHasCulture;
+};

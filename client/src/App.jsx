@@ -11,6 +11,7 @@ import VersionBadge from './components/VersionBadge';
 import HomePage from './pages/HomePage';
 import UnifiedLogin from './pages/UnifiedLogin';
 import Register from './pages/Register';
+import PaymentCallback from './pages/PaymentCallback';
 import AdminDashboard from './pages/AdminDashboard';
 import ChemistDashboard from './pages/ChemistDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
@@ -75,6 +76,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<UnifiedLogin />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/payment-callback" element={<PaymentCallback />} />
             <Route path="/know-us" element={<KnowUs />} />
             
             {/* Lab-specific routes (multi-tenant, all under /:lab/*) */}

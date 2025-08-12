@@ -6,7 +6,7 @@ const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const multer = require("multer");
-const xlsx = require("xlsx");
+const { readExcelBuffer, validateExcelBuffer } = require('../services/excelService');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { sequelize } = require("../models");
@@ -61,7 +61,7 @@ router.post("/login", async (req, res) => {
       role: "patient",
       lab_id: Patient.lab_id 
     }, SECRET_KEY, {
-      expiresIn: "3h",
+      expiresIn: "6h",
     });
     phones = await phone.findAll({ where: { patient_id: Patient.id } });
     user = { ...Patient.get(), role: "patient" , phones};
@@ -190,7 +190,16 @@ router.put("/update", authenticateUser, tenantContext, async (req, res) => {
 });
 
 // Get all patients
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee"), tenantContext, async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee"), tenantContext, 
+  // Add cache headers for 5 minutes
+  (req, res, next) => {
+    res.set({
+      'Cache-Control': 'public, max-age=300', // 5 minutes
+      'ETag': `"patients-${req.tenant.lab_id}-${Date.now()}"`
+    });
+    next();
+  },
+  async (req, res) => {
     try {
         console.log('Fetching patients...');
         const patients = await patient.findAll({
@@ -550,7 +559,15 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
 });
 
 // Get all available diseases
-router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist"),
+  // Add cache headers for 1 hour - diseases rarely change
+  (req, res, next) => {
+    res.set({
+      'Cache-Control': 'public, max-age=3600', // 1 hour
+    });
+    next();
+  },
+  async (req, res) => {
     try {
         const diseasesList = await sequelize.models.diseases.findAll({
             attributes: ['id', 'name', 'details'],
@@ -573,17 +590,18 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
             return res.status(400).json({ error: "No file uploaded" });
         }
 
-        let workbook;
-        if (req.file.originalname.endsWith('.csv')) {
-            const csvData = req.file.buffer.toString();
-            workbook = xlsx.read(csvData, { type: 'string' });
-        } else {
-            workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+        // Validate file
+        const validation = validateExcelBuffer(req.file.buffer);
+        if (!validation.isValid) {
+            return res.status(400).json({ error: validation.error });
         }
 
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = xlsx.utils.sheet_to_json(worksheet);
+        // Read Excel data
+        const data = await readExcelBuffer(req.file.buffer);
+        
+        if (!data || data.length === 0) {
+            return res.status(400).json({ error: "No data found in the uploaded file" });
+        }
 
         let imported = 0;
         let errors = [];
@@ -853,11 +871,7 @@ router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (r
           as: 'test_id_test_medical_report_has_tests',
           through: { attributes: [] },
           include: [
-            {
-              model: db.test_component,
-              as: 'test_components',
-              attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end', 'test_id']
-            }
+            {              model: db.test_component,              as: 'components',              attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end', 'test_id']            }
           ]
         },
         {
@@ -886,7 +900,15 @@ router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (r
 });
 
 // Get patient count
-router.get('/count', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.get('/count', authenticateUser, authorizeRoles('admin'),
+  // Add cache headers for 1 minute
+  (req, res, next) => {
+    res.set({
+      'Cache-Control': 'public, max-age=60', // 1 minute
+    });
+    next();
+  },
+  async (req, res) => {
   try {
     const count = await patient.count();
     res.json({ count });
@@ -896,7 +918,15 @@ router.get('/count', authenticateUser, authorizeRoles('admin'), async (req, res)
 });
 
 // Get recent patients
-router.get('/recent', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.get('/recent', authenticateUser, authorizeRoles('admin'),
+  // Add cache headers for 2 minutes
+  (req, res, next) => {
+    res.set({
+      'Cache-Control': 'public, max-age=120', // 2 minutes
+    });
+    next();
+  },
+  async (req, res) => {
   try {
     const patients = await patient.findAll({
       order: [['id', 'DESC']],
