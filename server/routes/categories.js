@@ -7,7 +7,7 @@ const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const multer = require('multer');
-const XLSX = require('xlsx');
+const { readExcelBuffer, validateExcelBuffer, sanitizeDataForExport } = require('../services/excelService');
 
 // Configure multer for file uploads
 const upload = multer({

@@ -9,8 +9,20 @@ const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const db = require("../models");
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
-const XLSX = require('xlsx');
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['.xlsx', '.xls', '.csv'];
+    const fileExt = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
+    if (allowedTypes.includes(fileExt)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx, .xls) and CSV files are allowed'));
+    }
+  }
+});
+const { readExcelBuffer, validateExcelBuffer, sanitizeDataForExport } = require('../services/excelService');
 const fs = require('fs');
 
 // Add CORS debugging for tests route
@@ -413,10 +425,7 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
   try {
     const tests = await db.test.findAll({
       include: [
-        {
-          model: db.test_component,
-          as: 'test_components',
-        },
+        {          model: db.test_component,          as: 'components',        },
         {
           model: db.categories_test_and_culture,
           as: 'category',
@@ -458,10 +467,19 @@ router.get('/count', authenticateUser, authorizeRoles('admin'), async (req, res)
 router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const workbook = XLSX.readFile(req.file.path);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet);
+    
+    // Validate file
+    const validation = validateExcelBuffer(req.file.buffer);
+    if (!validation.isValid) {
+      return res.status(400).json({ error: validation.error });
+    }
+
+    // Read Excel data
+    const data = await readExcelBuffer(req.file.buffer);
+    
+    if (!data || data.length === 0) {
+      return res.status(400).json({ error: "No data found in the uploaded file" });
+    }
     let imported = 0, updated = 0, errors = [];
     for (const row of data) {
       if (!row.Name || !row['Category ID']) {
@@ -492,7 +510,6 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
         imported++;
       }
     }
-    fs.unlinkSync(req.file.path);
     res.json({ imported, updated, errors });
   } catch (error) {
     console.error('Error importing tests:', error);

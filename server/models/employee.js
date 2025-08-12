@@ -60,6 +60,11 @@ module.exports = function(sequelize, DataTypes) {
     avatar: {
       type: DataTypes.BLOB,
       allowNull: true
+    },
+    is_owner: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false
     }
   }, {
     sequelize,

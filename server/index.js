@@ -9,6 +9,9 @@ const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const { employee, patient, phone } = require("./models");
 
+// Subscription scheduler service
+const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('./services/subscriptionScheduler');
+
 // Initialize Express app
 const app = express();
 const router = express.Router();
@@ -227,6 +230,7 @@ app.use("/culture-options", require("./routes/cultureOptions"));
 app.use("/culture-sub-options", require("./routes/cultureSubOptions"));
 app.use("/antibiotics", require("./routes/antibiotics"));
 app.use("/payment-methods", require("./routes/paymentMethods"));
+app.use("/subscriptions", require("./routes/subscriptions"));
 app.use("/invoices", require("./routes/invoices"));
 app.use("/branches", require("./routes/branches"));
 app.use("/labs", require("./routes/labs"));
@@ -234,6 +238,7 @@ app.use("/packages-and-offers", require("./routes/packages_and_offers"));
 app.use("/statuses", require("./routes/statuses"));
 app.use("/medical-reports", require('./routes/medical_reports'));
 app.use("/admin", require('./routes/admin'));
+app.use("/validate-admin-info", require("./routes/validateAdminInfo"));
 app.use("/bill", require('./routes/bill'));
 app.use("/diseases", require('./routes/diseases'));
 app.use("/receptionists", require('./routes/receptionist'));
@@ -246,6 +251,8 @@ app.use("/culture-antibiotics", require("./routes/culture_antibiotics"));
 app.use("/field-comp-options", require("./routes/field_comp_options"));
 app.use("/demo", require("./routes/demo"));
 app.use("/register", require("./routes/register"));
+app.use("/payments", require("./routes/paymentsGateway"));
+app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 
 // Global error handler
 app.use((error, req, res, next) => {
@@ -360,7 +367,7 @@ async function syncDatabase() {
     const forceSync = process.env.FORCE_SYNC === 'true' && !isProduction;
     const alterSync = !forceSync; // Use alter by default, force only if explicitly set
     
-    const syncOptions = alterSync ? { alter: true } : { force: true };
+    const syncOptions = alterSync ? { alter: false } : { force: true };
     
     console.log(`🔄 Database synchronization mode: ${alterSync ? 'ALTER (safe)' : 'FORCE (destructive)'}`);
     console.log(`📋 Sync options:`, syncOptions);
@@ -578,10 +585,23 @@ syncDatabase()
       console.log(`📊 Pool config: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
     }
     
+    // Initialize subscription scheduler after database is ready
+    let subscriptionScheduler;
+    try {
+      subscriptionScheduler = initializeSubscriptionScheduler();
+      console.log('⏰ Subscription scheduler initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize subscription scheduler:', error);
+    }
+    
     // Add graceful shutdown handling
     process.on('SIGTERM', async () => {
       console.log('🛑 Received SIGTERM, shutting down gracefully...');
       try {
+        // Stop subscription scheduler
+        if (subscriptionScheduler) {
+          stopSubscriptionScheduler(subscriptionScheduler);
+        }
         await db.sequelize.close();
         console.log('✅ Database connections closed');
         process.exit(0);
@@ -594,6 +614,10 @@ syncDatabase()
     process.on('SIGINT', async () => {
       console.log('🛑 Received SIGINT, shutting down gracefully...');
       try {
+        // Stop subscription scheduler
+        if (subscriptionScheduler) {
+          stopSubscriptionScheduler(subscriptionScheduler);
+        }
         await db.sequelize.close();
         console.log('✅ Database connections closed');
         process.exit(0);
@@ -610,6 +634,7 @@ syncDatabase()
       console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
       console.log(`📊 Database sync: ENABLED`);
       console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
+      console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
     });
   })
   .catch((error) => {

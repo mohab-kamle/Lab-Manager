@@ -6,8 +6,29 @@ const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const { Op, where } = require("sequelize");
 const multer = require("multer");
-const upload = multer({ dest: "uploads/" });
-const XLSX = require("xlsx");
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.mimetype === "application/vnd.ms-excel" ||
+      file.mimetype === "text/csv"
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only Excel and CSV files are allowed"), false);
+    }
+  },
+});
+const {
+  readExcelBuffer,
+  validateExcelBuffer,
+  sanitizeDataForExport,
+} = require("../services/excelService");
 const fs = require("fs");
 
 // Helper function to update medical report dates based on workflow stage
@@ -64,6 +85,17 @@ router.get(
   tenantContext,
   async (req, res) => {
     try {
+      // Get medical_report_ids for the current lab
+      const medicalReportIds = await db.medical_report
+        .findAll({
+          attributes: ["id"],
+          where: {
+            lab_id: req.tenant.lab_id,
+          },
+          raw: true,
+        })
+        .then((reports) => reports.map((report) => report.id));
+
       // First, get the count of test groups for each medical report
       const testGroupCounts = await db.medical_report_has_tg.findAll({
         attributes: [
@@ -73,6 +105,11 @@ router.get(
             "count",
           ],
         ],
+        where: {
+          medical_report_id: {
+            [Op.in]: medicalReportIds,
+          },
+        },
         group: ["medical_report_id"],
         raw: true,
       });
@@ -82,6 +119,9 @@ router.get(
       testGroupCounts.forEach((item) => {
         testGroupCountMap[item.medical_report_id] = parseInt(item.count, 10);
       });
+
+      // Note: Test and culture counts are now calculated from the actual associations
+      // instead of separate count queries for better accuracy and performance
 
       // Then get all medical reports with their associations
       const reports = await db.medical_report.findAll({
@@ -109,20 +149,14 @@ router.get(
           },
           {
             model: db.test,
-            as: "test_id_test_medical_report_has_tests",
-            through: {
-              model: db.medical_report_has_test,
-              attributes: ["status", "result"],
-            },
+            as: "tests",
+            through: { attributes: [] },
             attributes: ["id", "name"],
           },
           {
             model: db.culture,
-            as: "culture_id_culture_medical_report_has_cultures",
-            through: {
-              model: db.medical_report_has_culture,
-              attributes: ["status", "result"],
-            },
+            as: "cultures",
+            through: { attributes: [] },
             attributes: ["id", "name"],
           },
           {
@@ -163,16 +197,10 @@ router.get(
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
-          tests: reportData.test_id_test_medical_report_has_tests || [],
-          cultures:
-            reportData.culture_id_culture_medical_report_has_cultures || [],
-          tests_count: reportData.test_id_test_medical_report_has_tests
-            ? reportData.test_id_test_medical_report_has_tests.length
-            : 0,
-          cultures_count:
-            reportData.culture_id_culture_medical_report_has_cultures
-              ? reportData.culture_id_culture_medical_report_has_cultures.length
-              : 0,
+          tests: reportData.tests || [],
+          cultures: reportData.cultures || [],
+          tests_count: (reportData.tests || []).length,
+          cultures_count: (reportData.cultures || []).length,
           test_groups_count: testGroupCountMap[reportData.id] || 0,
           invoice_id: reportData.bill?.id || null,
         };
@@ -193,12 +221,179 @@ router.get(
   authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee"),
   async (req, res) => {
     try {
+      // Check if this is a PDF generation request for optimized loading
+      const isPdfRequest = req.query.pdf === 'true';
+      
+      // Optimized query for PDF generation - loads only essential data
+      if (isPdfRequest) {
+        const report = await db.medical_report.findByPk(req.params.id, {
+          attributes: [
+            "id",
+            "lab_id",
+            "branch_id",
+            "date",
+            "registered_at",
+            "collected_at",
+            "received_at",
+            "reported_at",
+            "comment",
+            "signatory_name",
+            "signatory_id",
+            "signatory_admin_id",
+            "done",
+            "pending"
+          ],
+          include: [
+            {
+              model: db.patient,
+              as: "patient",
+              attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+              include: [
+                {
+                  model: db.referral,
+                  as: "referral",
+                  attributes: ["doctor_name", "specialization"],
+                },
+              ],
+            },
+            {
+              model: db.test,
+              as: "tests",
+              through: {
+                model: db.medical_report_has_test,
+                attributes: ["status", "result"],
+              },
+              include: [
+                {
+                  model: db.test_component,
+                  as: "components",
+                  attributes: [
+                    "id",
+                    "name",
+                    "unit",
+                    "normal_from",
+                    "normal_to",
+                    "gender",
+                    "age_start",
+                    "age_end",
+                    "test_id",
+                  ],
+                  include: [
+                    {
+                      model: db.medical_report_test_component_result,
+                      as: "results",
+                      attributes: ["result", "status"],
+                      where: {
+                        medical_report_id: req.params.id
+                      },
+                      required: false
+                    },
+                  ],
+                },
+              ],
+              attributes: ["id", "name"],
+            },
+            {
+              model: db.medical_report_has_culture,
+              as: "medical_report_has_cultures",
+              attributes: ["id", "status", "result"],
+              include: [
+                {
+                  model: db.medical_report_has_culture_antibiotic,
+                  as: "culture_antibiotics",
+
+                  include: [
+                    {
+                      model: db.antibiotic,
+                      as: "antibiotic",
+                      attributes: ["id", "name", "shortcut", "commercial_name"],
+                    },
+                  ],
+                },
+                {
+                  model: db.medical_report_culture_result,
+                  as: "culture_results",
+                  attributes: [
+                    "culture_option_name",
+                    "culture_sub_option_name",
+                    "custom_result",
+                    "result_type",
+                  ],
+                },
+                {
+                  model: db.culture,
+                  as: "culture",
+                  attributes: ["id", "name"],
+                },
+              ],
+            },
+            {
+              model: db.lab,
+              as: "lab",
+              attributes: ["id", "name", "lab_address", "lab_phone", "lab_email"],
+            },
+            {
+              model: db.admin,
+              as: "signatory_admin",
+              attributes: [],
+              include: [
+                {
+                  model: db.employee,
+                  as: "id_employee",
+                  attributes: ["name"],
+                },
+              ],
+            },
+            {
+              model: db.chemist,
+              as: "signatory",
+              attributes: [],
+              include: [
+                {
+                  model: db.employee,
+                  as: "id_employee",
+                  attributes: ["name"],
+                },
+              ],
+            },
+          ],
+        });
+        
+        if (!report) {
+          return res.status(404).json({ error: "Medical report not found" });
+        }
+
+        // Simplified response for PDF generation
+        const reportData = report.get({ plain: true });
+        const enrichedReport = {
+          ...reportData,
+          tests_count: reportData.tests?.length || 0,
+          cultures_count: reportData.medical_report_has_cultures?.length || 0,
+        };
+
+        return res.json(enrichedReport);
+      }
+      
+      // Full query for regular requests (non-PDF)
       const report = await db.medical_report.findByPk(req.params.id, {
+        attributes: [
+          "id",
+          "lab_id",
+          "branch_id",
+          "registered_at",
+          "collected_at",
+          "received_at",
+          "reported_at",
+          "comment",
+          "signatory_name",
+          "signatory_id",
+          "signatory_admin_id",
+        ],
         include: [
           {
             model: db.patient,
             as: "patient",
-            attributes: ["id", "name", "birth_date", "gender", "patientcode"],
+            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
             include: [
               {
                 model: db.referral,
@@ -214,71 +409,43 @@ router.get(
             ],
           },
           {
-            model: db.lab,
-            as: "lab",
-            attributes: [
-              "id",
-              "name",
-              "lab_address",
-              "lab_phone",
-              "lab_email",
-              "lab_website",
-              "logo_url",
-            ],
-          },
-          {
             model: db.test,
-            as: "test_id_test_medical_report_has_tests",
-            through: { attributes: ["result", "status"] },
+            as: "tests",
+            through: {
+              model: db.medical_report_has_test,
+              attributes: ["status", "result"],
+            },
             include: [
               {
                 model: db.test_component,
-                as: "test_components",
+                as: "components",
                 attributes: [
                   "id",
                   "name",
                   "unit",
                   "normal_from",
                   "normal_to",
-                  "c_low",
-                  "c_high",
                   "gender",
                   "age_start",
                   "age_end",
-                  "reference_range",
-                  "result_type",
+                  "test_id",
                 ],
-              },
-              {
-                model: db.medical_report_test_component_result,
-                as: "component_results", // This alias is defined in init-models.js for test.hasMany(medical_report_test_component_result)
-                attributes: ["test_component_id", "result", "status"],
-                required: false,
                 include: [
                   {
-                    model: db.test_component,
-                    as: "test_component",
-                    attributes: ["id", "name", "unit", "normal_from", "normal_to", "c_low", "c_high", "gender", "age_start", "age_end", "reference_range", "result_type"],
+                    model: db.medical_report_test_component_result,
+                    as: "results",
+                    attributes: ["id", "result", "status"],
                   },
                 ],
               },
             ],
+            attributes: ["id", "name"],
           },
           {
             model: db.medical_report_has_culture,
             as: "medical_report_has_cultures",
+            attributes: ["id", "status", "result"],
             include: [
-              {
-                model: db.culture,
-                as: "culture",
-                attributes: [
-                  "id",
-                  "name",
-                  "price",
-                  "sample_type_id",
-                  "category_id",
-                ],
-              },
               {
                 model: db.medical_report_has_culture_antibiotic,
                 as: "culture_antibiotics",
@@ -300,7 +467,81 @@ router.get(
                   "custom_result",
                   "result_type",
                 ],
+              },
+              {
+                model: db.culture,
+                as: "culture",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+          {
+            // Get test groups through the junction table to get proper structure
+            model: db.medical_report_has_tg,
+            as: "medical_report_has_tgs",
+            attributes: ["medical_report_id", "test_group_id", "value"],
+            include: [
+              {
+                model: db.test_group,
+                as: "test_group",
                 required: false,
+                paranoid: false,
+                attributes: ["id", "name", "price", "deleted_at"],
+                include: [
+                  {
+                    model: db.tg_component,
+                    as: "tg_components",
+                    required: false,
+                    paranoid: false,
+                    attributes: [
+                      "id",
+                      "test_group_id",
+                      "test_category_id",
+                      "name",
+                    ],
+                  },
+                  {
+                    model: db.tgc_category,
+                    as: "tgc_categories",
+                    required: false,
+                    paranoid: false,
+                    attributes: ["id", "name", "test_group_id"],
+                    include: [
+                      {
+                        model: db.tg_component,
+                        as: "tg_components",
+                        required: false,
+                        paranoid: false,
+                        attributes: [
+                          "id",
+                          "test_group_id",
+                          "test_category_id",
+                          "name",
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    model: db.tg_fields,
+                    as: "tg_fields",
+                    required: false,
+                    paranoid: false,
+                    attributes: ["id", "name", "test_group_id"],
+                  },
+                  {
+                    model: db.field_comp_options,
+                    as: "field_comp_options",
+                    required: false,
+                    paranoid: false,
+                    attributes: [
+                      "id",
+                      "name",
+                      "tg_component_id",
+                      "tg_fields_id",
+                      "test_group_id",
+                    ],
+                  },
+                ],
               },
             ],
           },
@@ -312,7 +553,7 @@ router.get(
           {
             model: db.admin,
             as: "signatory_admin",
-            attributes: ["id"],
+            attributes: [],
             include: [
               {
                 model: db.employee,
@@ -333,152 +574,156 @@ router.get(
               },
             ],
           },
-          {
-            model: db.test_group,
-            as: "tg_id_test_groups",
-            attributes: ["id", "name"],
-            through: { attributes: [] },
-            include: [
-              {
-                model: db.tg_component,
-                as: "tg_components",
-                attributes: ["id", "name", "test_category_id"],
-                required: false,
-                include: [
-                  {
-                    model: db.tgc_category,
-                    as: "category",
-                    attributes: ["id", "name"],
-                    required: false, // Make this LEFT OUTER JOIN
-                  },
-                ],
-              },
-              {
-                model: db.tg_fields,
-                as: "tg_fields",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-          {
-            model: db.medical_report_tg_field_value,
-            as: "medical_report_tg_field_values",
-            attributes: ["tg_component_id", "tg_fields_id", "value"],
-          },
-          {
-            model: db.medical_report_test_component_result,
-            as: "test_component_results",
-            attributes: ["test_id", "test_component_id", "result", "status"],
-          },
         ],
       });
-
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
       }
 
-      // Add top-level tests and cultures fields for frontend compatibility
+      // Get test group results for processing
+      const testGroupResults = await db.test_group_result.findAll({
+        where: { medical_report_id: req.params.id },
+        attributes: ["id", "test_group_id", "tg_component_id", "result_json"],
+      });
+
+      // Process test groups to include proper values structure
       const reportData = report.get({ plain: true });
 
-      // Debug log to see what tg_components are being returned
-      if (
-        reportData.tg_id_test_groups &&
-        reportData.tg_id_test_groups.length > 0
-      ) {
-        console.log(
-          "tg_components:",
-          JSON.stringify(reportData.tg_id_test_groups[0].tg_components, null, 2)
-        );
-      }
+      // Transform medical_report_has_tgs to include processed values
+      if (reportData.medical_report_has_tgs) {
+        reportData.test_group_results = reportData.medical_report_has_tgs
+          .filter((rtg) => rtg.test_group)
+          .map((rtg) => {
+            const group = rtg.test_group;
 
-      // Remap associations to top-level for frontend convenience
-      reportData.tests = (
-        reportData.test_id_test_medical_report_has_tests || []
-      ).map((t) => ({
-        ...t,
-        ...t.medical_report_has_test,
-        // Include component results for multi-component tests
-        component_results: t.component_results || [],
-        // Check if test has component results to display in table format
-        has_component_results: t.component_results && t.component_results.length > 0
-      }));
+            // Create field name to ID mapping
+            const fieldNameToIdMap = {};
+            (group.tg_fields || []).forEach((field) => {
+              fieldNameToIdMap[field.name] = field.id;
+            });
 
-      // Map cultures from the medical_report_has_cultures association
-      reportData.cultures = (reportData.medical_report_has_cultures || []).map(
-        (mrc) => ({
-          ...mrc.culture,
-          medical_report_has_culture: {
-            id: mrc.id,
-            result: mrc.result,
-            status: mrc.status,
-          },
-          culture_antibiotics: mrc.culture_antibiotics || [],
-        })
-      );
+            // Process test group results for this group
+            const valueMap = {};
+            const groupResults = testGroupResults.filter(
+              (tgr) => tgr.test_group_id === group.id
+            );
 
-      // Ensure test_groups are properly structured with their values
-      const values = reportData.medical_report_tg_field_values || [];
-      reportData.test_groups = (reportData.tg_id_test_groups || []).map(
-        (tg) => {
-          // Direct components: those with test_category_id == null
-          const direct_components = (tg.tg_components || [])
-            .filter((comp) => comp.test_category_id == null)
-            .map((comp) => ({
-              id: comp.id,
-              name: comp.name,
-              category: null,
-            }));
-          // Categories and their components
-          const categories = [];
-          // Build a map of category id to category name
-          const catMap = {};
-          (tg.tg_components || []).forEach((comp) => {
-            if (comp.test_category_id && comp.category) {
-              if (!catMap[comp.test_category_id]) {
-                catMap[comp.test_category_id] = {
-                  id: comp.test_category_id,
-                  name: comp.category.name,
-                  components: [],
-                };
+            groupResults.forEach((tgr) => {
+              let resultJson = tgr.result_json;
+
+              // Parse JSON string if needed
+              if (typeof resultJson === "string") {
+                try {
+                  resultJson = JSON.parse(resultJson);
+                } catch (parseError) {
+                  console.error(
+                    `Failed to parse JSON for component ${tgr.tg_component_id}:`,
+                    parseError.message
+                  );
+                  resultJson = null;
+                }
               }
-              catMap[comp.test_category_id].components.push({
+
+              if (resultJson && typeof resultJson === "object") {
+                const componentValues = {};
+
+                // Convert field names back to field IDs
+                Object.entries(resultJson).forEach(([fieldName, value]) => {
+                  const fieldId = fieldNameToIdMap[fieldName];
+
+                  if (
+                    value !== null &&
+                    value !== undefined &&
+                    value.toString().trim() !== ""
+                  ) {
+                    if (fieldId) {
+                      componentValues[fieldId] = value;
+                    } else {
+                      // Handle legacy field_X format
+                      const legacyMatch = fieldName.match(/^field_(\d+)$/);
+                      if (legacyMatch) {
+                        componentValues[legacyMatch[1]] = value;
+                      }
+                    }
+                  }
+                });
+
+                if (Object.keys(componentValues).length > 0) {
+                  valueMap[tgr.tg_component_id] = componentValues;
+                }
+              }
+            });
+
+            // Map field_comp_options
+            const fieldCompOptions = (group.field_comp_options || []).map(
+              (opt) => ({
+                id: opt.id,
+                name: opt.name,
+                tg_component_id: opt.tg_component_id,
+                tg_fields_id: opt.tg_fields_id,
+                test_group_id: opt.test_group_id,
+              })
+            );
+
+            // Direct components
+            const directComponents = (group.tg_components || [])
+              .filter((comp) => comp.test_category_id == null)
+              .map((comp) => ({
                 id: comp.id,
                 name: comp.name,
-                category: comp.category.name,
-              });
-            }
+                category: null,
+              }));
+
+            // Categories and their components
+            const categories = (group.tgc_categories || []).map((cat) => ({
+              id: cat.id,
+              name: cat.name,
+              components: (cat.tg_components || []).map((comp) => ({
+                id: comp.id,
+                name: comp.name,
+                category: cat.name,
+              })),
+            }));
+
+            // All fields
+            const fields = (group.tg_fields || []).map((field) => ({
+              id: field.id,
+              name: field.name,
+              field_comp_options: fieldCompOptions
+                .filter((opt) => opt.tg_fields_id === field.id)
+                .map((opt) => ({
+                  id: opt.id,
+                  name: opt.name,
+                  tg_component_id: opt.tg_component_id,
+                  tg_fields_id: opt.tg_fields_id,
+                })),
+            }));
+
+            return {
+              id: group.id,
+              name: group.name,
+              directComponents,
+              categories,
+              fields,
+              values: valueMap,
+              test_group_results: testGroupResults.filter(
+                (tgr) => tgr.test_group_id === group.id
+              ),
+            };
           });
-          for (const catId in catMap) {
-            categories.push(catMap[catId]);
-          }
-          // Fields
-          const fields = tg.tg_fields || [];
-          // Values
-          const valueMap = {};
-          values
-            .filter((fv) =>
-              (tg.tg_components || []).some((c) => c.id === fv.tg_component_id)
-            )
-            .forEach((fv) => {
-              if (!valueMap[fv.tg_component_id]) {
-                valueMap[fv.tg_component_id] = {};
-              }
-              valueMap[fv.tg_component_id][fv.tg_fields_id] = fv.value;
-            });
-          return {
-            ...tg,
-            direct_components,
-            categories,
-            fields,
-            values: valueMap,
-          };
-        }
-      );
 
-      // Add testComponentResults for frontend PDF generation compatibility
-      reportData.testComponentResults = reportData.medical_report_test_component_results || [];
+        // Remove the raw medical_report_has_tgs from response
+        delete reportData.medical_report_has_tgs;
+      }
 
-      res.json(reportData);
+      const enrichedReport = {
+        ...reportData,
+        tests_count: reportData.tests?.length || 0,
+        cultures_count: reportData.medical_report_has_cultures?.length || 0,
+        test_groups_count: reportData.test_group_results?.length || 0,
+      };
+
+      res.json(enrichedReport);
     } catch (error) {
       console.error("Error fetching medical report:", error);
       res.status(500).json({ error: "Failed to fetch medical report" });
@@ -555,7 +800,7 @@ router.post(
           },
           {
             model: db.test,
-            as: "test_id_test_medical_report_has_tests",
+            as: "tests",
             through: {
               model: db.medical_report_has_test,
               attributes: ["status", "result"],
@@ -564,7 +809,7 @@ router.post(
           },
           {
             model: db.culture,
-            as: "culture_id_culture_medical_report_has_cultures",
+            as: "cultures",
             through: {
               model: db.medical_report_has_culture,
               attributes: ["status", "result"],
@@ -690,18 +935,38 @@ router.put(
       // Update culture results if provided
       if (culture_results) {
         for (const cultureResult of culture_results) {
-          await db.medical_report_has_culture.update(
-            {
-              status: cultureResult.status,
-              result: cultureResult.result,
+          // First, find the medical_report_has_culture record
+          const cultureRecord = await db.medical_report_has_culture.findOne({
+            where: {
+              medical_report_id: report.id,
+              culture_id: cultureResult.culture_id,
             },
-            {
+          });
+
+          if (cultureRecord) {
+            // Check if there are actual culture results in medical_report_culture_result table
+            const actualCultureResults = await db.medical_report_culture_result.findAll({
               where: {
-                medical_report_id: report.id,
-                culture_id: cultureResult.culture_id,
+                medical_report_has_culture_id: cultureRecord.id,
               },
-            }
-          );
+            });
+
+            // Set status based on existence of actual culture results
+            const status = actualCultureResults.length > 0 ? "done" : "pending";
+
+            await db.medical_report_has_culture.update(
+              {
+                status: status,
+                result: cultureResult.result, // Keep this for backward compatibility
+              },
+              {
+                where: {
+                  medical_report_id: report.id,
+                  culture_id: cultureResult.culture_id,
+                },
+              }
+            );
+          }
         }
       }
 
@@ -728,7 +993,7 @@ router.put(
           },
           {
             model: db.test,
-            as: "test_id_test_medical_report_has_tests",
+            as: "tests",
             through: {
               model: db.medical_report_has_test,
               attributes: ["status", "result"],
@@ -737,7 +1002,7 @@ router.put(
           },
           {
             model: db.culture,
-            as: "culture_id_culture_medical_report_has_cultures",
+            as: "cultures",
             through: {
               model: db.medical_report_has_culture,
               attributes: ["status", "result"],
@@ -917,21 +1182,38 @@ router.put(
       // Update culture results
       if (culture_results) {
         for (const cultureResult of culture_results) {
-          // For cultures, we'll set status to 'done' if result is provided
-          const status = cultureResult.result ? "done" : "pending";
-
-          await db.medical_report_has_culture.update(
-            {
-              status: status,
-              result: cultureResult.result,
+          // First, find the medical_report_has_culture record
+          const cultureRecord = await db.medical_report_has_culture.findOne({
+            where: {
+              medical_report_id: reportId,
+              culture_id: cultureResult.culture_id,
             },
-            {
+          });
+
+          if (cultureRecord) {
+
+            // Check if there are actual culture results in medical_report_culture_result table
+            const actualCultureResults = await db.medical_report_culture_result.findAll({
               where: {
-                medical_report_id: reportId,
-                culture_id: cultureResult.culture_id,
+                medical_report_has_culture_id: cultureRecord.id,
               },
-            }
-          );
+            });
+
+            // Set status based on existence of actual culture results
+            const status = actualCultureResults.length > 0 ? "done" : "pending";
+            await db.medical_report_has_culture.update(
+              {
+                status: status,
+                result: cultureResult.result, // Keep this for backward compatibility
+              },
+              {
+                where: {
+                  medical_report_id: reportId,
+                  culture_id: cultureResult.culture_id,
+                },
+              }
+            );
+          }
         }
       }
 
@@ -945,7 +1227,7 @@ router.put(
           },
           {
             model: db.test,
-            as: "test_id_test_medical_report_has_tests",
+            as: "tests",
             through: {
               model: db.medical_report_has_test,
               attributes: ["status", "result"],
@@ -954,7 +1236,7 @@ router.put(
           },
           {
             model: db.culture,
-            as: "culture_id_culture_medical_report_has_cultures",
+            as: "cultures",
             through: {
               model: db.medical_report_has_culture,
               attributes: ["status", "result"],
@@ -1034,15 +1316,205 @@ router.put(
   }
 );
 
-// Optimized endpoint: Get all data needed for results entry in one call
+// old Optimized endpoint: Get all data needed for results entry in one call
+// router.get(
+//   "/:id/results-data",
+//   authenticateUser,
+//   authorizeRoles("admin", "chemist", "receptionist"),
+//   async (req, res) => {
+//     try {
+//       // Get the medical report with all necessary data in one query
+//       const report = await db.medical_report.findByPk(req.params.id, {
+//         include: [
+//           {
+//             model: db.patient,
+//             as: "patient",
+//             attributes: ["id", "name", "birth_date", "gender", "patientcode"],
+//             include: [
+//               {
+//                 model: db.referral,
+//                 as: "referral",
+//                 attributes: [
+//                   "id",
+//                   "doctor_name",
+//                   "specialization",
+//                   "phone",
+//                   "email",
+//                 ],
+//               },
+//             ],
+//           },
+//           {
+//             model: db.test,
+//             as: "tests",
+//             through: { attributes: ["result", "status"] },
+//             include: [
+//               {
+//                 model: db.test_component,
+//                 as: "components",
+//                 attributes: [
+//                   "id",
+//                   "name",
+//                   "unit",
+//                   "normal_from",
+//                   "normal_to",
+//                   "c_low",
+//                   "c_high",
+//                   "gender",
+//                   "age_start",
+//                   "age_end",
+//                   "reference_range",
+//                   "result_type",
+//                 ],
+//               },
+//             ],
+//           },
+//           {
+//             model: db.medical_report_has_culture,
+//             as: "medical_report_has_cultures",
+//             include: [
+//               {
+//                 model: db.culture,
+//                 as: "culture",
+//                 attributes: [
+//                   "id",
+//                   "name",
+//                   "price",
+//                   "sample_type_id",
+//                   "category_id",
+//                 ],
+//               },
+//               {
+//                 model: db.medical_report_has_culture_antibiotic,
+//                 as: "culture_antibiotics",
+//                 include: [
+//                   {
+//                     model: db.antibiotic,
+//                     as: "antibiotic",
+//                     attributes: ["id", "name", "shortcut", "commercial_name"],
+//                   },
+//                 ],
+//               },
+//               {
+//                 model: db.medical_report_culture_result,
+//                 as: "culture_results",
+//                 attributes: [
+//                   "id",
+//                   "culture_option_name",
+//                   "culture_sub_option_name",
+//                   "custom_result",
+//                   "result_type",
+//                   "created_at",
+//                   "updated_at",
+//                 ],
+//               },
+//             ],
+//           },
+//           {
+//             model: db.test_group_result,
+//             as: "test_group_results",
+//             required: false, // keep results even if children missing
+//             attributes: ["id", "result_json"],
+//             include: [
+//               {
+//                 model: db.test_group,
+//                 as: "test_group",
+//                 attributes: ["id", "name"],
+//                 required: false,
+//               },
+//               {
+//                 model: db.tg_component,
+//                 as: "tg_component",
+//                 attributes: ["id", "name", "reference_range", "result_type"],
+//                 required: false,
+//                 include: [
+//                   {
+//                     model: db.tgc_category,
+//                     as: "category",
+//                     attributes: ["id", "name"],
+//                     required: false,
+//                   },
+//                 ],
+//               },
+//             ],
+//           }
+//         ],
+//         attributes: [
+//           "id",
+//           "lab_id",
+//           "branch_id",
+//           "date",
+//           "registered_at",
+//           "collected_at",
+//           "received_at",
+//           "reported_at",
+//           "done",
+//           "pending",
+//           "comment",
+//           "signatory_id",
+//           "signatory_admin_id",
+//           "signatory_name",
+//         ],
+//       });
+
+//       if (!report) {
+//         return res.status(404).json({ error: "Medical report not found" });
+//       }
+
+//       // convert to plain object so we can modify keys
+//       const reportData = report.get({ plain: true });
+
+//       // rename the key
+//       reportData.cultures = reportData.medical_report_has_cultures;
+//       delete reportData.medical_report_has_cultures;
+//       reportData.test_group_results = reportData.test_group_results.map(r => ({
+//   ...r,
+//   results: r.result_json,
+//   result_json: undefined
+//       }));
+//       // add test groups to the report effectively
+//       reportData.test_groups = report.test_group_results.map(r => r.test_group);
+
+
+//       res.json(reportData);
+//     } catch (error) {
+//       console.error("Error fetching comprehensive results data:", error);
+//       res.status(500).json({
+//         error: "Failed to fetch results data",
+//         details:
+//           process.env.NODE_ENV === "development" ? error.message : undefined,
+//       });
+//     }
+//   }
+// );
 router.get(
   "/:id/results-data",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
   async (req, res) => {
     try {
-      // Get the medical report with all necessary data in one query
-      const report = await db.medical_report.findByPk(req.params.id, {
+      const reportId = req.params.id;
+
+      /** -----------------------------
+       * 1. Fetch the base medical report
+       * ----------------------------- */
+      const report = await db.medical_report.findByPk(reportId, {
+        attributes: [
+          "id",
+          "lab_id",
+          "branch_id",
+          "date",
+          "registered_at",
+          "collected_at",
+          "received_at",
+          "reported_at",
+          "done",
+          "pending",
+          "comment",
+          "signatory_id",
+          "signatory_admin_id",
+          "signatory_name",
+        ],
         include: [
           {
             model: db.patient,
@@ -1062,88 +1534,6 @@ router.get(
               },
             ],
           },
-          {
-            model: db.test,
-            as: "test_id_test_medical_report_has_tests",
-            through: { attributes: ["result", "status"] },
-            include: [
-              {
-                model: db.test_component,
-                as: "test_components",
-                attributes: [
-                  "id",
-                  "name",
-                  "unit",
-                  "normal_from",
-                  "normal_to",
-                  "c_low",
-                  "c_high",
-                  "gender",
-                  "age_start",
-                  "age_end",
-                  "reference_range",
-                  "result_type",
-                ],
-              },
-            ],
-          },
-          {
-            model: db.medical_report_has_culture,
-            as: "medical_report_has_cultures",
-            include: [
-              {
-                model: db.culture,
-                as: "culture",
-                attributes: [
-                  "id",
-                  "name",
-                  "price",
-                  "sample_type_id",
-                  "category_id",
-                ],
-              },
-              {
-                model: db.medical_report_has_culture_antibiotic,
-                as: "culture_antibiotics",
-                include: [
-                  {
-                    model: db.antibiotic,
-                    as: "antibiotic",
-                    attributes: ["id", "name", "shortcut", "commercial_name"],
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            model: db.bill,
-            as: "bill",
-            attributes: ["id", "date"],
-          },
-          {
-            model: db.admin,
-            as: "signatory_admin",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-          {
-            model: db.chemist,
-            as: "signatory",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
         ],
       });
 
@@ -1151,306 +1541,198 @@ router.get(
         return res.status(404).json({ error: "Medical report not found" });
       }
 
-      // Get test groups data separately but efficiently
-      const reportTestGroups = await db.medical_report_has_tg.findAll({
-        where: { medical_report_id: req.params.id },
-        attributes: ["medical_report_id", "test_group_id", "value"],
+      const reportData = report.get({ plain: true });
+
+      /** -----------------------------
+       * 2. Fetch related tests
+       * ----------------------------- */
+      const testIds = await db.medical_report_has_test.findAll({
+        attributes: ["test_id"],
+        where: { medical_report_id: reportId },
+        raw: true,
+      });
+
+      const tests = await db.test.findAll({
+        where: { id: testIds.map((t) => t.test_id) },
+        include: [
+          {
+            model: db.test_component,
+            as: "components",
+            attributes: [
+              "id",
+              "name",
+              "unit",
+              "normal_from",
+              "normal_to",
+              "c_low",
+              "c_high",
+              "gender",
+              "age_start",
+              "age_end",
+              "reference_range",
+              "result_type",
+            ],
+          },
+        ],
+      });
+
+      // Fetch test-level junction (result/status) and component-level results
+      const [testJunctionRows, componentResults] = await Promise.all([
+        db.medical_report_has_test.findAll({
+          where: { medical_report_id: reportId },
+          attributes: ["test_id", "result", "status"],
+          raw: true,
+        }),
+        db.medical_report_test_component_result.findAll({
+          where: { medical_report_id: reportId },
+          attributes: ["test_id", "test_component_id", "result", "status"],
+          raw: true,
+        }),
+      ]);
+
+      // Map of test_id -> { result, status }
+      const testJunctionMap = {};
+      testJunctionRows.forEach((row) => {
+        testJunctionMap[row.test_id] = {
+          result: row.result,
+          status: row.status,
+        };
+      });
+
+      // Map of test_id -> [ { test_component_id, result, status } ]
+      const testComponentResultsMap = {};
+      componentResults.forEach((row) => {
+        if (!testComponentResultsMap[row.test_id]) {
+          testComponentResultsMap[row.test_id] = [];
+        }
+        testComponentResultsMap[row.test_id].push({
+          test_component_id: row.test_component_id,
+          result: row.result,
+          status: row.status,
+        });
+      });
+
+      /** -----------------------------
+       * 3. Fetch related cultures
+       * ----------------------------- */
+      const cultures = await db.medical_report_has_culture.findAll({
+        where: { medical_report_id: reportId },
+        include: [
+          {
+            model: db.culture,
+            as: "culture",
+            attributes: ["id", "name", "price", "sample_type_id", "category_id"],
+          },
+          {
+            model: db.medical_report_has_culture_antibiotic,
+            as: "culture_antibiotics",
+            include: [
+              {
+                model: db.antibiotic,
+                as: "antibiotic",
+                attributes: ["id", "name", "shortcut", "commercial_name"],
+              },
+            ],
+          },
+          {
+            model: db.medical_report_culture_result,
+            as: "culture_results",
+            attributes: [
+              "id",
+              "culture_option_name",
+              "culture_sub_option_name",
+              "custom_result",
+              "result_type",
+              "created_at",
+              "updated_at",
+            ],
+          },
+        ],
+      });
+
+      /** -----------------------------
+       * 4. Fetch test group results
+       * ----------------------------- */
+      const testGroupResults = await db.test_group_result.findAll({
+        where: { medical_report_id: reportId },
+        attributes: ["id", "result_json"],
         include: [
           {
             model: db.test_group,
             as: "test_group",
-            required: true,
-            paranoid: false,
             attributes: ["id", "name"],
+            required: false,
+          },
+          {
+            model: db.tg_component,
+            as: "tg_component",
+            attributes: ["id", "name", "reference_range", "result_type"],
+            required: false,
             include: [
               {
-                model: db.tg_component,
-                as: "tg_components",
+                model: db.tgc_category,
+                as: "category",
+                attributes: ["id", "name"],
                 required: false,
-                paranoid: false,
-                attributes: ["id", "name", "test_category_id"],
-                include: [
-                  {
-                    model: db.tgc_category,
-                    as: "category",
-                    required: false,
-                    paranoid: false,
-                    attributes: ["id", "name"],
-                  },
-                ],
-              },
-              {
-                model: db.tg_fields,
-                as: "tg_fields",
-                required: false,
-                paranoid: false,
-                attributes: ["id", "name", "test_group_id"],
-              },
-              {
-                model: db.field_comp_options,
-                as: "field_comp_options",
-                required: false,
-                paranoid: false,
-                attributes: [
-                  "id",
-                  "name",
-                  "tg_component_id",
-                  "tg_fields_id",
-                  "test_group_id",
-                ],
               },
             ],
           },
         ],
       });
 
-      // Get all field values for this medical report
-      const fieldValues = await db.medical_report_tg_field_value.findAll({
-        where: { medical_report_id: req.params.id },
+      /** -----------------------------
+       * 5. Assemble final response
+       * ----------------------------- */
+      // Attach junction result/status to each test
+      const testsPlain = tests.map((t) => {
+        const plain = t.get({ plain: true });
+        const j = testJunctionMap[plain.id];
+        if (j) {
+          plain.medical_report_has_test = { result: j.result, status: j.status };
+        }
+        // Optionally embed component results directly for convenience
+        const perTestResults = testComponentResultsMap[plain.id] || [];
+        if (perTestResults.length > 0 && Array.isArray(plain.components)) {
+          const resultByCompId = {};
+          perTestResults.forEach((r) => {
+            resultByCompId[r.test_component_id] = { result: r.result, status: r.status };
+          });
+          plain.components = plain.components.map((c) => ({
+            ...c,
+            // This mirrors the old structure from "/:id" so the client can prefill seamlessly
+            results: resultByCompId[c.id] ? [ { id: undefined, result: resultByCompId[c.id].result, status: resultByCompId[c.id].status } ] : [],
+          }));
+        }
+        return plain;
       });
 
-      // Process the data
-      const reportData = report.get({ plain: true });
+      reportData.tests = testsPlain;
 
-      // Debug: Log the raw report data structure
-      console.log("=== DEBUG: Raw Report Data ===");
-      console.log("Report ID:", req.params.id);
-      console.log(
-        "Tests count:",
-        reportData.test_id_test_medical_report_has_tests?.length || 0
-      );
+      reportData.cultures = cultures.map((c) => c.get({ plain: true }));
 
-      // Debug each test and its components
-      if (reportData.test_id_test_medical_report_has_tests) {
-        reportData.test_id_test_medical_report_has_tests.forEach(
-          (test, index) => {
-            console.log(
-              `\n--- Test ${index + 1}: ${test.name} (ID: ${test.id}) ---`
-            );
-            console.log(
-              "Test components count:",
-              test.test_components?.length || 0
-            );
-
-            if (test.test_components && test.test_components.length > 0) {
-              test.test_components.forEach((component, compIndex) => {
-                console.log(`  Component ${compIndex + 1}:`, {
-                  id: component.id,
-                  name: component.name,
-                  unit: component.unit,
-                  normal_from: component.normal_from,
-                  normal_to: component.normal_to,
-                  c_low: component.c_low,
-                  c_high: component.c_high,
-                  reference_range: component.reference_range,
-                  result_type: component.result_type,
-                  gender: component.gender,
-                  age_start: component.age_start,
-                  age_end: component.age_end,
-                });
-              });
-            } else {
-              console.log("  No test components found for this test");
-            }
-
-            // Debug medical_report_has_test data
-            console.log("  Medical report has test data:", {
-              result: test.medical_report_has_test?.result,
-              status: test.medical_report_has_test?.status,
-            });
-          }
-        );
-      }
-
-      // Remap associations to top-level for frontend convenience
-      reportData.tests = (
-        reportData.test_id_test_medical_report_has_tests || []
-      ).map((t) => ({
-        ...t,
-        medical_report_has_test: t.medical_report_has_test,
-        test_components: t.test_components || [],
+      reportData.test_group_results = testGroupResults.map((r) => ({
+        ...r.get({ plain: true }),
+        results: r.result_json,
+        result_json: undefined,
       }));
 
-      // Debug: Log the processed tests data
-      console.log("\n=== DEBUG: Processed Tests Data ===");
-      reportData.tests.forEach((test, index) => {
-        console.log(`Processed Test ${index + 1}:`, {
-          id: test.id,
-          name: test.name,
-          components_count: test.test_components.length,
-          has_medical_report_data: !!test.medical_report_has_test,
-        });
-      });
+      reportData.test_groups = [
+        ...new Map(
+          testGroupResults
+            .filter((r) => r.test_group) // avoid nulls
+            .map((r) => [r.test_group.id, r.test_group])
+        ).values(),
+      ];
 
-      // Map cultures from the medical_report_has_cultures association
-      reportData.cultures = (reportData.medical_report_has_cultures || []).map(
-        (mrc) => ({
-          ...mrc.culture,
-          medical_report_has_culture: {
-            id: mrc.id,
-            result: mrc.result,
-            status: mrc.status,
-          },
-          culture_antibiotics: mrc.culture_antibiotics || [],
-        })
-      );
+      // Expose a top-level test_component_results map for direct access if needed by client
+      reportData.test_component_results = testComponentResultsMap;
 
-      // Process test groups with optimized structure
-      const testGroups = reportTestGroups
-        .filter((rtg) => rtg.test_group)
-        .map((rtg) => {
-          const group = rtg.test_group;
-          const fieldCompOptions = group.field_comp_options || [];
-
-          // Create a map of component_id -> field_id -> value
-          const valueMap = {};
-          fieldValues
-            .filter((fv) => fv.test_group_id === group.id)
-            .forEach((fv) => {
-              if (!valueMap[fv.tg_component_id]) {
-                valueMap[fv.tg_component_id] = {};
-              }
-              valueMap[fv.tg_component_id][fv.tg_fields_id] = fv.value;
-            });
-
-          // Group components by category
-          const componentsByCategory = {};
-          const directComponents = [];
-
-          (group.tg_components || []).forEach((component) => {
-            if (component.category) {
-              if (!componentsByCategory[component.category.id]) {
-                componentsByCategory[component.category.id] = {
-                  id: component.category.id,
-                  name: component.category.name,
-                  components: [],
-                };
-              }
-              componentsByCategory[component.category.id].components.push({
-                id: component.id,
-                name: component.name,
-              });
-            } else {
-              directComponents.push({
-                id: component.id,
-                name: component.name,
-              });
-            }
-          });
-
-          const categories = Object.values(componentsByCategory);
-
-          // All fields with their options
-          const fields = (group.tg_fields || []).map((field) => ({
-            id: field.id,
-            name: field.name,
-            field_comp_options: fieldCompOptions
-              .filter((opt) => opt.tg_fields_id === field.id)
-              .map((opt) => ({
-                id: opt.id,
-                name: opt.name,
-                tg_component_id: opt.tg_component_id,
-                tg_fields_id: opt.tg_fields_id,
-              })),
-          }));
-
-          return {
-            id: group.id,
-            name: group.name,
-            directComponents,
-            categories,
-            fields,
-            values: valueMap,
-          };
-        });
-
-      // Get test component results for all tests in this report
-      const testComponentResults =
-        await db.medical_report_test_component_result.findAll({
-          where: { medical_report_id: req.params.id },
-          include: [
-            {
-              model: db.test_component,
-              as: "test_component",
-              attributes: [
-                "id",
-                "name",
-                "unit",
-                "normal_from",
-                "normal_to",
-                "reference_range",
-                "result_type",
-                "gender",
-                "age_start",
-                "age_end",
-              ],
-            },
-          ],
-          order: [
-            ["test_id", "ASC"],
-            ["test_component_id", "ASC"],
-          ],
-        });
-
-      // Organize component results by test_id
-      const componentResultsByTest = {};
-      testComponentResults.forEach((result) => {
-        if (!componentResultsByTest[result.test_id]) {
-          componentResultsByTest[result.test_id] = [];
-        }
-        componentResultsByTest[result.test_id].push({
-          id: result.id,
-          test_component_id: result.test_component_id,
-          result: result.result,
-          status: result.status,
-          test_component: result.test_component,
-        });
-      });
-
-      // Debug: Log the final response structure
-      console.log("\n=== DEBUG: Final Response Structure ===");
-      const responseData = {
-        report: reportData,
-        testGroups: testGroups,
-        // Include test components data organized by test_id for easy access
-        testComponents: reportData.tests.reduce((acc, test) => {
-          acc[test.id] = test.test_components || [];
-          return acc;
-        }, {}),
-        // Include test component results organized by test_id
-        testComponentResults: componentResultsByTest,
-      };
-
-      console.log(
-        "Response report tests count:",
-        responseData.report.tests?.length || 0
-      );
-      console.log("Test components by test ID:");
-      Object.keys(responseData.testComponents).forEach((testId) => {
-        const components = responseData.testComponents[testId];
-        console.log(`  Test ID ${testId}: ${components.length} components`);
-        components.forEach((comp, idx) => {
-          console.log(`    Component ${idx + 1}:`, {
-            id: comp.id,
-            name: comp.name,
-            normal_from: comp.normal_from,
-            normal_to: comp.normal_to,
-            c_low: comp.c_low,
-            c_high: comp.c_high,
-            reference_range: comp.reference_range,
-            result_type: comp.result_type,
-          });
-        });
-      });
-
-      // Return comprehensive data structure
-      res.json(responseData);
+      res.json(reportData);
     } catch (error) {
       console.error("Error fetching comprehensive results data:", error);
       res.status(500).json({
         error: "Failed to fetch results data",
-        details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+        details: process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   }
@@ -1535,9 +1817,23 @@ router.get(
         JSON.stringify(reportTestGroups, null, 2)
       );
 
-      // Get all field values for this medical report
-      const fieldValues = await db.medical_report_tg_field_value.findAll({
+      // Get all test group results for this medical report using the new JSON structure
+      const testGroupResults = await db.test_group_result.findAll({
         where: { medical_report_id: req.params.id },
+        attributes: ["id", "test_group_id", "tg_component_id", "result_json"],
+      });
+
+      console.log(
+        `DEBUG: Found ${testGroupResults.length} test group results for medical report ${req.params.id}:`
+      );
+      testGroupResults.forEach((tgr, index) => {
+        console.log(`  Result ${index + 1}:`, {
+          id: tgr.id,
+          test_group_id: tgr.test_group_id,
+          tg_component_id: tgr.tg_component_id,
+          result_json: tgr.result_json,
+          result_json_type: typeof tgr.result_json,
+        });
       });
 
       // Format the response
@@ -1546,16 +1842,109 @@ router.get(
         .map((rtg) => {
           const group = rtg.test_group;
 
-          // Create a map of component_id -> field_id -> value
+          // Create a map of field name to field ID for this test group
+          const fieldNameToIdMap = {};
+          (group.tg_fields || []).forEach((field) => {
+            fieldNameToIdMap[field.name] = field.id; // Keep as number for frontend compatibility
+          });
+
+          // Create a map of component_id -> field_id -> value from JSON results
           const valueMap = {};
-          fieldValues
-            .filter((fv) => fv.test_group_id === group.id)
-            .forEach((fv) => {
-              if (!valueMap[fv.tg_component_id]) {
-                valueMap[fv.tg_component_id] = {};
+          const groupResults = testGroupResults.filter(
+            (tgr) => tgr.test_group_id === group.id
+          );
+
+          console.log(
+            `DEBUG: Processing test group ${group.id} (${group.name}):`
+          );
+          console.log(`  Found ${groupResults.length} results for this group`);
+          console.log(`  Field name to ID mapping:`, fieldNameToIdMap);
+
+          groupResults.forEach((tgr) => {
+            console.log(
+              `  Processing result for component ${tgr.tg_component_id}:`,
+              {
+                result_json: tgr.result_json,
+                result_json_type: typeof tgr.result_json,
               }
-              valueMap[fv.tg_component_id][fv.tg_fields_id] = fv.value;
-            });
+            );
+
+            // Extract field values from JSON and convert field names back to field IDs
+            let resultJson = tgr.result_json;
+
+            // Parse JSON string if needed
+            if (typeof resultJson === "string") {
+              try {
+                resultJson = JSON.parse(resultJson);
+                console.log(
+                  `    Parsed JSON string for component ${tgr.tg_component_id}:`,
+                  resultJson
+                );
+              } catch (parseError) {
+                console.error(
+                  `    Failed to parse JSON for component ${tgr.tg_component_id}:`,
+                  parseError.message
+                );
+                resultJson = null;
+              }
+            }
+
+            if (resultJson && typeof resultJson === "object") {
+              const componentValues = {};
+
+              // Convert field names back to field IDs for frontend compatibility
+              Object.entries(resultJson).forEach(([fieldName, value]) => {
+                const fieldId = fieldNameToIdMap[fieldName];
+                console.log(
+                  `    Converting field '${fieldName}' -> ID '${fieldId}' with value:`,
+                  value
+                );
+
+                // Only include non-empty values
+                if (
+                  value !== null &&
+                  value !== undefined &&
+                  value.toString().trim() !== ""
+                ) {
+                  if (fieldId) {
+                    componentValues[fieldId] = value;
+                  } else {
+                    // Handle legacy field_X format or unknown fields
+                    const legacyMatch = fieldName.match(/^field_(\d+)$/);
+                    if (legacyMatch) {
+                      componentValues[legacyMatch[1]] = value;
+                      console.log(
+                        `    Using legacy format: field_${legacyMatch[1]} = ${value}`
+                      );
+                    } else {
+                      console.warn(
+                        `Unknown field name: ${fieldName} for test group ${group.id}`
+                      );
+                    }
+                  }
+                } else {
+                  console.log(
+                    `    Skipping empty value for field '${fieldName}'`
+                  );
+                }
+              });
+
+              // Only add to valueMap if there are actual values
+              if (Object.keys(componentValues).length > 0) {
+                valueMap[tgr.tg_component_id] = componentValues;
+                console.log(
+                  `    Final component values for component ${tgr.tg_component_id}:`,
+                  componentValues
+                );
+              } else {
+                console.log(
+                  `    No values to store for component ${tgr.tg_component_id}`
+                );
+              }
+            }
+          });
+
+          console.log(`  Final valueMap for group ${group.id}:`, valueMap);
 
           // Map field_comp_options to include in the response
           const fieldCompOptions = (group.field_comp_options || []).map(
@@ -1630,17 +2019,26 @@ router.get(
   }
 );
 // Helper function to save test group values with retry on deadlock
+/**
+ * Save test group values using the new simplified JSON structure
+ * @param {number} medical_report_id - ID of the medical report
+ * @param {number} test_group_id - ID of the test group
+ * @param {Object} values - Values object with structure: { component_id: { field_id: value } }
+ * @param {number} maxRetries - Maximum number of retry attempts for deadlock handling
+ * @returns {Promise<Object>} Success result
+ */
 async function saveTestGroupValuesWithRetry(
   medical_report_id,
   test_group_id,
   values,
+  externalTransaction = null,
   maxRetries = 3
 ) {
   let retryCount = 0;
   let lastError;
 
   while (retryCount < maxRetries) {
-    const t = await db.sequelize.transaction();
+    const t = externalTransaction || (await db.sequelize.transaction());
     try {
       // Validate that the medical report exists
       const report = await db.medical_report.findByPk(medical_report_id, {
@@ -1666,15 +2064,37 @@ async function saveTestGroupValuesWithRetry(
         throw error;
       }
 
-      // Prepare operations
+      // Prepare operations for the new JSON-based structure
       const operations = [];
 
-      // Convert values object to array of field values
+      // First, get all field information for this test group to map field IDs to field names
+      const testGroupFields = await db.tg_fields.findAll({
+        where: {
+          test_group_id: parseInt(test_group_id, 10),
+          deleted_at: null, // Only get active fields
+        },
+        attributes: ["id", "name"],
+        transaction: t,
+      });
+
+      // Create a map of field ID to field name for quick lookup
+      const fieldIdToNameMap = {};
+      testGroupFields.forEach((field) => {
+        fieldIdToNameMap[field.id.toString()] = field.name;
+      });
+
+      console.log("Field ID to Name mapping:", fieldIdToNameMap);
+
+      // Convert values object to test_group_result records with JSON storage
       Object.entries(values).forEach(([component_id, fields]) => {
         if (!component_id) {
           console.warn("Skipping empty component_id");
           return;
         }
+
+        // Create a single record per component with all field values as JSON
+        const result_json = {};
+        let hasNonEmptyValues = false;
 
         Object.entries(fields).forEach(([field_id, value]) => {
           if (!field_id) {
@@ -1685,48 +2105,67 @@ async function saveTestGroupValuesWithRetry(
             return;
           }
 
+          // Only store non-empty values to prevent saving empty strings
+          if (
+            value !== null &&
+            value !== undefined &&
+            value.toString().trim() !== ""
+          ) {
+            // Convert field ID to field name for better JSON structure
+            const fieldName = fieldIdToNameMap[field_id] || `field_${field_id}`;
+
+            // Store field values in JSON format using field names as keys
+            result_json[fieldName] = value;
+            hasNonEmptyValues = true;
+          }
+        });
+
+        // Only create operation if there are non-empty field values
+        if (hasNonEmptyValues) {
           operations.push({
             medical_report_id: parseInt(medical_report_id, 10),
             test_group_id: parseInt(test_group_id, 10),
             tg_component_id: parseInt(component_id, 10),
-            tg_fields_id: parseInt(field_id, 10),
-            value: value !== null && value !== undefined ? String(value) : null,
+            result_json: result_json,
           });
-        });
+        }
       });
 
-      console.log("Prepared operations:", operations);
+      console.log("Prepared operations for new structure:", operations);
 
-      // Delete existing values for this report and test group
-      const deleteResult = await db.medical_report_tg_field_value.destroy({
+      // Delete existing test_group_result records for this report and test group
+      const deleteResult = await db.test_group_result.destroy({
         where: {
           medical_report_id: parseInt(medical_report_id, 10),
           test_group_id: parseInt(test_group_id, 10),
         },
         transaction: t,
       });
-      console.log(`Deleted ${deleteResult} existing records`);
+      console.log(`Deleted ${deleteResult} existing test_group_result records`);
 
-      // Insert new values if there are any
+      // Insert new test_group_result records if there are any
       if (operations.length > 0) {
-        console.log("Inserting new values...");
-        await db.medical_report_tg_field_value.bulkCreate(operations, {
+        console.log("Inserting new test_group_result records...");
+        await db.test_group_result.bulkCreate(operations, {
           transaction: t,
-          updateOnDuplicate: ["value"],
+          updateOnDuplicate: ["result_json"],
           validate: true,
           individualHooks: true,
         });
-        console.log("Successfully inserted new values");
+        console.log("Successfully inserted new test_group_result records");
       } else {
-        console.log("No values to insert");
+        console.log("No test_group_result records to insert");
       }
 
-      await t.commit();
-      console.log("Transaction committed successfully");
+      // Only commit if we created the transaction ourselves
+      if (!externalTransaction) {
+        await t.commit();
+        console.log("Transaction committed successfully");
+      }
       return { success: true };
     } catch (error) {
-      // Always rollback the transaction on error
-      if (t && !t.finished) {
+      // Only rollback if we created the transaction ourselves
+      if (!externalTransaction && t && !t.finished) {
         try {
           await t.rollback();
         } catch (rollbackError) {
@@ -1848,16 +2287,10 @@ router.get(
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
-          tests: reportData.test_id_test_medical_report_has_tests || [],
-          cultures:
-            reportData.culture_id_culture_medical_report_has_cultures || [],
-          tests_count: reportData.test_id_test_medical_report_has_tests
-            ? reportData.test_id_test_medical_report_has_tests.length
-            : 0,
-          cultures_count:
-            reportData.culture_id_culture_medical_report_has_cultures
-              ? reportData.culture_id_culture_medical_report_has_cultures.length
-              : 0,
+          tests: reportData.tests || [],
+          cultures: reportData.cultures || [],
+          tests_count: reportData.tests ? reportData.tests.length : 0,
+          cultures_count: reportData.cultures ? reportData.cultures.length : 0,
           test_groups_count: reportData.test_groups
             ? reportData.test_groups.length
             : 0,
@@ -1960,11 +2393,43 @@ router.post(
         });
       }
 
+      // Calculate status based on result and test normal range
+      let calculatedStatus = status || "pending";
+      
+      if (result !== null && result !== undefined && result !== "") {
+        const numericResult = Number(result);
+        if (!isNaN(numericResult)) {
+          // Fetch test details to get normal range
+          const testDetails = await db.test.findByPk(testId, {
+            attributes: ['normal_from', 'normal_to', 'c_low', 'c_high'],
+            transaction: t,
+          });
+          
+          if (testDetails && testDetails.normal_from !== null && testDetails.normal_to !== null) {
+            if (numericResult < testDetails.normal_from) {
+              calculatedStatus = testDetails.c_low !== null && numericResult < testDetails.c_low
+                ? "critical low"
+                : "low";
+            } else if (numericResult > testDetails.normal_to) {
+              calculatedStatus = testDetails.c_high !== null && numericResult > testDetails.c_high
+                ? "critical high"
+                : "high";
+            } else {
+              calculatedStatus = "normal";
+            }
+          } else {
+            calculatedStatus = "done";
+          }
+        } else {
+          calculatedStatus = "done";
+        }
+      }
+
       // Update the test result
       await db.medical_report_has_test.update(
         {
           result: result || null,
-          status: status || "pending",
+          status: calculatedStatus,
           updatedAt: new Date(),
         },
         {
@@ -2045,7 +2510,23 @@ router.post(
         reportId,
         testId,
         component_results,
+        requestBody: req.body,
       });
+
+      // Validate input
+      if (!component_results || !Array.isArray(component_results)) {
+        console.error("Invalid component_results:", component_results);
+        return res.status(400).json({
+          error: "component_results must be provided as an array",
+        });
+      }
+
+      if (component_results.length === 0) {
+        console.error("Empty component_results array");
+        return res.status(400).json({
+          error: "component_results array cannot be empty",
+        });
+      }
 
       // Execute the entire operation with deadlock retry logic
       const result = await executeWithDeadlockRetry(async () => {
@@ -2085,66 +2566,175 @@ router.post(
 
           const validComponentIds = testComponents.map((tc) => tc.id);
 
+          console.log(`Test ${testId} validation:`, {
+            testComponentsFound: testComponents.length,
+            validComponentIds: validComponentIds,
+            receivedComponentResults: component_results.map((cr) => ({
+              test_component_id: cr.test_component_id,
+              result: cr.result,
+            })),
+          });
+
+          // Extra debugging for test 7
+          if (testId == 7) {
+            console.log(`EXTRA DEBUG for test 7:`, {
+              testComponents: testComponents.map((tc) => ({
+                id: tc.id,
+                name: tc.name,
+              })),
+              component_results: component_results,
+            });
+          }
+
           // Process each component result
-          for (const componentResult of component_results) {
-            const { test_component_id, result, status } = componentResult;
+          for (let i = 0; i < component_results.length; i++) {
+            try {
+              const componentResult = component_results[i];
+              console.log(
+                `Processing component result ${i + 1}/${
+                  component_results.length
+                } for test ${testId}:`,
+                componentResult
+              );
 
-            // Validate component belongs to the test
-            if (!validComponentIds.includes(test_component_id)) {
-              await t.rollback();
-              return {
-                error: `Test component ${test_component_id} does not belong to test ${testId}`,
-                status: 400,
-              };
-            }
+              const { test_component_id, result, status } = componentResult;
 
-            // Calculate status based on result and component normal range
-            const component = testComponents.find(
-              (tc) => tc.id === test_component_id
-            );
-            let calculatedStatus = status || "pending";
+              // Validate component result structure
+              if (!componentResult.hasOwnProperty("test_component_id")) {
+                await t.rollback();
+                return {
+                  error: "Each component result must have test_component_id",
+                  status: 400,
+                };
+              }
 
-            if (result !== null && result !== undefined && result !== "") {
-              const numericResult = Number(result);
-              if (!isNaN(numericResult) && component) {
-                if (
-                  component.normal_from !== null &&
-                  component.normal_to !== null
-                ) {
-                  if (numericResult < component.normal_from) {
-                    calculatedStatus =
-                      component.c_low !== null &&
-                      numericResult < component.c_low
-                        ? "critical low"
-                        : "low";
-                  } else if (numericResult > component.normal_to) {
-                    calculatedStatus =
-                      component.c_high !== null &&
-                      numericResult > component.c_high
-                        ? "critical high"
-                        : "high";
+              if (
+                typeof test_component_id !== "number" ||
+                isNaN(test_component_id)
+              ) {
+                await t.rollback();
+                return {
+                  error: `test_component_id must be a valid number, received: ${test_component_id}`,
+                  status: 400,
+                };
+              }
+
+              // Validate component belongs to the test
+              if (!validComponentIds.includes(test_component_id)) {
+                await t.rollback();
+                return {
+                  error: `Test component ${test_component_id} does not belong to test ${testId}. Valid component IDs: ${validComponentIds.join(
+                    ", "
+                  )}`,
+                  status: 400,
+                };
+              }
+
+              // Calculate status based on result and component normal range
+              const component = testComponents.find(
+                (tc) => tc.id === test_component_id
+              );
+              let calculatedStatus = status || "pending";
+
+              if (result !== null && result !== undefined && result !== "") {
+                const numericResult = Number(result);
+                if (!isNaN(numericResult) && component) {
+                  if (
+                    component.normal_from !== null &&
+                    component.normal_to !== null
+                  ) {
+                    if (numericResult < component.normal_from) {
+                      calculatedStatus =
+                        component.c_low !== null &&
+                        numericResult < component.c_low
+                          ? "critical low"
+                          : "low";
+                    } else if (numericResult > component.normal_to) {
+                      calculatedStatus =
+                        component.c_high !== null &&
+                        numericResult > component.c_high
+                          ? "critical high"
+                          : "high";
+                    } else {
+                      calculatedStatus = "normal";
+                    }
                   } else {
-                    calculatedStatus = "normal";
+                    calculatedStatus = "done";
                   }
-                } else {
-                  calculatedStatus = "done";
                 }
               }
-            }
 
-            // Upsert the component result
-            await db.medical_report_test_component_result.upsert(
-              {
-                medical_report_id: reportId,
-                test_id: testId,
-                test_component_id,
-                result: result || null,
-                status: calculatedStatus,
-              },
-              {
-                transaction: t,
+              // Extra debugging for test 7 before upsert
+              if (testId == 7) {
+                console.log(
+                  `EXTRA DEBUG - About to upsert component ${test_component_id}:`,
+                  {
+                    medical_report_id: reportId,
+                    test_id: testId,
+                    test_component_id,
+                    result: result || null,
+                    status: calculatedStatus,
+                    originalResult: result,
+                    resultType: typeof result,
+                    resultLength: result ? result.length : "N/A",
+                  }
+                );
               }
-            );
+
+              // Upsert the component result
+              try {
+                const upsertResult =
+                  await db.medical_report_test_component_result.upsert(
+                    {
+                      medical_report_id: parseInt(reportId),
+                      test_id: parseInt(testId),
+                      test_component_id: parseInt(test_component_id),
+                      result: result || null,
+                      status: calculatedStatus,
+                    },
+                    {
+                      transaction: t,
+                    }
+                  );
+
+                if (testId == 7) {
+                  console.log(
+                    `EXTRA DEBUG - Upsert successful for component ${test_component_id}:`,
+                    {
+                      upsertResult: upsertResult ? "Success" : "Failed",
+                      created: upsertResult ? upsertResult[1] : "Unknown",
+                    }
+                  );
+                }
+              } catch (upsertError) {
+                console.error(
+                  `UPSERT ERROR for test ${testId}, component ${test_component_id}:`,
+                  {
+                    error: upsertError.message,
+                    code: upsertError.code,
+                    sql: upsertError.sql,
+                    stack: upsertError.stack,
+                  }
+                );
+                throw upsertError;
+              }
+
+              console.log(
+                `Successfully processed component ${test_component_id} for test ${testId}`
+              );
+            } catch (componentError) {
+              console.error(
+                `Error processing component result ${
+                  i + 1
+                } for test ${testId}:`,
+                componentError
+              );
+              await t.rollback();
+              return {
+                error: `Error processing component result: ${componentError.message}`,
+                status: 500,
+              };
+            }
           }
 
           // Update the main test status based on component results
@@ -2393,14 +2983,21 @@ router.post(
         });
       }
 
-      // For cultures, set status to 'done' if result is provided, otherwise use the provided status
-      const finalStatus =
-        result && result.trim() ? "done" : status || "pending";
+      // Check if there are any actual culture results in medical_report_culture_result table
+      const actualCultureResults = await db.medical_report_culture_result.findAll({
+        where: {
+          medical_report_has_culture_id: reportCulture.id,
+        },
+        transaction: t,
+      });
+
+      // Set status to 'done' if there are actual culture results, otherwise use provided status or 'pending'
+      const finalStatus = actualCultureResults.length > 0 ? "done" : status || "pending";
 
       // Update the culture result
       await db.medical_report_has_culture.update(
         {
-          result: result || null,
+          result: result || null, // Keep this for backward compatibility
           status: finalStatus,
           updatedAt: new Date(),
         },
@@ -2564,7 +3161,7 @@ router.get(
         include: [
           {
             model: db.test,
-            as: "test_id_test_medical_report_has_tests",
+            as: "tests",
             through: { attributes: ["id", "result", "status"] },
             attributes: ["id", "name"],
           },
@@ -2591,14 +3188,12 @@ router.get(
           date: medicalReport.date,
           patient_id: medicalReport.patient_id,
         },
-        associatedTests:
-          medicalReport.test_id_test_medical_report_has_tests || [],
+        associatedTests: medicalReport.tests || [],
         testAssociations: medicalReport.medical_report_has_tests || [],
         allTests: allTests,
         summary: {
           totalTestsInSystem: allTests.length,
-          testsAssociatedWithReport:
-            medicalReport.test_id_test_medical_report_has_tests?.length || 0,
+          testsAssociatedWithReport: medicalReport.tests?.length || 0,
           testAssociationsCount:
             medicalReport.medical_report_has_tests?.length || 0,
         },
@@ -2624,7 +3219,7 @@ router.get(
         include: [
           {
             model: db.culture,
-            as: "culture_id_culture_medical_report_has_cultures",
+            as: "cultures",
             through: { attributes: ["id", "result", "status"] },
             attributes: ["id", "name"],
           },
@@ -2651,15 +3246,12 @@ router.get(
           date: medicalReport.date,
           patient_id: medicalReport.patient_id,
         },
-        associatedCultures:
-          medicalReport.culture_id_culture_medical_report_has_cultures || [],
+        associatedCultures: medicalReport.cultures || [],
         cultureAssociations: medicalReport.medical_report_has_cultures || [],
         allCultures: allCultures,
         summary: {
           totalCulturesInSystem: allCultures.length,
-          culturesAssociatedWithReport:
-            medicalReport.culture_id_culture_medical_report_has_cultures
-              ?.length || 0,
+          culturesAssociatedWithReport: medicalReport.cultures?.length || 0,
           cultureAssociationsCount:
             medicalReport.medical_report_has_cultures?.length || 0,
         },
@@ -2680,10 +3272,20 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-      const workbook = XLSX.readFile(req.file.path);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      // Validate the Excel file buffer
+      const validation = validateExcelBuffer(req.file.buffer);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.message });
+      }
+
+      // Read Excel file using secure ExcelJS service
+      const data = await readExcelBuffer(req.file.buffer);
+
+      if (data.length === 0) {
+        return res.status(400).json({ error: "No data found in the file" });
+      }
+
       let imported = 0,
         updated = 0,
         errors = [];
@@ -2719,11 +3321,372 @@ router.post(
           imported++;
         }
       }
-      fs.unlinkSync(req.file.path);
+      // No need to clean up file since we're using memory storage
       res.json({ imported, updated, errors });
     } catch (error) {
       console.error("Error importing medical reports:", error);
       res.status(500).json({ error: "Failed to import medical reports" });
+    }
+  }
+);
+
+// Bulk save all results for a medical report
+router.post(
+  "/:id/results/bulk",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist"),
+  async (req, res) => {
+    const t = await db.sequelize.transaction();
+    try {
+      const reportId = req.params.id;
+      const {
+        test_results = [],
+        culture_results = [],
+        test_component_results = {},
+        test_group_values = {},
+        culture_antibiotics = {},
+        culture_options = {},
+      } = req.body;
+
+      console.log("Bulk save request:", {
+        reportId,
+        test_results: test_results.length,
+        culture_results: culture_results.length,
+        test_component_results: Object.keys(test_component_results).length,
+        test_group_values: Object.keys(test_group_values).length,
+        culture_antibiotics: Object.keys(culture_antibiotics).length,
+        culture_options: Object.keys(culture_options).length,
+      });
+
+      // Verify medical report exists
+      const medicalReport = await db.medical_report.findByPk(reportId, {
+        transaction: t,
+      });
+      if (!medicalReport) {
+        await t.rollback();
+        return res.status(404).json({ error: "Medical report not found" });
+      }
+
+      let hasAnyResults = false;
+
+      // Helper function to calculate test status based on result and normal range
+      const calculateTestStatus = (result, component) => {
+        if (!result || result.toString().trim() === '') return 'pending';
+        
+        // If no normal range is available, set to 'done'
+        if (!component || component.normal_from === null || component.normal_to === null) {
+          return 'done';
+        }
+        
+        const numericResult = parseFloat(result);
+        if (isNaN(numericResult)) return 'done'; // For text results, just mark as done
+        
+        const min = parseFloat(component.normal_from);
+        const max = parseFloat(component.normal_to);
+        
+        if (isNaN(min) || isNaN(max)) return 'done';
+        
+        // Use critical thresholds if available, otherwise calculate as 50% below/above normal range
+        const criticalLowThreshold = component.c_low !== null ? component.c_low : min * 0.5;
+        const criticalHighThreshold = component.c_high !== null ? component.c_high : max * 1.5;
+        
+        if (numericResult < criticalLowThreshold) {
+          return 'critical low';
+        } else if (numericResult < min) {
+          return 'low';
+        } else if (numericResult > criticalHighThreshold) {
+          return 'critical high';
+        } else if (numericResult > max) {
+          return 'high';
+        } else {
+          return 'normal';
+        }
+      };
+
+      // 1. Save test results (for tests without components)
+      if (test_results.length > 0) {
+        for (const result of test_results) {
+          if (result.result && result.result.toString().trim() !== "") {
+            hasAnyResults = true;
+            // For tests without components, status is 'done' if result exists, 'pending' if empty
+            const status = result.result && result.result.toString().trim() !== '' ? 'done' : 'pending';
+            
+            await db.medical_report_has_test.update(
+              {
+                result: result.result,
+                status: status,
+                updatedAt: new Date(),
+              },
+              {
+                where: {
+                  medical_report_id: reportId,
+                  test_id: result.test_id,
+                },
+                transaction: t,
+              }
+            );
+          }
+        }
+      }
+
+      // 2. Save test component results
+      if (Object.keys(test_component_results).length > 0) {
+        for (const [testId, components] of Object.entries(
+          test_component_results
+        )) {
+          // Get test components to access normal ranges
+          const testComponents = await db.test_component.findAll({
+            where: { test_id: parseInt(testId, 10) },
+            attributes: ['id', 'normal_from', 'normal_to', 'c_low', 'c_high'],
+            transaction: t
+          });
+          
+          const componentResultsToSave = [];
+
+          for (const [componentId, componentData] of Object.entries(
+            components
+          )) {
+            if (
+              componentData.result &&
+              componentData.result.toString().trim() !== ""
+            ) {
+              hasAnyResults = true;
+              
+              // Find the component to get its normal range
+              const component = testComponents.find(tc => tc.id === parseInt(componentId, 10));
+              const calculatedStatus = calculateTestStatus(componentData.result, component);
+              
+              componentResultsToSave.push({
+                medical_report_id: reportId,
+                test_id: parseInt(testId, 10),
+                test_component_id: parseInt(componentId, 10),
+                result: componentData.result,
+                status: calculatedStatus,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+            }
+          }
+
+          if (componentResultsToSave.length > 0) {
+            // Delete existing results for this test
+            await db.medical_report_test_component_result.destroy({
+              where: {
+                medical_report_id: reportId,
+                test_id: parseInt(testId, 10),
+              },
+              transaction: t,
+            });
+
+            // Bulk create new results
+            await db.medical_report_test_component_result.bulkCreate(
+              componentResultsToSave,
+              { transaction: t }
+            );
+          }
+        }
+      }
+
+      // 3. Save culture results
+      if (culture_results.length > 0) {
+        for (const result of culture_results) {
+          if (result.result && result.result.toString().trim() !== "") {
+            hasAnyResults = true;
+            
+            // First, find the medical_report_has_culture record
+            const cultureRecord = await db.medical_report_has_culture.findOne({
+              where: {
+                medical_report_id: reportId,
+                culture_id: result.culture_id,
+              },
+              transaction: t,
+            });
+
+            if (cultureRecord) {
+
+              // Check if there are actual culture results in medical_report_culture_result table
+              const actualCultureResults = await db.medical_report_culture_result.findAll({
+                where: {
+                  medical_report_has_culture_id: cultureRecord.id,
+                },
+                transaction: t,
+              });
+
+              // Set status based on existence of actual culture results
+              const status = actualCultureResults.length > 0 ? "done" : "pending";
+              await db.medical_report_has_culture.update(
+                {
+                  result: result.result, // Keep this for backward compatibility
+                  status: status,
+                  updatedAt: new Date(),
+                },
+                {
+                  where: {
+                    medical_report_id: reportId,
+                    culture_id: result.culture_id,
+                  },
+                  transaction: t,
+                }
+              );
+            }
+          }
+        }
+      }
+
+      // 4. Save test group values
+      if (Object.keys(test_group_values).length > 0) {
+        for (const [groupId, components] of Object.entries(test_group_values)) {
+          const valuesPayload = {};
+          let hasGroupValues = false;
+
+          Object.entries(components).forEach(([componentId, fields]) => {
+            valuesPayload[componentId] = {};
+            Object.entries(fields).forEach(([fieldId, value]) => {
+              valuesPayload[componentId][fieldId] = value;
+              if (value && value.toString().trim() !== "") {
+                hasGroupValues = true;
+                hasAnyResults = true;
+              }
+            });
+          });
+
+          if (hasGroupValues) {
+            await saveTestGroupValuesWithRetry(
+              reportId,
+              parseInt(groupId, 10),
+              valuesPayload,
+              t
+            );
+          }
+        }
+      }
+
+      // 5. Save culture antibiotics (if any)
+      if (Object.keys(culture_antibiotics).length > 0) {
+        for (const [cultureResultId, antibiotics] of Object.entries(
+          culture_antibiotics
+        )) {
+          if (antibiotics && antibiotics.length > 0) {
+            // Delete existing antibiotics for this culture result
+            await db.medical_report_has_culture_antibiotic.destroy({
+              where: { medical_report_has_culture_id: cultureResultId },
+              transaction: t,
+            });
+
+            // Bulk create new antibiotics
+            const antibioticRecords = antibiotics.map((ab) => ({
+              medical_report_has_culture_id: cultureResultId,
+              antibiotic_id: ab.antibiotic_id,
+              sensitivity: ab.sensitivity,
+              zone_size: ab.zone_size || null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }));
+
+            await db.medical_report_has_culture_antibiotic.bulkCreate(
+              antibioticRecords,
+              { transaction: t }
+            );
+          }
+        }
+      }
+
+      // 6. Save culture options (if any)
+      if (Object.keys(culture_options).length > 0) {
+        for (const [cultureId, optionsArray] of Object.entries(
+          culture_options
+        )) {
+          // Find the culture result ID
+          const cultureResult = await db.medical_report_has_culture.findOne({
+            where: {
+              medical_report_id: reportId,
+              culture_id: parseInt(cultureId, 10),
+            },
+            transaction: t,
+          });
+
+          if (cultureResult) {
+            // Delete existing culture options
+            await db.medical_report_culture_result.destroy({
+              where: { medical_report_has_culture_id: cultureResult.id },
+              transaction: t,
+            });
+
+            if (optionsArray && optionsArray.length > 0) {
+              // Bulk create new culture options
+              const optionRecords = optionsArray.map((option) => ({
+                medical_report_has_culture_id: cultureResult.id,
+                culture_option_name: option.culture_option_name || null,
+                culture_sub_option_name: option.culture_sub_option_name || null,
+                custom_result: option.custom_result || null,
+                result_type: option.result_type || "custom",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }));
+
+              await db.medical_report_culture_result.bulkCreate(optionRecords, {
+                transaction: t,
+              });
+
+              // Update culture status to 'done' since we just added culture results
+              await db.medical_report_has_culture.update(
+                {
+                  status: "done",
+                },
+                {
+                  where: {
+                    id: cultureResult.id,
+                  },
+                  transaction: t,
+                }
+              );
+            } else {
+              // No culture options provided, set status to 'pending'
+              await db.medical_report_has_culture.update(
+                {
+                  status: "pending",
+                },
+                {
+                  where: {
+                    id: cultureResult.id,
+                  },
+                  transaction: t,
+                }
+              );
+            }
+          }
+        }
+      }
+
+      // Update received_at date if any results were saved
+      if (hasAnyResults) {
+        await updateMedicalReportDates(reportId, "received", t);
+      }
+
+      await t.commit();
+      console.log(
+        `Successfully bulk saved results for medical report ${reportId}`
+      );
+
+      res.json({
+        success: true,
+        message: "All results saved successfully",
+        hasResults: hasAnyResults,
+      });
+    } catch (error) {
+      if (t && !t.finished) {
+        try {
+          await t.rollback();
+        } catch (rollbackError) {
+          console.error("Error rolling back transaction:", rollbackError);
+        }
+      }
+      console.error("Error bulk saving results:", error);
+      res.status(500).json({
+        error: "Failed to save results",
+        details:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
     }
   }
 );

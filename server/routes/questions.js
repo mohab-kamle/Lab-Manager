@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const XLSX = require('xlsx');
+const { readExcelBuffer, validateExcelBuffer, sanitizeDataForExport } = require('../services/excelService');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const db = require('../models');
@@ -257,10 +257,14 @@ router.post('/import', authenticateUser, upload.single('file'), async (req, res)
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet);
+    // Validate the Excel file buffer
+    const validation = validateExcelBuffer(req.file.buffer);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.message });
+    }
+
+    // Read Excel file using secure ExcelJS service
+    const data = await readExcelBuffer(req.file.buffer);
 
     if (data.length === 0) {
       return res.status(400).json({ error: 'No data found in the file' });
@@ -349,4 +353,4 @@ router.get('/export/excel', authenticateUser, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

@@ -4,7 +4,9 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class MedicalReportCultureResult extends Model {
     static associate(models) {
-      // Associations will be defined in the init-models.js file
+      MedicalReportCultureResult.belongsTo(models.medical_report_has_culture, {
+        foreignKey: "medical_report_has_culture_id",
+      });
     }
   }
   MedicalReportCultureResult.init({

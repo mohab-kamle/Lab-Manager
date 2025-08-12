@@ -390,4 +390,148 @@
   .form-check-label {
     color: black;
   }
-} 
+}
+
+/* Payment Modal Styles */
+.payment-container {
+  padding: 10px 0;
+}
+
+.payment-info {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.payment-info h5 {
+  color: #284889;
+  font-weight: 600;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 10px;
+}
+
+.payment-info .d-flex {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.payment-info .fw-bold {
+  border-top: 1px solid #dee2e6;
+  margin-top: 10px;
+  padding-top: 10px;
+  font-size: 16px;
+  color: #284889;
+}
+
+.payment-iframe-container {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.payment-iframe-container iframe {
+  border-radius: 8px;
+}
+
+/* Payment Modal Header */
+.modal-header {
+  background: linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%);
+  color: white;
+  border-bottom: none;
+}
+
+.modal-header .modal-title {
+  font-weight: 600;
+  font-size: 1.3rem;
+}
+
+.modal-header .btn {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.modal-header .btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+/* Payment Modal Footer */
+.modal-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 20px;
+}
+
+.modal-footer .btn {
+  min-width: 120px;
+}
+
+/* Payment Summary in Success Page */
+.payment-summary .card {
+  border: 1px solid #e9ecef;
+  box-shadow: none;
+}
+
+.payment-summary .card-body {
+  padding: 20px;
+}
+
+.payment-summary h5 {
+  color: #284889;
+  font-weight: 600;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.payment-summary .d-flex {
+  padding: 8px 0;
+  font-size: 14px;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.payment-summary .d-flex:last-child {
+  border-bottom: none;
+  font-weight: 600;
+  color: #284889;
+}
+
+/* Responsive Payment Modal */
+@media (max-width: 768px) {
+  .payment-iframe-container {
+    height: 400px !important;
+  }
+  
+  .payment-info {
+    padding: 15px;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+  }
+  
+  .modal-footer .d-flex {
+    flex-direction: column;
+    width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .payment-iframe-container {
+    height: 350px !important;
+  }
+  
+  .payment-info h5 {
+    font-size: 1.1rem;
+  }
+  
+  .payment-info .d-flex {
+    font-size: 13px;
+  }
+}

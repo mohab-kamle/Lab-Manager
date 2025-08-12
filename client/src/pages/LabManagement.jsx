@@ -16,7 +16,7 @@ const LabManagement = () => {
     subscriptionStatus, 
     updateLabInfo, 
     updateLabSettings,
-    upgradeSubscription,
+    refreshAfterUpgrade,
     isTrialExpired,
     getTrialDaysRemaining,
     isSubscriptionActive,
@@ -72,8 +72,9 @@ const LabManagement = () => {
 
   const [subscription, setSubscription] = useState({
     duration: 'monthly',
-    amount: 29
+    amount: 0 // Initialize with 0, will be set after fetching prices
   });
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
 
   const [activeTab, setActiveTab] = useState('branding');
 
@@ -165,10 +166,92 @@ const LabManagement = () => {
     setLoading(true);
     
     try {
-      await upgradeSubscription(subscription);
-      toast.success('Subscription upgraded successfully!');
+      // Check if user is logged in and lab info is available
+      if (!user) {
+        throw new Error('Please log in to upgrade your subscription');
+      }
+      
+      if (!labInfo || !labInfo.id) {
+        throw new Error('Lab information not available. Please refresh the page and try again.');
+      }
+      
+      // Get selected subscription plan details
+      const selectedPlan = subscriptionPlans.find(plan => plan.duration_type === subscription.duration);
+      if (!selectedPlan) {
+        throw new Error('Selected subscription plan not found');
+      }
+
+      // Prepare payment intention data
+      const paymentIntentionData = {
+        lab_id: labInfo.id,
+        amount: selectedPlan.price,
+        currency: 'EGP',
+        billing_data: {
+          first_name: user?.name?.split(' ')[0] || 'Lab',
+          last_name: user?.name?.split(' ').slice(1).join(' ') || 'Admin',
+          email: user?.email || labInfo.lab_email || 'admin@lab.com',
+          phone_number: user?.phone || labInfo.lab_phone || '+20000000000',
+          street: labInfo.lab_address || 'N/A',
+          building: 'N/A',
+          floor: 'N/A',
+          apartment: 'N/A',
+          city: 'N/A',
+          state: 'N/A',
+          country: 'EG',
+          postal_code: 'N/A'
+        },
+        items: [{
+          name: selectedPlan.name,
+          amount: Math.round(selectedPlan.price * 100),
+          description: `Lab subscription upgrade - ${selectedPlan.name}`,
+          quantity: 1
+        }],
+        subscription_plan: selectedPlan.duration_type,
+        subscription_duration: selectedPlan.duration_type,
+        notification_url: `${window.location.origin}/api/payments/webhook`,
+        redirection_url: `${window.location.origin}/payment-callback`
+      };
+
+      // Create payment intention using the same endpoint pattern as registration
+      const upgradePayload = {
+        lab: {
+          id: labInfo.id,
+          name: labInfo.name || 'Lab',
+          email: labInfo.lab_email || user?.email || 'admin@lab.com',
+          phone: labInfo.lab_phone || user?.phone || '+20000000000',
+          address: labInfo.lab_address || 'N/A'
+        },
+        admin: {
+          name: user?.name || 'Lab Admin',
+          email: user?.email || labInfo?.lab_email || 'admin@lab.com',
+          phone: user?.phone || labInfo?.lab_phone || '+20000000000'
+        },
+        subscription: {
+          plan: selectedPlan.duration_type,
+          paymentMethod: 'card'
+        }
+      };
+      console.log('Upgrade payload:', upgradePayload);
+      // Use the upgrade endpoint for existing lab subscription upgrades
+       const response = await axios.post(`${import.meta.env.VITE_API_URL}/register/upgrade`, upgradePayload);
+      
+      if (response.data.success && response.data.payment.payment_url) {
+        // Store payment data for potential reference
+        localStorage.setItem('upgradePaymentData', JSON.stringify({
+          merchant_order_id: response.data.payment.merchant_order_id,
+          payment_intention_id: response.data.payment.payment_intention_id,
+          lab_id: labInfo.id,
+          plan: selectedPlan.duration_type
+        }));
+        
+        // Redirect to payment page
+        window.location.href = response.data.payment.payment_url;
+      } else {
+        throw new Error('Failed to create payment intention');
+      }
     } catch (error) {
-      toast.error('Failed to upgrade subscription: ' + error.message);
+      console.error('Subscription upgrade error:', error);
+      toast.error('Failed to initiate payment: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -196,13 +279,8 @@ const LabManagement = () => {
   };
 
   const getSubscriptionPrice = (duration) => {
-    const prices = {
-      monthly: 29,
-      '3_months': 79,
-      '6_months': 149,
-      yearly: 249
-    };
-    return prices[duration] || 29;
+    const plan = subscriptionPlans.find(p => p.duration_type === duration);
+    return plan ? plan.price : 0;
   };
 
   const handleDurationChange = (duration) => {
@@ -236,6 +314,25 @@ const LabManagement = () => {
     }
   };
 
+  // Fetch subscription plans on component mount
+  useEffect(() => {
+    const fetchSubscriptionPlans = async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/subscriptions`);
+        setSubscriptionPlans(response.data);
+        // Set initial subscription amount based on default duration
+        setSubscription(prev => ({
+          ...prev,
+          amount: getSubscriptionPrice(prev.duration)
+        }));
+      } catch (error) {
+        console.error('Error fetching subscription plans:', error);
+        toast.error('Failed to load subscription plans.');
+      }
+    };
+    fetchSubscriptionPlans();
+  }, []);
+
   // Refetch when tab changes or lab changes
   useEffect(() => {
     if (activeTab === 'activity') {
@@ -251,6 +348,41 @@ const LabManagement = () => {
           <div className="loading-spinner">
             <RefreshCw size={32} className="spinning" />
             <p>Loading lab information...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if user is not logged in or lab info is not available
+  if (!user) {
+    return (
+      <div className="lab-management">
+        <div className="container">
+          <div className="error-message">
+            <AlertTriangle size={24} />
+            <h3>Authentication Required</h3>
+            <p>Please log in to access lab management features.</p>
+            <button onClick={() => window.location.href = '/login'} className="btn-primary">
+              Go to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!labInfo) {
+    return (
+      <div className="lab-management">
+        <div className="container">
+          <div className="error-message">
+            <AlertTriangle size={24} />
+            <h3>Lab Information Unavailable</h3>
+            <p>Unable to load lab information. Please try refreshing the page.</p>
+            <button onClick={() => window.location.reload()} className="btn-primary">
+              Refresh Page
+            </button>
           </div>
         </div>
       </div>
@@ -273,7 +405,7 @@ const LabManagement = () => {
               <p><strong>Status:</strong> {subscriptionStatus.status || subscriptionStatus.trial_status}</p>
               <p><strong>Duration:</strong> {subscriptionStatus.subscriptionDuration || subscriptionStatus.trialDuration}</p>
               {subscriptionStatus.subscriptionEndDate && (
-                <p><strong>End Date:</strong> {new Date(subscriptionStatus.subscriptionEndDate).toLocaleDateString()}</p>
+                <p><strong>End Date:</strong> {new Date(subscriptionStatus.subscriptionEndDate).toLocaleDateString('en-GB')}</p>
               )}
               {isTrialExpired() && (
                 <p className="trial-warning">⚠️ Trial expired. Please upgrade to continue.</p>
@@ -794,94 +926,35 @@ const LabManagement = () => {
 
           {activeTab === 'subscription' && (
             <div className="tab-panel">
-              <h2>Subscription Management</h2>
-              
-              {isTrialExpired() && (
-                <div className="alert alert-warning">
-                  <AlertTriangle size={20} />
-                  <strong>Your trial has expired!</strong> Upgrade to continue using all features.
-                </div>
-              )}
-
+              <h2>Upgrade Subscription</h2>
               <form onSubmit={handleSubscriptionUpgrade}>
-                <div className="subscription-plans">
-                  <div className="plan-card">
-                    <h3>Monthly Plan</h3>
-                    <div className="plan-price">$29<span>/month</span></div>
-                    <ul>
-                      <li>Unlimited patients</li>
-                      <li>Unlimited tests</li>
-                      <li>All features included</li>
-                      <li>Email support</li>
-                    </ul>
-                    <button 
-                      type="button"
-                      className={`plan-button ${subscription.duration === 'monthly' ? 'active' : ''}`}
-                      onClick={() => handleDurationChange('monthly')}
-                    >
-                      {subscription.duration === 'monthly' ? 'Selected' : 'Select'}
-                    </button>
-                  </div>
-
-                  <div className="plan-card featured">
-                    <div className="plan-badge">Most Popular</div>
-                    <h3>Yearly Plan</h3>
-                    <div className="plan-price">$249<span>/year</span></div>
-                    <div className="plan-savings">Save $99/year</div>
-                    <ul>
-                      <li>Unlimited patients</li>
-                      <li>Unlimited tests</li>
-                      <li>All features included</li>
-                      <li>Priority support</li>
-                      <li>Advanced analytics</li>
-                    </ul>
-                    <button 
-                      type="button"
-                      className={`plan-button ${subscription.duration === 'yearly' ? 'active' : ''}`}
-                      onClick={() => handleDurationChange('yearly')}
-                    >
-                      {subscription.duration === 'yearly' ? 'Selected' : 'Select'}
-                    </button>
-                  </div>
-
-                  <div className="plan-card">
-                    <h3>3 Months Plan</h3>
-                    <div className="plan-price">$79<span>/quarter</span></div>
-                    <ul>
-                      <li>Unlimited patients</li>
-                      <li>Unlimited tests</li>
-                      <li>All features included</li>
-                      <li>Email support</li>
-                    </ul>
-                    <button 
-                      type="button"
-                      className={`plan-button ${subscription.duration === '3_months' ? 'active' : ''}`}
-                      onClick={() => handleDurationChange('3_months')}
-                    >
-                      {subscription.duration === '3_months' ? 'Selected' : 'Select'}
-                    </button>
-                  </div>
+                <div className="form-group">
+                  <label>Subscription Duration</label>
+                  <select
+                    value={subscription.duration}
+                    onChange={(e) => handleDurationChange(e.target.value)}
+                  >
+                    {subscriptionPlans.filter(p => p.duration_type !== 'free_trial').map(plan => (
+                      <option key={plan.id} value={plan.duration_type}>
+                        {plan.name} - ${plan.price}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="subscription-summary">
-                  <h3>Order Summary</h3>
-                  <div className="summary-item">
-                    <span>Plan:</span>
-                    <span>{subscription.duration.charAt(0).toUpperCase() + subscription.duration.slice(1)} Plan</span>
-                  </div>
-                  <div className="summary-item">
-                    <span>Amount:</span>
-                    <span>${subscription.amount}</span>
-                  </div>
-                  <div className="summary-total">
-                    <span>Total:</span>
-                    <span>${subscription.amount}</span>
-                  </div>
+                <div className="form-group mb-3">
+                  <label>Amount</label>
+                  <input
+                    type="text"
+                    value={`$${subscription.amount}`}
+                    readOnly
+                    className="form-control-plaintext"
+                  />
                 </div>
 
-                <button type="submit" className="btn-primary" disabled={loading}>
+                <button type="submit" className="btn-primary" disabled={loading || isSubscriptionActive()}>
                   <CreditCard size={20} />
-                  {loading ? 'Processing...' : 'Upgrade Subscription'}
+                  {loading ? 'Processing...' : (isSubscriptionActive() ? 'Already Subscribed' : 'Upgrade Now')}
                 </button>
               </form>
             </div>
