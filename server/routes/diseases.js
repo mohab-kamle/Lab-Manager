@@ -4,7 +4,7 @@ const db = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const multer = require('multer');
-const XLSX = require('xlsx');
+const { readExcelBuffer, validateExcelBuffer, sanitizeDataForExport } = require('../services/excelService');
 
 // Configure multer for file uploads
 const upload = multer({
@@ -166,31 +166,42 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-    if (data.length < 2) {
-      return res.status(400).json({ error: 'File must contain at least a header row and one data row' });
+    // Validate the Excel file buffer
+    const validation = validateExcelBuffer(req.file.buffer);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.message });
     }
 
-    const headers = data[0];
-    const rows = data.slice(1);
+    // Read Excel file using secure ExcelJS service
+    const data = await readExcelBuffer(req.file.buffer);
+
+    if (data.length === 0) {
+      return res.status(400).json({ error: 'File must contain at least one data row' });
+    }
+
+    // Get the first row as reference for expected structure
+    const firstRow = data[0];
+    const hasNameColumn = 'Name' in firstRow || 'name' in firstRow;
+    
+    if (!hasNameColumn && !Object.keys(firstRow)[0]) {
+      return res.status(400).json({ error: 'File must contain a Name column or have name as the first column' });
+    }
 
     let imported = 0;
     let errors = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row.length === 0) continue;
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      if (!row || Object.keys(row).length === 0) continue;
 
       try {
-        const name = row[headers.indexOf('Name')] || row[0];
-        const details = row[headers.indexOf('Details')] || row[1] || null;
+        // Get name from Name column or first column
+        const name = row.Name || row.name || row[Object.keys(row)[0]];
+        // Get details from Details column or second column
+        const details = row.Details || row.details || row[Object.keys(row)[1]] || null;
 
         if (!name || name.toString().trim() === '') {
-          errors.push(`Row ${i + 2}: Name is required`);
+          errors.push(`Row ${i + 1}: Name is required`);
           continue;
         }
 
@@ -200,7 +211,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
         });
 
         if (existingDisease) {
-          errors.push(`Row ${i + 2}: Disease "${name}" already exists`);
+          errors.push(`Row ${i + 1}: Disease "${name}" already exists`);
           continue;
         }
 
@@ -212,7 +223,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
 
         imported++;
       } catch (error) {
-        errors.push(`Row ${i + 2}: ${error.message}`);
+        errors.push(`Row ${i + 1}: ${error.message}`);
       }
     }
 
@@ -227,4 +238,4 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
   }
 });
 
-module.exports = router; 
+module.exports = router;

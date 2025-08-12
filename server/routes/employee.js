@@ -58,7 +58,7 @@ router.post("/login", loginLimiter, async (req, res) => {
         id: emp.id, 
         role: emp.role,
         lab_id: emp.lab_id 
-      }, SECRET_KEY, { expiresIn: "3h" });
+      }, SECRET_KEY, { expiresIn: "6h" });
 
       // Exclude sensitive fields before sending the user object
       const { password: _password, ...safeUser } = emp.get({ plain: true });

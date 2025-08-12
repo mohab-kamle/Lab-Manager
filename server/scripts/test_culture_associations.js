@@ -10,7 +10,7 @@ async function testCultureAssociations() {
             include: [
                 {
                     model: db.culture,
-                    as: 'culture_id_culture_medical_report_has_cultures',
+                    as: 'cultures',
                     through: { attributes: ['id', 'result', 'status'] },
                     attributes: ['id', 'name']
                 },
@@ -27,11 +27,11 @@ async function testCultureAssociations() {
         
         reports.forEach((report, index) => {
             console.log(`\n--- Medical Report ${index + 1} (ID: ${report.id}) ---`);
-            console.log('Associated Cultures:', report.culture_id_culture_medical_report_has_cultures?.length || 0);
+            console.log('Associated Cultures:', report.cultures?.length || 0);
             console.log('Culture Associations:', report.medical_report_has_cultures?.length || 0);
             
-            if (report.culture_id_culture_medical_report_has_cultures?.length > 0) {
-                console.log('Culture IDs:', report.culture_id_culture_medical_report_has_cultures.map(c => c.id));
+            if (report.cultures?.length > 0) {
+                console.log('Culture IDs:', report.cultures.map(c => c.id));
             }
             
             if (report.medical_report_has_cultures?.length > 0) {
@@ -41,7 +41,7 @@ async function testCultureAssociations() {
 
         // Check if there are any medical reports with cultures but no associations
         const reportsWithCulturesButNoAssociations = reports.filter(report => 
-            (report.culture_id_culture_medical_report_has_cultures?.length || 0) > 0 && 
+            (report.cultures?.length || 0) > 0 && 
             (report.medical_report_has_cultures?.length || 0) === 0
         );
 

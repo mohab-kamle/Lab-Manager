@@ -236,7 +236,7 @@ class ErrorBoundary extends React.Component {
                   <p><strong>Error ID:</strong> {this.state.errorId}</p>
                   <p><strong>Message:</strong> {this.state.error.message}</p>
                   <p><strong>Retry Count:</strong> {this.state.retryCount}</p>
-                  {process.env.NODE_ENV === 'development' && (
+                  {import.meta.env.MODE === 'development' && (
                     <>
                       <p><strong>Stack:</strong></p>
                       <pre className="error-stack">{this.state.error.stack}</pre>
@@ -292,4 +292,4 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-export default ErrorBoundary; 
+export default ErrorBoundary;

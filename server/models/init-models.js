@@ -25,6 +25,7 @@ var _lab_contracts_company = require("./lab_contracts_company");
 var _lab_contracts_doctor = require("./lab_contracts_doctor");
 var _lab_settings = require("./lab_settings");
 var _lab_activity_log = require("./lab_activity_log");
+var _test_group_result = require("./test_group_result");
 var _medical_report = require("./medical_report");
 var _medical_report_has_test = require("./medical_report_has_test");
 var _medical_report_has_culture = require("./medical_report_has_culture");
@@ -48,7 +49,7 @@ var _tgc_category = require("./tgc_category");
 var _tg_component = require("./tg_component");
 var _tg_fields = require("./tg_fields");
 var _field_comp_options = require("./field_comp_options");
-var _medical_report_tg_field_value = require("./medical_report_tg_field_value");
+// var _medical_report_tg_field_value = require("./medical_report_tg_field_value"); // Removed - migrated to test_group_result
 var _medical_report_has_tg = require("./medical_report_has_tg");
 var _bill_has_tg = require("./bill_has_tg");
 var _medical_report_has_culture_antibiotic = require("./medical_report_has_culture_antibiotic");
@@ -58,6 +59,8 @@ var _culture_has_option = require("./culture_has_option");
 var _culture_sub_option = require("./culture_sub_option");
 var _lab_settings = require("./lab_settings");
 var _lab_activity_log = require("./lab_activity_log");
+var _lab_payment = require("./lab_payment");
+var _subscription = require("./subscription");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -89,6 +92,8 @@ function initModels(sequelize) {
   var lab_contracts_doctor = _lab_contracts_doctor(sequelize, DataTypes);
   var lab_settings = _lab_settings(sequelize, DataTypes);
   var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
+  var lab_payment = _lab_payment(sequelize, DataTypes);
+  var test_group_result = _test_group_result(sequelize, DataTypes);
   var medical_report = _medical_report(sequelize, DataTypes);
   var medical_report_has_test = _medical_report_has_test(sequelize, DataTypes);
   var medical_report_has_culture = _medical_report_has_culture(sequelize, DataTypes);
@@ -118,7 +123,7 @@ function initModels(sequelize) {
   var tg_component = _tg_component(sequelize, DataTypes);
   var tg_fields = _tg_fields(sequelize, DataTypes);
   var field_comp_options = _field_comp_options(sequelize, DataTypes);
-  var medical_report_tg_field_value = _medical_report_tg_field_value(sequelize, DataTypes);
+  // var medical_report_tg_field_value = _medical_report_tg_field_value(sequelize, DataTypes); // Removed - migrated to test_group_result
   var medical_report_has_tg = _medical_report_has_tg(sequelize, DataTypes);
   var bill_has_tg = _bill_has_tg(sequelize, DataTypes);
   var medical_report_has_culture_antibiotic = _medical_report_has_culture_antibiotic(sequelize, DataTypes);
@@ -128,6 +133,7 @@ function initModels(sequelize) {
   var culture_sub_option = _culture_sub_option(sequelize, DataTypes);
   var lab_settings = _lab_settings(sequelize, DataTypes);
   var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
+  var subscription = _subscription(sequelize, DataTypes);
 
   // Add many-to-many association between test and question
   test.belongsToMany(question, {
@@ -224,7 +230,7 @@ function initModels(sequelize) {
     otherKey: "patient_id",
   });
   medical_report.belongsToMany(test, {
-    as: "test_id_test_medical_report_has_tests",
+    as: "tests",
     through: medical_report_has_test,
     foreignKey: "medical_report_id",
     otherKey: "test_id",
@@ -242,7 +248,7 @@ function initModels(sequelize) {
     otherKey: "medical_report_id",
   });
   medical_report.belongsToMany(culture, {
-    as: "culture_id_culture_medical_report_has_cultures",
+    as: "cultures",
     through: medical_report_has_culture,
     foreignKey: "medical_report_id",
     otherKey: "culture_id",
@@ -621,7 +627,7 @@ function initModels(sequelize) {
   });
   test_component.belongsTo(test, { as: "test", foreignKey: "test_id" });
   test.hasMany(test_component, {
-    as: "test_components",
+    as: "components",
     foreignKey: "test_id",
   });
   tgc_category.belongsTo(test_group, { as: "test_group", foreignKey: "test_group_id", onDelete: "CASCADE" });
@@ -632,14 +638,7 @@ function initModels(sequelize) {
   test_group.hasMany(tg_fields, { as: "tg_fields", foreignKey: "test_group_id", onDelete: "CASCADE" });
   field_comp_options.belongsTo(test_group, { as: "test_group", foreignKey: "test_group_id", onDelete: "CASCADE" });
   test_group.hasMany(field_comp_options, { as: "field_comp_options", foreignKey: "test_group_id", onDelete: "CASCADE" });
-  medical_report_tg_field_value.belongsTo(medical_report, {
-    as: "medical_report",
-    foreignKey: "medical_report_id",
-  });
-  medical_report.hasMany(medical_report_tg_field_value, {
-    as: "medical_report_tg_field_values",
-    foreignKey: "medical_report_id",
-  });
+  // Note: medical_report_tg_field_value associations removed - migrated to test_group_result
   medical_report_has_tg.belongsTo(medical_report, {
     as: "medical_report",
     foreignKey: "medical_report_id",
@@ -648,15 +647,25 @@ function initModels(sequelize) {
     as: "medical_report_has_tgs",
     foreignKey: "medical_report_id",
   });
-  medical_report_tg_field_value.belongsTo(test_group, { as: "test_group", foreignKey: "test_group_id", onDelete: "CASCADE" });
-  test_group.hasMany(medical_report_tg_field_value, { as: "medical_report_tg_field_values", foreignKey: "test_group_id", onDelete: "CASCADE" });
+  // Note: medical_report_tg_field_value test_group associations removed - migrated to test_group_result
   medical_report_has_tg.belongsTo(test_group, { as: "test_group", foreignKey: "test_group_id", onDelete: "CASCADE" });
   test_group.hasMany(medical_report_has_tg, { as: "medical_report_has_tgs", foreignKey: "test_group_id", onDelete: "CASCADE" });
   
   tg_component.belongsTo(tgc_category, { as: "category", foreignKey: "test_category_id" });
   tgc_category.hasMany(tg_component, { as: "tg_components", foreignKey: "test_category_id" });
-  medical_report_tg_field_value.belongsTo(tg_fields, { as: "tg_fields", foreignKey: "tg_fields_id", onDelete: "CASCADE" });
+  // Note: medical_report_tg_field_value tg_fields association removed - migrated to test_group_result
+medical_report_test_component_result.belongsTo(test_component, {
+  as: "test_component_results",
 
+  foreignKey: "test_component_id"
+});
+test_component.hasMany(medical_report_test_component_result, {
+  as: "component_results",
+  foreignKey: "test_component_id"
+});
+
+// Note: All medical_report_tg_field_value associations removed - migrated to test_group_result
+// The new test_group_result table stores field values in JSON format
   // Antibiotic sensitivity associations
   medical_report_has_culture_antibiotic.belongsTo(medical_report_has_culture, {
     as: "medical_report_has_culture",
@@ -742,6 +751,10 @@ function initModels(sequelize) {
 
 chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
 lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
+  
+  // Lab Payment relationships
+  lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });
 
 // Define associations for the new models
 culture.belongsToMany(culture_option, {
@@ -796,6 +809,37 @@ test_component.hasMany(medical_report_test_component_result, {
   foreignKey: "test_component_id"
 });
 
+// Test Group Result associations
+// Each test_group_result belongs to a medical_report
+test_group_result.belongsTo(medical_report, {
+  as: "medical_report",
+  foreignKey: "medical_report_id"
+});
+medical_report.hasMany(test_group_result, {
+  as: "test_group_results",
+  foreignKey: "medical_report_id"
+});
+
+// Each test_group_result belongs to a test_group
+test_group_result.belongsTo(test_group, {
+  as: "test_group",
+  foreignKey: "test_group_id"
+});
+test_group.hasMany(test_group_result, {
+  as: "results",
+  foreignKey: "test_group_id"
+});
+
+// Each test_group_result belongs to a tg_component
+test_group_result.belongsTo(tg_component, {
+  as: "tg_component",
+  foreignKey: "tg_component_id"
+});
+tg_component.hasMany(test_group_result, {
+  as: "results",
+  foreignKey: "tg_component_id"
+});
+
 return {
   admin,
   admin_packages_and_offers,
@@ -834,8 +878,8 @@ return {
   medical_report_has_test,
   medical_report_test_component_result,
   medical_report_has_tg,
-  medical_report_tg_field_value,
-  packages_and_offers,
+    // medical_report_tg_field_value, // Removed - migrated to test_group_result
+    packages_and_offers,
   pao_has_culture,
   pao_has_test,
   patient,
@@ -847,6 +891,8 @@ return {
   referral,
   sample_type,
   status,
+  subscription,
+  lab_payment,
   test,
   test_component,
   test_group,
@@ -854,6 +900,7 @@ return {
   tg_component,
   tg_fields,
   tgc_category,
+  test_group_result,
 };
 }
 module.exports = initModels;

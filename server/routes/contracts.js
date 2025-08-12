@@ -5,7 +5,7 @@ const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const multer = require("multer");
-const xlsx = require("xlsx");
+const { readExcelBuffer, validateExcelBuffer, sanitizeDataForExport } = require('../services/excelService');
 require("dotenv").config();
 
 // Configure multer for file uploads
@@ -177,13 +177,17 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(worksheet);
+    // Validate file
+    const validation = validateExcelBuffer(req.file.buffer);
+    if (!validation.isValid) {
+      return res.status(400).json({ error: validation.error });
+    }
 
-    if (data.length === 0) {
-      return res.status(400).json({ error: "No data found in the file" });
+    // Read Excel data
+    const data = await readExcelBuffer(req.file.buffer);
+    
+    if (!data || data.length === 0) {
+      return res.status(400).json({ error: "No data found in the uploaded file" });
     }
 
     let imported = 0;
@@ -290,4 +294,4 @@ router.get("/export", authenticateUser, authorizeRoles("admin", "receptionist", 
   }
 });
 
-module.exports = router; 
+module.exports = router;

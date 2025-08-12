@@ -150,7 +150,7 @@ function transformReportForPDF(report, patient) {
   const patientGender = patient.gender;
 
   // Handle both old and new API structure for tests
-  const testsData = report.test_id_test_medical_report_has_tests || report.tests || [];
+  const testsData = report.reportTests || report.tests || [];
   const tests = testsData.map(test => {
     let selectedComponent = null;
     let allComponents = [];
@@ -213,7 +213,7 @@ function transformReportForPDF(report, patient) {
     };
   });
 
-  const cultures = (report.culture_id_culture_medical_report_has_cultures || []).map(culture => ({
+  const cultures = (report.cultures || []).map(culture => ({
     ...culture
   }));
   const culture_results = (report.medical_report_has_cultures || []).map(cr => ({
@@ -415,8 +415,8 @@ const PatientReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      // Use the correct endpoint that returns comprehensive data including testComponentResults
-      const response = await axios.get(`${apiUrl}/medical-reports/${rowData.id}`, { headers });
+      // Use the optimized endpoint for PDF generation
+      const response = await axios.get(`${apiUrl}/medical-reports/${rowData.id}?pdf=true`, { headers });
       const fullReportData = response.data;
       
       // Use the patient data from the report response, not the user

@@ -88,7 +88,7 @@ const Tests = () => {
         const headers = new Set();
         testsResponse.data.forEach((item) => {
           Object.keys(item).forEach((key) => {
-            if (key !== 'test_components' && key !== 'category' && key !== 'sample_type') headers.add(key);
+            if (key !== 'components' && key !== 'category' && key !== 'sample_type') headers.add(key);
           });
         });
         setTableHeaders([...headers]);
@@ -153,13 +153,57 @@ const Tests = () => {
 
   const handleViewDetails = async (test) => {
     setSelectedTest(test);
-    setSelectedTestComponents(test.test_components || []);
+    setSelectedTestComponents(test.components || []);
     setShowDetailsModal(true);
   };
 
   const formatCellData = (data, header) => {
     if (header === 'Actions') {
       return null; // This will be handled by ActionComponent
+    }
+    
+    // Handle components array specifically
+    if (header === 'components' && Array.isArray(data)) {
+      if (data.length === 0) return "No components";
+      
+      const ComponentsCell = () => {
+        const [expanded, setExpanded] = useState(false);
+        
+        return (
+          <div>
+            <Button 
+              variant="outline-info" 
+              size="sm" 
+              onClick={() => setExpanded(!expanded)}
+              className="mb-1"
+            >
+              {expanded ? 'Hide' : 'Show'} Components ({data.length})
+            </Button>
+            {expanded && (
+              <div className="mt-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {data.map((component, index) => (
+                  <div key={index} className="border rounded p-2 mb-1" style={{ fontSize: '0.85em' }}>
+                    <strong>{component.name}</strong>
+                    {component.unit && <span className="text-muted"> ({component.unit})</span>}
+                    <br />
+                    {component.normal_from && component.normal_to && (
+                      <span className="text-success">Range: {component.normal_from} - {component.normal_to}</span>
+                    )}
+                    {component.reference_range && (
+                      <span className="text-info">Ref: {component.reference_range}</span>
+                    )}
+                    {component.gender && (
+                      <span className="text-warning"> | Gender: {component.gender === 'm' ? 'Male' : component.gender === 'f' ? 'Female' : component.gender}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      };
+      
+      return <ComponentsCell />;
     }
     
     // Handle questions array specifically
