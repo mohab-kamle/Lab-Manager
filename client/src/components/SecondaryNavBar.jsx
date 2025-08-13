@@ -243,14 +243,14 @@ const SecondaryNavBar = () => {
           <>
             <Nav.Link
               as={Link}
-              to={`${prefix}/patient/dashboard/profile`}
+              to={`${prefix}/patient/profile`}
               className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
             >
               <User size={18} className="mb-1" /> Profile
             </Nav.Link>
             <Nav.Link
               as={Link}
-              to={`${prefix}/patient/dashboard/reports`}
+              to={`${prefix}/patient/reports`}
               className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
             >
               <FlaskConical size={18} className="mb-1" /> Reports

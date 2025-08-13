@@ -41,13 +41,12 @@ const generatePatientCode = async (labId) => {
 };
 
 router.post("/login", async (req, res) => {
-  const { patientcode, lab_id } = req.body;
+  const { patientcode} = req.body;
 
   try {
     const Patient = await patient.findOne({ 
       where: { 
-        patientcode,
-        lab_id: lab_id 
+        patientcode
       } 
     });
 
