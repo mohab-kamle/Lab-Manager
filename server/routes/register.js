@@ -559,7 +559,7 @@ async function createPaymentIntention(registrationData, subscriptionDetails) {
             integrationId: process.env.PRODUCTION_PAYMOB_INTEGRATION_ID,
             publicKey: process.env.PRODUCTION_PAYMOB_PUBLIC_KEY,
           baseUrl: 'https://accept.paymob.com/v1/intention/',
-             paymentUrlIframe: 'https://accept.paymob.com/api/acceptance/iframes/941556?payment_token='
+             paymentUrlIframe: 'https://accept.paymob.com/api/acceptance/iframes/357451?payment_token='
         };
     }
     

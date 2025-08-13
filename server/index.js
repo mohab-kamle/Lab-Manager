@@ -575,9 +575,27 @@ async function fixPrimaryKeyConflict() {
 
 
 // Start server with enhanced database sync
-syncDatabase()
-  .then(() => {
-    const PORT = process.env.PORT || 3001;
+// Only sync database on master process in cluster mode to prevent race conditions
+const shouldSyncDatabase = !process.env.pm_id || process.env.pm_id === '0';
+
+if (shouldSyncDatabase) {
+  console.log('🔧 Master process - performing database synchronization...');
+  syncDatabase()
+    .then(() => {
+      startServer();
+    })
+    .catch((error) => {
+      console.error("❌ Server startup failed:", error);
+      process.exit(1);
+    });
+} else {
+  console.log('👷 Worker process - skipping database sync, starting server directly...');
+  startServer();
+}
+
+// Extract server startup logic into a separate function
+function startServer() {
+  const PORT = process.env.PORT || 3001;
     
     // Add connection pool monitoring (using a different approach)
     if (db.sequelize.connectionManager) {
@@ -636,8 +654,4 @@ syncDatabase()
       console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
       console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
     });
-  })
-  .catch((error) => {
-    console.error("❌ Server startup failed:", error);
-    process.exit(1);
-  });
+  }
