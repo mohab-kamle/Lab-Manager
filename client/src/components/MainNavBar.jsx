@@ -176,7 +176,7 @@ const MainNavBar = () => {
             ) : user?.role === "patient" ? (
               <Nav.Link 
                 as={Link} 
-                to={`${prefix}/patient/dashboard`} 
+                to={`${prefix}/patient-dashboard`} 
                 onClick={() => setExpanded(false)}
                 disabled={!prefix}
               >

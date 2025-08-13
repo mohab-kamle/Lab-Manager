@@ -1,0 +1,39 @@
+# Robots.txt for LabManager - Medical Laboratory Management System
+# This file controls how search engines crawl and index your website
+
+# Allow all web crawlers to access the site
+User-agent: *
+
+# Disallow access to sensitive areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /reports/
+Disallow: /patients/
+Disallow: /medical-reports/
+Disallow: /employee/
+Disallow: /chemist/
+Disallow: /receptionist/
+
+# Disallow access to technical directories
+Disallow: /static/js/
+Disallow: /static/css/
+Disallow: /uploads/
+
+# Allow access to public pages (if any)
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /services
+
+# Crawl delay (optional - be respectful to server resources)
+Crawl-delay: 1
+
+# Sitemap location (you should create this)
+# Sitemap: https://yourdomain.com/sitemap.xml
+
+# Notes:
+# - This is a medical system handling sensitive patient data
+# - Most areas should be restricted from search engines
+# - Only public marketing pages should be indexed
+# - Consider if you want ANY pages indexed for a private medical system
