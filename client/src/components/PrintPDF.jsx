@@ -796,12 +796,13 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
               if (test.has_component_results) {
                 // Display test with individual component results
                 return (
-                  <View key={testIndex}>
+                  <View key={testIndex} wrap={false}>
                     {/* Test Header */}
                     <View
                       style={[
                         styles.testCard,
                         {
+                          minHeight: 30,
                           backgroundColor: "#f8f9fa",
                           borderLeft: "3pt solid #2d3e8b",
                         },
@@ -812,17 +813,17 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                         <Text style={styles.testName}>
                           {test.name || "Unknown Test"}
                         </Text>
-                        <Text
+                        {/* <Text
                           style={[
                             styles.testRefRange,
                             { color: "#2d3e8b", fontWeight: "bold" },
                           ]}
                         >
                           Multi-Component Test Results
-                        </Text>
-                        <Text style={styles.testRefRange}>
+                        </Text> */}
+                        {/* <Text style={styles.testRefRange}>
                           Overall Status: {test.status || "Pending"}
-                        </Text>
+                        </Text> */}
                       </View>
                       {test.status && (
                         <Text
@@ -873,7 +874,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                             padding: 2,
                           }}
                         >
-                          Component
+                          Test name
                         </Text>
                         <Text
                           style={{
@@ -1542,6 +1543,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                           marginHorizontal: 20,
                           marginBottom: 12,
                         }}
+                        wrap={false}
                       >
                         <Text
                           style={{

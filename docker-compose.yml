@@ -1,4 +1,18 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: labmanager_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - labmanager-network
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
@@ -46,12 +60,17 @@ services:
       PORT: 3001
       SECRET_KEY: ${SECRET_KEY:-your-secret-key}
       FORCE_SYNC: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "3001:3001"
     volumes:
       - ./server/uploads:/app/uploads
       - ./server/logs:/app/logs
     depends_on:
+      redis:
+        condition: service_started
+
       mysql:
         condition: service_healthy
     networks:

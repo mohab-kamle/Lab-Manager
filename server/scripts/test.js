@@ -3,9 +3,9 @@ import { check, sleep, group } from 'k6';
 
 export let options = {
   stages: [
-    { duration: '10s', target: 50 },
-    { duration: '20s', target: 100 },
-    { duration: '40s', target: 200 },
+    { duration: '10s', target: 150 },
+    { duration: '20s', target: 200 },
+    { duration: '40s', target: 300 },
     { duration: '20s', target: 0 }, // ramp-down
   ],
   thresholds: {
@@ -90,15 +90,19 @@ export default function (data) {
       }
     });
   } else {
-    group('👤 Fetch Profile', () => {
-      const profileRes = http.get(`${BASE_URL}/emp/profile`, params);
+    group('👤 Fetch Tests', () => {
+      const testsRes = http.get(`${BASE_URL}/tests`, params);
 
-      if (profileRes.timings.duration > 1000) {
-        console.warn(`⚠️ /emp/profile took ${profileRes.timings.duration}ms`);
+      if (testsRes.timings.duration > 1000) {
+        console.warn(`⚠️ /tests took ${testsRes.timings.duration}ms`);
       }
 
-      check(profileRes, {
-        'profile fetch status is 200': (res) => res.status === 200,
+      check(testsRes, {
+        'tests fetch status is 200': (res) => res.status === 200,
+        'tests response is array': (res) => Array.isArray(res.json()),
+        'tests response has tests': (res) => res.json().length > 0,
+        'tests response has test id': (res) => res.json()[0].id !== undefined,  
+
       });
     });
   }
