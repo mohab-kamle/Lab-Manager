@@ -4,6 +4,7 @@ const db = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
+const { cacheMedicalReportNewResultsData, cacheMedicalReportsList, invalidateTestResultsCache, invalidateCultureResultsCache, invalidateMedicalReportCache, invalidateListCache } = require("../middleware/cacheMiddleware");
 const { Op, where } = require("sequelize");
 const multer = require("multer");
 const upload = multer({
@@ -83,6 +84,7 @@ router.get(
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist", "employee"),
   tenantContext,
+  cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
       // Get medical_report_ids for the current lab
@@ -736,6 +738,7 @@ router.post(
   "/",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  invalidateListCache, // Invalidate list cache when new medical report is created
   async (req, res) => {
     try {
       const {
@@ -861,6 +864,8 @@ router.put(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  invalidateMedicalReportCache, // Invalidate cache when medical report is updated
+  invalidateListCache, // Invalidate list cache when medical report is updated
   async (req, res) => {
     try {
       const {
@@ -1054,6 +1059,7 @@ router.delete(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  invalidateListCache, // Invalidate list cache when medical report is deleted
   async (req, res) => {
     try {
       const report = await db.medical_report.findByPk(req.params.id);
@@ -1105,6 +1111,7 @@ router.put(
   "/:id/results",
   authenticateUser,
   authorizeRoles("admin", "chemist"),
+  invalidateTestResultsCache, // Invalidate cache when test results are updated
   async (req, res) => {
     try {
       const { test_results, culture_results } = req.body;
@@ -1315,16 +1322,34 @@ router.put(
     }
   }
 );
-
-// old Optimized endpoint: Get all data needed for results entry in one call
 // router.get(
 //   "/:id/results-data",
 //   authenticateUser,
 //   authorizeRoles("admin", "chemist", "receptionist"),
 //   async (req, res) => {
 //     try {
-//       // Get the medical report with all necessary data in one query
-//       const report = await db.medical_report.findByPk(req.params.id, {
+//       const reportId = req.params.id;
+
+//       /** -----------------------------
+//        * 1. Fetch the base medical report
+//        * ----------------------------- */
+//       const report = await db.medical_report.findByPk(reportId, {
+//         attributes: [
+//           "id",
+//           "lab_id",
+//           "branch_id",
+//           "date",
+//           "registered_at",
+//           "collected_at",
+//           "received_at",
+//           "reported_at",
+//           "done",
+//           "pending",
+//           "comment",
+//           "signatory_id",
+//           "signatory_admin_id",
+//           "signatory_name",
+//         ],
 //         include: [
 //           {
 //             model: db.patient,
@@ -1344,116 +1369,6 @@ router.put(
 //               },
 //             ],
 //           },
-//           {
-//             model: db.test,
-//             as: "tests",
-//             through: { attributes: ["result", "status"] },
-//             include: [
-//               {
-//                 model: db.test_component,
-//                 as: "components",
-//                 attributes: [
-//                   "id",
-//                   "name",
-//                   "unit",
-//                   "normal_from",
-//                   "normal_to",
-//                   "c_low",
-//                   "c_high",
-//                   "gender",
-//                   "age_start",
-//                   "age_end",
-//                   "reference_range",
-//                   "result_type",
-//                 ],
-//               },
-//             ],
-//           },
-//           {
-//             model: db.medical_report_has_culture,
-//             as: "medical_report_has_cultures",
-//             include: [
-//               {
-//                 model: db.culture,
-//                 as: "culture",
-//                 attributes: [
-//                   "id",
-//                   "name",
-//                   "price",
-//                   "sample_type_id",
-//                   "category_id",
-//                 ],
-//               },
-//               {
-//                 model: db.medical_report_has_culture_antibiotic,
-//                 as: "culture_antibiotics",
-//                 include: [
-//                   {
-//                     model: db.antibiotic,
-//                     as: "antibiotic",
-//                     attributes: ["id", "name", "shortcut", "commercial_name"],
-//                   },
-//                 ],
-//               },
-//               {
-//                 model: db.medical_report_culture_result,
-//                 as: "culture_results",
-//                 attributes: [
-//                   "id",
-//                   "culture_option_name",
-//                   "culture_sub_option_name",
-//                   "custom_result",
-//                   "result_type",
-//                   "created_at",
-//                   "updated_at",
-//                 ],
-//               },
-//             ],
-//           },
-//           {
-//             model: db.test_group_result,
-//             as: "test_group_results",
-//             required: false, // keep results even if children missing
-//             attributes: ["id", "result_json"],
-//             include: [
-//               {
-//                 model: db.test_group,
-//                 as: "test_group",
-//                 attributes: ["id", "name"],
-//                 required: false,
-//               },
-//               {
-//                 model: db.tg_component,
-//                 as: "tg_component",
-//                 attributes: ["id", "name", "reference_range", "result_type"],
-//                 required: false,
-//                 include: [
-//                   {
-//                     model: db.tgc_category,
-//                     as: "category",
-//                     attributes: ["id", "name"],
-//                     required: false,
-//                   },
-//                 ],
-//               },
-//             ],
-//           }
-//         ],
-//         attributes: [
-//           "id",
-//           "lab_id",
-//           "branch_id",
-//           "date",
-//           "registered_at",
-//           "collected_at",
-//           "received_at",
-//           "reported_at",
-//           "done",
-//           "pending",
-//           "comment",
-//           "signatory_id",
-//           "signatory_admin_id",
-//           "signatory_name",
 //         ],
 //       });
 
@@ -1461,28 +1376,198 @@ router.put(
 //         return res.status(404).json({ error: "Medical report not found" });
 //       }
 
-//       // convert to plain object so we can modify keys
 //       const reportData = report.get({ plain: true });
 
-//       // rename the key
-//       reportData.cultures = reportData.medical_report_has_cultures;
-//       delete reportData.medical_report_has_cultures;
-//       reportData.test_group_results = reportData.test_group_results.map(r => ({
-//   ...r,
-//   results: r.result_json,
-//   result_json: undefined
-//       }));
-//       // add test groups to the report effectively
-//       reportData.test_groups = report.test_group_results.map(r => r.test_group);
+//       /** -----------------------------
+//        * 2. Fetch related tests
+//        * ----------------------------- */
+//       const testIds = await db.medical_report_has_test.findAll({
+//         attributes: ["test_id"],
+//         where: { medical_report_id: reportId },
+//         raw: true,
+//       });
 
+//       const tests = await db.test.findAll({
+//         where: { id: testIds.map((t) => t.test_id) },
+//         include: [
+//           {
+//             model: db.test_component,
+//             as: "components",
+//             attributes: [
+//               "id",
+//               "name",
+//               "unit",
+//               "normal_from",
+//               "normal_to",
+//               "c_low",
+//               "c_high",
+//               "gender",
+//               "age_start",
+//               "age_end",
+//               "reference_range",
+//               "result_type",
+//             ],
+//           },
+//         ],
+//       });
+
+//       // Fetch test-level junction (result/status) and component-level results
+//       const [testJunctionRows, componentResults] = await Promise.all([
+//         db.medical_report_has_test.findAll({
+//           where: { medical_report_id: reportId },
+//           attributes: ["test_id", "result", "status"],
+//           raw: true,
+//         }),
+//         db.medical_report_test_component_result.findAll({
+//           where: { medical_report_id: reportId },
+//           attributes: ["test_id", "test_component_id", "result", "status"],
+//           raw: true,
+//         }),
+//       ]);
+
+//       // Map of test_id -> { result, status }
+//       const testJunctionMap = {};
+//       testJunctionRows.forEach((row) => {
+//         testJunctionMap[row.test_id] = {
+//           result: row.result,
+//           status: row.status,
+//         };
+//       });
+
+//       // Map of test_id -> [ { test_component_id, result, status } ]
+//       const testComponentResultsMap = {};
+//       componentResults.forEach((row) => {
+//         if (!testComponentResultsMap[row.test_id]) {
+//           testComponentResultsMap[row.test_id] = [];
+//         }
+//         testComponentResultsMap[row.test_id].push({
+//           test_component_id: row.test_component_id,
+//           result: row.result,
+//           status: row.status,
+//         });
+//       });
+
+//       /** -----------------------------
+//        * 3. Fetch related cultures
+//        * ----------------------------- */
+//       const cultures = await db.medical_report_has_culture.findAll({
+//         where: { medical_report_id: reportId },
+//         include: [
+//           {
+//             model: db.culture,
+//             as: "culture",
+//             attributes: ["id", "name", "price", "sample_type_id", "category_id"],
+//           },
+//           {
+//             model: db.medical_report_has_culture_antibiotic,
+//             as: "culture_antibiotics",
+//             include: [
+//               {
+//                 model: db.antibiotic,
+//                 as: "antibiotic",
+//                 attributes: ["id", "name", "shortcut", "commercial_name"],
+//               },
+//             ],
+//           },
+//           {
+//             model: db.medical_report_culture_result,
+//             as: "culture_results",
+//             attributes: [
+//               "id",
+//               "culture_option_name",
+//               "culture_sub_option_name",
+//               "custom_result",
+//               "result_type",
+//               "created_at",
+//               "updated_at",
+//             ],
+//           },
+//         ],
+//       });
+
+//       /** -----------------------------
+//        * 4. Fetch test group results
+//        * ----------------------------- */
+//       const testGroupResults = await db.test_group_result.findAll({
+//         where: { medical_report_id: reportId },
+//         attributes: ["id", "result_json"],
+//         include: [
+//           {
+//             model: db.test_group,
+//             as: "test_group",
+//             attributes: ["id", "name"],
+//             required: false,
+//           },
+//           {
+//             model: db.tg_component,
+//             as: "tg_component",
+//             attributes: ["id", "name", "reference_range", "result_type"],
+//             required: false,
+//             include: [
+//               {
+//                 model: db.tgc_category,
+//                 as: "category",
+//                 attributes: ["id", "name"],
+//                 required: false,
+//               },
+//             ],
+//           },
+//         ],
+//       });
+
+//       /** -----------------------------
+//        * 5. Assemble final response
+//        * ----------------------------- */
+//       // Attach junction result/status to each test
+//       const testsPlain = tests.map((t) => {
+//         const plain = t.get({ plain: true });
+//         const j = testJunctionMap[plain.id];
+//         if (j) {
+//           plain.medical_report_has_test = { result: j.result, status: j.status };
+//         }
+//         // Optionally embed component results directly for convenience
+//         const perTestResults = testComponentResultsMap[plain.id] || [];
+//         if (perTestResults.length > 0 && Array.isArray(plain.components)) {
+//           const resultByCompId = {};
+//           perTestResults.forEach((r) => {
+//             resultByCompId[r.test_component_id] = { result: r.result, status: r.status };
+//           });
+//           plain.components = plain.components.map((c) => ({
+//             ...c,
+//             // This mirrors the old structure from "/:id" so the client can prefill seamlessly
+//             results: resultByCompId[c.id] ? [ { id: undefined, result: resultByCompId[c.id].result, status: resultByCompId[c.id].status } ] : [],
+//           }));
+//         }
+//         return plain;
+//       });
+
+//       reportData.tests = testsPlain;
+
+//       reportData.cultures = cultures.map((c) => c.get({ plain: true }));
+
+//       reportData.test_group_results = testGroupResults.map((r) => ({
+//         ...r.get({ plain: true }),
+//         results: r.result_json,
+//         result_json: undefined,
+//       }));
+
+//       reportData.test_groups = [
+//         ...new Map(
+//           testGroupResults
+//             .filter((r) => r.test_group) // avoid nulls
+//             .map((r) => [r.test_group.id, r.test_group])
+//         ).values(),
+//       ];
+
+//       // Expose a top-level test_component_results map for direct access if needed by client
+//       reportData.test_component_results = testComponentResultsMap;
 
 //       res.json(reportData);
 //     } catch (error) {
 //       console.error("Error fetching comprehensive results data:", error);
 //       res.status(500).json({
 //         error: "Failed to fetch results data",
-//         details:
-//           process.env.NODE_ENV === "development" ? error.message : undefined,
+//         details: process.env.NODE_ENV === "development" ? error.message : undefined,
 //       });
 //     }
 //   }
@@ -1491,14 +1576,18 @@ router.get(
   "/:id/results-data",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  cacheMedicalReportNewResultsData, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
       const reportId = req.params.id;
 
       /** -----------------------------
-       * 1. Fetch the base medical report
+       * 1. Fetch the report and related tests with the components
        * ----------------------------- */
-      const report = await db.medical_report.findByPk(reportId, {
+
+      // Fetch test-level junction (result/status) and component-level results
+      const [report, testJunctionRows, componentResults] = await Promise.all([
+        db.medical_report.findByPk(reportId, {
         attributes: [
           "id",
           "lab_id",
@@ -1535,27 +1624,55 @@ router.get(
             ],
           },
         ],
-      });
+      }),
+        db.medical_report_has_test.findAll({
+          where: { medical_report_id: reportId },
+          attributes: ["test_id", "result", "status"],
+          raw: true,
+        }),
+        db.medical_report_test_component_result.findAll({
+          where: { medical_report_id: reportId },
+          attributes: ["test_id", "test_component_id", "result", "status"],
+          raw: true,
+        }),
+      ]);
 
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
       }
 
       const reportData = report.get({ plain: true });
-
-      /** -----------------------------
-       * 2. Fetch related tests
-       * ----------------------------- */
-      const testIds = await db.medical_report_has_test.findAll({
-        attributes: ["test_id"],
-        where: { medical_report_id: reportId },
-        raw: true,
+      const testIds = testJunctionRows.map(r => r.test_id);
+      // Map of test_id -> { result, status }
+      const testJunctionMap = {};
+      testJunctionRows.forEach((row) => {
+        testJunctionMap[row.test_id] = {
+          result: row.result,
+          status: row.status,
+        };
+      });
+      // Map of test_id -> [ { test_component_id, result, status } ]
+      const testComponentResultsMap = {};
+      componentResults.forEach((row) => {
+        if (!testComponentResultsMap[row.test_id]) {
+          testComponentResultsMap[row.test_id] = [];
+        }
+        testComponentResultsMap[row.test_id].push({
+          test_component_id: row.test_component_id,
+          result: row.result,
+          status: row.status,
+        });
       });
 
-      const tests = await db.test.findAll({
-        where: { id: testIds.map((t) => t.test_id) },
+      /** -----------------------------
+       * 2. Fetch related cultures and test group results
+       * ----------------------------- */
+      const [tests , cultures, testGroupResults] = await Promise.all([
+        testIds.length > 0 ? await db.test.findAll({
+        where: { id: testIds },
         include: [
           {
+            separate: true,
             model: db.test_component,
             as: "components",
             attributes: [
@@ -1574,114 +1691,69 @@ router.get(
             ],
           },
         ],
-      });
-
-      // Fetch test-level junction (result/status) and component-level results
-      const [testJunctionRows, componentResults] = await Promise.all([
-        db.medical_report_has_test.findAll({
+      }) : [],db.medical_report_has_culture.findAll({
           where: { medical_report_id: reportId },
-          attributes: ["test_id", "result", "status"],
-          raw: true,
-        }),
-        db.medical_report_test_component_result.findAll({
+          include: [
+            {
+              model: db.culture,
+              as: "culture",
+              attributes: ["id", "name", "price", "sample_type_id", "category_id"],
+            },
+            {
+              separate: true,
+              model: db.medical_report_has_culture_antibiotic,
+              as: "culture_antibiotics",
+              include: [
+                {
+                  model: db.antibiotic,
+                  as: "antibiotic",
+                  attributes: ["id", "name", "shortcut", "commercial_name"],
+                },
+              ],
+            },
+            {
+              model: db.medical_report_culture_result,
+              as: "culture_results",
+              attributes: [
+                "id",
+                "culture_option_name",
+                "culture_sub_option_name",
+                "custom_result",
+                "result_type",
+                "created_at",
+                "updated_at",
+              ],
+            },
+          ],
+        }), db.test_group_result.findAll({
           where: { medical_report_id: reportId },
-          attributes: ["test_id", "test_component_id", "result", "status"],
-          raw: true,
+          attributes: ["id", "result_json"],
+          include: [
+            {
+              model: db.test_group,
+              as: "test_group",
+              attributes: ["id", "name"],
+              required: false,
+            },
+            {
+              model: db.tg_component,
+              as: "tg_component",
+              attributes: ["id", "name", "reference_range", "result_type"],
+              required: false,
+              include: [
+                {
+                  model: db.tgc_category,
+                  as: "category",
+                  attributes: ["id", "name"],
+                  required: false,
+                },
+              ],
+            },
+          ],
         }),
       ]);
-
-      // Map of test_id -> { result, status }
-      const testJunctionMap = {};
-      testJunctionRows.forEach((row) => {
-        testJunctionMap[row.test_id] = {
-          result: row.result,
-          status: row.status,
-        };
-      });
-
-      // Map of test_id -> [ { test_component_id, result, status } ]
-      const testComponentResultsMap = {};
-      componentResults.forEach((row) => {
-        if (!testComponentResultsMap[row.test_id]) {
-          testComponentResultsMap[row.test_id] = [];
-        }
-        testComponentResultsMap[row.test_id].push({
-          test_component_id: row.test_component_id,
-          result: row.result,
-          status: row.status,
-        });
-      });
-
       /** -----------------------------
-       * 3. Fetch related cultures
-       * ----------------------------- */
-      const cultures = await db.medical_report_has_culture.findAll({
-        where: { medical_report_id: reportId },
-        include: [
-          {
-            model: db.culture,
-            as: "culture",
-            attributes: ["id", "name", "price", "sample_type_id", "category_id"],
-          },
-          {
-            model: db.medical_report_has_culture_antibiotic,
-            as: "culture_antibiotics",
-            include: [
-              {
-                model: db.antibiotic,
-                as: "antibiotic",
-                attributes: ["id", "name", "shortcut", "commercial_name"],
-              },
-            ],
-          },
-          {
-            model: db.medical_report_culture_result,
-            as: "culture_results",
-            attributes: [
-              "id",
-              "culture_option_name",
-              "culture_sub_option_name",
-              "custom_result",
-              "result_type",
-              "created_at",
-              "updated_at",
-            ],
-          },
-        ],
-      });
-
-      /** -----------------------------
-       * 4. Fetch test group results
-       * ----------------------------- */
-      const testGroupResults = await db.test_group_result.findAll({
-        where: { medical_report_id: reportId },
-        attributes: ["id", "result_json"],
-        include: [
-          {
-            model: db.test_group,
-            as: "test_group",
-            attributes: ["id", "name"],
-            required: false,
-          },
-          {
-            model: db.tg_component,
-            as: "tg_component",
-            attributes: ["id", "name", "reference_range", "result_type"],
-            required: false,
-            include: [
-              {
-                model: db.tgc_category,
-                as: "category",
-                attributes: ["id", "name"],
-                required: false,
-              },
-            ],
-          },
-        ],
-      });
-
-      /** -----------------------------
-       * 5. Assemble final response
+       * 3. Assemble final response
        * ----------------------------- */
       // Attach junction result/status to each test
       const testsPlain = tests.map((t) => {
@@ -1737,7 +1809,6 @@ router.get(
     }
   }
 );
-
 // Get test groups for a medical report
 router.get(
   "/:id/test-groups",
@@ -2310,6 +2381,7 @@ router.post(
   "/:reportId/tests/:testId/result",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  invalidateTestResultsCache, // Invalidate cache when test results are updated
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
@@ -2501,6 +2573,7 @@ router.post(
   "/:reportId/tests/:testId/component-results",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  invalidateTestResultsCache, // Invalidate cache when component results are updated
   async (req, res) => {
     try {
       const { reportId, testId } = req.params;
@@ -2899,6 +2972,7 @@ router.post(
   "/:reportId/cultures/:cultureId/result",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  invalidateCultureResultsCache, // Invalidate cache when culture results are updated
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
@@ -3039,6 +3113,7 @@ router.post(
   "/:reportId/cultures/:cultureId/culture-result",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  invalidateCultureResultsCache, // Invalidate cache when culture results are updated
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
@@ -3335,6 +3410,8 @@ router.post(
   "/:id/results/bulk",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  invalidateTestResultsCache, // Invalidate cache when bulk results are updated
+  invalidateCultureResultsCache, // Invalidate cache when bulk culture results are updated
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
