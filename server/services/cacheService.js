@@ -24,38 +24,91 @@ class CacheService {
 
   async init() {
     try {
-      // Initialize Redis client
-      this.client = Redis.createClient({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
+      // Redis configuration for Docker and local environments
+      const redisConfig = {
+        socket: {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT) || 6379,
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              console.log('⚠️ Redis: Max reconnection attempts reached');
+              return false; // Stop reconnecting
+            }
+            const delay = Math.min(retries * 100, 3000); // Max 3 seconds
+            console.log(`🔄 Redis: Reconnecting in ${delay}ms (attempt ${retries})`);
+            return delay;
+          },
+          connectTimeout: 10000, // 10 seconds
+          commandTimeout: 5000,  // 5 seconds
+        },
         password: process.env.REDIS_PASSWORD || undefined,
-        db: process.env.REDIS_DB || 0,
+        database: parseInt(process.env.REDIS_DB) || 0,
         retryDelayOnFailover: 100,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
+      };
+
+      console.log(`🔌 Initializing Redis connection to ${redisConfig.socket.host}:${redisConfig.socket.port}`);
+      this.client = Redis.createClient(redisConfig);
+
+      // Enhanced event handlers
+      this.client.on('connect', () => {
+        console.log('🔗 Redis: Connection established');
       });
 
-      this.client.on('connect', () => {
-        console.log('✅ Redis cache connected successfully');
+      this.client.on('ready', () => {
+        console.log('✅ Redis: Client ready and connected successfully');
         this.isConnected = true;
       });
 
       this.client.on('error', (err) => {
         console.warn('⚠️ Redis cache error:', err.message);
         this.isConnected = false;
+        
+        // Provide helpful error context
+        if (err.code === 'ECONNREFUSED') {
+          console.warn('💡 Redis: Connection refused - ensure Redis server is running');
+        } else if (err.code === 'ENOTFOUND') {
+          console.warn('💡 Redis: Host not found - check REDIS_HOST environment variable');
+        }
       });
 
       this.client.on('end', () => {
-        console.log('🔌 Redis cache connection ended');
+        console.log('🔌 Redis: Connection ended');
         this.isConnected = false;
       });
 
-      // Try to connect
-      await this.client.connect();
+      this.client.on('reconnecting', () => {
+        console.log('🔄 Redis: Attempting to reconnect...');
+        this.isConnected = false;
+      });
+
+      // Try to connect with timeout
+      const connectPromise = this.client.connect();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Redis connection timeout')), 15000);
+      });
+
+      await Promise.race([connectPromise, timeoutPromise]);
+      
+      // Test the connection
+      await this.client.ping();
+      console.log('🏓 Redis: Ping successful');
+      
     } catch (error) {
       console.warn('⚠️ Redis cache initialization failed:', error.message);
       console.log('📝 Continuing without cache - all requests will hit database');
       this.isConnected = false;
+      
+      // Clean up client if it exists
+      if (this.client) {
+        try {
+          await this.client.disconnect();
+        } catch (disconnectError) {
+          // Ignore disconnect errors during initialization failure
+        }
+        this.client = null;
+      }
     }
   }
 
@@ -252,6 +305,22 @@ class CacheService {
   }
 
   /**
+   * Get cached new results data for medical report
+   */
+  async getMedicalReportNewResultsData(reportId) {
+    const key = this.generateKey('report:newresults-data', reportId);
+    return await this.get(key);
+  }
+
+  /**
+   * Set cached new results data for medical report
+   */
+  async setMedicalReportNewResultsData(reportId, data, ttl = 1800) {
+    const key = this.generateKey('report:newresults-data', reportId);
+    return await this.set(key, data, ttl);
+  }
+
+  /**
    * Invalidate cache when medical report is updated
    */
   async invalidateMedicalReport(reportId) {
@@ -262,6 +331,7 @@ class CacheService {
       `labmanager:report:test-components:*${reportId}*`,
       `labmanager:report:complete:*${reportId}*`,
       `labmanager:report:test-groups:*${reportId}*`,
+      `labmanager:report:newresults-data:*${reportId}*`,
       `labmanager:reports:list:*`, // Invalidate all lists as they might contain this report
       `labmanager:reports:summary:*`, // Invalidate summary as counts might change
     ];
@@ -279,6 +349,7 @@ class CacheService {
       `labmanager:report:tests:*${reportId}*`,
       `labmanager:report:test-components:*${reportId}*`,
       `labmanager:report:complete:*${reportId}*`,
+      `labmanager:report:newresults-data:*${reportId}*`,
       `labmanager:reports:summary:*`, // Results affect pending counts
     ];
 
@@ -294,6 +365,7 @@ class CacheService {
     const patterns = [
       `labmanager:report:cultures:*${reportId}*`,
       `labmanager:report:complete:*${reportId}*`,
+      `labmanager:report:newresults-data:*${reportId}*`,
       `labmanager:reports:summary:*`,
     ];
 
@@ -378,9 +450,27 @@ class CacheService {
    * Close Redis connection
    */
   async close() {
-    if (this.client && this.isConnected) {
-      await this.client.quit();
-      this.isConnected = false;
+    if (this.client) {
+      try {
+        console.log('🔌 Redis: Closing connection...');
+        if (this.isConnected) {
+          await this.client.quit();
+        } else {
+          await this.client.disconnect();
+        }
+        console.log('✅ Redis: Connection closed successfully');
+      } catch (error) {
+        console.warn('⚠️ Redis: Error closing connection:', error.message);
+        // Force disconnect if quit fails
+        try {
+          await this.client.disconnect();
+        } catch (disconnectError) {
+          console.warn('⚠️ Redis: Force disconnect also failed:', disconnectError.message);
+        }
+      } finally {
+        this.isConnected = false;
+        this.client = null;
+      }
     }
   }
 }

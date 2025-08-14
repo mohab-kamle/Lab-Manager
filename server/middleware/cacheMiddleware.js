@@ -23,20 +23,38 @@ const cacheService = require('../services/cacheService');
 function createCacheMiddleware(cacheKeyGenerator, cacheGetter, cacheSetter, ttl = 3600) {
   return async (req, res, next) => {
     try {
+      // Check if cache service is available
+      if (!cacheService.isConnected) {
+        // Add header to indicate cache is unavailable
+        res.set('X-Cache', 'UNAVAILABLE');
+        return next();
+      }
+      
       // Generate cache key based on request
       const cacheKey = cacheKeyGenerator(req);
       
-      // Try to get data from cache
-      const cachedData = await cacheGetter(cacheKey, req);
+      // Try to get data from cache with timeout
+      const cacheStartTime = Date.now();
+      const cachedData = await Promise.race([
+        cacheGetter(cacheKey, req),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Cache timeout')), 2000)
+        )
+      ]);
+      
+      const cacheTime = Date.now() - cacheStartTime;
       
       if (cachedData) {
-        // Add cache hit header for debugging
+        // Add cache hit headers for debugging
         res.set('X-Cache', 'HIT');
+        res.set('X-Cache-Time', `${cacheTime}ms`);
+        console.log(`🎯 Cache HIT: ${cacheKey} (${cacheTime}ms)`);
         return res.json(cachedData);
       }
       
       // Add cache miss header
       res.set('X-Cache', 'MISS');
+      console.log(`❌ Cache MISS: ${cacheKey}`);
       
       // Store original json method
       const originalJson = res.json;
@@ -44,10 +62,15 @@ function createCacheMiddleware(cacheKeyGenerator, cacheGetter, cacheSetter, ttl 
       // Override json method to cache the response
       res.json = function(data) {
         // Cache the response data
-        if (res.statusCode === 200 && data) {
-          cacheSetter(cacheKey, data, req, ttl).catch(err => {
-            console.warn('Failed to cache response:', err.message);
-          });
+        if (res.statusCode === 200 && data && cacheService.isConnected) {
+          const cachePromise = cacheSetter(cacheKey, data, req, ttl);
+          cachePromise
+            .then(() => {
+              console.log(`💾 Cache SET: ${cacheKey} (TTL: ${ttl}s)`);
+            })
+            .catch(err => {
+              console.warn(`⚠️ Cache SET failed for ${cacheKey}:`, err.message);
+            });
         }
         
         // Call original json method
@@ -56,8 +79,14 @@ function createCacheMiddleware(cacheKeyGenerator, cacheGetter, cacheSetter, ttl 
       
       next();
     } catch (error) {
-      console.warn('Cache middleware error:', error.message);
-      // Continue without cache on error
+      console.warn(`⚠️ Cache middleware error for ${req.method} ${req.path}:`, error.message);
+      res.set('X-Cache', 'ERROR');
+      
+      // Reset json method if it was overridden
+      if (res.json !== res.json.original) {
+        res.json = res.json.original || res.json;
+      }
+      
       next();
     }
   };
@@ -210,6 +239,22 @@ const cacheMedicalReportTestGroups = createCacheMiddleware(
 );
 
 /**
+ * Cache middleware for new results data endpoint
+ * Caches the complete results data with optimized parallel fetching
+ * TTL: 30 minutes (balances performance with data freshness)
+ */
+const cacheMedicalReportNewResultsData = createCacheMiddleware(
+  (req) => `newresults-data:${req.params.id}`,
+  async (cacheKey, req) => {
+    return await cacheService.getMedicalReportNewResultsData(req.params.id);
+  },
+  async (cacheKey, data, req) => {
+    return await cacheService.setMedicalReportNewResultsData(req.params.id, data);
+  },
+  1800 // 30 minutes TTL
+);
+
+/**
  * Cache invalidation middleware for medical report updates
  */
 const invalidateMedicalReportCache = async (req, res, next) => {
@@ -219,10 +264,20 @@ const invalidateMedicalReportCache = async (req, res, next) => {
   // Override json method to invalidate cache after successful update
   res.json = function(data) {
     // Invalidate cache on successful update
-    if (res.statusCode === 200 && req.params.id) {
-      cacheService.invalidateMedicalReport(req.params.id).catch(err => {
-        console.warn('Failed to invalidate medical report cache:', err.message);
-      });
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const reportId = req.params.id || req.params.reportId;
+      if (reportId && cacheService.isConnected) {
+        console.log(`🗑️ Invalidating medical report cache for ID: ${reportId}`);
+        cacheService.invalidateMedicalReport(reportId)
+          .then(() => {
+            console.log(`✅ Medical report cache invalidated for ID: ${reportId}`);
+          })
+          .catch(err => {
+            console.warn(`⚠️ Failed to invalidate medical report cache for ID ${reportId}:`, err.message);
+          });
+      } else if (!cacheService.isConnected) {
+        console.log('🔌 Cache service disconnected - skipping invalidation');
+      }
     }
     
     // Call original json method
@@ -242,10 +297,20 @@ const invalidateTestResultsCache = async (req, res, next) => {
   // Override json method to invalidate cache after successful update
   res.json = function(data) {
     // Invalidate cache on successful update
-    if (res.statusCode === 200 && req.params.id) {
-      cacheService.invalidateTestResults(req.params.id).catch(err => {
-        console.warn('Failed to invalidate test results cache:', err.message);
-      });
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const testId = req.params.id || req.params.testId;
+      if (testId && cacheService.isConnected) {
+        console.log(`🗑️ Invalidating test results cache for ID: ${testId}`);
+        cacheService.invalidateTestResults(testId)
+          .then(() => {
+            console.log(`✅ Test results cache invalidated for ID: ${testId}`);
+          })
+          .catch(err => {
+            console.warn(`⚠️ Failed to invalidate test results cache for ID ${testId}:`, err.message);
+          });
+      } else if (!cacheService.isConnected) {
+        console.log('🔌 Cache service disconnected - skipping test results invalidation');
+      }
     }
     
     // Call original json method
@@ -265,10 +330,20 @@ const invalidateCultureResultsCache = async (req, res, next) => {
   // Override json method to invalidate cache after successful update
   res.json = function(data) {
     // Invalidate cache on successful update
-    if (res.statusCode === 200 && req.params.id) {
-      cacheService.invalidateCultureResults(req.params.id).catch(err => {
-        console.warn('Failed to invalidate culture results cache:', err.message);
-      });
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const cultureId = req.params.id || req.params.cultureId;
+      if (cultureId && cacheService.isConnected) {
+        console.log(`🗑️ Invalidating culture results cache for ID: ${cultureId}`);
+        cacheService.invalidateCultureResults(cultureId)
+          .then(() => {
+            console.log(`✅ Culture results cache invalidated for ID: ${cultureId}`);
+          })
+          .catch(err => {
+            console.warn(`⚠️ Failed to invalidate culture results cache for ID ${cultureId}:`, err.message);
+          });
+      } else if (!cacheService.isConnected) {
+        console.log('🔌 Cache service disconnected - skipping culture results invalidation');
+      }
     }
     
     // Call original json method
@@ -288,12 +363,21 @@ const invalidateListCache = async (req, res, next) => {
   // Override json method to invalidate list cache after successful creation
   res.json = function(data) {
     // Invalidate list cache on successful creation
-    if (res.statusCode === 200 || res.statusCode === 201) {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
       const labId = req.tenant?.lab_id;
-      if (labId) {
-        cacheService.invalidateLabCache(labId).catch(err => {
-          console.warn('Failed to invalidate lab cache:', err.message);
-        });
+      if (labId && cacheService.isConnected) {
+        console.log(`🗑️ Invalidating lab cache for lab ID: ${labId}`);
+        cacheService.invalidateLabCache(labId)
+          .then(() => {
+            console.log(`✅ Lab cache invalidated for lab ID: ${labId}`);
+          })
+          .catch(err => {
+            console.warn(`⚠️ Failed to invalidate lab cache for lab ID ${labId}:`, err.message);
+          });
+      } else if (!cacheService.isConnected) {
+        console.log('🔌 Cache service disconnected - skipping lab cache invalidation');
+      } else if (!labId) {
+        console.warn('⚠️ No lab ID found in request - skipping lab cache invalidation');
       }
     }
     
@@ -350,7 +434,7 @@ const warmCache = async (req, res, next) => {
 };
 
 module.exports = {
-  // Cache middlewares
+  // Cache middleware functions
   cacheMedicalReportsList,
   cacheMedicalReportBasic,
   cacheMedicalReportTests,
@@ -360,18 +444,19 @@ module.exports = {
   cacheMedicalReportsSummary,
   cacheTestComponents,
   cacheMedicalReportTestGroups,
+  cacheMedicalReportNewResultsData,
   
-  // Cache invalidation middlewares
+  // Cache invalidation middleware
   invalidateMedicalReportCache,
   invalidateTestResultsCache,
   invalidateCultureResultsCache,
   invalidateListCache,
   
-  // Utility middlewares
+  // Utility middleware
   addCacheHeaders,
   handleConditionalRequests,
   warmCache,
   
-  // Generic cache middleware factory
+  // Factory function for custom cache middleware
   createCacheMiddleware,
 };

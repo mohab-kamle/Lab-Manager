@@ -12,6 +12,9 @@ const { employee, patient, phone } = require("./models");
 // Subscription scheduler service
 const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('./services/subscriptionScheduler');
 
+// Cache service
+const cacheService = require('./services/cacheService');
+
 // Initialize Express app
 const app = express();
 const router = express.Router();
@@ -581,8 +584,8 @@ const shouldSyncDatabase = !process.env.pm_id || process.env.pm_id === '0';
 if (shouldSyncDatabase) {
   console.log('🔧 Master process - performing database synchronization...');
   syncDatabase()
-    .then(() => {
-      startServer();
+    .then(async () => {
+      await startServer();
     })
     .catch((error) => {
       console.error("❌ Server startup failed:", error);
@@ -590,17 +593,28 @@ if (shouldSyncDatabase) {
     });
 } else {
   console.log('👷 Worker process - skipping database sync, starting server directly...');
-  startServer();
+  startServer().catch((error) => {
+    console.error('❌ Server startup failed:', error);
+    process.exit(1);
+  });
 }
 
 // Extract server startup logic into a separate function
-function startServer() {
+async function startServer() {
   const PORT = process.env.PORT || 3001;
     
     // Add connection pool monitoring (using a different approach)
     if (db.sequelize.connectionManager) {
       console.log('🔌 Database connection pool initialized');
       console.log(`📊 Pool config: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
+    }
+    
+    // Initialize Redis cache service
+    try {
+      await cacheService.init();
+      console.log('🗄️ Redis cache service initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize Redis cache service:', error);
     }
     
     // Initialize subscription scheduler after database is ready
@@ -620,8 +634,13 @@ function startServer() {
         if (subscriptionScheduler) {
           stopSubscriptionScheduler(subscriptionScheduler);
         }
+        
+        // Close Redis cache connection
+        await cacheService.close();
+        
+        // Close database connections
         await db.sequelize.close();
-        console.log('✅ Database connections closed');
+        console.log('✅ All connections closed successfully');
         process.exit(0);
       } catch (error) {
         console.error('❌ Error during shutdown:', error);
@@ -636,8 +655,13 @@ function startServer() {
         if (subscriptionScheduler) {
           stopSubscriptionScheduler(subscriptionScheduler);
         }
+        
+        // Close Redis cache connection
+        await cacheService.close();
+        
+        // Close database connections
         await db.sequelize.close();
-        console.log('✅ Database connections closed');
+        console.log('✅ All connections closed successfully');
         process.exit(0);
       } catch (error) {
         console.error('❌ Error during shutdown:', error);
@@ -652,6 +676,7 @@ function startServer() {
       console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
       console.log(`📊 Database sync: ENABLED`);
       console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
+      console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
       console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
     });
   }
