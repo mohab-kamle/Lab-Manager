@@ -459,7 +459,7 @@ npm run preview        # Preview production build
 
 ### Contact Information
 - **Developer**: Mohab
-- **Repository**: [GitHub Repository URL]
+- **Repository**: https://github.com/mohab-kamle/Lab-Manager-Fullstack.git
 - **Issues**: GitHub Issues for bug reports
 - **Documentation**: This README and component-specific docs
 
