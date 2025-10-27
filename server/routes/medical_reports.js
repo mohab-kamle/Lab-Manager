@@ -7,6 +7,7 @@ const { tenantContext } = require("../middleware/tenantContext");
 const { cacheMedicalReportNewResultsData, cacheMedicalReportsList, invalidateTestResultsCache, invalidateCultureResultsCache, invalidateMedicalReportCache, invalidateListCache } = require("../middleware/cacheMiddleware");
 const { Op, where } = require("sequelize");
 const multer = require("multer");
+const path = require("path");
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -22,6 +23,49 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error("Only Excel and CSV files are allowed"), false);
+    }
+  },
+});
+
+// Multer configuration for secure image uploads
+const imageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Use secure comment-images directory
+    const baseUploadPath = process.env.UPLOAD_BASE_PATH || path.join(__dirname, '../uploads');
+    const uploadPath = path.join(baseUploadPath, 'comment-images');
+    
+    // Create directory if it doesn't exist
+    const fs = require('fs');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Generate secure filename with report ID for authorization
+    // Format: reportId_commentType_timestamp_originalName
+    const reportId = req.params.id || req.body.reportId || 'unknown';
+    const commentType = req.body.commentType || 'general';
+    const timestamp = Date.now();
+    const randomSuffix = Math.round(Math.random() * 1E9);
+    const sanitizedOriginalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    
+    const secureFilename = `${reportId}_${commentType}_${timestamp}_${randomSuffix}_${sanitizedOriginalName}`;
+    cb(null, secureFilename);
+  }
+});
+
+const imageUpload = multer({
+  storage: imageStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit per image
+    files: 3 // Maximum 3 files
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
     }
   },
 });
@@ -3764,6 +3808,405 @@ router.post(
         details:
           process.env.NODE_ENV === "development" ? error.message : undefined,
       });
+    }
+  }
+);
+
+// ==================== COMMENT ROUTES ====================
+
+// Get comments for a specific medical report
+router.get(
+  "/:id/comments",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  tenantContext,
+  async (req, res) => {
+    try {
+      const { id: reportId } = req.params;
+
+      // Verify medical report belongs to current lab
+      const report = await db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
+      });
+
+      if (!report) {
+        return res.status(404).json({ error: "Medical report not found" });
+      }
+
+      // Get test comments
+      const testComments = await db.test_comments.findAll({
+        where: { medical_report_id: reportId },
+        include: [
+          {
+            model: db.test,
+            as: "test",
+            attributes: ["id", "name"],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+      });
+
+      // Get test group comments
+      const testGroupComments = await db.test_group_comments.findAll({
+        where: { medical_report_id: reportId },
+        include: [
+          {
+            model: db.test_group,
+            as: "test_group",
+            attributes: ["id", "name"],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+      });
+
+      // Get images for all comments
+      const testCommentIds = testComments.map(c => c.id);
+      const testGroupCommentIds = testGroupComments.map(c => c.id);
+      const reportCommentIds = [reportId]; // For medical report main comment
+
+      const [testImages, testGroupImages, reportImages] = await Promise.all([
+        testCommentIds.length > 0 ? db.comment_images.findAll({
+          where: {
+            comment_type: 'test',
+            comment_id: { [Op.in]: testCommentIds }
+          },
+          order: [['upload_order', 'ASC']]
+        }) : [],
+        testGroupCommentIds.length > 0 ? db.comment_images.findAll({
+          where: {
+            comment_type: 'test_group',
+            comment_id: { [Op.in]: testGroupCommentIds }
+          },
+          order: [['upload_order', 'ASC']]
+        }) : [],
+        db.comment_images.findAll({
+          where: {
+            comment_type: 'medical_report',
+            comment_id: reportId
+          },
+          order: [['upload_order', 'ASC']]
+        })
+      ]);
+
+      // Group images by comment
+      const groupImagesByComment = (images) => {
+        return images.reduce((acc, img) => {
+          if (!acc[img.comment_id]) acc[img.comment_id] = [];
+          acc[img.comment_id].push(img);
+          return acc;
+        }, {});
+      };
+
+      const testImagesGrouped = groupImagesByComment(testImages);
+      const testGroupImagesGrouped = groupImagesByComment(testGroupImages);
+      const reportImagesGrouped = groupImagesByComment(reportImages);
+
+      // Attach images to comments
+      const testCommentsWithImages = testComments.map(comment => ({
+        ...comment.toJSON(),
+        images: testImagesGrouped[comment.id] || []
+      }));
+
+      const testGroupCommentsWithImages = testGroupComments.map(comment => ({
+        ...comment.toJSON(),
+        images: testGroupImagesGrouped[comment.id] || []
+      }));
+
+      res.json({
+        testComments: testCommentsWithImages,
+        testGroupComments: testGroupCommentsWithImages,
+        reportImages: reportImagesGrouped[reportId] || []
+      });
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ error: "Failed to fetch comments" });
+    }
+  }
+);
+
+// Create test comment
+router.post(
+  "/:id/test-comments",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  tenantContext,
+  (req, res, next) => {
+    // Add comment type to request body for secure filename generation
+    req.body.commentType = 'test';
+    next();
+  },
+  imageUpload.array('images', 3),
+  async (req, res) => {
+    const t = await db.sequelize.transaction();
+    try {
+      const { id: reportId } = req.params;
+      const { test_id, comment } = req.body;
+
+      // Verify medical report belongs to current lab
+      const report = await db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
+        transaction: t
+      });
+
+      if (!report) {
+        await t.rollback();
+        return res.status(404).json({ error: "Medical report not found" });
+      }
+
+      // Create test comment
+      const testComment = await db.test_comments.create({
+        medical_report_id: reportId,
+        test_id,
+        comment
+      }, { transaction: t });
+
+      // Handle image uploads
+      if (req.files && req.files.length > 0) {
+        const imageRecords = req.files.map((file, index) => ({
+          comment_type: 'test',
+          comment_id: testComment.id,
+          image_path: file.path,
+          image_name: file.originalname,
+          image_size: file.size,
+          mime_type: file.mimetype,
+          upload_order: index + 1
+        }));
+
+        await db.comment_images.bulkCreate(imageRecords, { transaction: t });
+      }
+
+      await t.commit();
+      res.status(201).json({ success: true, comment: testComment });
+    } catch (error) {
+      await t.rollback();
+      console.error("Error creating test comment:", error);
+      res.status(500).json({ error: "Failed to create test comment" });
+    }
+  }
+);
+
+// Create test group comment
+router.post(
+  "/:id/test-group-comments",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  tenantContext,
+  (req, res, next) => {
+    // Add comment type to request body for secure filename generation
+    req.body.commentType = 'test_group';
+    next();
+  },
+  imageUpload.array('images', 3),
+  async (req, res) => {
+    const t = await db.sequelize.transaction();
+    try {
+      const { id: reportId } = req.params;
+      const { test_group_id, comment } = req.body;
+
+      // Verify medical report belongs to current lab
+      const report = await db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
+        transaction: t
+      });
+
+      if (!report) {
+        await t.rollback();
+        return res.status(404).json({ error: "Medical report not found" });
+      }
+
+      // Create test group comment
+      const testGroupComment = await db.test_group_comments.create({
+        medical_report_id: reportId,
+        test_group_id,
+        comment
+      }, { transaction: t });
+
+      // Handle image uploads
+      if (req.files && req.files.length > 0) {
+        const imageRecords = req.files.map((file, index) => ({
+          comment_type: 'test_group',
+          comment_id: testGroupComment.id,
+          image_path: file.path,
+          image_name: file.originalname,
+          image_size: file.size,
+          mime_type: file.mimetype,
+          upload_order: index + 1
+        }));
+
+        await db.comment_images.bulkCreate(imageRecords, { transaction: t });
+      }
+
+      await t.commit();
+      res.status(201).json({ success: true, comment: testGroupComment });
+    } catch (error) {
+      await t.rollback();
+      console.error("Error creating test group comment:", error);
+      res.status(500).json({ error: "Failed to create test group comment" });
+    }
+  }
+);
+
+// Upload images for medical report main comment
+router.post(
+  "/:id/comment-images",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  tenantContext,
+  (req, res, next) => {
+    // Add comment type to request body for secure filename generation
+    req.body.commentType = 'medical_report';
+    next();
+  },
+  imageUpload.array('images', 3),
+  async (req, res) => {
+    const t = await db.sequelize.transaction();
+    try {
+      const { id: reportId } = req.params;
+
+      // Verify medical report belongs to current lab
+      const report = await db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
+        transaction: t
+      });
+
+      if (!report) {
+        await t.rollback();
+        return res.status(404).json({ error: "Medical report not found" });
+      }
+      // Delete existing images for this medical report
+      const deletedCount = await db.comment_images.destroy({
+        where: {
+          comment_type: 'medical_report',
+          comment_id: reportId
+        },
+        transaction: t
+      });
+
+      // Handle new image uploads
+      if (req.files && req.files.length > 0) {
+        const imageRecords = req.files.map((file, index) => ({
+          comment_type: 'medical_report',
+          comment_id: reportId,
+          image_path: file.path,
+          image_name: file.originalname,
+          image_size: file.size,
+          mime_type: file.mimetype,
+          upload_order: index + 1
+        }));
+
+        await db.comment_images.bulkCreate(imageRecords, { transaction: t });
+      }
+
+      await t.commit();
+      res.status(201).json({ success: true, message: "Images uploaded successfully" });
+    } catch (error) {
+      await t.rollback();
+      console.error("Error uploading comment images:", error);
+      res.status(500).json({ error: "Failed to upload images" });
+    }
+  }
+);
+
+// Delete test comment
+router.delete(
+  "/test-comments/:commentId",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  tenantContext,
+  async (req, res) => {
+    const t = await db.sequelize.transaction();
+    try {
+      const { commentId } = req.params;
+
+      // Find comment and verify it belongs to current lab
+      const comment = await db.test_comments.findOne({
+        where: { id: commentId },
+        include: [{
+          model: db.medical_report,
+          as: "medical_report",
+          where: { lab_id: req.tenant.lab_id }
+        }],
+        transaction: t
+      });
+
+      if (!comment) {
+        await t.rollback();
+        return res.status(404).json({ error: "Comment not found" });
+      }
+
+      // Delete associated images
+      await db.comment_images.destroy({
+        where: {
+          comment_type: 'test',
+          comment_id: commentId
+        },
+        transaction: t
+      });
+
+      // Delete comment
+      await db.test_comments.destroy({
+        where: { id: commentId },
+        transaction: t
+      });
+
+      await t.commit();
+      res.json({ success: true, message: "Comment deleted successfully" });
+    } catch (error) {
+      await t.rollback();
+      console.error("Error deleting test comment:", error);
+      res.status(500).json({ error: "Failed to delete comment" });
+    }
+  }
+);
+
+// Delete test group comment
+router.delete(
+  "/test-group-comments/:commentId",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  tenantContext,
+  async (req, res) => {
+    const t = await db.sequelize.transaction();
+    try {
+      const { commentId } = req.params;
+
+      // Find comment and verify it belongs to current lab
+      const comment = await db.test_group_comments.findOne({
+        where: { id: commentId },
+        include: [{
+          model: db.medical_report,
+          as: "medical_report",
+          where: { lab_id: req.tenant.lab_id }
+        }],
+        transaction: t
+      });
+
+      if (!comment) {
+        await t.rollback();
+        return res.status(404).json({ error: "Comment not found" });
+      }
+
+      // Delete associated images
+      await db.comment_images.destroy({
+        where: {
+          comment_type: 'test_group',
+          comment_id: commentId
+        },
+        transaction: t
+      });
+
+      // Delete comment
+      await db.test_group_comments.destroy({
+        where: { id: commentId },
+        transaction: t
+      });
+
+      await t.commit();
+      res.json({ success: true, message: "Comment deleted successfully" });
+    } catch (error) {
+      await t.rollback();
+      console.error("Error deleting test group comment:", error);
+      res.status(500).json({ error: "Failed to delete comment" });
     }
   }
 );

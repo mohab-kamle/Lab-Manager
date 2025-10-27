@@ -104,7 +104,7 @@ const Tests = () => {
 
   useEffect(() => {
     fetchTestsAndRelated();
-    // eslint-disable-next-line
+     
   }, [apiUrl]);
 
   const filteredTests = tests.filter((test) => {

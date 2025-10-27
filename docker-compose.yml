@@ -65,8 +65,9 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./server/uploads:/app/uploads
-      - ./server/logs:/app/logs
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+      - ./uploads:/app/uploads/shared  # Mount root uploads for backward compatibility
     depends_on:
       redis:
         condition: service_started
@@ -107,6 +108,11 @@ services:
 
 volumes:
   mysql_data:
+    driver: local
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local
 
 networks:
   labmanager-network:

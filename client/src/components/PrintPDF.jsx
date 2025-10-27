@@ -21,12 +21,33 @@ import QRCodeSVG from "qrcode-svg";
 import { usePDF } from "@react-pdf/renderer";
 import CairoFont from "../assets/fonts/Cairo.ttf";
 import { FileText } from "lucide-react";
+import RichTextPdfRenderer, { htmlToPlainText } from "./HtmlToPdfRenderer";
 
 // Register Cairo font for Arabic support
 Font.register({
   family: "Cairo",
-  src: CairoFont,
-  fontWeight: "normal",
+  fonts: [
+    {
+      src: CairoFont,
+      fontWeight: "normal",
+      fontStyle: "normal",
+    },
+    {
+      src: CairoFont,
+      fontWeight: "bold",
+      fontStyle: "normal",
+    },
+    {
+      src: CairoFont,
+      fontWeight: "normal",
+      fontStyle: "italic",
+    },
+    {
+      src: CairoFont,
+      fontWeight: "bold",
+      fontStyle: "italic",
+    },
+  ],
 });
 
 // Register Roboto font - using Google Fonts CDN for better compatibility
@@ -50,6 +71,76 @@ try {
 
 // Note: @react-pdf/renderer has better built-in support for Arabic text
 // than jsPDF, so we'll use the default font handling
+
+// Helper function to render test comments
+const renderTestComments = (testId, comments) => {
+  const testComments = comments?.tests?.[testId];
+  if (!testComments || testComments.length === 0) return null;
+
+  return (
+    <View style={styles.commentSection}>
+      <Text style={styles.commentSectionTitle}>Test Comments:</Text>
+      {testComments.map((comment, index) => (
+        <View key={comment.id || index} style={styles.commentItem}>
+          <Text style={styles.commentText}>{comment.comment_text}</Text>
+          <Text style={styles.commentDate}>
+            {new Date(comment.created_at).toLocaleDateString()}
+          </Text>
+          {comment.images && comment.images.length > 0 && (
+            <View style={styles.commentImages}>
+              <Text style={styles.commentImagesLabel}>Attached Images: {comment.images.length}</Text>
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+};
+
+// Helper function to render test group comments
+const renderTestGroupComments = (testGroupId, comments) => {
+  const testGroupComments = comments?.testGroup?.[testGroupId];
+  if (!testGroupComments || testGroupComments.length === 0) return null;
+
+  return (
+    <View style={styles.commentSection}>
+      <Text style={styles.commentSectionTitle}>Test Group Comments:</Text>
+      {testGroupComments.map((comment, index) => (
+        <View key={comment.id || index} style={styles.commentItem}>
+          <Text style={styles.commentText}>{comment.comment_text}</Text>
+          <Text style={styles.commentDate}>
+            {new Date(comment.created_at).toLocaleDateString()}
+          </Text>
+          {comment.images && comment.images.length > 0 && (
+            <View style={styles.commentImages}>
+              <Text style={styles.commentImagesLabel}>Attached Images: {comment.images.length}</Text>
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+};
+
+// Helper function to render medical report images
+const renderMedicalReportImages = (comments) => {
+  const reportImages = comments?.reportImages;
+  if (!reportImages || reportImages.length === 0) return null;
+
+  return (
+    <View style={styles.commentSection}>
+      <Text style={styles.commentSectionTitle}>Medical Report Images:</Text>
+      <View style={styles.commentImages}>
+        <Text style={styles.commentImagesLabel}>Attached Images: {reportImages.length}</Text>
+        {reportImages.map((image, index) => (
+          <Text key={image.id || index} style={styles.commentText}>
+            • {image.image_name || `Image ${index + 1}`}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+};
 
 // Helper to determine result color
 function getResultColor(result, normalRange, status) {
@@ -390,6 +481,45 @@ const styles = StyleSheet.create({
     color: "#2d3e8b",
     fontSize: 12,
     marginRight: 4,
+  },
+  commentSection: {
+    marginTop: 8,
+    marginBottom: 8,
+    marginHorizontal: 20,
+    padding: 6,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 3,
+    border: "0.5pt solid #dee2e6",
+  },
+  commentSectionTitle: {
+    fontSize: 9,
+    fontWeight: "bold",
+    color: "#495057",
+    marginBottom: 4,
+  },
+  commentItem: {
+    marginBottom: 4,
+    paddingBottom: 4,
+    borderBottom: "0.5pt solid #e9ecef",
+  },
+  commentText: {
+    fontSize: 8,
+    color: "#333",
+    marginBottom: 2,
+    lineHeight: 1.3,
+  },
+  commentDate: {
+    fontSize: 7,
+    color: "#6c757d",
+    fontStyle: "italic",
+  },
+  commentImages: {
+    marginTop: 2,
+  },
+  commentImagesLabel: {
+    fontSize: 7,
+    color: "#6c757d",
+    fontStyle: "italic",
   },
   signLabel: {
     fontWeight: "bold",
@@ -750,7 +880,7 @@ function StatusBarFirstPage({ report }) {
 }
 
 // Professional PDF Document Component
-const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
+const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
   // Use report id as barcode, and a URL as QR code (e.g., report view link)
   const barcodeUrl = useBarcode(report?.id ? String(report.id) : "0");
   // const qrUrl = useQRCodeDataUrl(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ''}`); // This line is now passed as a prop
@@ -1369,6 +1499,9 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                         ))}
                       </View>
                     )}
+                    
+                    {/* Render test comments */}
+                    {renderTestComments(test.id, comments)}
                   </View>
                 );
               }
@@ -2066,6 +2199,9 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
                       );
                     }
                   )}
+                  
+                  {/* Render test group comments */}
+                  {renderTestGroupComments(group.id, comments)}
                 </View>
               );
             })}
@@ -2075,9 +2211,17 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
         {doctorComment && (
           <View style={styles.commentBox}>
             <Text style={styles.commentLabel}>Comment : </Text>
-            <Text style={styles.infoText}>{doctorComment}</Text>
+            <RichTextPdfRenderer 
+              html={doctorComment}
+              baseStyle={styles.infoText}
+              containerStyle={{ marginTop: 2 }}
+            />
           </View>
         )}
+        
+        {/* Medical Report Images */}
+        {renderMedicalReportImages(comments)}
+        
         <PDFFooter qrUrl={qrUrl} signatory={signatory} fixed />
       </Page>
     </Document>
@@ -2085,7 +2229,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab }) => {
 };
 
 // Main PrintPDF Component
-const PrintPDF = ({ patient, report, lab }) => {
+const PrintPDF = ({ patient, report, lab, comments }) => {
   // Safety check for valid props
   if (!patient || !report) {
     return <span style={styles.btn}>Invalid Data</span>;
@@ -2168,6 +2312,7 @@ const PrintPDF = ({ patient, report, lab }) => {
                 report={transformedReport}
                 qrUrl={qrUrl}
                 lab={lab}
+                comments={comments}
               />
             }
             fileName={`Medical_Report_${patient.name || "Report"}.pdf`}
@@ -2220,6 +2365,7 @@ const PrintPDF = ({ patient, report, lab }) => {
               report={transformedReport}
               qrUrl={qrUrl}
               lab={lab}
+              comments={comments}
             />
           </PDFViewer>
         </div>
@@ -2234,6 +2380,7 @@ const PrintPDF = ({ patient, report, lab }) => {
               report={transformedReport}
               qrUrl={qrUrl}
               lab={lab}
+              comments={comments}
             />
           }
           fileName={`Medical_Report_${patient.name || "Report"}.pdf`}
@@ -2700,6 +2847,13 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
         testGroups: responseData.testGroups || [],
         testComponents: responseData.testComponents || {},
       };
+      
+      // Extract comments data from the API response
+      const comments = {
+        tests: responseData.testComments || {},
+        testGroup: responseData.testGroupComments || {},
+        reportImages: responseData.reportImages || []
+      };
 
       console.log("Extracted report data:", fullReportData);
       console.log(
@@ -2732,6 +2886,7 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
           report={transformedReport}
           qrUrl={qrUrl}
           lab={fullReportData.lab}
+          comments={comments}
         />
       );
       const pdfInstance = pdf(doc);

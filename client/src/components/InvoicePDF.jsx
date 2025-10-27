@@ -584,7 +584,7 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
         setPdfUrl(dataUrl);
       });
     }
-    // eslint-disable-next-line
+     
   }, [previewMode, invoiceData, paperSize, orientation]);
 
   // Mobile detection function
