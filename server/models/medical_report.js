@@ -64,7 +64,7 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: true,
       },
       comment: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.TEXT,
         allowNull: true,
       },
       signatory_id: {

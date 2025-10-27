@@ -80,6 +80,168 @@ app.use(cors(corsOptions));
 // Handle preflight requests explicitly for all routes
 app.options('*', cors(corsOptions));
 
+// =========================
+// Static File Serving
+// =========================
+// Serve uploaded files (images, documents, etc.)
+const path = require('path');
+const fs = require('fs');
+
+// Create upload directories if they don't exist
+const uploadsPath = path.join(__dirname, 'uploads');
+const publicUploadsPath = path.join(uploadsPath, 'public');
+const privateUploadsPath = path.join(uploadsPath, 'private');
+const commentImagesPath = path.join(uploadsPath, 'comment-images');
+
+// Create directory structure
+[uploadsPath, publicUploadsPath, privateUploadsPath, commentImagesPath].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log('📁 Created directory:', dir);
+  }
+});
+
+// Serve PUBLIC files without authentication (avatars, logos, etc.)
+app.use('/uploads/public', express.static(publicUploadsPath, {
+  maxAge: '1d', // Cache for 1 day
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    // Set appropriate headers for different file types
+    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif') || filePath.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/' + filePath.split('.').pop());
+    }
+    // Add CORS headers for uploaded files
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
+
+// File access authorization middleware
+const authorizeFileAccess = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Access token required' });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Add user info to request
+    req.user = decoded;
+    
+    // For comment images, check if user has access to the related medical report
+    if (req.path.includes('/comment-images/')) {
+      const filename = req.params.filename;
+      
+      // Extract report ID from filename if it follows naming convention
+      // Format: reportId_commentType_timestamp_originalName
+      const reportIdMatch = filename.match(/^(\d+)_/);
+      if (reportIdMatch) {
+        const reportId = reportIdMatch[1];
+        
+        // Check if user has access to this medical report
+        const { medical_report } = require('./models');
+        const report = await medical_report.findByPk(reportId);
+        
+        if (!report) {
+          return res.status(404).json({ error: 'Medical report not found' });
+        }
+        
+        // Check user permissions based on role
+        if (req.user.role === 'patient') {
+          // Patients can only access their own reports
+          if (report.patient_id !== req.user.id) {
+            return res.status(403).json({ error: 'Access denied to this file' });
+          }
+        } else if (['chemist', 'receptionist', 'admin'].includes(req.user.role)) {
+          // Staff can access reports from their lab
+          const { employee } = require('./models');
+          const emp = await employee.findByPk(req.user.id);
+          if (!emp || emp.lab_id !== report.lab_id) {
+            return res.status(403).json({ error: 'Access denied to this file' });
+          }
+        } else {
+          return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+      }
+    }
+    
+    next();
+  } catch (error) {
+    console.error('File access authorization error:', error);
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
+// Serve PRIVATE files with authentication (medical reports, patient documents)
+app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(privateUploadsPath, filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  // Set appropriate headers
+  const ext = path.extname(filename).toLowerCase();
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+    res.setHeader('Content-Type', `image/${ext.substring(1)}`);
+  } else if (ext === '.pdf') {
+    res.setHeader('Content-Type', 'application/pdf');
+  }
+  
+  // Add security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
+  
+  res.sendFile(filePath);
+});
+
+// Serve COMMENT IMAGES with authentication
+app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(commentImagesPath, filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  // Set appropriate headers for images
+  const ext = path.extname(filename).toLowerCase();
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+    res.setHeader('Content-Type', `image/${ext.substring(1)}`);
+  }
+  
+  // Add security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
+  
+  res.sendFile(filePath);
+});
+
+// Legacy support for existing comment-images (maintain backward compatibility)
+app.use('/uploads/comment-images', express.static(commentImagesPath, {
+  maxAge: '1h',
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif') || filePath.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/' + filePath.split('.').pop());
+    }
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
+
+console.log('📁 Secure file serving configured:');
+console.log('  - Public files: /uploads/public (no auth required)');
+console.log('  - Private files: /uploads/private (auth required)');
+console.log('  - Comment images: /uploads/comment-images (auth required)');
+
 // Railway-specific CORS handling
 app.use((req, res, next) => {
   // Railway sometimes requires specific headers

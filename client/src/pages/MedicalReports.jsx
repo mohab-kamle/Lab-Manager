@@ -11,6 +11,7 @@ import {
   Table,
   Tabs,
   Tab,
+  Spinner,
 } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -18,6 +19,9 @@ import Toolbar from "../components/Toolbar";
 import TablePagination from "../components/TablePagination";
 import DynamicTable from "../components/DynamicTable";
 import PrintPDF, { DirectPDFDownload } from "../components/PrintPDF";
+import RichTextEditor from "../components/RichTextEditor";
+import ImageUpload from "../components/ImageUpload";
+import SecureImage from "../components/SecureImage";
 import {
   Pencil,
   CheckCircle,
@@ -117,6 +121,27 @@ const MedicalReports = () => {
   // Loading states for various operations
   const [enteringResults, setEnteringResults] = useState(false);
   const [signingReport, setSigningReport] = useState(null); // reportId being signed
+  
+  // Comment-related state
+  const [comments, setComments] = useState({
+    testComments: [],
+    testGroupComments: [],
+    reportImages: []
+  });
+  const [commentImages, setCommentImages] = useState({
+    tests: {}, // { testId: [images] }
+    testGroups: {}, // { testGroupId: [images] }
+    medicalReport: [] // [images] for main comment
+  });
+  const [commentTexts, setCommentTexts] = useState({
+    tests: {}, // { testId: 'comment text' }
+    testGroups: {} // { testGroupId: 'comment text' }
+  });
+  const [expandedComments, setExpandedComments] = useState({
+    tests: {}, // { testId: boolean }
+    testGroups: {} // { testGroupId: boolean }
+  });
+  const [savingComments, setSavingComments] = useState({ test: false, testGroup: false, medicalReport: false });
   const [updatingReport, setUpdatingReport] = useState(false);
   const [deletingReport, setDeletingReport] = useState(false);
   const [markingCollected, setMarkingCollected] = useState(null); // reportId being marked
@@ -231,6 +256,212 @@ const MedicalReports = () => {
     }
   }, [apiUrl]);
 
+  // Fetch comments for a medical report
+  const fetchComments = useCallback(async (reportId) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const headers = { Authorization: `Bearer ${token}` };
+      const response = await axios.get(`${apiUrl}/medical-reports/${reportId}/comments`, { headers });
+      
+      // Organize comments by test/group ID for UI consumption
+      const organizedComments = {
+        test: {},
+        testGroup: {},
+        testComments: response.data.testComments,
+        testGroupComments: response.data.testGroupComments,
+        reportImages: response.data.reportImages,
+        medicalReport: response.data.reportImages
+      };
+      
+      // Group test comments by test_id
+      response.data.testComments.forEach(comment => {
+        if (!organizedComments.test[comment.test_id]) {
+          organizedComments.test[comment.test_id] = [];
+        }
+        organizedComments.test[comment.test_id].push(comment);
+      });
+      
+      // Group test group comments by test_group_id
+      response.data.testGroupComments.forEach(comment => {
+        if (!organizedComments.testGroup[comment.test_group_id]) {
+          organizedComments.testGroup[comment.test_group_id] = [];
+        }
+        organizedComments.testGroup[comment.test_group_id].push(comment);
+      });
+      
+      setComments(organizedComments);
+      
+      // Initialize comment texts from existing comments (keep empty for new comments)
+      const newCommentTexts = { tests: {}, testGroups: {} };
+      setCommentTexts(newCommentTexts);
+      
+      // Initialize comment images
+      const newCommentImages = { tests: {}, testGroups: {}, medicalReport: response.data.reportImages };
+      setCommentImages(newCommentImages);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      toast.error("Failed to fetch comments");
+    }
+  }, [apiUrl]);
+
+  // Save test comment
+  const saveTestComment = async (testId, comment, images) => {
+    try {
+      setSavingComments(prev => ({ ...prev, test: true }));
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const formData = new FormData();
+      formData.append('test_id', testId);
+      formData.append('comment', comment);
+      
+      if (images && images.length > 0) {
+        images.forEach(image => {
+          formData.append('images', image);
+        });
+      }
+      
+      await axios.post(
+        `${apiUrl}/medical-reports/${selectedReportForResults.id}/test-comments`,
+        formData,
+        { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
+      );
+      
+      toast.success("Test comment saved successfully");
+      await fetchComments(selectedReportForResults.id);
+    } catch (error) {
+      console.error("Error saving test comment:", error);
+      toast.error("Failed to save test comment");
+    } finally {
+      setSavingComments(prev => ({ ...prev, test: false }));
+    }
+  };
+
+  // Save test group comment
+  const saveTestGroupComment = async (testGroupId, comment, images) => {
+    try {
+      setSavingComments(prev => ({ ...prev, testGroup: true }));
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const formData = new FormData();
+      formData.append('test_group_id', testGroupId);
+      formData.append('comment', comment);
+      
+      if (images && images.length > 0) {
+        images.forEach(image => {
+          formData.append('images', image);
+        });
+      }
+      
+      await axios.post(
+        `${apiUrl}/medical-reports/${selectedReportForResults.id}/test-group-comments`,
+        formData,
+        { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
+      );
+      
+      toast.success("Test group comment saved successfully");
+      await fetchComments(selectedReportForResults.id);
+    } catch (error) {
+      console.error("Error saving test group comment:", error);
+      toast.error("Failed to save test group comment");
+    } finally {
+      setSavingComments(prev => ({ ...prev, testGroup: false }));
+    }
+  };
+
+  // Save medical report images
+  const saveMedicalReportImages = async (images) => {
+    if (!images || images.length === 0) {
+      toast.warning("Please select at least one image to upload");
+      return;
+    }
+
+    try {
+      setSavingComments(prev => ({
+        ...prev,
+        medicalReport: true
+      }));
+      
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const formData = new FormData();
+      images.forEach(image => {
+        formData.append('images', image);
+      });
+      
+      await axios.post(
+        `${apiUrl}/medical-reports/${selectedReportForResults.id}/comment-images`,
+        formData,
+        { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
+      );
+      
+      toast.success("Medical report images saved successfully");
+      
+      // Clear the uploaded images
+      setCommentImages(prev => ({
+        ...prev,
+        medicalReport: []
+      }));
+      
+      await fetchComments(selectedReportForResults.id);
+    } catch (error) {
+      console.error("Error saving medical report images:", error);
+      toast.error("Failed to save medical report images");
+    } finally {
+      setSavingComments(prev => ({
+        ...prev,
+        medicalReport: false
+      }));
+    }
+  };
+
+  // Delete test comment
+  const deleteTestComment = async (commentId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      await axios.delete(`${apiUrl}/medical-reports/test-comments/${commentId}`, { headers });
+      
+      toast.success("Test comment deleted successfully");
+      await fetchComments(selectedReportForResults.id);
+    } catch (error) {
+      console.error("Error deleting test comment:", error);
+      toast.error("Failed to delete test comment");
+    }
+  };
+
+  // Delete test group comment
+  const deleteTestGroupComment = async (commentId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      await axios.delete(`${apiUrl}/medical-reports/test-group-comments/${commentId}`, { headers });
+      
+      toast.success("Test group comment deleted successfully");
+      await fetchComments(selectedReportForResults.id);
+    } catch (error) {
+      console.error("Error deleting test group comment:", error);
+      toast.error("Failed to delete test group comment");
+    }
+  };
+
+  // Toggle comment section expansion
+  const toggleCommentExpansion = (type, id) => {
+    setExpandedComments(prev => ({
+      ...prev,
+      [type]: {
+        ...(prev[type] || {}),
+        [id]: !(prev[type] && prev[type][id])
+      }
+    }));
+  };
+
   useEffect(() => {
     fetchData();
     fetchCultureOptions();
@@ -255,7 +486,7 @@ const MedicalReports = () => {
         }),
       }));
     }
-    // eslint-disable-next-line
+     
   }, [selectedReportForResults]);
 
   const getStatusBadge = (report) => {
@@ -505,7 +736,8 @@ const MedicalReports = () => {
       const responses = await Promise.all(apiCalls);
       const reportResponse = responses[0];
       const testGroupsResponse = responses[1];
-      const antibioticsResponse = !antibioticsLoaded ? responses[2] : undefined;
+      // Only access responses[2] if antibiotics call was made
+      const antibioticsResponse = !antibioticsLoaded && responses.length > 2 ? responses[2] : undefined;
 
       // Extract data from the new results-data endpoint
       const fullReport = reportResponse.data;
@@ -693,6 +925,9 @@ const MedicalReports = () => {
         }
       });
       setSelectedCultureOptions(initialSelectedCultureOptions);
+
+      // Fetch comments for this medical report
+      await fetchComments(rowData.id);
 
       setShowResultsModal(true);
     } catch (error) {
@@ -1445,7 +1680,6 @@ const MedicalReports = () => {
     "collected_at",
     "received_at",
     "reported_at",
-    "comment",
     "done",
     "pending",
     "signatory_name",
@@ -1620,13 +1854,14 @@ const MedicalReports = () => {
                   <Col md={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Comment</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        rows={3}
-                        value={formData.comment}
-                        onChange={(e) =>
-                          setFormData({ ...formData, comment: e.target.value })
+                      <RichTextEditor
+                        value={formData.comment || ''}
+                        onChange={(html) =>
+                          setFormData({ ...formData, comment: html })
                         }
+                        placeholder="Enter doctor's comment with rich text formatting..."
+                        maxLength={5000}
+                        className="form-control-rich-text"
                       />
                     </Form.Group>
                   </Col>
@@ -2339,6 +2574,136 @@ const MedicalReports = () => {
                                           </Col>
                                         </Row>
                                       )}
+
+                                      {/* Test Comment Section */}
+                                      <div className="mt-3 border-top pt-3">
+                                        <div className="d-flex justify-content-between align-items-center mb-2">
+                                          <h6 className="mb-0 text-muted">
+                                            <i className="fas fa-comment me-2"></i>
+                                            Test Comment
+                                          </h6>
+                                          <Button
+                                            variant="outline-secondary"
+                                            size="sm"
+                                            onClick={() => toggleCommentExpansion('test', test.id)}
+                                          >
+                                            {expandedComments.test?.[test.id] ? (
+                                              <>
+                                                <i className="fas fa-chevron-up me-1"></i>
+                                                Hide
+                                              </>
+                                            ) : (
+                                              <>
+                                                <i className="fas fa-chevron-down me-1"></i>
+                                                Show
+                                              </>
+                                            )}
+                                          </Button>
+                                        </div>
+
+                                        {expandedComments.test?.[test.id] && (
+                                          <div>
+                                            {/* Existing Comments Display */}
+                                            {comments.test?.[test.id] && comments.test[test.id].length > 0 && (
+                                              <div className="mb-3">
+                                                <h6 className="text-muted mb-2">Existing Comments:</h6>
+                                                {comments.test[test.id].map((comment) => (
+                                                  <div key={comment.id} className="card mb-2">
+                                                    <div className="card-body p-2">
+                                                      <div className="d-flex justify-content-between align-items-start">
+                                                        <div className="flex-grow-1">
+                                                          <p className="mb-1">{comment.comment_text}</p>
+                                                          <small className="text-muted">
+                                                            {new Date(comment.created_at).toLocaleString()}
+                                                          </small>
+                                                        </div>
+                                                        <Button
+                                                          variant="outline-danger"
+                                                          size="sm"
+                                                          onClick={() => deleteTestComment(comment.id)}
+                                                        >
+                                                          <i className="fas fa-trash"></i>
+                                                        </Button>
+                                                      </div>
+                                                      {comment.images && comment.images.length > 0 && (
+                                                        <div className="mt-2">
+                                                          <div className="d-flex flex-wrap gap-2">
+                                                            {comment.images.map((image, idx) => (
+                                                              <SecureImage
+                                                                key={idx}
+                                                                src={`/uploads/comment-images/${image}`}
+                                                                alt={`Comment image ${idx + 1}`}
+                                                                className="img-thumbnail"
+                                                                style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                                                              />
+                                                            ))}
+                                                          </div>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+
+                                            {/* New Comment Form */}
+                                            <div className="card">
+                                              <div className="card-body p-3">
+                                                <Form.Group className="mb-3">
+                                                  <Form.Label>Add Comment</Form.Label>
+                                                  <Form.Control
+                                                    as="textarea"
+                                                    rows={3}
+                                                    placeholder="Enter your comment..."
+                                                    value={commentTexts.test?.[test.id] || ''}
+                                                    onChange={(e) => {
+                                                      setCommentTexts(prev => ({
+                                                        ...prev,
+                                                        test: {
+                                                          ...prev.test,
+                                                          [test.id]: e.target.value
+                                                        }
+                                                      }));
+                                                    }}
+                                                  />
+                                                </Form.Group>
+
+                                                <Form.Group className="mb-3">
+                                                  <Form.Label>Upload Images (Max 3)</Form.Label>
+                                                  <ImageUpload
+                                                    images={commentImages.test?.[test.id] || []}
+                                                    onImagesChange={(images) => {
+                                                      setCommentImages(prev => ({
+                                                        ...prev,
+                                                        test: {
+                                                          ...prev.test,
+                                                          [test.id]: images
+                                                        }
+                                                      }));
+                                                    }}
+                                                    maxImages={3}
+                                                  />
+                                                </Form.Group>
+
+                                                <Button
+                                                  variant="primary"
+                                                  onClick={() => saveTestComment(test.id, commentTexts.test?.[test.id] || '', commentImages.test?.[test.id] || [])}
+                                                  disabled={savingComments.test || (!commentTexts.test?.[test.id]?.trim() && (!commentImages.test?.[test.id] || commentImages.test[test.id].length === 0))}
+                                                >
+                                                  {savingComments.test ? (
+                                                    <>
+                                                      <Spinner animation="border" size="sm" className="me-2" />
+                                                      Saving...
+                                                    </>
+                                                  ) : (
+                                                    'Save Comment'
+                                                  )}
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   );
                                 }
@@ -3210,6 +3575,136 @@ const MedicalReports = () => {
                                         </tbody>
                                       </Table>
                                     </div>
+
+                                    {/* Test Group Comment Section */}
+                                    <div className="mt-3 border-top pt-3">
+                                      <div className="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 className="mb-0 text-muted">
+                                          <i className="fas fa-comment me-2"></i>
+                                          Test Group Comment
+                                        </h6>
+                                        <Button
+                                          variant="outline-secondary"
+                                          size="sm"
+                                          onClick={() => toggleCommentExpansion('testGroup', group.id)}
+                                        >
+                                          {expandedComments.testGroup?.[group.id] ? (
+                                            <>
+                                              <i className="fas fa-chevron-up me-1"></i>
+                                              Hide
+                                            </>
+                                          ) : (
+                                            <>
+                                              <i className="fas fa-chevron-down me-1"></i>
+                                              Show
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
+
+                                      {expandedComments.testGroup?.[group.id] && (
+                                        <div>
+                                          {/* Existing Comments Display */}
+                                          {comments.testGroup?.[group.id] && comments.testGroup[group.id].length > 0 && (
+                                            <div className="mb-3">
+                                              <h6 className="text-muted mb-2">Existing Comments:</h6>
+                                              {comments.testGroup[group.id].map((comment) => (
+                                                <div key={comment.id} className="card mb-2">
+                                                  <div className="card-body p-2">
+                                                    <div className="d-flex justify-content-between align-items-start">
+                                                      <div className="flex-grow-1">
+                                                        <p className="mb-1">{comment.comment_text}</p>
+                                                        <small className="text-muted">
+                                                          {new Date(comment.created_at).toLocaleString()}
+                                                        </small>
+                                                      </div>
+                                                      <Button
+                                                        variant="outline-danger"
+                                                        size="sm"
+                                                        onClick={() => deleteTestGroupComment(comment.id)}
+                                                      >
+                                                        <i className="fas fa-trash"></i>
+                                                      </Button>
+                                                    </div>
+                                                    {comment.images && comment.images.length > 0 && (
+                                                      <div className="mt-2">
+                                                        <div className="d-flex flex-wrap gap-2">
+                                                          {comment.images.map((image, idx) => (
+                                                            <SecureImage
+                                                              key={idx}
+                                                              src={`/uploads/comment-images/${image}`}
+                                                              alt={`Comment image ${idx + 1}`}
+                                                              className="img-thumbnail"
+                                                              style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                                                            />
+                                                          ))}
+                                                        </div>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+
+                                          {/* New Comment Form */}
+                                          <div className="card">
+                                            <div className="card-body p-3">
+                                              <Form.Group className="mb-3">
+                                                <Form.Label>Add Comment</Form.Label>
+                                                <Form.Control
+                                                  as="textarea"
+                                                  rows={3}
+                                                  placeholder="Enter your comment..."
+                                                  value={commentTexts.testGroup?.[group.id] || ''}
+                                                  onChange={(e) => {
+                                                    setCommentTexts(prev => ({
+                                                      ...prev,
+                                                      testGroup: {
+                                                        ...prev.testGroup,
+                                                        [group.id]: e.target.value
+                                                      }
+                                                    }));
+                                                  }}
+                                                />
+                                              </Form.Group>
+
+                                              <Form.Group className="mb-3">
+                                                <Form.Label>Upload Images (Max 3)</Form.Label>
+                                                <ImageUpload
+                                                  images={commentImages.testGroup?.[group.id] || []}
+                                                  onImagesChange={(images) => {
+                                                    setCommentImages(prev => ({
+                                                      ...prev,
+                                                      testGroup: {
+                                                        ...prev.testGroup,
+                                                        [group.id]: images
+                                                      }
+                                                    }));
+                                                  }}
+                                                  maxImages={3}
+                                                />
+                                              </Form.Group>
+
+                                              <Button
+                                                variant="primary"
+                                                onClick={() => saveTestGroupComment(group.id, commentTexts.testGroup?.[group.id] || '', commentImages.testGroup?.[group.id] || [])}
+                                                disabled={savingComments.testGroup || (!commentTexts.testGroup?.[group.id]?.trim() && (!commentImages.testGroup?.[group.id] || commentImages.testGroup[group.id].length === 0))}
+                                              >
+                                                {savingComments.testGroup ? (
+                                                  <>
+                                                    <Spinner animation="border" size="sm" className="me-2" />
+                                                    Saving...
+                                                  </>
+                                                ) : (
+                                                  'Save Comment'
+                                                )}
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -3217,6 +3712,77 @@ const MedicalReports = () => {
                           )}
                         </Tab>
                       )}
+
+                      {/* Medical Report Images Tab */}
+                      <Tab eventKey="medical-report-images" title="Medical Report Images">
+                        <div className="mt-3">
+                          <div className="card">
+                            <div className="card-header">
+                              <h5 className="mb-0">
+                                <i className="fas fa-images me-2"></i>
+                                Medical Report Images
+                              </h5>
+                            </div>
+                            <div className="card-body">
+                              {/* Existing Images Display */}
+                              {comments.medicalReport && comments.medicalReport.length > 0 && (
+                                <div className="mb-4">
+                                  <h6 className="text-muted mb-3">Current Images:</h6>
+                                  <div className="d-flex flex-wrap gap-2">
+                                    {comments.medicalReport.map((image, idx) => (
+                                      <div key={idx} className="position-relative">
+                                        <SecureImage
+                                          src={`/uploads/comment-images/${image}`}
+                                          alt={`Medical report image ${idx + 1}`}
+                                          className="img-thumbnail"
+                                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
+                                          title={`Medical report image ${idx + 1}`}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Upload New Images */}
+                              <div className="border-top pt-3">
+                                <h6 className="text-muted mb-3">Upload New Images:</h6>
+                                <Form.Group className="mb-3">
+                                  <Form.Label>Select Images (Max 10)</Form.Label>
+                                  <ImageUpload
+                                    images={commentImages.medicalReport || []}
+                                    onImagesChange={(images) => {
+                                      setCommentImages(prev => ({
+                                        ...prev,
+                                        medicalReport: images
+                                      }));
+                                    }}
+                                    maxImages={10}
+                                  />
+                                </Form.Group>
+
+                                <Button
+                                  variant="primary"
+                                  onClick={() => saveMedicalReportImages(commentImages.medicalReport || [])}
+                                  disabled={savingComments.medicalReport || !commentImages.medicalReport || commentImages.medicalReport.length === 0}
+                                >
+                                  {savingComments.medicalReport ? (
+                                    <>
+                                      <Spinner animation="border" size="sm" className="me-2" />
+                                      Uploading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fas fa-upload me-2"></i>
+                                      Upload Images
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Tab>
                     </Tabs>
                   </div>
                 </div>
@@ -3280,6 +3846,7 @@ const MedicalReports = () => {
                   patient={selectedReportForPDF.patient}
                   report={selectedReportForPDF}
                   lab={labInfo}
+                  comments={comments}
                 />
               )}
             </Modal.Body>

@@ -61,6 +61,9 @@ var _lab_settings = require("./lab_settings");
 var _lab_activity_log = require("./lab_activity_log");
 var _lab_payment = require("./lab_payment");
 var _subscription = require("./subscription");
+var _test_comments = require("./test_comments");
+var _test_group_comments = require("./test_group_comments");
+var _comment_images = require("./comment_images");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -134,6 +137,9 @@ function initModels(sequelize) {
   var lab_settings = _lab_settings(sequelize, DataTypes);
   var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
   var subscription = _subscription(sequelize, DataTypes);
+  var test_comments = _test_comments(sequelize, DataTypes);
+  var test_group_comments = _test_group_comments(sequelize, DataTypes);
+  var comment_images = _comment_images(sequelize, DataTypes);
 
   // Add many-to-many association between test and question
   test.belongsToMany(question, {
@@ -840,6 +846,48 @@ tg_component.hasMany(test_group_result, {
   foreignKey: "tg_component_id"
 });
 
+// Test Comments associations
+test_comments.belongsTo(medical_report, {
+  as: "medical_report",
+  foreignKey: "medical_report_id"
+});
+medical_report.hasMany(test_comments, {
+  as: "test_comments",
+  foreignKey: "medical_report_id"
+});
+
+test_comments.belongsTo(test, {
+  as: "test",
+  foreignKey: "test_id"
+});
+test.hasMany(test_comments, {
+  as: "comments",
+  foreignKey: "test_id"
+});
+
+// Test Group Comments associations
+test_group_comments.belongsTo(medical_report, {
+  as: "medical_report",
+  foreignKey: "medical_report_id"
+});
+medical_report.hasMany(test_group_comments, {
+  as: "test_group_comments",
+  foreignKey: "medical_report_id"
+});
+
+test_group_comments.belongsTo(test_group, {
+  as: "test_group",
+  foreignKey: "test_group_id"
+});
+test_group.hasMany(test_group_comments, {
+  as: "comments",
+  foreignKey: "test_group_id"
+});
+
+// Comment Images associations (polymorphic)
+// Note: These are handled programmatically since Sequelize doesn't support true polymorphic associations
+// Images will be queried based on comment_type and comment_id
+
 return {
   admin,
   admin_packages_and_offers,
@@ -901,6 +949,9 @@ return {
   tg_fields,
   tgc_category,
   test_group_result,
+  test_comments,
+  test_group_comments,
+  comment_images,
 };
 }
 module.exports = initModels;
