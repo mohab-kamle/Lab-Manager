@@ -1,7 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
-    container_name: labmanager_redis
+    container_name: labmanager_redis_dev
     ports:
       - "6379:6379"
     networks:
@@ -13,21 +13,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-    networks:
-      - labmanager-network
-    restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./cloudflared:/etc/cloudflared
-    depends_on:
-      - frontend
 
   mysql:
     image: mysql:8.0
-    container_name: labmanager-mysql
+    container_name: labmanager-mysql-dev
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
@@ -38,7 +27,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data_dev:/var/lib/mysql
     networks:
       - labmanager-network
     healthcheck:
@@ -50,12 +39,13 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: labmanager-backend
-    # Removed custom command to use PM2 cluster mode from Dockerfile
+      args:
+        NODE_ENV: development
+    container_name: labmanager-backend-dev
     restart: unless-stopped
-    env_file: .docker.env
+    env_file: .env.development
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       DATABASE_URL: mysql://${MYSQL_USER:-labuser}:${MYSQL_PASSWORD:-labpassword}@mysql:3306/${MYSQL_DATABASE:-labmanager}
       PORT: 3001
       SECRET_KEY: ${SECRET_KEY:-your-secret-key}
@@ -65,17 +55,19 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - uploads_data:/app/uploads
-      - logs_data:/app/logs
-      - ./uploads:/app/uploads/shared  # Mount root uploads for backward compatibility
+      - ./server:/app
+      - /app/node_modules
+      - uploads_data_dev:/app/uploads
+      - logs_data_dev:/app/logs
+      - ./uploads:/app/uploads/shared
     depends_on:
       redis:
         condition: service_started
-
       mysql:
         condition: service_healthy
     networks:
       - labmanager-network
+    command: npm run dev
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
@@ -87,31 +79,38 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: labmanager-frontend
+      args:
+        NODE_ENV: development
+    container_name: labmanager-frontend-dev
     restart: unless-stopped
     env_file: 
-      - .docker.env
+      - .env.development
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
+      VITE_SERVER: http://localhost:3001
     ports:
-      - "80:80"
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
       - labmanager-network
+    command: npm run dev
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
 
 volumes:
-  mysql_data:
+  mysql_data_dev:
     driver: local
-  uploads_data:
+  uploads_data_dev:
     driver: local
-  logs_data:
+  logs_data_dev:
     driver: local
 
 networks:
