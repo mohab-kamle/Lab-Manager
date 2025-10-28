@@ -49,7 +49,6 @@ services:
       DATABASE_URL: mysql://${MYSQL_USER:-labuser}:${MYSQL_PASSWORD:-labpassword}@mysql:3306/${MYSQL_DATABASE:-labmanager}
       PORT: 3001
       SECRET_KEY: ${SECRET_KEY:-your-secret-key}
-      FORCE_SYNC: "true"
       REDIS_HOST: redis
       REDIS_PORT: 6379
     ports:
@@ -67,7 +66,7 @@ services:
         condition: service_healthy
     networks:
       - labmanager-network
-    command: npm run dev
+    command: sh -c "npx sequelize-cli db:create && npm run dev && npx sequelize-cli db:migrate"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
@@ -78,7 +77,7 @@ services:
   frontend:
     build:
       context: ./client
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       args:
         NODE_ENV: development
     container_name: labmanager-frontend-dev
@@ -88,6 +87,7 @@ services:
     environment:
       NODE_ENV: development
       VITE_SERVER: http://localhost:3001
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "5173:5173"
     volumes:
@@ -97,7 +97,7 @@ services:
       - backend
     networks:
       - labmanager-network
-    command: npm run dev
+    command: sh -c "npm run dev -- --host 0.0.0.0 --port 5173"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s

@@ -1,10 +1,9 @@
 FROM node:lts-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm
-COPY . .
-COPY sync-version.cjs ./sync-version.cjs
-COPY tag-version.cjs ./tag-version.cjs
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
+COPY . .
 RUN pnpm run build -- --mode production
 
 
