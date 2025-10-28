@@ -75,7 +75,7 @@ export const generateLazyInvoicePDF = async (invoiceData, filename = 'invoice.pd
   try {
     // Dynamically import pdfMake only when needed
     const pdfMake = await import('pdfmake/build/pdfmake');
-    const pdfFonts = await import('pdfmake/build/vfs_fonts');
+    const pdfFonts = await import('../utils/vfs_fonts');
     
     // Set up fonts
     pdfMake.default.vfs = pdfFonts.default.pdfMake.vfs;
