@@ -25,16 +25,16 @@ jobs:
         run: |
           [System.IO.File]::WriteAllText("client/.env", "", [System.Text.Encoding]::UTF8)
 
-      # Copy .docker.env to server/.env
-      - name: Copy .docker.env to server/.env
+      # Copy .env.production to server/.env
+      - name: Copy .env.production to server/.env
         shell: powershell
         run: |
-          Copy-Item ".docker.env" "server/.env" -Force
+          Copy-Item ".env.production" "server/.env" -Force
 
       # Build and restart Docker containers
       - name: Build and restart Docker containers
         shell: powershell
         run: |
-          docker compose down --remove-orphans
-          docker compose build --no-cache
-          docker compose up -d
+          docker compose -f docker-compose.prod.yml down --remove-orphans
+          docker compose -f docker-compose.prod.yml build --no-cache
+          docker compose -f docker-compose.prod.yml up -d

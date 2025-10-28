@@ -179,10 +179,10 @@ jobs:
         run: |
           [System.IO.File]::WriteAllText("client/.env", "", [System.Text.Encoding]::UTF8)
 
-      - name: Copy .docker.env to server/.env
+      - name: Copy .env.production to server/.env
         shell: powershell
         run: |
-          Copy-Item ".docker.env" "server/.env" -Force
+          Copy-Item ".env.production" "server/.env" -Force
 
       - name: Build and restart Docker containers
         shell: powershell

@@ -1,0 +1,122 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: labmanager_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - labmanager-network
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    networks:
+      - labmanager-network
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared
+    depends_on:
+      - frontend
+
+  mysql:
+    image: mysql:8.0
+    container_name: labmanager-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-labmanager}
+      MYSQL_USER: ${MYSQL_USER:-labuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-labpassword}
+    command: --max_connections=2000
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - labmanager-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    container_name: labmanager-backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mysql://${MYSQL_USER:-labuser}:${MYSQL_PASSWORD:-labpassword}@mysql:3306/${MYSQL_DATABASE:-labmanager}
+      PORT: 3001
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key}
+      FORCE_SYNC: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "3001:3001"
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+      - ./uploads:/app/uploads/shared
+    depends_on:
+      redis:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+    networks:
+      - labmanager-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    container_name: labmanager-frontend
+    restart: unless-stopped
+    env_file: 
+      - .env.production
+    environment:
+      NODE_ENV: production
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - labmanager-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  mysql_data:
+    driver: local
+  uploads_data:
+    driver: local
+  logs_data:
+    driver: local
+
+networks:
+  labmanager-network:
+    driver: bridge

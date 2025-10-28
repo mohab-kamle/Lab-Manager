@@ -48,6 +48,80 @@ LabManager/
 - **Doctors**: Medical report access and patient data management
 - **Chemists**: Laboratory operations and test management
 - **Receptionists**: Patient registration and billing
+
+## Project Structure
+
+The project follows a clear and maintainable structure:
+
+```
+LabManager/
+├── client/                   # Frontend React application
+├── server/                   # Backend Node.js application
+├── docs/                     # Project-wide documentation
+├── docker-compose.dev.yml    # Development Docker configuration
+├── docker-compose.prod.yml   # Production Docker configuration
+└── .env files                # Environment configuration
+```
+
+## Environment Setup
+
+> **Note:** The project has transitioned from using a single `.docker.env` file to separate environment files for development and production. If you're upgrading from an older version, please migrate your environment variables to the appropriate new files.
+
+### Development Environment
+To run the application in development mode:
+
+1. Make sure you have Docker and Docker Compose installed
+2. Use the development environment file:
+   ```
+   cp .env.development .env
+   ```
+3. Start the development environment:
+   ```
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+4. Access the frontend at http://localhost:5173
+5. Access the backend API at http://localhost:3001
+
+The development environment includes:
+- Hot-reloading for both frontend and backend
+- Volume mounting for real-time code changes
+- Development-specific database (labmanager_dev)
+
+### Production Environment
+To run the application in production mode:
+
+1. Make sure you have Docker and Docker Compose installed
+2. Use the production environment file:
+   ```
+   cp .env.production .env
+   ```
+3. Start the production environment:
+   ```
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+4. Access the frontend at http://localhost:80
+5. Access the backend API at http://localhost:3001
+
+The production environment includes:
+- Optimized builds for performance
+- Cloudflare tunnel for secure external access
+- Production-ready database configuration
+
+### Environment Files
+The project uses a consistent environment file structure:
+
+- `.env.example` - Template files (safe to commit to version control)
+- `.env.development` - Development environment variables
+- `.env.production` - Production environment variables
+
+Each component (root, client, server) has its own set of environment files.
+
+### Important Note
+The project now exclusively uses separate Docker Compose files for development and production environments:
+- `docker-compose.dev.yml` - For development with hot-reloading
+- `docker-compose.prod.yml` - For production deployment
+
+The original `docker-compose.yml` file has been removed. Make sure to use the appropriate environment-specific file as shown above.
 - **Employees**: Limited administrative access
 
 ### Laboratory Operations
@@ -465,4 +539,4 @@ npm run preview        # Preview production build
 
 ---
 
-**Note**: This system is designed for medical laboratory use and should be deployed with appropriate security measures and compliance considerations for healthcare data handling. 
+**Note**: This system is designed for medical laboratory use and should be deployed with appropriate security measures and compliance considerations for healthcare data handling.
