@@ -73,7 +73,16 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   server: {
-    historyApiFallback: true, // Fixes 404 errors on page refresh
+    // Bind to all interfaces so Docker port mapping works
+    host: true,
+    // Keep port explicit to match docker-compose
+    port: 5173,
+    // Enable polling so file changes on mounted volumes are detected in Docker on Windows/WSL2
+    watch: {
+      usePolling: true,
+      interval: 100,
+    },
+    // Note: historyApiFallback is a webpack-dev-server option; Vite handles SPA routing internally.
   },
   css: {
     preprocessorOptions: {

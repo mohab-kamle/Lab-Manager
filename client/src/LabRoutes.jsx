@@ -1,41 +1,41 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import PrivateRoute from './helpers/PrivateRoute';
+import PrivateRoute from './components/auth/PrivateRoute';
 
 // Dashboards
-import AdminDashboard from './pages/AdminDashboard';
-import ReceptionistDashboard from './pages/ReceptionistDashboard';
-import ChemistDashboard from './pages/ChemistDashboard';
-import DoctorDashboard from './pages/DoctorDashboard';
-import EmployeeDashboard from './pages/EmployeeDashboard';
-import PatientDashboard from './pages/PatientDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
+import ChemistDashboard from './pages/chemist/ChemistDashboard';
+import DoctorDashboard from './pages/doctor/DoctorDashboard';
+import EmployeeDashboard from './pages/employee/EmployeeDashboard';
+import PatientDashboard from './pages/patient/PatientDashboard';
 
 // Patient pages
-import PatientReports from './pages/PatientReports';
-import PatientProfile from './pages/PatientProfile';
-import PatientUpdateProfile from './pages/PatientUpdateProfile';
+import PatientReports from './pages/reports/PatientReports';
+import PatientProfile from './pages/patient/PatientProfile';
+import PatientUpdateProfile from './pages/patient/PatientUpdateProfile';
 
 // Admin shared pages
-import Categories from './pages/Categories';
-import Tests from './pages/Tests';
-import SampleType from './pages/SampleType';
-import Cultures from './pages/Cultures';
-import CultureOptions from './pages/CultureOptions';
-import Antibiotics from './pages/Antibiotics';
-import Diseases from './pages/Diseases';
-import TestGroups from './pages/TestGroups';
-import TestGroupCategories from './pages/TestGroupCategories';
-import TestGroupComponents from './pages/TestGroupComponents';
-import Invoices from './pages/Invoices';
-import PaymentMethods from './pages/PaymentMethods';
-import Branches from './pages/Branches';
-import PackagesAndOffers from './pages/PackagesAndOffers';
-import PatientsAdminView from './pages/PatientsAdminView';
-import PatientsAnalytics from './pages/PatientsAnalytics';
-import KnowUs from './pages/KnowUs';
-import MedicalReports from './pages/MedicalReports';
-import EmployeeManagement from './pages/EmployeeManagement';
-import LabManagement from './pages/LabManagement';
+import Categories from './pages/tests/Categories';
+import Tests from './pages/tests/Tests';
+import SampleType from './pages/tests/SampleType';
+import Cultures from './pages/tests/Cultures';
+import CultureOptions from './pages/tests/CultureOptions';
+import Antibiotics from './pages/tests/Antibiotics';
+import Diseases from './pages/tests/Diseases';
+import TestGroups from './pages/tests/TestGroups';
+import TestGroupCategories from './pages/tests/TestGroupCategories';
+import TestGroupComponents from './pages/tests/TestGroupComponents';
+import Invoices from './pages/invoices/Invoices';
+import PaymentMethods from './pages/invoices/PaymentMethods';
+import Branches from './pages/branches/Branches';
+import PackagesAndOffers from './pages/packages/PackagesAndOffers';
+import PatientsAdminView from './pages/admin/PatientsAdminView';
+import PatientsAnalytics from './pages/admin/PatientsAnalytics';
+import KnowUs from './pages/info/KnowUs';
+import MedicalReports from './pages/reports/MedicalReports';
+import EmployeeManagement from './pages/branches/EmployeeManagement';
+import LabManagement from './pages/lab/LabManagement';
 
 const LabRoutes = () => (
   <Routes>
@@ -103,4 +103,4 @@ const LabRoutes = () => (
   </Routes>
 );
 
-export default LabRoutes; 
+export default LabRoutes;

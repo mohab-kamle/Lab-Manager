@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --legacy-watch index.js",
     "start": "nodemon index.js",
     "start:prod": "pm2 start ecosystem.config.js",
     "start:cluster": "pm2 start ecosystem.config.js --env production",
