@@ -131,7 +131,7 @@ docker exec labmanager-backend find /app/logs -name "*.log" -mtime +7 -delete
 
 ## Environment Variables
 
-### Required Production Variables (.docker.env)
+### Required Production Variables (.env.production)
 ```env
 # Database
 MYSQL_ROOT_PASSWORD=secure_root_password
