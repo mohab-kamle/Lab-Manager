@@ -358,6 +358,18 @@ const UnifiedLogin = () => {
                       </>
                     )}
                   </Button>
+
+                  {/* Change Password quick access [Temporary it would be removed upon completing the backend logic of change password to make this page only appears after the login] */}
+                  <div className="text-center mt-3">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-muted"
+                      onClick={() => navigate('/change-password')}
+                    >
+                      Change Password
+                    </Button>
+                  </div>
                 </Form>
 
                 {/* Help Section */}
@@ -402,4 +414,4 @@ const UnifiedLogin = () => {
   );
 };
 
-export default UnifiedLogin; 
+export default UnifiedLogin;
