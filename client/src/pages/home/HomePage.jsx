@@ -31,6 +31,8 @@ import axios from "axios";
 import "../../styles/HomePage.css";
 import { useNavigate } from "react-router-dom";
 import heroImage from "../../assets/heroImage.png";
+import { useEffect } from 'react';
+import { resetNavbarTitles } from '../../components/layout/SecondaryNavBar';
 const HomePage = () => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [demoForm, setDemoForm] = useState({
@@ -114,7 +116,9 @@ const HomePage = () => {
       [e.target.name]: e.target.value,
     });
   };
-
+  useEffect(() => {
+    resetNavbarTitles();
+  }, []);
   return (
     <div className="homepage-root">
       {/* Main Navigation handled globally; removed duplicate navbar */}
