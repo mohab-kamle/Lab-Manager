@@ -14,7 +14,7 @@ const loginLimiter = rateLimit({
   message: { error: "Too many login attempts, please try again later." }
 });
 
-const { employee, sequelize } = require('../models');
+const { employee, admin, sequelize } = require('../models'); //////////////////////////////////////
 const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
@@ -47,7 +47,7 @@ router.post("/login", loginLimiter, async (req, res) => {
       if (!emp) {
         return res.status(401).json({ error: "User not found" });
       }
-  
+      
       const passwordMatch = await bcrypt.compare(password, emp.password);
       if (!passwordMatch) {
         return res.status(401).json({ error: "Incorrect password" });
@@ -62,7 +62,18 @@ router.post("/login", loginLimiter, async (req, res) => {
 
       // Exclude sensitive fields before sending the user object
       const { password: _password, ...safeUser } = emp.get({ plain: true });
-      res.json({ token, user: safeUser });
+      
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      if(emp.role !== "admin"){
+        res.json({ token, user: safeUser});
+      } else {
+                console.log("isFirstTimeLogin");
+
+        let adminObj = await admin.findByPk(emp.id)
+        let isFirstTimeLogin = adminObj.isFirstTimeLogin;
+        res.json({ token, user: safeUser, isFirstTimeLogin});
+      }
+
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Server error" });
@@ -512,5 +523,52 @@ router.get("/roles/:role/permissions", authenticateUser, authorizeRoles("admin")
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
+// Change password (admins only!)
+router.put("/changePassword/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { 
+            oldPassword,
+            newPassword
+        } = req.body;
+
+        // Find employee
+        const emp = await employee.findByPk(id);
+        if (!emp) {
+            return res.status(404).json({ error: "Employee not found" });
+        }
+
+        //check if old password is the same as the one provided
+        const passwordMatch = await bcrypt.compare(oldPassword, emp.password);
+
+        if (!passwordMatch) {
+
+            // Return passwords mismatch 
+            res.status(400).json({ error: "Wrong old password!" });
+
+        } else {
+            // Hash new password
+            const saltRounds = 10;
+            hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+            // Update employee
+            await emp.update({password: hashedNewPassword});
+                
+            // Return updated employee without password
+            const { password: _, ...employeeData } = emp.toJSON();
+            res.json(employeeData);
+        }
+
+
+
+    } catch (error) {
+
+        console.error('Error updating employee:', error);
+        res.status(500).json({ error: "Internal server error" });
+
+    }
+});
+
 
 module.exports = router;
