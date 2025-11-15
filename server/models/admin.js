@@ -9,6 +9,11 @@ module.exports = function(sequelize, DataTypes) {
         model: 'employee',
         key: 'id'
       }
+    },
+    isFirstTimeLogin: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true
     }
   }, {
     sequelize,
