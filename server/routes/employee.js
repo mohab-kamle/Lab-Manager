@@ -549,25 +549,23 @@ router.put("/changePassword/:id", authenticateUser, authorizeRoles("admin"), ten
         } else {
             // Hash new password
             const saltRounds = 10;
-            hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+            const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
             // Update employee
             await emp.update({password: hashedNewPassword});
+
+            //Update his login status if he's an admin
+            const adminObj = await admin.findByPk(id);
+            if(adminObj) await adminObj.update({isFirstTimeLogin: false});
                 
             // Return updated employee without password
             const { password: _, ...employeeData } = emp.toJSON();
             res.json(employeeData);
         }
-
-
-
     } catch (error) {
-
         console.error('Error updating employee:', error);
         res.status(500).json({ error: "Internal server error" });
-
     }
 });
-
 
 module.exports = router;
