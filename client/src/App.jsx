@@ -12,6 +12,7 @@ import HomePage from './pages/home/HomePage';
 import UnifiedLogin from './pages/auth/UnifiedLogin';
 import Register from './pages/auth/Register';
 import PaymentCallback from './pages/payment/PaymentCallback';
+import ChangePassword from './pages/auth/ChangePassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ChemistDashboard from './pages/chemist/ChemistDashboard';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
@@ -76,6 +77,7 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<UnifiedLogin />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/change-password" element={<ChangePassword />} />
             <Route path="/payment-callback" element={<PaymentCallback />} />
             <Route path="/know-us" element={<KnowUs />} />
             
@@ -86,6 +88,15 @@ function App() {
               </LabProvider>
             }>
               <Route index element={<Navigate to="dashboard" replace />} />
+              {/* Account routes (accessible to all authenticated roles) */}
+              <Route
+                path="account/change-password"
+                element={
+                  <PrivateRoute allowedRoles={["admin", "receptionist", "chemist", "doctor", "employee", "patient"]}>
+                    <ChangePassword />
+                  </PrivateRoute>
+                }
+              />
               {/* Admin routes */}
               <Route path="admin/dashboard" element={<PrivateRoute allowedRoles={['admin']}><AdminDashboard /></PrivateRoute>} />
               <Route path="admin/lab-management" element={<PrivateRoute allowedRoles={['admin']}><LabManagement /></PrivateRoute>} />
