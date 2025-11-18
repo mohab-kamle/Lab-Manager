@@ -62,7 +62,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 
       // Exclude sensitive fields before sending the user object
       const { password: _password, ...safeUser } = emp.get({ plain: true });
-      
+
       if(emp.role !== "admin"){
         res.json({ token, user: safeUser});
       } else {
