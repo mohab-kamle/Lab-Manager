@@ -95,7 +95,7 @@ const UnifiedLogin = () => {
         });
       }
 
-      const { token, user } = response.data;
+      const { token, user , isFirstTimeLogin} = response.data;
       
       // Store token and user info
       localStorage.setItem("token", token);
@@ -128,7 +128,11 @@ const UnifiedLogin = () => {
       const prefix = labInfo.name || labInfo.subdomain;
       switch (role) {
         case "admin":
-          navigate(`/${prefix}/admin/dashboard`);
+          if(isFirstTimeLogin){
+            navigate(`/change-password`);
+          }else{
+            navigate(`/${prefix}/admin/dashboard`);
+          }
           break;
         case "receptionist":
           navigate(`/${prefix}/receptionist/dashboard`);
@@ -358,18 +362,6 @@ const UnifiedLogin = () => {
                       </>
                     )}
                   </Button>
-
-                  {/* Change Password quick access [Temporary it would be removed upon completing the backend logic of change password to make this page only appears after the login] */}
-                  <div className="text-center mt-3">
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="text-muted"
-                      onClick={() => navigate('/change-password')}
-                    >
-                      Change Password
-                    </Button>
-                  </div>
                 </Form>
 
                 {/* Help Section */}
