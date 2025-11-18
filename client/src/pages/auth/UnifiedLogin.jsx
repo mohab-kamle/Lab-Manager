@@ -95,7 +95,7 @@ const UnifiedLogin = () => {
         });
       }
 
-      const { token, user } = response.data;
+      const { token, user , isFirstTimeLogin} = response.data;
       
       // Store token and user info
       localStorage.setItem("token", token);
@@ -128,7 +128,11 @@ const UnifiedLogin = () => {
       const prefix = labInfo.name || labInfo.subdomain;
       switch (role) {
         case "admin":
-          navigate(`/${prefix}/admin/dashboard`);
+          if(isFirstTimeLogin){
+            navigate(`/change-password`);
+          }else{
+            navigate(`/${prefix}/admin/dashboard`);
+          }
           break;
         case "receptionist":
           navigate(`/${prefix}/receptionist/dashboard`);
@@ -402,4 +406,4 @@ const UnifiedLogin = () => {
   );
 };
 
-export default UnifiedLogin; 
+export default UnifiedLogin;

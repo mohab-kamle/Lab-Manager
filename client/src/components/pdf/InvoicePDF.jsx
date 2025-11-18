@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import pdfMake from "pdfmake/build/pdfmake";
 import { vfs } from "../../utils/vfs_fonts";
@@ -62,6 +62,7 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
   // PDF preview state
   const [pdfUrl, setPdfUrl] = useState(null);
   const iframeRef = useRef();
+  const debounceRef = useRef(null);
 
   // --- Helper functions ---
   // (keep/createA4InvoiceDefinition and createPOSReceiptDefinition here)
@@ -571,21 +572,57 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
   };
 
   // --- useEffect for preview mode ---
+  const isPOS = useMemo(() => paperSize.startsWith("pos-"), [paperSize]);
+  const docDefinition = useMemo(
+    () => (isPOS ? createPOSReceiptDefinition() : createA4InvoiceDefinition()),
+    [isPOS, invoiceData, orientation]
+  );
+
   useEffect(() => {
-    if (previewMode && invoiceData) {
-      const isPOS = paperSize.startsWith("pos-");
-      let docDefinition;
-      if (isPOS) {
-        docDefinition = createPOSReceiptDefinition();
-      } else {
-        docDefinition = createA4InvoiceDefinition();
-      }
-      pdfMake.createPdf(docDefinition).getDataUrl((dataUrl) => {
-        setPdfUrl(dataUrl);
+    if (!previewMode || !invoiceData) {
+      setPdfUrl(currentUrl => {
+        if (currentUrl) URL.revokeObjectURL(currentUrl);
+        return null;
       });
+      return;
     }
-     
-  }, [previewMode, invoiceData, paperSize, orientation]);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      try {
+        pdfMake.createPdf(docDefinition).getBlob((blob) => {
+          const newObjectUrl = URL.createObjectURL(blob);
+          setPdfUrl(currentUrl => {
+            if (currentUrl) URL.revokeObjectURL(currentUrl);
+            return newObjectUrl;
+          });
+        });
+      } catch (e) {
+        setPdfUrl(currentUrl => {
+          if (currentUrl) URL.revokeObjectURL(currentUrl);
+          return null;
+        });
+      }
+    }, 250);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
+  }, [previewMode, invoiceData, docDefinition]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
 
   // Mobile detection function
   const isMobileDevice = () => {
@@ -658,7 +695,7 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
             </button>
           </div>
         ) : (
-          // Desktop iframe preview
+          // Desktop preview using Blob URL (more compatible than data URLs)
           pdfUrl ? (
             <iframe
               ref={iframeRef}
