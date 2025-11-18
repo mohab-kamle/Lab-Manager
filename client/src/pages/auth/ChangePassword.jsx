@@ -3,6 +3,8 @@ import { Container, Form, Button, Alert, Card, Row, Col } from "react-bootstrap"
 import { Shield, Lock, Eye, EyeOff, ArrowRight, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import axios from "axios";
+import { useLab } from "../../context/LabContext";
 
 /**
  * ChangePassword
@@ -13,6 +15,8 @@ import { useAuth } from "../../context/AuthContext";
 const ChangePassword = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { labInfo, fetchLabInfo } = useLab();
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   // Local state for form inputs and UI
   const [oldPassword, setOldPassword] = useState("");
@@ -61,16 +65,46 @@ const ChangePassword = () => {
       return;
     }
 
-    // Simulate request (API integration can be added later)
     try {
       setLoading(true);
-      await new Promise((res) => setTimeout(res, 800));
+      const token = localStorage.getItem("token");
+      const id = user?.id;
+      if (!token || !id) {
+        throw new Error("Not authenticated");
+      }
+
+      await axios.put(
+        `${apiUrl}/emp/changePassword/${id}`,
+        { oldPassword, newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
       setSuccess("Password updated successfully");
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+
+      let lab = labInfo || user?.lab || null;
+      if (!lab && user?.lab_id) {
+        try {
+          const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          lab = labResponse.data;
+          await fetchLabInfo();
+        } catch (e) {
+          throw new Error("Failed to load lab information");
+        }
+      }
+
+      if (lab) {
+        const prefix = lab.name || lab.subdomain;
+        navigate(`/${prefix}/admin/dashboard`);
+      } else {
+        throw new Error("No lab information available");
+      }
     } catch (err) {
-      setError("Failed to update password. Please try again.");
+      setError(err.response?.data?.error || err.message || "Failed to update password. Please try again.");
     } finally {
       setLoading(false);
     }
