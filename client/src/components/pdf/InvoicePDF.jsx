@@ -579,8 +579,13 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
   );
 
   useEffect(() => {
-    let objectUrl;
-    if (!previewMode || !invoiceData) return () => {};
+    if (!previewMode || !invoiceData) {
+      setPdfUrl(currentUrl => {
+        if (currentUrl) URL.revokeObjectURL(currentUrl);
+        return null;
+      });
+      return;
+    }
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -589,11 +594,17 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
     debounceRef.current = setTimeout(() => {
       try {
         pdfMake.createPdf(docDefinition).getBlob((blob) => {
-          objectUrl = URL.createObjectURL(blob);
-          setPdfUrl(objectUrl);
+          const newObjectUrl = URL.createObjectURL(blob);
+          setPdfUrl(currentUrl => {
+            if (currentUrl) URL.revokeObjectURL(currentUrl);
+            return newObjectUrl;
+          });
         });
       } catch (e) {
-        setPdfUrl(null);
+        setPdfUrl(currentUrl => {
+          if (currentUrl) URL.revokeObjectURL(currentUrl);
+          return null;
+        });
       }
     }, 250);
 
@@ -602,9 +613,16 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
       }
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [previewMode, invoiceData, docDefinition]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
 
   // Mobile detection function
   const isMobileDevice = () => {
