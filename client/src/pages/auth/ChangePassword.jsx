@@ -8,9 +8,9 @@ import { useLab } from "../../context/LabContext";
 
 /**
  * ChangePassword
- * A standalone page for changing the user's password with strong client-side validations.
- * NOTE: 
- * Hooking into the backend API can be added later using the shared axios instance in `src/utils/api.js`.
+ * Integrates with the backend via PUT `/emp/changePassword/:id` using axios,
+ * includes strong client-side validations, and redirects admin after success.
+ * A shared axios instance exists in `src/utils/api.js` for unified configuration.
  */
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -229,18 +229,20 @@ const ChangePassword = () => {
                     </div>
 
                     {/* Strength Indicator */}
-                    <Alert variant={strengthVariant} className="mt-3 py-2 border-0 " style={{ borderRadius: "8px" }}>
-                      <div className="d-flex flex-column align-items-start justify-content-between ">
-                        <small className="fw-semibold">Strength : {strengthLabel}</small>
-                        <small className="d-flex flex-wrap justify-content-center flex-column">
-                          {passwordRules.map((rule) => (
-                            <span key={rule.key} className={`me-2 ${rule.test(newPassword) ? "text-success" : "text-muted"}`}>
-                              {rule.test(newPassword) ? "✔" : "✖"} {rule.label}
-                            </span>
-                          ))}
-                        </small>
-                      </div>
-                    </Alert>
+                    {newPassword && newPassword.length > 0 && (
+                      <Alert variant={strengthVariant} className="mt-3 py-2 border-0 " style={{ borderRadius: "8px" }}>
+                        <div className="d-flex flex-column align-items-start justify-content-between ">
+                          <small className="fw-semibold">Strength : {strengthLabel}</small>
+                          <small className="d-flex flex-wrap justify-content-center flex-column">
+                            {passwordRules.map((rule) => (
+                              <span key={rule.key} className={`me-2 ${rule.test(newPassword) ? "text-success" : "text-muted"}`}>
+                                {rule.test(newPassword) ? "✔" : "✖"} {rule.label}
+                              </span>
+                            ))}
+                          </small>
+                        </div>
+                      </Alert>
+                    )}
                   </Form.Group>
 
                   {/* Confirm Password */}
@@ -289,7 +291,7 @@ const ChangePassword = () => {
                   >
                     {loading ? (
                       <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
                         Updating...
                       </>
                     ) : (
