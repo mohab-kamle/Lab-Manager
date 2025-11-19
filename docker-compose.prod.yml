@@ -9,25 +9,24 @@ services:
     command: redis-server --appendonly yes
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
-      
+
   cloudflared:
-  image: cloudflare/cloudflared:latest
-  container_name: cloudflared
-  networks:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    networks:
     - labmanager-network
-  restart: unless-stopped
-  command: tunnel --config /etc/cloudflared/config.yml run
-  volumes:
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
     - ./cloudflared:/etc/cloudflared
-  depends_on:
+    depends_on:
     - frontend
     - backend
     - mysql
-
 
   mysql:
     image: mysql:8.0
@@ -46,7 +45,7 @@ services:
     networks:
       - labmanager-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       timeout: 20s
       retries: 10
 
@@ -81,7 +80,7 @@ services:
     networks:
       - labmanager-network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -95,7 +94,7 @@ services:
         NODE_ENV: production
     container_name: labmanager-frontend
     restart: unless-stopped
-    env_file: 
+    env_file:
       - .env.production
     environment:
       NODE_ENV: production
@@ -106,7 +105,7 @@ services:
     networks:
       - labmanager-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/" ]
       interval: 30s
       timeout: 10s
       retries: 3
