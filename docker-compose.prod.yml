@@ -15,16 +15,19 @@ services:
       retries: 5
       
   cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-    networks:
-      - labmanager-network
-    restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./cloudflared:/etc/cloudflared
-    depends_on:
-      - frontend
+  image: cloudflare/cloudflared:latest
+  container_name: cloudflared
+  networks:
+    - labmanager-network
+  restart: unless-stopped
+  command: tunnel --config /etc/cloudflared/config.yml run
+  volumes:
+    - ./cloudflared:/etc/cloudflared
+  depends_on:
+    - frontend
+    - backend
+    - mysql
+
 
   mysql:
     image: mysql:8.0
