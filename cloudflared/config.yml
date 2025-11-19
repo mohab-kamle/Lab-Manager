@@ -1,8 +1,8 @@
 tunnel: labmanager-tunnel
-credentials-file: /etc/cloudflared/11341f98-e037-4285-920c-be27873d402e.json
+credentials-file: /etc/cloudflared/10fab1a5-dbe6-4dbb-8d72-da40e7b3d386.json
 
 ingress:
-  - hostname: lab.labdoctors-laboratories.com
+  - hostname: www.labdoctors-laboratories.com
     service: http://labmanager-frontend:80
 
   - hostname: api.labdoctors-laboratories.com
