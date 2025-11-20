@@ -22,10 +22,10 @@ router.get('/', authenticateUser, async (req, res) => {
 });
 
 // Get lab branding info for medical reports/invoices 
-router.get('/branding', authenticateUser, async (req, res) => {
+router.get('/branding', authenticateUser, tenantContext, async (req, res) => {
     try {
     //Get lab branding-specific fields/properties using lab_id
-    const labBrandingInfo = await lab.findByPk(req.user.lab_id, {
+    const labBrandingInfo = await lab.findByPk(req.tenant.lab_id, {
       attributes: ['name', 'lab_email', 'lab_address', 'lab_website', 'primary_color', 'secondary_color', 'logo_url']
     });
     //Check if there's any lab with such id
