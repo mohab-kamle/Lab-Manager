@@ -99,7 +99,7 @@ router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantC
         if (!passwordMatch) {
 
             // Return passwords mismatch 
-            res.status(400).json({ error: "Wrong old password!" });
+            return res.status(400).json({ error: "Wrong old password!" });
 
         } else {
             // Hash new password
@@ -112,7 +112,7 @@ router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantC
             // Change login Status for admins
             if(req.user.role === 'admin'){
                 const adminObj = await admin.findByPk(req.user.id);
-                await adminObj.update({isFirstTimeLogin: false});
+                if(adminObj.isFirstTimeLogin) await adminObj.update({isFirstTimeLogin: false});
             }
 
             // Return updated employee without password
