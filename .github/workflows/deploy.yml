@@ -18,7 +18,18 @@ jobs:
           npm install -g pnpm
           pnpm install --frozen-lockfile
           pnpm run build -- --mode production
-
+      
+      - name: Remove old frontend build
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          port: 22
+          script: |
+            rm -rf /home/ubuntu/Lab-Manager/client/dist
+            mkdir -p /home/ubuntu/Lab-Manager/client/dist
+      - run: ls -l client/dist
       - name: Upload frontend build to EC2
         uses: appleboy/scp-action@v0.1.5
         with:
@@ -26,9 +37,9 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           port: 22
-          source: "client/dist/*"
+          source: "client/dist/"
           target: "/home/ubuntu/Lab-Manager/client/dist/"
-
+      - run: ls -l /home/ubuntu/Lab-Manager/client/dist
       # Deploy to EC2 via SSH
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.9
