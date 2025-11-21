@@ -61,21 +61,15 @@ jobs:
           CLIENT_URL=${{ secrets.CLIENT_URL }}
           SERVER_URL=${{ secrets.SERVER_URL }}
           EOF
-      - name: Write EC2 key to file
-        run: |
-          echo -e "${{ secrets.EC2_KEY }}" > ec2.pem
-          chmod 600 ec2.pem
-
-
+  
       # Deploy to EC2 via SSH
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.9
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key: ec2.pem
+          key: ${{ secrets.EC2_KEY }}
           script: |
-            echo "SSH connection works!"
             cd /home/ubuntu/Lab-Manager
 
             # Pull latest code
