@@ -143,8 +143,8 @@ const HomePage = () => {
                 </h1>
                 <div className="hero-subtitle-home mt-1 d-flex flex-row flex-wrap gap-2 animate-slide-up-delay flex-column-md">
                   <div className="d-flex align-items-center">
-                    Unify patient care, diagnostics, billing, and reporting in a powerfull,
-                    single, secure, enterprise-grade platform.
+                    Streamline patient care, testing, billing, and reporting all
+                    in one secure, modern platform.
                   </div>
                   <div className="d-flex align-items-center">
                     LabManager empowers labs to work faster, smarter, and
