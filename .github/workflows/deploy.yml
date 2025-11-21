@@ -1,4 +1,4 @@
-name: Deploy to Windows Server
+name: Deploy to EC2
 
 on:
   push:
@@ -7,34 +7,92 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Create .env.production for frontend (UTF-8 encoded)
-      - name: Create .env.production (UTF-8)
-        shell: powershell
+      # Generate root .env.production from secrets (match root .env.production keys)
+      - name: Generate root .env.production
         run: |
-          [System.IO.File]::WriteAllText("client/.env.production", "VITE_API_URL=${{ secrets.VITE_API_URL }}", [System.Text.Encoding]::UTF8)
+          cat <<EOF > .env.production
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          NODE_ENV=production
+          PORT=${{ secrets.PORT }}
+          VITE_SERVER=${{ secrets.VITE_SERVER }}
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          DOMAIN=${{ secrets.DOMAIN }}
+          CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER=${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+          EOF
 
-      # Create empty .env for frontend (UTF-8 encoded)
-      - name: Create empty .env (UTF-8)
-        shell: powershell
+      # Generate client .env.production from secrets (used by Vite client)
+      - name: Generate client .env.production
         run: |
-          [System.IO.File]::WriteAllText("client/.env", "", [System.Text.Encoding]::UTF8)
+          cat <<EOF > client/.env.production
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          EOF
 
-      # Copy .env.production to server/.env
-      - name: Copy .env.production to server/.env
-        shell: powershell
+      # Generate server .env from secrets (match server/.env keys)
+      - name: Generate server .env
         run: |
-          Copy-Item ".env.production" "server/.env" -Force
+          cat <<EOF > server/.env
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          EMAIL_USER=${{ secrets.EMAIL_USER }}
+          EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+          PROD_CLIENT_URL=${{ secrets.PROD_CLIENT_URL }}
+          PRODUCTION_PAYMOB_API_KEY=${{ secrets.PRODUCTION_PAYMOB_API_KEY || '' }}
+          PRODUCTION_PAYMOB_SECRET_KEY=${{ secrets.PRODUCTION_PAYMOB_SECRET_KEY || '' }}
+          PRODUCTION_PAYMOB_INTEGRATION_ID=${{ secrets.PRODUCTION_PAYMOB_INTEGRATION_ID || '' }}
+          PRODUCTION_PAYMOB_PUBLIC_KEY=${{ secrets.PRODUCTION_PAYMOB_PUBLIC_KEY || '' }}
+          CLIENT_URL=${{ secrets.CLIENT_URL }}
+          SERVER_URL=${{ secrets.SERVER_URL }}
+          EOF
 
-      # Build and restart Docker containers
-      - name: Build and restart Docker containers
-        shell: powershell
-        run: |
-          docker compose -f docker-compose.prod.yml down --remove-orphans
-          docker compose -f docker-compose.prod.yml build --no-cache
-          docker compose -f docker-compose.prod.yml up -d
+      # Deploy to EC2 via SSH
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            cd /home/ubuntu/Lab-Manager
+
+            # Pull latest code
+            git reset --hard
+            git clean -fd
+            git pull origin main
+
+            # Copy the generated env files to proper locations
+            cp .env.production .env.production
+            cp client/.env.production client/.env.production
+            cp server/.env server/.env
+
+            # Build and update containers (zero-downtime)
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Optional: health check and rollback if unhealthy
+            #unhealthy=$(docker ps --filter "health=unhealthy" -q)
+            #if [ -n "$unhealthy" ]; then
+             # echo "Some containers are unhealthy, rolling back..."
+              #docker compose -f docker-compose.prod.yml down
+              #docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            #fi
+
+            # Clean up old, unused images
+            docker image prune -af
