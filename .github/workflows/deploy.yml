@@ -31,13 +31,14 @@ jobs:
             mkdir -p /home/ubuntu/Lab-Manager/client/dist
       - run: ls -l client/dist
       - name: Upload frontend build to EC2
+        working-directory: ./client/dist/
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           port: 22
-          source: "./"
+          source: "."
           target: "/home/ubuntu/Lab-Manager/client/dist/"
       - run: ls -l /home/ubuntu/Lab-Manager/client/dist
       # Deploy to EC2 via SSH
