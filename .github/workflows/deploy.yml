@@ -17,6 +17,10 @@ jobs:
       - name: Build frontend
         working-directory: ./client
         run: |
+          # GENERATE ENV FILE (On the Runner)
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env.production
+
+          # Now install and build
           npm install -g pnpm
           pnpm install --frozen-lockfile
           pnpm run build -- --mode production
@@ -88,11 +92,6 @@ jobs:
             MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
             MYSQL_USER=${{ secrets.MYSQL_USER }}
             MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-            EOF
-
-            echo "Generating client .env.production..."
-            cat > client/.env.production <<EOF
-            VITE_API_URL=${{ secrets.VITE_API_URL }}
             EOF
 
             echo "Generating server .env..."
