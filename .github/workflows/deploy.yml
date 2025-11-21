@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Build Frontend Locally
+      # 1. Build the frontend locally on GitHub
       - name: Build frontend
         working-directory: ./client
         run: |
@@ -21,8 +21,8 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build -- --mode production
 
-      # 2. Update Repo on EC2 (Cleaning happens HERE, before upload)
-      - name: Update Git Repo on EC2
+      # 2. Clean up the messy folder on EC2 & Update Git
+      - name: Update Git Repo & Clean Dist
         uses: appleboy/ssh-action@v0.1.9
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -31,13 +31,19 @@ jobs:
           port: 22
           script: |
             cd /home/ubuntu/Lab-Manager
+            
+            # WIPE the messy dist folder completely
+            rm -rf client/dist
+            
+            # Reset and Pull latest code
             git reset --hard
             git clean -fd
             git pull origin main
-            # Ensure the dist directory exists so SCP doesn't fail
-            mkdir -p /home/ubuntu/Lab-Manager/client/dist
+            
+            # Recreate the empty directory for the upload
+            mkdir -p client/dist
 
-      # 3. Upload the 'dist' folder
+      # 3. Upload ONLY the build files
       - name: Upload frontend build to EC2
         uses: appleboy/scp-action@v0.1.5
         with:
@@ -45,8 +51,11 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           port: 22
+          # This grabs files INSIDE client/dist
           source: "client/dist/*"
+          # This puts them into the folder we just made
           target: "/home/ubuntu/Lab-Manager/client/dist"
+          # This removes "client/dist" from the file path so they don't nest
           strip_components: 2
 
       # 4. Deploy / Restart Containers
@@ -62,12 +71,51 @@ jobs:
           script: |
             cd /home/ubuntu/Lab-Manager
 
-            # (Insert your .env generation scripts here as per previous conversation...)
-            # I am omitting them for brevity, but KEEP THEM in your actual file.
+            echo "Generating root .env.production..."
+            cat > .env.production <<EOF
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_HOST=${{ secrets.DB_HOST }}
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            NODE_ENV=production
+            PORT=${{ secrets.PORT }}
+            VITE_SERVER=${{ secrets.VITE_SERVER }}
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            DOMAIN=${{ secrets.DOMAIN }}
+            CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+            EOF
+
+            echo "Generating client .env.production..."
+            cat > client/.env.production <<EOF
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            EOF
+
+            echo "Generating server .env..."
+            cat > server/.env <<EOF
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_HOST=${{ secrets.DB_HOST }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            EMAIL_USER=${{ secrets.EMAIL_USER }}
+            EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+            PROD_CLIENT_URL=${{ secrets.PROD_CLIENT_URL }}
+            PRODUCTION_PAYMOB_API_KEY=${{ secrets.PRODUCTION_PAYMOB_API_KEY || '' }}
+            PRODUCTION_PAYMOB_SECRET_KEY=${{ secrets.PRODUCTION_PAYMOB_SECRET_KEY || '' }}
+            PRODUCTION_PAYMOB_INTEGRATION_ID=${{ secrets.PRODUCTION_PAYMOB_INTEGRATION_ID || '' }}
+            PRODUCTION_PAYMOB_PUBLIC_KEY=${{ secrets.PRODUCTION_PAYMOB_PUBLIC_KEY || '' }}
+            CLIENT_URL=${{ secrets.CLIENT_URL }}
+            SERVER_URL=${{ secrets.SERVER_URL }}
+            EOF
 
             echo "Restarting containers..."
-            
-            # --build is required because 'backend' is built from source code
+            # Force rebuild to update backend code
             docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
 
             docker image prune -af
