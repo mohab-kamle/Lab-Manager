@@ -13,55 +13,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Generate root .env.production from secrets (match root .env.production keys)
-      - name: Generate root .env.production
-        run: |
-          cat <<EOF > .env.production
-          DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_HOST=${{ secrets.DB_HOST }}
-          SECRET_KEY=${{ secrets.SECRET_KEY }}
-          NODE_ENV=production
-          PORT=${{ secrets.PORT }}
-          VITE_SERVER=${{ secrets.VITE_SERVER }}
-          VITE_API_URL=${{ secrets.VITE_API_URL }}
-          DOMAIN=${{ secrets.DOMAIN }}
-          CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
-          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-          MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
-          MYSQL_USER=${{ secrets.MYSQL_USER }}
-          MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
-          EOF
-
-      # Generate client .env.production from secrets (used by Vite client)
-      - name: Generate client .env.production
-        run: |
-          cat <<EOF > client/.env.production
-          VITE_API_URL=${{ secrets.VITE_API_URL }}
-          EOF
-
-      # Generate server .env from secrets (match server/.env keys)
-      - name: Generate server .env
-        run: |
-          cat <<EOF > server/.env
-          SECRET_KEY=${{ secrets.SECRET_KEY }}
-          DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_HOST=${{ secrets.DB_HOST }}
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          EMAIL_USER=${{ secrets.EMAIL_USER }}
-          EMAIL_PASS=${{ secrets.EMAIL_PASS }}
-          PROD_CLIENT_URL=${{ secrets.PROD_CLIENT_URL }}
-          PRODUCTION_PAYMOB_API_KEY=${{ secrets.PRODUCTION_PAYMOB_API_KEY || '' }}
-          PRODUCTION_PAYMOB_SECRET_KEY=${{ secrets.PRODUCTION_PAYMOB_SECRET_KEY || '' }}
-          PRODUCTION_PAYMOB_INTEGRATION_ID=${{ secrets.PRODUCTION_PAYMOB_INTEGRATION_ID || '' }}
-          PRODUCTION_PAYMOB_PUBLIC_KEY=${{ secrets.PRODUCTION_PAYMOB_PUBLIC_KEY || '' }}
-          CLIENT_URL=${{ secrets.CLIENT_URL }}
-          SERVER_URL=${{ secrets.SERVER_URL }}
-          EOF
-  
       # Deploy to EC2 via SSH
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.9
@@ -76,27 +27,59 @@ jobs:
           script: |
             cd /home/ubuntu/Lab-Manager
 
-            # Pull latest code
+            echo "Updating repository..."
             git reset --hard
             git clean -fd
             git pull origin main
 
-            # Copy the generated env files to proper locations
-            cp .env.production .env.production
-            cp client/.env.production client/.env.production
-            cp server/.env server/.env
+            echo "Generating root .env.production..."
+            cat > .env.production <<EOF
+              DB_USER=${{ secrets.DB_USER }}
+              DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
+              DB_NAME=${{ secrets.DB_NAME }}
+              DB_HOST=${{ secrets.DB_HOST }}
+              SECRET_KEY=${{ secrets.SECRET_KEY }}
+              NODE_ENV=production
+              PORT=${{ secrets.PORT }}
+              VITE_SERVER=${{ secrets.VITE_SERVER }}
+              VITE_API_URL=${{ secrets.VITE_API_URL }}
+              DOMAIN=${{ secrets.DOMAIN }}
+              CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+              MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+              MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+              MYSQL_USER=${{ secrets.MYSQL_USER }}
+              MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+              EOF
 
-            # Build and update containers (zero-downtime)
+            echo "Generating client .env.production..."
+            cat > client/.env.production <<EOF
+              VITE_API_URL=${{ secrets.VITE_API_URL }}
+              EOF
+
+            echo "Generating server .env..."
+            cat > server/.env <<EOF
+              SECRET_KEY=${{ secrets.SECRET_KEY }}
+              DB_USER=${{ secrets.DB_USER }}
+              DB_PASSWORD=${{ secrets.DB_PASSWORD || '' }}
+              DB_NAME=${{ secrets.DB_NAME }}
+              DB_HOST=${{ secrets.DB_HOST }}
+              DATABASE_URL=${{ secrets.DATABASE_URL }}
+              EMAIL_USER=${{ secrets.EMAIL_USER }}
+              EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+              PROD_CLIENT_URL=${{ secrets.PROD_CLIENT_URL }}
+              PRODUCTION_PAYMOB_API_KEY=${{ secrets.PRODUCTION_PAYMOB_API_KEY || '' }}
+              PRODUCTION_PAYMOB_SECRET_KEY=${{ secrets.PRODUCTION_PAYMOB_SECRET_KEY || '' }}
+              PRODUCTION_PAYMOB_INTEGRATION_ID=${{ secrets.PRODUCTION_PAYMOB_INTEGRATION_ID || '' }}
+              PRODUCTION_PAYMOB_PUBLIC_KEY=${{ secrets.PRODUCTION_PAYMOB_PUBLIC_KEY || '' }}
+              CLIENT_URL=${{ secrets.CLIENT_URL }}
+              SERVER_URL=${{ secrets.SERVER_URL }}
+              EOF
+
+            echo "Building and updating containers..."
             docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans --build
 
-            # Optional: health check and rollback if unhealthy
-            #unhealthy=$(docker ps --filter "health=unhealthy" -q)
-            #if [ -n "$unhealthy" ]; then
-             # echo "Some containers are unhealthy, rolling back..."
-              #docker compose -f docker-compose.prod.yml down
-              #docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            #fi
-
-            # Clean up old, unused images
+            echo "Cleaning up unused images..."
             docker image prune -af
+
+            echo "Deployment complete!"
