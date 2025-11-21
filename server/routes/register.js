@@ -939,7 +939,7 @@ async function sendWelcomeEmail(email, adminName, labName, username, subdomain, 
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0;">Your Lab Information:</h3>
             <p><strong>Lab Name:</strong> ${labName}</p>
-            <p><strong>Login URL:</strong> https://${process.env.API_URL}/login</p>
+            <p><strong>Login URL:</strong> https://${process.env.PROD_CLIENT_URL}/login</p>
             <p><strong>Admin Username:</strong> ${username}</p>
             <p><strong>Subscription Plan:</strong> ${plan}</p>
           </div>
@@ -956,7 +956,7 @@ async function sendWelcomeEmail(email, adminName, labName, username, subdomain, 
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://${process.env.API_URL}/login" 
+            <a href="https://${process.env.PROD_CLIENT_URL}/login" 
                style="background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block;">
               Access Your Lab
             </a>
