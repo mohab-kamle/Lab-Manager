@@ -25,6 +25,24 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build -- --mode production
 
+      # --- NEW: Configure AWS & Open Firewall ---
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Whitelist GitHub Runner IP
+        run: |
+          IP=$(curl -s https://checkip.amazonaws.com)
+          echo "Runner IP is $IP"
+          aws ec2 authorize-security-group-ingress \
+            --group-id ${{ secrets.AWS_SG_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr $IP/32
+
       # 2. Clean up the messy folder on EC2 & Update Git
       - name: Update Git Repo & Clean Dist
         uses: appleboy/ssh-action@v0.1.9
@@ -119,3 +137,14 @@ jobs:
 
             docker image prune -af
             echo "Deployment complete!"
+            
+      # --- NEW: Close Firewall (Always runs) ---
+      - name: Revoke GitHub Runner IP
+        if: always()
+        run: |
+          IP=$(curl -s https://checkip.amazonaws.com)
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.AWS_SG_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr $IP/32
