@@ -23,8 +23,8 @@ jobs:
           # Now install and build
           npm install -g pnpm
           pnpm install --frozen-lockfile
-          pnpm run build -- --mode production
-
+          # --ignore-scripts prevents 'postbuild' from running and crashing the deploy
+          pnpm run build -- --mode production --ignore-scripts
       # --- NEW: Configure AWS & Open Firewall ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -137,7 +137,7 @@ jobs:
 
             docker image prune -af
             echo "Deployment complete!"
-            
+
       # --- NEW: Close Firewall (Always runs) ---
       - name: Revoke GitHub Runner IP
         if: always()
