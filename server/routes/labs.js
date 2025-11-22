@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { lab, lab_settings: LabSettings, lab_activity_log: LabActivityLog, employee } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
+const { tenantContext } = require('../middleware/tenantContext');
 const authorizeRoles = require('../middleware/authorizeRoles');
 
 // List labs (optionally filter by owner_id)
@@ -17,6 +18,25 @@ router.get('/', authenticateUser, async (req, res) => {
   } catch (err) {
     console.error('Error fetching labs list:', err);
     res.status(500).json({ error: 'Failed to fetch labs' });
+  }
+});
+
+// Get lab branding info for medical reports/invoices 
+router.get('/branding', authenticateUser, tenantContext, async (req, res) => {
+    try {
+    //Get lab branding-specific fields/properties using lab_id
+    const labBrandingInfo = await lab.findByPk(req.tenant.lab_id, {
+      attributes: ['name', 'lab_email', 'lab_address', 'lab_website', 'primary_color', 'secondary_color', 'logo_url']
+    });
+    //Check if there's any lab with such id
+    if (!labBrandingInfo) {
+      return res.status(404).json({ error: 'Lab not found' });
+    }
+    //Respond With these exact same data
+    res.json(labBrandingInfo);
+  } catch (err) {
+    console.error('Error fetching lab branding info:', err);
+    res.status(500).json({ error: 'Failed to fetch lab branding info' });
   }
 });
 
@@ -109,13 +129,13 @@ router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), async 
     for (const setting of settings) {
       // Upsert will either insert a new record if it doesn't exist,
       // or update the existing record if one is found with matching lab_id and setting_key
-  await LabSettings.upsert({
-    lab_id: labId,
-    setting_key: setting.setting_key,
-    setting_value: setting.setting_value,
-    setting_type: setting.setting_type
-  });
-}
+      await LabSettings.upsert({
+        lab_id: labId,
+        setting_key: setting.setting_key,
+        setting_value: setting.setting_value,
+        setting_type: setting.setting_type
+      });
+    }
     // Fetch updated settings
     const updatedSettings = await LabSettings.findAll({
       where: { lab_id: labId },

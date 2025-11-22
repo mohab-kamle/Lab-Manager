@@ -97,10 +97,8 @@ router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantC
         const passwordMatch = await bcrypt.compare(oldPassword, emp.password);
 
         if (!passwordMatch) {
-
             // Return passwords mismatch 
             return res.status(400).json({ error: "Wrong old password!" });
-
         } else {
             // Hash new password
             const saltRounds = 10;
