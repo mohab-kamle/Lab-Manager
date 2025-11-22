@@ -4,8 +4,6 @@ npm-debug.log
 .git
 .gitignore
 README.md
-dist
-build
 coverage
 .nyc_output
 *.md
