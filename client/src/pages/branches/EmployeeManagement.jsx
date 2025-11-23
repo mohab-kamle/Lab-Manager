@@ -273,7 +273,13 @@ const EmployeeManagement = () => {
       case 'birth_date':
         return value ? new Date(value).toLocaleDateString() : '-';
       case 'gender':
-        return value === 'm' ? 'Male' : value === 'f' ? 'Female' : '-';
+        if (value === 'm') {
+          return 'Male';
+        } else if (value === 'f') {
+          return 'Female';
+        } else {
+          return '-';
+        }
       case 'role':
         return (
           <Badge 
