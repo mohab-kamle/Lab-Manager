@@ -264,7 +264,7 @@ router.get(
 router.get(
   "/:id",
   authenticateUser,
-  authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee"),
+  authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee" , "patient"),
   async (req, res) => {
     try {
       // Check if this is a PDF generation request for optimized loading
