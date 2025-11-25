@@ -14,6 +14,7 @@ import PrivacyPolicy from "../../components/info/PrivacyPolicy";
 import RefundPolicy from "../../components/info/RefundPolicy";
 import AboutUs from "../../components/info/AboutUs";
 import TermsAndConditions from "../../components/info/TermsAndConditions";
+import useLabPrefix from '../../hooks/useLabPrefix';
 import {
   Play,
   ArrowRight,
@@ -52,6 +53,7 @@ const HomePage = () => {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const prefix = useLabPrefix();
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
@@ -495,6 +497,18 @@ const HomePage = () => {
               >
                 About Us
               </Button>
+               <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                  onClick={() => navigate(`${prefix}/admin/know-us`)} >
+                Know Us
+              </Button>
             </div>
             <p>
               &copy; {new Date().getFullYear()} LabManager. All rights reserved.
@@ -510,6 +524,7 @@ const HomePage = () => {
         <TermsAndConditions showTerms={showTerms} setShowTerms={setShowTerms} />
 
         <AboutUs showAbout={showAbout} setShowAbout={setShowAbout} />
+
       </footer>
 
       {/* Demo Request Modal */}
