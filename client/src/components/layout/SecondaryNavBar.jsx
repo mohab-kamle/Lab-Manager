@@ -222,12 +222,12 @@ const SecondaryNavBar = () => {
                 >
                         Patients Analytics
                       </Dropdown.Item>
-                      <Dropdown.Item as={Link} to={`${prefix}/admin/know-us`}
+                      {/* <Dropdown.Item as={Link} to={`${prefix}/admin/know-us`}
                       data-dropdown-key="Rec"
                 data-title="Know us"
                 >
                         Know us
-                      </Dropdown.Item>
+                      </Dropdown.Item> */}
                     </>
                   )}
                 </Dropdown.Menu>
