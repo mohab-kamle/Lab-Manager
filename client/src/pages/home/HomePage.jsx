@@ -506,7 +506,7 @@ const HomePage = () => {
                   color: "#0d6efd",
                   fontWeight: 400,
                 }}
-                  onClick={() => navigate(`${prefix}/admin/know-us`)} >
+                  onClick={() => navigate(`/know-us`)} >
                 Know Us
               </Button>
             </div>
