@@ -345,7 +345,11 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
         if (oldFilename && oldFilename !== newFilename) {
           const oldPath = path.join(LOGO_UPLOAD_PATH, oldFilename);
           if (fs.existsSync(oldPath)) {
-            try { fs.unlinkSync(oldPath); } catch (e) {}
+            try { 
+              fs.unlinkSync(oldPath); 
+            } catch (e) {
+              console.warn('Failed to delete old logo:', oldPath, e.message);
+            }
           }
         }
       }
