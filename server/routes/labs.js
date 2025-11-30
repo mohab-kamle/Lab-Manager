@@ -4,6 +4,50 @@ const { lab, lab_settings: LabSettings, lab_activity_log: LabActivityLog, employ
 const authenticateUser = require('../middleware/authenticateUser');
 const { tenantContext } = require('../middleware/tenantContext');
 const authorizeRoles = require('../middleware/authorizeRoles');
+const authorizeFileAccess = require('../middleware/authorizeFileAccess');
+const path = require('path');
+const fs = require('fs');
+const multer = require("multer");
+const { Op } = require('sequelize');
+const crypto = require('crypto');
+
+
+
+// Multer configuration for secure image uploads
+const BASE_UPLOAD_PATH = process.env.UPLOAD_BASE_PATH || path.join(__dirname, '../uploads');
+const LOGO_UPLOAD_PATH = path.join(BASE_UPLOAD_PATH, 'shared', 'logos');
+
+const imageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    if (!fs.existsSync(LOGO_UPLOAD_PATH)) {
+      fs.mkdirSync(LOGO_UPLOAD_PATH, { recursive: true });
+    }
+    cb(null, LOGO_UPLOAD_PATH);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const labId = req.params.labId || (req.user && req.user.lab_id) || 'lab';
+    const unique = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+    cb(null, `${labId}_${unique}_${base}${ext}`);
+  }
+});
+
+
+const imageUpload = multer({
+  storage: imageStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  },
+});
 
 // List labs (optionally filter by owner_id)
 router.get('/', authenticateUser, async (req, res) => {
@@ -39,6 +83,30 @@ router.get('/branding', authenticateUser, tenantContext, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch lab branding info' });
   }
 });
+
+// Serve lOGO IMAGES with authentication
+router.get('/branding/logos/:filename', authorizeFileAccess, (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(LOGO_UPLOAD_PATH, filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  // Set appropriate headers for images
+  const ext = path.extname(filename).toLowerCase();
+  if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
+    res.setHeader('Content-Type', `image/${ext.substring(1)}`);
+  }
+  
+  // Add security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
+  
+  res.sendFile(filePath);
+});
+
 
 // Get lab by path (for multi-tenant routing)
 router.get('/by-path/:path', async (req, res) => {
@@ -149,8 +217,49 @@ router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), async 
   }
 });
 
+// // Update lab information
+// router.put('/:labId', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+//   try {
+//     const { labId } = req.params;
+//     const updateData = req.body;
+
+//     // Verify user belongs to this lab
+//     if (req.user.lab_id !== parseInt(labId)) {
+//       return res.status(403).json({ error: 'Access denied' });
+//     }
+
+//     // Check if lab name is being changed and if it's unique
+//     if (updateData.name) {
+//       const existingLab = await lab.findOne({
+//         where: { 
+//           name: updateData.name,
+//           id: { [require('sequelize').Op.ne]: labId }
+//         }
+//       });
+      
+//       if (existingLab) {
+//         return res.status(400).json({ error: 'Lab name already exists' });
+//       }
+//     }
+
+//     // Update lab
+//     //change name of the object to not conflict with the lab model
+//     const labToUpdate = await lab.findByPk(labId);
+//     if (!labToUpdate) {
+//       return res.status(404).json({ error: 'Lab not found' });
+//     }
+
+//     await labToUpdate.update(updateData);
+
+//     res.json(labToUpdate);
+//   } catch (error) {
+//     console.error('Error updating lab:', error);
+//     res.status(500).json({ error: 'Failed to update lab information' });
+//   }
+// });
+
 // Update lab information
-router.put('/:labId', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.single("logo"), async (req, res) => {
   try {
     const { labId } = req.params;
     const updateData = req.body;
@@ -165,7 +274,7 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), async (req, res
       const existingLab = await lab.findOne({
         where: { 
           name: updateData.name,
-          id: { [require('sequelize').Op.ne]: labId }
+          id: { [Op.ne]: parseInt(labId, 10) }
         }
       });
       
@@ -181,7 +290,85 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), async (req, res
       return res.status(404).json({ error: 'Lab not found' });
     }
 
-    await labToUpdate.update(updateData);
+    const allowedFields = [
+      'name',
+      'region',
+      'governorate',
+      'license_number',
+      'owner',
+      'lab_email',
+      'lab_phone',
+      'lab_address',
+      'lab_website',
+      'primary_color',
+      'secondary_color',
+      'lab_name_invoice'
+    ];
+
+    const sanitizedUpdate = {};
+    for (const key of allowedFields) {
+      if (updateData[key] !== undefined) {
+        const val = updateData[key];
+        sanitizedUpdate[key] = typeof val === 'string' ? val.trim() : val;
+      }
+    }
+
+    // const errors = [];
+    // if (sanitizedUpdate.primary_color && !COLOR_HEX_RE.test(sanitizedUpdate.primary_color)) {
+    //   errors.push('Invalid primary_color');
+    // }
+    // if (sanitizedUpdate.secondary_color && !COLOR_HEX_RE.test(sanitizedUpdate.secondary_color)) {
+    //   errors.push('Invalid secondary_color');
+    // }
+    // if (sanitizedUpdate.lab_email && !EMAIL_RE.test(sanitizedUpdate.lab_email)) {
+    //   errors.push('Invalid lab_email');
+    // }
+    // if (sanitizedUpdate.lab_website && !URL_RE.test(sanitizedUpdate.lab_website)) {
+    //   errors.push('Invalid lab_website');
+    // }
+    // if (errors.length) {
+    //   return res.status(400).json({ error: errors.join(', ') });
+    // }
+
+    if (req.file) {
+      const newFilename = path.basename(req.file.filename);
+      sanitizedUpdate.logo_url = `/labs/branding/logos/${newFilename}`;
+
+      const previousUrl = labToUpdate.logo_url;
+      if (previousUrl) {
+        let oldFilename;
+        if (previousUrl.includes('/branding/logos/')) {
+          oldFilename = previousUrl.split('/').pop();
+        } else {
+          oldFilename = path.basename(previousUrl);
+        }
+        if (oldFilename && oldFilename !== newFilename) {
+          const oldPath = path.join(LOGO_UPLOAD_PATH, oldFilename);
+          if (fs.existsSync(oldPath)) {
+            try { fs.unlinkSync(oldPath); } catch (e) {}
+          }
+        }
+      }
+    }
+
+    await labToUpdate.update(sanitizedUpdate);
+
+    // try {
+    //   await LabActivityLog.create({
+    //     lab_id: parseInt(labId),
+    //     user_id: req.user.id,
+    //     user_role: req.user.role,
+    //     action: 'update_lab',
+    //     entity_type: 'lab',
+    //     entity_id: parseInt(labId),
+    //     details: {
+    //       fields_updated: Object.keys(sanitizedUpdate),
+    //       logo_updated: !!req.file
+    //     },
+    //     ip_address: req.ip,
+    //     user_agent: req.headers['user-agent']
+    //   });
+    // } catch (logError) {}
 
     res.json(labToUpdate);
   } catch (error) {
