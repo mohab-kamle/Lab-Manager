@@ -54,7 +54,7 @@ const SecondaryNavBar = () => {
       className="text-white pt-4 mt-5" 
       onClick={handleNavClick} 
       style={{
-        background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
+        background: 'white',
         border: 'none',
         boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
         

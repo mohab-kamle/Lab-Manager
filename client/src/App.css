@@ -5,9 +5,6 @@
   justify-self: center;
   overflow-x: hidden;
 }
-@media (max-width: 768px) {
-  
-}
 
 .patient-reports-container {
   width: 100%;

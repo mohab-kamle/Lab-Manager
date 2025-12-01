@@ -1,13 +1,95 @@
-/* custom.scss */
+/* -------------------------------
+   1) Font setup
+--------------------------------- */
+$font-family-sans-serif: "Space Grotesk", "Noto Sans Arabic", sans-serif;
+$font-family-base: $font-family-sans-serif;
 
-/* Override default Bootstrap color variables */
-$primary: #004a93;  /* Navy Blue for primary */
-$secondary: #ffd500; /* Lime Green for secondary */
-$danger: #ff3333;    /* Set your custom color for danger */
+/* -------------------------------
+   2) Define color palettes
+   (matches :root variables)
+--------------------------------- */
 
-/* Use Bootstrap after the variables */
+/* Light mode colors */
+$logo-color: #0e0e21;
+$bg-dark: hsl(214, 100%, 94%);
+$bg: hsl(214, 100%, 99%);
+$bg-light: hsl(214, 100%, 100%);
+$text: hsl(257, 100%, 13%);
+$text-muted: hsl(212, 100%, 27%);
+$highlight: hsl(213, 100%, 100%);
+$border: hsl(208, 100%, 46%);
+$border-muted: hsl(212, 100%, 65%);
+$primary: hsl(212, 100%, 27%);
+$secondary: hsl(30, 100%, 15%);
+$danger: hsl(4, 99%, 37%);
+$warning: hsl(50, 100%, 12%);
+$success: hsl(159, 100%, 9%);
+$info: hsl(215, 95%, 42%);
+
+/* Dark mode colors */
+$dark-bg-dark: hsl(244, 100%, 7%);
+$dark-bg: hsl(231, 100%, 9%);
+$dark-bg-light: hsl(219, 100%, 11%);
+$dark-text: hsl(214, 100%, 99%);
+$dark-text-muted: hsl(214, 78%, 73%);
+$dark-highlight: hsl(208, 100%, 34%);
+$dark-border: hsl(212, 100%, 27%);
+$dark-border-muted: hsl(222, 100%, 22%);
+$dark-primary: hsl(213, 100%, 73%);
+$dark-secondary: hsl(42, 100%, 34%);
+$dark-danger: hsl(7, 100%, 66%);
+$dark-warning: hsl(53, 100%, 21%);
+$dark-success: hsl(162, 100%, 22%);
+$dark-info: hsl(217, 100%, 70%);
+
+/* -------------------------------
+   3) Apply to Bootstrap
+--------------------------------- */
 @use "bootstrap/scss/bootstrap" with (
+  $font-family-sans-serif: $font-family-sans-serif,
+  $font-family-base: $font-family-base,
   $primary: $primary,
   $secondary: $secondary,
-  $danger: $danger
+  $danger: $danger,
+  $warning: $warning,
+  $success: $success,
+  $info: $info
 );
+
+/* -------------------------------
+   4) Push colors to :root for CSS use
+--------------------------------- */
+:root {
+  --logo-color: #{$logo-color};
+  --bg-dark: #{$bg-dark};
+  --bg: #{$bg};
+  --bg-light: #{$bg-light};
+  --text: #{$text};
+  --text-muted: #{$text-muted};
+  --highlight: #{$highlight};
+  --border: #{$border};
+  --border-muted: #{$border-muted};
+  --primary: #{$primary};
+  --secondary: #{$secondary};
+  --danger: #{$danger};
+  --warning: #{$warning};
+  --success: #{$success};
+  --info: #{$info};
+}
+
+body.dark {
+  --bg-dark: #{$dark-bg-dark};
+  --bg: #{$dark-bg};
+  --bg-light: #{$dark-bg-light};
+  --text: #{$dark-text};
+  --text-muted: #{$dark-text-muted};
+  --highlight: #{$dark-highlight};
+  --border: #{$dark-border};
+  --border-muted: #{$dark-border-muted};
+  --primary: #{$dark-primary};
+  --secondary: #{$dark-secondary};
+  --danger: #{$dark-danger};
+  --warning: #{$dark-warning};
+  --success: #{$dark-success};
+  --info: #{$dark-info};
+}
