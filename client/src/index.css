@@ -1,87 +1,65 @@
 :root {
-    font-family: 
-    "Noto Sans Arabic",
-    "Roboto",
-    "Helvetica Neue", /* macOS */
-    Arial,  /* Generic fallback */
-    sans-serif;  /* Generic fallback */
+    /* hsl (fallback color) */
+  
+  --bg-dark: hsl(214 100% 94%);
+  --bg: hsl(214 100% 99%);
+  --bg-light: hsl(214 100% 100%);
+  --text: hsl(257 100% 13%);
+  --text-muted: hsl(212 100% 27%);
+  --highlight: hsl(213 100% 100%);
+  --border: hsl(208 100% 46%);
+  --border-muted: hsl(212 100% 65%);
+  --primary: hsl(212 100% 27%);
+  --secondary: hsl(30 100% 15%);
+  --danger: hsl(4 99% 37%);
+  --warning: hsl(50 100% 12%);
+  --success: hsl(159 100% 9%);
+  --info: hsl(215 95% 42%);
+  /* oklch */
+  --bg-dark: oklch(0.92 0.1 255);
+  --bg: oklch(0.96 0.1 255);
+  --bg-light: oklch(1 0.1 255);
+  --text: oklch(0.15 0.2 255);
+  --text-muted: oklch(0.4 0.2 255);
+  --highlight: oklch(1 0.2 255);
+  --border: oklch(0.6 0.2 255);
+  --border-muted: oklch(0.7 0.2 255);
+  --primary: oklch(0.4 0.2 255);
+  --secondary: oklch(0.4 0.2 75);
+  --danger: oklch(0.5 0.2 30);
+  --warning: oklch(0.5 0.2 100);
+  --success: oklch(0.5 0.2 160);
+  --info: oklch(0.5 0.2 260);
 }
-
-/* Dark mode styles */
-.dark-mode {
-    background-color: #212529;
-    color: #f8f9fa;
-}
-
-.dark-mode .container {
-    background-color: #343a40;
-}
-
-.dark-mode .card {
-    background-color: #495057;
-    border-color: #6c757d;
-}
-
-.dark-mode .modal-content {
-    background-color: #495057;
-    border-color: #6c757d;
-}
-
-.dark-mode .form-control {
-    background-color: #6c757d;
-    border-color: #adb5bd;
-    color: #f8f9fa;
-}
-
-.dark-mode .form-control:focus {
-    background-color: #6c757d;
-    border-color: #0d6efd;
-    color: #f8f9fa;
-}
-
-.dark-mode .form-select {
-    background-color: #6c757d;
-    border-color: #adb5bd;
-    color: #f8f9fa;
-}
-
-.dark-mode .table {
-    color: #f8f9fa;
-}
-
-.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > td {
-    background-color: #495057;
-}
-
-.dark-mode .table-hover > tbody > tr:hover > td {
-    background-color: #6c757d;
-}
-
-.dark-mode .btn-outline-secondary {
-    color: #f8f9fa;
-    border-color: #adb5bd;
-}
-
-.dark-mode .btn-outline-secondary:hover {
-    background-color: #adb5bd;
-    color: #212529;
-}
-
-.dark-mode .alert {
-    background-color: #495057;
-    border-color: #6c757d;
-}
-
-.dark-mode .text-muted {
-    color: #adb5bd !important;
-}
-
-.dark-mode .bg-light {
-    background-color: #6c757d !important;
-}
-
-.dark-mode .patients-admin-container {
-    background-color: #212529;
-    min-height: 100vh;
-    padding: 20px;
+body.dark {
+    /* hsl (fallback color) */
+  --bg-dark: hsl(244 100% 7%);
+  --bg: hsl(231 100% 9%);
+  --bg-light: hsl(219 100% 11%);
+  --text: hsl(214 100% 99%);
+  --text-muted: hsl(214 78% 73%);
+  --highlight: hsl(208 100% 34%);
+  --border: hsl(212 100% 27%);
+  --border-muted: hsl(222 100% 22%);
+  --primary: hsl(213 100% 73%);
+  --secondary: hsl(42 100% 34%);
+  --danger: hsl(7 100% 66%);
+  --warning: hsl(53 100% 21%);
+  --success: hsl(162 100% 22%);
+  --info: hsl(217 100% 70%);
+  /* oklch */
+  --bg-dark: oklch(0.1 0.1 255);
+  --bg: oklch(0.15 0.1 255);
+  --bg-light: oklch(0.2 0.1 255);
+  --text: oklch(0.96 0.1 255);
+  --text-muted: oklch(0.76 0.1 255);
+  --highlight: oklch(0.5 0.2 255);
+  --border: oklch(0.4 0.2 255);
+  --border-muted: oklch(0.3 0.2 255);
+  --primary: oklch(0.76 0.2 255);
+  --secondary: oklch(0.76 0.2 75);
+  --danger: oklch(0.7 0.2 30);
+  --warning: oklch(0.7 0.2 100);
+  --success: oklch(0.7 0.2 160);
+  --info: oklch(0.7 0.2 260);
 }
