@@ -9,7 +9,11 @@
   white-space: nowrap;
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text);
+}
+#dropdown-basic:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--border-muted); /* Focus ring */
 }
 #dropdown-basic:hover {
   transform: translateY(-3px); /* Subtle lift effect */

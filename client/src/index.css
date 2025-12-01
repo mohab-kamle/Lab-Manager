@@ -1,6 +1,5 @@
 :root {
     /* hsl (fallback color) */
-  
   --bg-dark: hsl(214 100% 94%);
   --bg: hsl(214 100% 99%);
   --bg-light: hsl(214 100% 100%);
