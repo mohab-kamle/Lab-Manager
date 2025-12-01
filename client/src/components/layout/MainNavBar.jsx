@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Moon, Sun } from "lucide-react";
 import useLabPrefix from '../../hooks/useLabPrefix';
 import { toast } from 'react-toastify';
-import labIcon from '../../assets/LabIcon.webp';
+import labIcon from '../../assets/LabIconWithRoundedWhiteBg.webp';
 import { useLab } from "../../context/LabContext";
 import VersionBadge from "../ui/VersionBadge";
 const MainNavBar = () => {
@@ -108,12 +108,12 @@ const MainNavBar = () => {
     <Navbar 
       expand="lg" 
       fixed="top" 
-      data-bs-theme="dark" 
+      data-bs-theme="white" 
       expanded={expanded}
       style={{
-        background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
+        background: 'white',
         boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
-        border: 'none',
+        borderBottom: '1px solid var(--border)',
         zIndex: 1050,
       }}
     >
