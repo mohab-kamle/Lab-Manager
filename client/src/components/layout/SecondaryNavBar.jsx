@@ -57,7 +57,6 @@ const SecondaryNavBar = () => {
         background: 'white',
         border: 'none',
         boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
-        
       }}
     >
       <Container className="d-flex align-items-center justify-content-center">

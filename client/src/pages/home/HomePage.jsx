@@ -8,10 +8,6 @@ import {
   Form,
   Alert,
 } from "react-bootstrap";
-import PrivacyPolicy from "../../components/info/PrivacyPolicy";
-import RefundPolicy from "../../components/info/RefundPolicy";
-import AboutUs from "../../components/info/AboutUs";
-import TermsAndConditions from "../../components/info/TermsAndConditions";
 import useLabPrefix from '../../hooks/useLabPrefix';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -318,7 +314,7 @@ const HomePage = () => {
       {/* 3. WORKFLOW (Connected Steps) */}
       <section className="py-5 bg-white" id="workflow">
         <Container>
-          <div className="text-center mb-5 mt-5">
+          <div className="text-center mb-5 mt-2">
             <h2 className="fw-bold display-6">How LabManager Works</h2>
             <p className="text-muted">A seamless flow from patient entry to final report.</p>
           </div>
@@ -431,46 +427,7 @@ const HomePage = () => {
                 className="footer-link-btn p-0"
                 style={{
                   textDecoration: "underline",
-                  color: "#0d6efd",
-                  fontWeight: 400,
-                }}
-                onClick={() => setShowTerms(true)}
-              >
-                Terms & Conditions
-              </Button>
-              <span className="mx-1">|</span>
-              <Button
-                variant="link"
-                className="footer-link-btn p-0"
-                style={{
-                  textDecoration: "underline",
-                  color: "#0d6efd",
-                  fontWeight: 400,
-                }}
-                onClick={() => setShowPrivacy(true)}
-              >
-                Privacy Policy
-              </Button>
-              <span className="mx-1">|</span>
-              <Button
-                variant="link"
-                className="footer-link-btn p-0"
-                style={{
-                  textDecoration: "underline",
-                  color: "#0d6efd",
-                  fontWeight: 400,
-                }}
-                onClick={() => setShowRefund(true)}
-              >
-                Refund Policy
-              </Button>
-              <span className="mx-1">|</span>
-              <Button
-                variant="link"
-                className="footer-link-btn p-0"
-                style={{
-                  textDecoration: "underline",
-                  color: "#0d6efd",
+                  color: "var(--highlight)",
                   fontWeight: 400,
                 }}
                 onClick={() => setShowAbout(true)}
@@ -483,17 +440,14 @@ const HomePage = () => {
                 className="footer-link-btn p-0"
                 style={{
                   textDecoration: "underline",
-                  color: "#0d6efd",
+                  color: "var(--highlight)",
                   fontWeight: 400,
                 }}
                   onClick={() => navigate(`/know-us`)} >
                 Know Us
               </Button>
             </div>
-            <p>
-              &copy; {new Date().getFullYear()} LabManager. All rights reserved.
-            </p>
-            <VersionBadge />
+          </div>
           <div className="border-top border-white-10 pt-3 text-center text-white-50 small">
              <div className="d-flex justify-content-center align-items-center gap-2">
                 &copy; {new Date().getFullYear()} LabManager. All rights reserved.
@@ -510,7 +464,7 @@ const HomePage = () => {
 
       </footer>
 
-      {/* Demo Modal (Unchanged Logic) */}
+      {/* Demo Modal */}
       <Modal show={showDemoModal} onHide={() => setShowDemoModal(false)} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title>Request Demo Account</Modal.Title>
