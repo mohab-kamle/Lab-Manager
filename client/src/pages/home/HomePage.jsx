@@ -8,6 +8,11 @@ import {
   Form,
   Alert,
 } from "react-bootstrap";
+import PrivacyPolicy from "../../components/info/PrivacyPolicy";
+import RefundPolicy from "../../components/info/RefundPolicy";
+import AboutUs from "../../components/info/AboutUs";
+import TermsAndConditions from "../../components/info/TermsAndConditions";
+import useLabPrefix from '../../hooks/useLabPrefix';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
@@ -70,6 +75,7 @@ const HomePage = () => {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const prefix = useLabPrefix();
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
@@ -414,6 +420,80 @@ const HomePage = () => {
                </div>
             </Col>
           </Row>
+          <hr className="my-4" />
+          <div className="text-center">
+            <div
+              className="footer-policy-links d-flex flex-wrap justify-content-center align-items-center gap-2 mb-2"
+              style={{ fontSize: "1rem" }}
+            >
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowTerms(true)}
+              >
+                Terms & Conditions
+              </Button>
+              <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowPrivacy(true)}
+              >
+                Privacy Policy
+              </Button>
+              <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowRefund(true)}
+              >
+                Refund Policy
+              </Button>
+              <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                onClick={() => setShowAbout(true)}
+              >
+                About Us
+              </Button>
+               <span className="mx-1">|</span>
+              <Button
+                variant="link"
+                className="footer-link-btn p-0"
+                style={{
+                  textDecoration: "underline",
+                  color: "#0d6efd",
+                  fontWeight: 400,
+                }}
+                  onClick={() => navigate(`/know-us`)} >
+                Know Us
+              </Button>
+            </div>
+            <p>
+              &copy; {new Date().getFullYear()} LabManager. All rights reserved.
+            </p>
+            <VersionBadge />
           <div className="border-top border-white-10 pt-3 text-center text-white-50 small">
              <div className="d-flex justify-content-center align-items-center gap-2">
                 &copy; {new Date().getFullYear()} LabManager. All rights reserved.
@@ -427,6 +507,7 @@ const HomePage = () => {
         <RefundPolicy showRefund={showRefund} setShowRefund={setShowRefund} />
         <TermsAndConditions showTerms={showTerms} setShowTerms={setShowTerms} />
         <AboutUs showAbout={showAbout} setShowAbout={setShowAbout} />
+
       </footer>
 
       {/* Demo Modal (Unchanged Logic) */}
