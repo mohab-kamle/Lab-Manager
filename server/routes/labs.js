@@ -40,13 +40,15 @@ const imageUpload = multer({
     fileSize: 5 * 1024 * 1024,
     files: 1
   },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
-  },
+   fileFilter: (req, file, cb) => {
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (file.mimetype.startsWith('image/') && allowedExtensions.includes(ext)) {
+       cb(null, true);
+     } else {
+       cb(new Error('Only image files are allowed'), false);
+     }
+   },
 });
 
 // List labs (optionally filter by owner_id)
@@ -97,9 +99,17 @@ router.get('/branding/logos/:filename', authorizeFileAccess, (req, res) => {
   // Set appropriate headers for images
   const ext = path.extname(filename).toLowerCase();
   if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
-    res.setHeader('Content-Type', `image/${ext.substring(1)}`);
+    const mimeTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp'
+    };
+    if (mimeTypes[ext]) {
+      res.setHeader('Content-Type', mimeTypes[ext]);
+    }
   }
-  
   // Add security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
@@ -184,7 +194,19 @@ router.get('/:labId/settings', async (req, res) => {
 });
 
 // Update lab settings
-router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), (req, res, next) => {
+    imageUpload.single("logo")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+        }
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  }, async (req, res) => {
   try {
     const { labId } = req.params;
     const { settings } = req.body;
@@ -216,47 +238,6 @@ router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), async 
     res.status(500).json({ error: 'Failed to update lab settings' });
   }
 });
-
-// // Update lab information
-// router.put('/:labId', authenticateUser, authorizeRoles('admin'), async (req, res) => {
-//   try {
-//     const { labId } = req.params;
-//     const updateData = req.body;
-
-//     // Verify user belongs to this lab
-//     if (req.user.lab_id !== parseInt(labId)) {
-//       return res.status(403).json({ error: 'Access denied' });
-//     }
-
-//     // Check if lab name is being changed and if it's unique
-//     if (updateData.name) {
-//       const existingLab = await lab.findOne({
-//         where: { 
-//           name: updateData.name,
-//           id: { [require('sequelize').Op.ne]: labId }
-//         }
-//       });
-      
-//       if (existingLab) {
-//         return res.status(400).json({ error: 'Lab name already exists' });
-//       }
-//     }
-
-//     // Update lab
-//     //change name of the object to not conflict with the lab model
-//     const labToUpdate = await lab.findByPk(labId);
-//     if (!labToUpdate) {
-//       return res.status(404).json({ error: 'Lab not found' });
-//     }
-
-//     await labToUpdate.update(updateData);
-
-//     res.json(labToUpdate);
-//   } catch (error) {
-//     console.error('Error updating lab:', error);
-//     res.status(500).json({ error: 'Failed to update lab information' });
-//   }
-// });
 
 // Update lab information
 router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.single("logo"), async (req, res) => {
@@ -312,23 +293,6 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
         sanitizedUpdate[key] = typeof val === 'string' ? val.trim() : val;
       }
     }
-
-    // const errors = [];
-    // if (sanitizedUpdate.primary_color && !COLOR_HEX_RE.test(sanitizedUpdate.primary_color)) {
-    //   errors.push('Invalid primary_color');
-    // }
-    // if (sanitizedUpdate.secondary_color && !COLOR_HEX_RE.test(sanitizedUpdate.secondary_color)) {
-    //   errors.push('Invalid secondary_color');
-    // }
-    // if (sanitizedUpdate.lab_email && !EMAIL_RE.test(sanitizedUpdate.lab_email)) {
-    //   errors.push('Invalid lab_email');
-    // }
-    // if (sanitizedUpdate.lab_website && !URL_RE.test(sanitizedUpdate.lab_website)) {
-    //   errors.push('Invalid lab_website');
-    // }
-    // if (errors.length) {
-    //   return res.status(400).json({ error: errors.join(', ') });
-    // }
 
     if (req.file) {
       const newFilename = path.basename(req.file.filename);
