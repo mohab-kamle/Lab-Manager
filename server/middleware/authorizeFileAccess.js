@@ -55,8 +55,11 @@ const authorizeFileAccess = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('File access authorization error:', error);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired' });
+    }
+    console.error('File access authorization error:', error.message);
+    return res.status(401).json({ error: 'Invalid token' });
   }
 };
 
