@@ -24,17 +24,13 @@ import {
 } from "react-bootstrap-icons";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/dateFormatter";
-
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 const PatientProfile = () => {
   const { user } = useAuth();
 
   if (!user) {
     return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
-        <Spinner animation="border" variant="primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
+      <LoadingSpinner message="Loading patient profile..." />
     );
   }
 

@@ -4,6 +4,7 @@ import { Container } from 'react-bootstrap';
 import Toolbar from '../../components/layout/Toolbar';
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from '../../components/ui/DynamicTable';
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const TestGroupComponents = () => {
   const [components, setComponents] = useState([]);
@@ -82,7 +83,7 @@ const TestGroupComponents = () => {
       <h2>Test Group Components</h2>
       <p>This page lists all test group components. You can search, filter, and sort, but not edit.</p>
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading test group components..." />
       ) : error ? (
         <p style={{ color: 'red' }}>{error}</p>
       ) : (

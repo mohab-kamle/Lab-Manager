@@ -4,6 +4,7 @@ import { Container, Alert, Spinner } from 'react-bootstrap';
 import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
 import MainNavBar from './MainNavBar';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const LabLayout = () => {
   const { 
@@ -21,11 +22,7 @@ const LabLayout = () => {
   // Show loading spinner while fetching lab info
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
+      <LoadingSpinner />
     );
   }
 
@@ -86,7 +83,7 @@ const LabLayout = () => {
       {/* Footer */}
       <footer className="lab-footer text-center py-1 mt-2 justify-content-center align-items-center d-flex text-white"
       style={{
-        background: 'linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
+        background: 'var(--primary)',
         boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
         border: 'none',
       }}>

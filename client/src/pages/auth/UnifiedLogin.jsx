@@ -6,7 +6,9 @@ import { Eye, EyeOff, User, Lock, Shield, ArrowRight, HelpCircle } from "lucide-
 import axios from "axios";
 import useLabPrefix from "../../hooks/useLabPrefix";
 import { useLab } from "../../context/LabContext";
-
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { motion } from "framer-motion";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 const UnifiedLogin = () => {
   const { fetchLabInfo, labInfo } = useLab();
   const [userType, setUserType] = useState("employee"); // Default to employee
@@ -171,34 +173,39 @@ const UnifiedLogin = () => {
 
   return (
     <div className="min-vh-100 d-flex align-items-center" style={{
-      background: 'linear-gradient(135deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
+      background: 'var(--bg-dark)',
       padding: '20px 0'
     }}>
       <Container>
         <Row className="justify-content-center">
           <Col lg={8} md={10} sm={12}>
-            <Card className="border-0 shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' }}>
+            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' , border: '1px solid var(--border)' }}>
               {/* Header */}
-              <div className="text-center py-4" style={{
-                background: 'linear-gradient(135deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
-                color: 'white'
+              <div className="text-center pt-4" style={{
+                background: 'var(--bg)',
+                color: 'var(--text)'
               }}>
                 <div className="mb-3">
                   <div className="d-inline-flex align-items-center justify-content-center" style={{
                     width: '80px',
                     height: '80px',
                     borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    backdropFilter: 'blur(10px)'
+                    backgroundColor: 'var(--bg)',
+                    backdropFilter: 'blur(10px)',
                   }}>
-                    <Shield size={40} />
+                    <DotLottieReact
+                      src="/shield.lottie"
+                      style={{ width: '100%', height: '100%' }}
+                      loop
+                      autoplay
+                    />
                   </div>
                 </div>
-                <h2 className="mb-2 fw-bold">Welcome to LabManager</h2>
+                <h2 className="fw-bold">Welcome to LabManager</h2>
                 <p className="mb-0 opacity-75">Please select your role and sign in</p>
               </div>
 
-              <Card.Body className="p-5">
+              <Card.Body className="px-5">
                 {/* User Type Selection */}
                 <div className="mb-4">
                   <h6 className="text-muted mb-3 fw-semibold">
@@ -209,19 +216,17 @@ const UnifiedLogin = () => {
                     {userTypes.map((type) => (
                       <Button
                         key={type.value}
-                        variant={userType === type.value ? type.color : "outline-" + type.color}
+                        variant={"outline-primary"}
                         size="sm"
                         onClick={() => handleUserTypeChange(type.value)}
-                        className="d-flex align-items-center gap-2 px-3 py-2 rounded-pill border-0"
+                        className="d-flex align-items-center gap-2 px-2 py-2 rounded-pill"
                         style={{
-                          backgroundColor: userType === type.value ? undefined : type.bgColor,
-                          border: userType === type.value ? undefined : `2px solid var(--bs-${type.color})`,
                           transition: 'all 0.3s ease',
-                          minWidth: '120px',
+                          minWidth: '100px',
                           justifyContent: 'center'
                         }}
                       >
-                        <span style={{ fontSize: '1.2em' }}>{type.icon}</span>
+                        <span style={{ fontSize: '1em' }}>{type.icon}</span>
                         <span className="fw-medium">{type.label}</span>
                       </Button>
                     ))}
@@ -229,7 +234,16 @@ const UnifiedLogin = () => {
                 </div>
 
                 {/* Selected Role Info */}
-                <Alert variant="light" className="mb-4 border-0" style={{
+                <motion.div
+                key={selectedUserType?.label || "default-key"}
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                    duration: 1,
+                    scale: { type: "smooth", visualDuration: 0.7},
+                }}
+                >
+                  <Alert variant="light" className="mb-4 border-0" style={{
                   backgroundColor: selectedUserType?.bgColor,
                   borderLeft: `4px solid var(--bs-${selectedUserType?.color})`
                 }}>
@@ -242,6 +256,8 @@ const UnifiedLogin = () => {
                     </div>
                   </div>
                 </Alert>
+                </motion.div>
+                
 
                 {error && (
                   <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
@@ -344,16 +360,12 @@ const UnifiedLogin = () => {
                     disabled={loading}
                     style={{
                       borderRadius: '12px',
-                      background: 'linear-gradient(135deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)',
                       fontSize: '1.1em',
                       transition: 'all 0.3s ease'
                     }}
                   >
                     {loading ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Signing in...
-                      </>
+                      <LoadingSpinner message="Signing in..." />
                     ) : (
                       <>
                         <Shield size={18} className="me-2" />
@@ -372,7 +384,7 @@ const UnifiedLogin = () => {
                   </h6>
                   <div className="row">
                     <div className="col-md-4 mb-3">
-                      <div className="p-3 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
                         <strong className="text-primary">Patients</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact your healthcare provider for your patient code
@@ -380,7 +392,7 @@ const UnifiedLogin = () => {
                       </div>
                     </div>
                     <div className="col-md-4 mb-3">
-                      <div className="p-3 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
                         <strong className="text-success">Employees</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact your system administrator for login credentials
@@ -388,7 +400,7 @@ const UnifiedLogin = () => {
                       </div>
                     </div>
                     <div className="col-md-4 mb-3">
-                      <div className="p-3 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
                         <strong className="text-info">Technical Support</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact IT department for assistance

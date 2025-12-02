@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Button, Form, Card, Table, Modal } from "react-bootstrap";
 import { Plus, Pencil, Trash2, Move } from "lucide-react";
 import axios from "axios";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
-// Placeholder for fetching and saving data
-// import axios from "axios";
+
 
 // Category and Component Management UI
 const CategoriesManager = ({ categories, onAddCategory, onEditCategory, onDeleteCategory, onAddComponent, onEditComponent, onDeleteComponent, onMoveComponent, directComponents, onMoveToCategory, onMoveToDirect }) => (
@@ -364,7 +364,7 @@ const TestGroupEditor = ({ testGroupId, onSave, onCancel }) => {
       {error && <div className="alert alert-danger">{error}</div>}
       {success && <div className="alert alert-success">Test group saved successfully!</div>}
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading test group editor..." />
       ) : (
         <>
           {/* Test Group Info */}

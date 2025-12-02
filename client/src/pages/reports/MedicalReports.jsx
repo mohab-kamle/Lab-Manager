@@ -45,6 +45,7 @@ import {
   validateExcelFile,
 } from "../../utils/excelUtils";
 import { useLab } from "../../context/LabContext";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 function calculateAge(birthDate) {
   if (!birthDate) return null;
@@ -1765,7 +1766,7 @@ const MedicalReports = () => {
   return (
     <Container fluid className="medical-reports-container">
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading medical reports..." />
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : (

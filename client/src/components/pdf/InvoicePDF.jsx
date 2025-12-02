@@ -4,6 +4,7 @@ import pdfMake from "pdfmake/build/pdfmake";
 import { vfs } from "../../utils/vfs_fonts";
 import { DateTime } from "luxon";
 import { Printer } from "react-bootstrap-icons";
+import LoadingSpinner from "../ui/LoadingSpinner";
 
 // Set up pdfMake with Cairo font
 pdfMake.vfs = vfs;
@@ -706,7 +707,7 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
               style={{ border: "none" }}
             />
           ) : (
-            <div>Loading PDF preview...</div>
+            <LoadingSpinner message="Loading PDF preview..." />
           )
         )}
       </div>

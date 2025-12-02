@@ -6,6 +6,7 @@ import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import { Trash2, Plus } from "lucide-react";
 import TestGroupEditor from "./TestGroupEditor";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const TestGroups = () => {
   const [groups, setGroups] = useState([]);
@@ -256,7 +257,7 @@ const TestGroups = () => {
         </div>
       </div>
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading test groups..." />
       ) : error ? (
         <p style={{ color: "red" }}>{error}</p>
       ) : (
