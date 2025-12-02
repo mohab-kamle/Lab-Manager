@@ -5,6 +5,7 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, Info } from "lucide-react";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const CultureOptions = () => {
   const [cultureOptions, setCultureOptions] = useState([]);
@@ -324,7 +325,7 @@ const CultureOptions = () => {
         <Button variant="primary" onClick={handleAdd}><Plus size={16} className="me-2" />Add Culture Option</Button>
       </div>
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading culture options..." />
       ) : (
         <>
           {error && (

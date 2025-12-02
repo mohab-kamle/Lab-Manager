@@ -6,6 +6,7 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const Diseases = () => {
   const [diseases, setDiseases] = useState([]);
@@ -238,7 +239,7 @@ const Diseases = () => {
   return (
     <Container fluid className="diseases-container">
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading diseases..." />
       ) : (
         <>
           {error && (

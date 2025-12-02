@@ -3,12 +3,6 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.loading-spinner {
-  text-align: center;
-  color: white;
 }
 
 .spinner {
@@ -32,10 +26,3 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .loading-container {
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-  }
-} 

@@ -11,6 +11,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import headerImage from "../../assets/headerpdf.png";
 import footerImage from "../../assets/footerpdf.png";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 function generateMedicalReportPDF(patient, report) {
   const doc = new jsPDF("p", "mm", "a4");
@@ -433,7 +434,7 @@ const PatientReports = () => {
   return (
     <Container fluid className="patient-reports-container">
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading patient reports..." />
       ) : error ? (
         <p style={{ color: "red" }}>{error}</p>
       ) : (

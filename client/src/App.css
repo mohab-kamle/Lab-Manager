@@ -101,11 +101,6 @@
   }
 }
 
-/* Loading spinner styles */
-.lab-layout .spinner-border {
-  color: var(--lab-primary-color);
-}
-
 /* Navigation adjustments for lab context */
 .lab-layout .navbar {
   background-color: white;
