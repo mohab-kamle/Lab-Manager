@@ -6,6 +6,7 @@ import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const Cultures = () => {
   const [cultures, setCultures] = useState([]);
@@ -284,7 +285,7 @@ const Cultures = () => {
         </div>
       </div>
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading cultures..." />
       ) : (
         <>
           {error && (

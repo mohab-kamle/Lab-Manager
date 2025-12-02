@@ -7,6 +7,7 @@ import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
 import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const Branches = () => {
   const { user } = useAuth();
@@ -326,7 +327,7 @@ const Branches = () => {
         </div>
       </div>
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading branches..." />
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : (
