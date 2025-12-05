@@ -216,7 +216,7 @@ const UnifiedLogin = () => {
                     {userTypes.map((type) => (
                       <Button
                         key={type.value}
-                        variant={"outline-primary"}
+                        variant={userType === type.value ? "primary" : "outline-primary"}
                         size="sm"
                         onClick={() => handleUserTypeChange(type.value)}
                         className="d-flex align-items-center gap-2 px-2 py-2 rounded-pill"
@@ -351,10 +351,10 @@ const UnifiedLogin = () => {
                       </Form.Group>
                     </>
                   )}
-
+                  
                   <Button
                     type="submit"
-                    variant="primary"
+                    variant={loading ? "outline-primary" : "primary"}
                     size="lg"
                     className="w-100 py-3 fw-semibold border-0"
                     disabled={loading}
@@ -363,12 +363,14 @@ const UnifiedLogin = () => {
                       fontSize: '1.1em',
                       transition: 'all 0.3s ease'
                     }}
-                  >
-                    {loading ? (
-                      <LoadingSpinner message="Signing in..." />
+                  >{loading ? (
+                      <div className="d-flex align-items-center flex-row p-0 justify-content-center">
+                        <LoadingSpinner size={50} containerClassName="m-0 d-flex align-items-center justify-content-center" />
+                          <span className="ms-2">Signing In...</span>
+                        </div>
                     ) : (
                       <>
-                        <Shield size={18} className="me-2" />
+                        <Shield size={18} className="me-2 mb-1" />
                         Sign In
                         <ArrowRight size={18} className="ms-2" />
                       </>

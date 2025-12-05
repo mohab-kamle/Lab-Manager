@@ -25,9 +25,11 @@ import {
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import useLabPrefix from "../../hooks/useLabPrefix";
 const PatientProfile = () => {
+  const prefix = useLabPrefix();
   const { user } = useAuth();
-
+  
   if (!user) {
     return (
       <LoadingSpinner message="Loading patient profile..." />
@@ -54,7 +56,7 @@ const PatientProfile = () => {
                   <GenderAmbiguous className="me-2 text-primary" />
                   <strong>Gender:</strong>{" "}
                   {user.gender
-                    ? user.gender === "m"
+                    ? user.gender === "Male"
                       ? "Male"
                       : "Female"
                     : "Not provided"}
@@ -103,7 +105,7 @@ const PatientProfile = () => {
                   variant="success"
                   className="me-2"
                   as={Link}
-                  to="/patient/dashboard/reports"
+                  to={`/${prefix}/patient/reports`}
                 >
                   <FileMedical className="me-1" />
                   View Medical Reports
@@ -111,7 +113,7 @@ const PatientProfile = () => {
                 <Button
                   variant="outline-primary"
                   as={Link}
-                  to="/patient/dashboard/profile/update"
+                  to={`/${prefix}/patient/profile/update`}
                 >
                   Update Profile
                 </Button>
