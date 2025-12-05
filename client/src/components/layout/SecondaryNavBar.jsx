@@ -51,7 +51,7 @@ const SecondaryNavBar = () => {
     <Navbar 
       expand="lg" 
       sticky="top"
-      className="text-white pt-4 mt-5" 
+      className=" pt-4 mt-5" 
       onClick={handleNavClick} 
       style={{
         background: 'white',
@@ -221,12 +221,6 @@ const SecondaryNavBar = () => {
                 >
                         Patients Analytics
                       </Dropdown.Item>
-                      {/* <Dropdown.Item as={Link} to={`${prefix}/admin/know-us`}
-                      data-dropdown-key="Rec"
-                data-title="Know us"
-                >
-                        Know us
-                      </Dropdown.Item> */}
                     </>
                   )}
                 </Dropdown.Menu>
