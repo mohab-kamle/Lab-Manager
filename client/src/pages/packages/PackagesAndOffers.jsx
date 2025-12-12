@@ -8,6 +8,7 @@ import axios from "axios";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const PackagesAndOffers = () => {
   const { user } = useAuth();
@@ -393,7 +394,7 @@ const PackagesAndOffers = () => {
   return (
     <Container fluid className="packages-offers-container">
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading packages and offers..." />
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : (

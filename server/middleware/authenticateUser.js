@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { employee, admin, chemist, receptionist } = require('../models');
+const { employee, admin, chemist, receptionist, patient , lab } = require('../models');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const isProd = process.env.NODE_ENV === 'production';
@@ -44,8 +44,9 @@ const authenticateUser = async (req, res, next) => {
           });
           break;
         case 'patient':
-          // Patients don't have lab_id in employee table, they have it in patient table
-          // This will be handled separately in patient routes
+          userRecord = await patient.findByPk(decoded.id, {
+            include: [{ model: lab, as: 'lab' }]
+          });
           break;
         default:
           userRecord = await employee.findByPk(decoded.id);

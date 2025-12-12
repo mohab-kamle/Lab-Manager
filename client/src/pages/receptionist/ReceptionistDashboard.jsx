@@ -4,6 +4,7 @@ import { Users, FileText, Plus, Activity, UserPlus, ClipboardList, DollarSign, C
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 
 const ReceptionistDashboard = () => {
@@ -82,11 +83,7 @@ const ReceptionistDashboard = () => {
 
   if (loading) {
     return (
-      <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </Container>
+      <LoadingSpinner message="Loading dashboard stats..." />
     );
   }
 

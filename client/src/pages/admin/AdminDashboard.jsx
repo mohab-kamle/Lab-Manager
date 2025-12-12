@@ -4,6 +4,7 @@ import { Users, FlaskConical, FileText, Plus, Activity, UserPlus, ClipboardList,
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useLabPrefix from '../../hooks/useLabPrefix';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 
 const AdminDashboard = () => {
@@ -74,9 +75,7 @@ useEffect(() => {
     <Container fluid className="py-3 px-2 px-md-4">
       <h2 className="mb-3 text-center text-md-center">Admin Dashboard</h2>
       {loading ? (
-        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: 200 }}>
-          <Spinner animation="border" variant="primary" />
-        </div>
+        <LoadingSpinner />
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : stats ? (

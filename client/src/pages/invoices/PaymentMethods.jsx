@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Pencil, Plus, Check, X } from "lucide-react";
 import PropTypes from "prop-types";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const PaymentMethods = () => {
     const [paymentMethods, setPaymentMethods] = useState([]);
@@ -102,7 +103,7 @@ const PaymentMethods = () => {
     };
 
     if (loading) {
-        return <div className="text-center p-6 text-lg font-medium">Loading...</div>;
+        return <LoadingSpinner message="Loading payment methods..." />;
     }
 
     if (error) {

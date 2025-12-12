@@ -17,6 +17,7 @@ import {
   LineChart,
   Line
 } from "recharts";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const PatientsAnalytics = () => {
   const { user } = useAuth();
@@ -133,9 +134,7 @@ const PatientsAnalytics = () => {
 
   if (loading) {
     return (
-      <Container fluid className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-        <Spinner animation="border" variant="primary" />
-      </Container>
+      <LoadingSpinner message="Loading patients analytics..." />
     );
   }
 

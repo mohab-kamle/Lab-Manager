@@ -8,6 +8,7 @@ import {
   Save, RefreshCw, AlertTriangle, CheckCircle, Info 
 } from 'lucide-react';
 import '../../styles/LabManagement.css';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const LabManagement = () => {
   const { 
@@ -343,14 +344,7 @@ const LabManagement = () => {
 
   if (labLoading) {
     return (
-      <div className="lab-management">
-        <div className="container">
-          <div className="loading-spinner">
-            <RefreshCw size={32} className="spinning" />
-            <p>Loading lab information...</p>
-          </div>
-        </div>
-      </div>
+      <LoadingSpinner message="Loading lab information..." />
     );
   }
 
@@ -869,7 +863,7 @@ const LabManagement = () => {
             <div className="tab-panel">
               <h2>Recent Activity</h2>
               {activityLog.loading ? (
-                <p>Loading...</p>
+                <LoadingSpinner message="Loading activity log..." />
               ) : (
                 <>
                   <div className="table-responsive">
