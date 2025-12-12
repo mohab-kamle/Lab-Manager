@@ -49,7 +49,6 @@ import ErrorPage from './components/error/ErrorPage';
 import LabLayout from './components/layout/LabLayout';
 import LabRoutes from './LabRoutes';
 import MainNavBar from './components/layout/MainNavBar';
-import SecondaryNavBar from './components/layout/SecondaryNavBar';
 
 import './App.css';
 
@@ -71,7 +70,6 @@ function App() {
             theme="colored"
           />
           <MainNavBar />
-          <SecondaryNavBar />
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<HomePage />} />
@@ -123,10 +121,34 @@ function App() {
               <Route path="admin/invoices" element={<PrivateRoute allowedRoles={['admin']}><Invoices /></PrivateRoute>} />
               {/* Chemist routes */}
               <Route path="chemist/dashboard" element={<PrivateRoute allowedRoles={['chemist']}><ChemistDashboard /></PrivateRoute>} />
+              <Route path="chemist/test-groups" element={<PrivateRoute allowedRoles={['chemist']}><TestGroups /></PrivateRoute>} />
+              <Route path="chemist/test-groups/:id/edit" element={<PrivateRoute allowedRoles={['chemist']}><TestGroupEditor /></PrivateRoute>} />
+              <Route path="chemist/test-groups/:id/components" element={<PrivateRoute allowedRoles={['chemist']}><TestGroupComponents /></PrivateRoute>} />
+              <Route path="chemist/test-group-categories" element={<PrivateRoute allowedRoles={['chemist']}><TestGroupCategories /></PrivateRoute>} />
+              <Route path="chemist/test-group-components" element={<PrivateRoute allowedRoles={['chemist']}><TestGroupComponents /></PrivateRoute>} />
+              <Route path="chemist/categories" element={<PrivateRoute allowedRoles={['chemist']}><Categories /></PrivateRoute>} />
+              <Route path="chemist/tests" element={<PrivateRoute allowedRoles={['chemist']}><Tests /></PrivateRoute>} />
+              <Route path="chemist/sample-types" element={<PrivateRoute allowedRoles={['chemist']}><SampleType /></PrivateRoute>} />
+              <Route path="chemist/culture-options" element={<PrivateRoute allowedRoles={['chemist']}><CultureOptions /></PrivateRoute>} />
+              <Route path="chemist/antibiotics" element={<PrivateRoute allowedRoles={['chemist']}><Antibiotics /></PrivateRoute>} />
+              <Route path="chemist/packages-offers" element={<PrivateRoute allowedRoles={['chemist']}><PackagesAndOffers /></PrivateRoute>} />
+              <Route path="chemist/cultures" element={<PrivateRoute allowedRoles={['chemist']}><Cultures /></PrivateRoute>} />
+              <Route path="chemist/diseases" element={<PrivateRoute allowedRoles={['chemist']}><Diseases /></PrivateRoute>} />
+              <Route path="chemist/medical-reports" element={<PrivateRoute allowedRoles={['chemist']}><MedicalReports /></PrivateRoute>} />
               {/* Doctor routes */}
               <Route path="doctor/dashboard" element={<PrivateRoute allowedRoles={['doctor']}><DoctorDashboard /></PrivateRoute>} />
+              <Route path="doctor/medical-reports" element={<PrivateRoute allowedRoles={['doctor']}><MedicalReports /></PrivateRoute>} />
               {/* Employee routes */}
               <Route path="employee/dashboard" element={<PrivateRoute allowedRoles={['employee']}><EmployeeDashboard /></PrivateRoute>} />
+              <Route path="employee/categories" element={<PrivateRoute allowedRoles={['employee']}><Categories /></PrivateRoute>} />
+              <Route path="employee/tests" element={<PrivateRoute allowedRoles={['employee']}><Tests /></PrivateRoute>} />
+              <Route path="employee/sample-types" element={<PrivateRoute allowedRoles={['employee']}><SampleType /></PrivateRoute>} />
+              <Route path="employee/culture-options" element={<PrivateRoute allowedRoles={['employee']}><CultureOptions /></PrivateRoute>} />
+              <Route path="employee/antibiotics" element={<PrivateRoute allowedRoles={['employee']}><Antibiotics /></PrivateRoute>} />
+              <Route path="employee/packages-offers" element={<PrivateRoute allowedRoles={['employee']}><PackagesAndOffers /></PrivateRoute>} />
+              <Route path="employee/cultures" element={<PrivateRoute allowedRoles={['employee']}><Cultures /></PrivateRoute>} />
+              <Route path="employee/diseases" element={<PrivateRoute allowedRoles={['employee']}><Diseases /></PrivateRoute>} />
+              <Route path="employee/medical-reports" element={<PrivateRoute allowedRoles={['employee']}><MedicalReports /></PrivateRoute>} />
               {/* Patient routes */}
               <Route path="patient/dashboard" element={<PrivateRoute allowedRoles={['patient']}><PatientDashboard /></PrivateRoute>} />
               
@@ -134,7 +156,16 @@ function App() {
               <Route path="patient/profile/edit" element={<PrivateRoute allowedRoles={['patient']}><PatientUpdateProfile /></PrivateRoute>} />
               <Route path="patient/reports" element={<PrivateRoute allowedRoles={['patient']}><PatientReports /></PrivateRoute>} />
               {/* Receptionist routes */}
+              <Route path="receptionist/test-groups" element={<PrivateRoute allowedRoles={['receptionist']}><TestGroups /></PrivateRoute>} />
+              <Route path="receptionist/test-groups/:id/edit" element={<PrivateRoute allowedRoles={['receptionist']}><TestGroupEditor /></PrivateRoute>} />
+              <Route path="receptionist/test-groups/:id/components" element={<PrivateRoute allowedRoles={['receptionist']}><TestGroupComponents /></PrivateRoute>} />
+              <Route path="receptionist/test-group-categories" element={<PrivateRoute allowedRoles={['receptionist']}><TestGroupCategories /></PrivateRoute>} />
+              <Route path="receptionist/test-group-components" element={<PrivateRoute allowedRoles={['receptionist']}><TestGroupComponents /></PrivateRoute>} />
               <Route path="receptionist/dashboard" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDashboard /></PrivateRoute>} />
+              <Route path="receptionist/invoices" element={<PrivateRoute allowedRoles={['receptionist']}><Invoices /></PrivateRoute>} />
+              <Route path="receptionist/patients" element={<PrivateRoute allowedRoles={['receptionist']}><PatientsAdminView /></PrivateRoute>} />
+              {/* <Route path="admin/patients/analytics" element={<PrivateRoute allowedRoles={['admin']}><PatientsAnalytics /></PrivateRoute>} /> */}
+              <Route path="receptionist/medical-reports" element={<PrivateRoute allowedRoles={['receptionist']}><MedicalReports /></PrivateRoute>} />
               {/* Shared routes */}
               <Route path="medical-reports" element={<PrivateRoute allowedRoles={['admin', 'doctor', 'chemist', 'employee', 'receptionist']}><MedicalReports /></PrivateRoute>} />
               <Route path="invoices" element={<PrivateRoute allowedRoles={['admin', 'receptionist']}><Invoices /></PrivateRoute>} />
