@@ -12,6 +12,7 @@ import InvoicePDF from "../../components/pdf/InvoicePDF";
 import Select from 'react-select';
 import '../../styles/select.css';
 import { toast } from 'react-toastify';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const Invoices = () => {
   const { user } = useAuth();
@@ -1233,7 +1234,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   return (
     <Container fluid className="invoices-container">
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading invoices..." />
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : (

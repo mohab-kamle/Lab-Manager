@@ -6,7 +6,7 @@ import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, X, Download, Upload } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
-
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 const Tests = () => {
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -640,7 +640,7 @@ const Tests = () => {
         </div>
       </div>
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading tests..." />
       ) : error ? (
         <p style={{ color: "red" }}>{error}</p>
       ) : (

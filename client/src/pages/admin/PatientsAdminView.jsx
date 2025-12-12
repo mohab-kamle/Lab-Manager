@@ -9,6 +9,9 @@ import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
+
+
 
 const PatientsAdminView = () => {
   const { user } = useAuth();
@@ -735,7 +738,7 @@ const PatientsAdminView = () => {
   return (
     <Container fluid className="patients-admin-container">
       {loading ? (
-        <div className="spinner-border text-primary" role="status"></div>
+        <LoadingSpinner message="Loading patients..." />
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : (

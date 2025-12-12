@@ -164,27 +164,52 @@ router.get(
   }
 );
 
-router.put("/update", authenticateUser, tenantContext, async (req, res) => {
+router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext, async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const { name, birth_date, gender, primaryPhone, secondaryPhone, email, address, nationality, passport_no, national_id } = req.body;
+    const { name, birth_date, gender, phones, email, address, nationality, passport_no, national_id } = req.body;
+    console.log("Received phones array:", phones);
     const userId = req.user.id; // Assuming user ID is stored in the auth token
 
-    const updatedUser = await patient.update(
+    // Update patient details
+    await patient.update(
       { name, birth_date, gender, email, address, nationality, passport_no, national_id },
       { 
         where: { 
           id: userId,
           lab_id: req.tenant.lab_id 
         }, 
-        returning: true 
+        transaction 
       }
     );
 
-    if (!updatedUser) return res.status(404).json({ success: false, message: "User not found" });
+    // Handle phones
+    if (phones && phones.length > 0) {
+      console.log("Attempting to destroy existing phone numbers for patient:", userId);
+      await db.phone.destroy({ where: { patient_id: userId }, transaction });
+      console.log("Existing phone numbers destroyed for patient:", userId);
+      const phoneRecords = phones.map((p, index) => ({
+        patient_id: userId,
+        phone_number: p.phone_number,
+        type: index === 0 ? 'primary' : 'secondary' // Assuming the first phone is primary, second is secondary
+      }));
+      console.log("Attempting to bulk create new phone numbers:", phoneRecords);
+      await db.phone.bulkCreate(phoneRecords, { transaction });
+      console.log("New phone numbers bulk created for patient:", userId);
+    }
 
-    res.json({ success: true, updatedUser: updatedUser[1][0] }); // Extract updated user object
+    // Fetch the updated patient with associated phones
+    const updatedPatient = await patient.findByPk(userId, {
+      include: [{ model: db.phone, as: 'phones' }],
+      transaction
+    });
+
+    await transaction.commit();
+    res.json({ success: true, updatedUser: updatedPatient });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Error updating profile" });
+    await transaction.rollback();
+    console.error("Error updating patient profile:", error);
+    res.status(500).json({ success: false, message: "Error updating profile", error: error.message });
   }
 });
 
