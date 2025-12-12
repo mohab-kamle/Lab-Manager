@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useLabPrefix from '../../hooks/useLabPrefix';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -66,7 +67,10 @@ const AdminDashboard = () => {
       variant: 'outline-danger'
     },
   ];
-
+useEffect(() => {
+    resetNavbarTitles();
+    resetNavbarActiveState();
+  }, []);
   return (
     <Container fluid className="py-3 px-2 px-md-4">
       <h2 className="mb-3 text-center text-md-center">Admin Dashboard</h2>
