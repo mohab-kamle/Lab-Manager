@@ -5,8 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 
 const ReceptionistDashboard = () => {
+  useEffect(() => {
+  resetNavbarTitles();
+  resetNavbarActiveState();
+}, []);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -86,7 +91,7 @@ const ReceptionistDashboard = () => {
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
-          <h2 className="mb-3">
+          <h2 className="mb-3 text-center text-md-center">
             <Phone size={28} className="me-2" />
             Receptionist Dashboard
           </h2>

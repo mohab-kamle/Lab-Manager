@@ -4,6 +4,7 @@ import { Stethoscope, FileText, Plus, Activity, User, ClipboardList, Heart, Tren
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const DoctorDashboard = () => {
@@ -13,7 +14,10 @@ const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
-
+  useEffect(() => {
+      resetNavbarTitles();
+      resetNavbarActiveState();
+    }, []);
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
@@ -87,7 +91,7 @@ const DoctorDashboard = () => {
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
-          <h2 className="mb-3">
+          <h2 className="mb-3 text-center text-md-center">
             <Stethoscope size={28} className="me-2" />
             Doctor Dashboard
           </h2>
