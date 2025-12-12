@@ -36,7 +36,7 @@ import PrivacyPolicy from "../../components/info/PrivacyPolicy";
 import RefundPolicy from "../../components/info/RefundPolicy";
 import AboutUs from "../../components/info/AboutUs";
 import TermsAndConditions from "../../components/info/TermsAndConditions";
-import { resetNavbarTitles } from '../../components/layout/SecondaryNavBar';
+import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 
 // Assets & Styles
 import heroImage from "../../assets/heroImage.webp"; // this is Dashboard Screenshot
@@ -78,6 +78,7 @@ const HomePage = () => {
 
   useEffect(() => {
     resetNavbarTitles();
+    resetNavbarActiveState();
   }, []);
 
   // Form Handling

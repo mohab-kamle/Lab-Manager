@@ -4,6 +4,7 @@ import { FlaskConical, FileText, Plus, Activity, TestTube, ClipboardList, Micros
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 
 const ChemistDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -12,7 +13,10 @@ const ChemistDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
-
+  useEffect(() => {
+      resetNavbarTitles();
+      resetNavbarActiveState();
+    }, []);
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
@@ -86,12 +90,12 @@ const ChemistDashboard = () => {
       </Container>
     );
   }
-
+  
   return (
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
-          <h2 className="mb-3">
+          <h2 className="mb-3 text-center text-md-center">
             <FlaskConical size={28} className="me-2" />
             Chemist Dashboard
           </h2>
