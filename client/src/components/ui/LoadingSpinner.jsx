@@ -1,15 +1,18 @@
 import React from 'react';
-import './LoadingSpinner.css';
+import Lottie from 'lottie-react';
+import loadingAnimation from '../../assets/LabLogoLoading.json';
+import '../../styles/LoadingSpinner.css';
 
-const LoadingSpinner = ({ message = "Loading..." }) => {
+const LoadingSpinner = ({ message = "Loading..." , size = 250 , containerClassName = "loading-container"}) => {
   return (
-    <div className="loading-container">
-      <div className="loading-spinner">
-        <div className="spinner"></div>
-        <p className="loading-message">{message}</p>
-      </div>
+    <div className={`${containerClassName}`}>
+        <Lottie 
+          animationData={loadingAnimation} 
+          loop={true}
+          style={{ width: size, height: size }}
+        />
     </div>
   );
 };
 
-export default LoadingSpinner; 
+export default LoadingSpinner;

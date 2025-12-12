@@ -41,11 +41,12 @@ import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layo
 // Assets & Styles
 import heroImage from "../../assets/heroImage.webp"; // this is Dashboard Screenshot
 import "../../styles/HomePage.css";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 
 // Animation Variants
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+  visible: { opacity: 1, y: 0, transition: { duration: 1, ease: "easeOut" } }
 };
 
 const staggerContainer = {
@@ -175,7 +176,7 @@ const HomePage = () => {
                 className="hero-image-wrapper mb-2"
                 initial={{ opacity: 0, scale: 0.8, rotateX: 10 }}
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
+                transition={{ duration: 1, delay: 0.2 }}
               >
                 <div className="glass-panel-glow" />
                 <motion.img 
@@ -244,14 +245,17 @@ const HomePage = () => {
             >
               <div className="p-4 h-100 d-flex flex-column">
                 <div className="mb-auto">
-                  <div className="icon-box bg-primary-subtle text-primary mb-3">
-                    <FlaskConical size={24} />
+                  <div className="icon-box text-primary mb-3  rounded-5" style={{ border: '3px solid var(--border)' }}>
+                    <DotLottieReact
+                      src="/Gears Lottie Animation.lottie"
+                      autoplay
+                      loop
+                      style={{ width: '100px', height: '100px' }}
+                    />
                   </div>
                   <h3>Complete Operations</h3>
                   <p className="text-muted">Manage cultures, antibiotics, inventory, and patient history from a single command center.</p>
                 </div>
-                {/* Visual Representation */}
-                <div className="bento-mockup bg-light rounded-3 mt-3 border h-150px"></div>
               </div>
             </motion.div>
 
@@ -295,8 +299,13 @@ const HomePage = () => {
             >
               <div className="p-4 d-flex align-items-center gap-4">
                  <div className="flex-grow-1">
-                    <div className="icon-box bg-success-subtle text-success mb-3">
-                      <Zap size={24} />
+                    <div className="icon-box text-success mb-3">
+                      <DotLottieReact
+                        src="/Electricity charging.lottie"
+                        autoplay
+                        loop
+                        style={{ width: '60px', height: '50px' }}
+                      />
                     </div>
                     <h4>Lightning Fast Performance</h4>
                     <p className="text-muted mb-0">Built on modern tech stacks for instant search and loading.</p>

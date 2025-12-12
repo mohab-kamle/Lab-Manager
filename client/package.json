@@ -12,6 +12,7 @@
     "postbuild": "node tag-version.cjs"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "^0.17.8",
     "@react-pdf/renderer": "^4.3.0",
     "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
@@ -26,6 +27,7 @@
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "jspdf-font": "^1.0.7",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.475.0",
     "luxon": "^3.6.1",
     "pdfmake": "^0.2.20",

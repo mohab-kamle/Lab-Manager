@@ -6,13 +6,14 @@ import { useNavigate } from "react-router-dom";
 import { Formik, Field, ErrorMessage, Form as FormikForm } from "formik";
 import * as Yup from "yup";
 import { formatDateForInput } from "../../utils/dateFormatter";
+import useLabPrefix from "../../hooks/useLabPrefix";
 
 const PatientUpdateProfile = () => {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const apiUrl = import.meta.env.VITE_API_URL;
-
+  const prefix = useLabPrefix();
   useEffect(() => {
     // Set API URL with fallback
     const serverUrl = import.meta.env.VITE_API_URL;
@@ -36,7 +37,7 @@ const PatientUpdateProfile = () => {
   const validationSchema = Yup.object({
     name: Yup.string().required("Name is required"),
     birth_date: Yup.date().nullable().required("Birth date is required"),
-    gender: Yup.string().oneOf(["m", "f"], "Invalid gender").required("Gender is required"),
+    gender: Yup.string().oneOf(["Male", "Female"], "Invalid gender").required("Gender is required"),
     primaryPhone: Yup.string().matches(/^\d+$/, "Must be a valid phone number"),
     secondaryPhone: Yup.string().matches(/^\d+$/, "Must be a valid phone number"),
     email: Yup.string().email("Invalid email format").required("Email is required"),
@@ -62,11 +63,15 @@ const PatientUpdateProfile = () => {
       
       const requestData = {
         ...values,
-        phones: [
-          { phone_number: values.primaryPhone },
-          { phone_number: values.secondaryPhone }
-        ].filter(phone => phone.phone_number)
+        phones: []
       };
+
+      if (values.primaryPhone) {
+        requestData.phones.push({ phone_number: values.primaryPhone, type: 'primary' });
+      }
+      if (values.secondaryPhone) {
+        requestData.phones.push({ phone_number: values.secondaryPhone, type: 'secondary' });
+      }
       
       console.log("Request data:", requestData);
 
@@ -84,14 +89,10 @@ const PatientUpdateProfile = () => {
       console.log("Update response:", response.data);
 
       if (response.data.success) {
+        console.log("Updated user data from backend:", response.data.updatedUser);
         // Use the new updateUser function from context
-        const updateSuccess = await setUser(response.data.updatedUser);
-        
-        if (updateSuccess) {
-          navigate("/patient/dashboard/profile", { replace: true });
-        } else {
-          setError("Profile updated but failed to refresh user data. Please try logging in again.");
-        }
+        setUser(response.data.updatedUser);
+        navigate(`/${prefix}/patient/profile`, { replace: true });
       } else {
         setError(response.data.message || "Failed to update profile");
       }
@@ -148,8 +149,8 @@ const PatientUpdateProfile = () => {
                       <Form.Label>Gender</Form.Label>
                       <Field as="select" name="gender" className="form-control">
                         <option value="">Select Gender</option>
-                        <option value="m">Male</option>
-                        <option value="f">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
                       </Field>
                       <ErrorMessage name="gender" component="div" className="text-danger" />
                     </Form.Group>
