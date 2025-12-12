@@ -234,14 +234,14 @@ const MainNavBar = () => {
   return (
     <>
       <Navbar
-        expand="lg"
+        expand="xl"
         sticky="top"
         fixed="top"
         expanded={expanded}
         collapseOnSelect
         onClick={handleNavClick}
         data-bs-theme="white"
-        className="text-white pt-4 mt-5"
+        className="text-white pt-3 px-3 d-flex align-items-center"
         style={{
           background: "white",
           border: "none",
@@ -250,7 +250,7 @@ const MainNavBar = () => {
           zIndex: 1050,
         }}
       >
-        <Container className="d-flex align-items-center justify-content-center">
+        <Container fluid>
           <Navbar.Brand as={Link} to="/" onClick={() => setExpanded(false)}>
             <img
               src={labIcon}
@@ -261,7 +261,7 @@ const MainNavBar = () => {
               style={{
                 marginLeft: "10px",
                 marginTop: "15px",
-                fontSize: "20px",
+                fontSize: "clamp(16px, 2.5vw, 20px)",
                 fontWeight: "bold",
               }}
             >
@@ -272,8 +272,9 @@ const MainNavBar = () => {
             aria-controls="basic-navbar-nav"
             onClick={() => setExpanded(expanded ? false : true)}
           />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="nav-home">
+          <Navbar.Collapse className="justify-content-end">
+            <Nav className="Down-on-main me-auto">
+              {/* Dashboard Home Link */}
               {!prefix || labLoading ? (
                 user && <Nav.Link disabled>Loading...</Nav.Link>
               ) : user?.role === "admin" ? (
@@ -337,8 +338,6 @@ const MainNavBar = () => {
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : null}
-            </Nav>
-            <Nav className="Down-on-main">
               {/* Test Groups Dropdown for admin, chemist, receptionist */}
               {(user?.role === "admin" ||
                 user?.role === "chemist" ||
@@ -818,14 +817,13 @@ const MainNavBar = () => {
                     <FlaskConical size={18} className="mb-1" /> Reports
                   </Nav.Link>
                 </>
-              )}
+            )}
             </Nav>
-            <Nav className="nav-logout">
+            <Nav className="d-flex align-items-center">
+              {/* Logout Link */}
+              
               {user ? (
                 <>
-                  <NavbarText className="me-2">
-                    {/* Welcome user.name || 'User' */}
-                  </NavbarText>
                   <Nav.Link
                     as={Link}
                     to="/"
@@ -841,13 +839,15 @@ const MainNavBar = () => {
                   as={Link}
                   to="/login"
                   onClick={() => setExpanded(false)}
+                  // Optional: Add specific styling for the login button
+                  className="ms-2" 
                 >
                   Login
                 </Nav.Link>
               )}
             </Nav>
           </Navbar.Collapse>
-        </Container>
+              </Container>
       </Navbar>
       {user && (
         <div className={`welcome-label ${showWelcome ? "visible" : "hidden"}`}>

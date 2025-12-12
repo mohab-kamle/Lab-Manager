@@ -437,9 +437,8 @@
 
 /* Payment Modal Header */
 .modal-header {
-  background: linear-gradient(90deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%);
-  color: white;
-  border-bottom: none;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border-muted);
 }
 
 .modal-header .modal-title {
@@ -460,7 +459,7 @@
 
 /* Payment Modal Footer */
 .modal-footer {
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border-muted);
   padding: 20px;
 }
 

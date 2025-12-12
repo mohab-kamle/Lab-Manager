@@ -111,33 +111,27 @@ const ChangePassword = () => {
   };
 
   return (
-    <div
-      className="min-vh-100 d-flex align-items-center"
-      style={{
-        background: "linear-gradient(135deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)",
-        padding: "20px 0",
-      }}
-    >
+    <div className="min-vh-100 d-flex align-items-center" style={{
+      background: 'var(--bg-dark)',
+      padding: '20px 0'
+    }}>
       <Container>
         <Row className="justify-content-center">
           <Col lg={8} md={10} sm={12}>
-            <Card className="border-0 shadow-lg" style={{ borderRadius: "20px", overflow: "hidden" }}>
-              <div
-                className="text-center py-4"
-                style={{
-                  background: "linear-gradient(135deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)",
-                  color: "white",
-                }}
-              >
+            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' , border: '1px solid var(--border)' }}>
+              <div className="text-center pt-4" style={{
+                background: 'var(--bg)',
+                color: 'var(--text)'
+              }}>
                 <div className="mb-3">
                   <div
                     className="d-inline-flex align-items-center justify-content-center"
                     style={{
-                      width: "80px",
-                      height: "80px",
-                      borderRadius: "50%",
-                      backgroundColor: "rgba(255, 255, 255, 0.2)",
-                      backdropFilter: "blur(10px)",
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--bg)',
+                      backdropFilter: 'blur(10px)',
                     }}
                   >
                     <Shield size={40} />
@@ -150,7 +144,7 @@ const ChangePassword = () => {
               <Card.Body className="p-5">
 
                 {error && (
-                  <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: "12px" }}>
+                  <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
                     <div className="d-flex align-items-center">
                       <div className="me-2">⚠️</div>
                       <div>{error}</div>
@@ -159,7 +153,7 @@ const ChangePassword = () => {
                 )}
 
                 {success && (
-                  <Alert variant="success" className="mb-4 border-0" style={{ borderRadius: "12px" }}>
+                  <Alert variant="success" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
                     <div className="d-flex align-items-center">
                       <CheckCircle size={18} className="me-2" />
                       <div>{success}</div>
@@ -183,7 +177,12 @@ const ChangePassword = () => {
                         onChange={(e) => setOldPassword(e.target.value)}
                         required
                         className="py-3 px-4 border-0"
-                        style={{ backgroundColor: "#f8f9fa", borderRadius: "12px", fontSize: "1.1em", paddingRight: "50px" }}
+                        style={{
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '12px',
+                          fontSize: '1.1em',
+                          paddingRight: '50px'
+                        }}
                       />
                       <Button
                         type="button"
@@ -213,7 +212,12 @@ const ChangePassword = () => {
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
                         className="py-3 px-4 border-0"
-                        style={{ backgroundColor: "#f8f9fa", borderRadius: "12px", fontSize: "1.1em", paddingRight: "50px" }}
+                        style={{
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '12px',
+                          fontSize: '1.1em',
+                          paddingRight: '50px'
+                        }}
                       />
                       <Button
                         type="button"
@@ -230,7 +234,7 @@ const ChangePassword = () => {
 
                     {/* Strength Indicator */}
                     {newPassword && newPassword.length > 0 && (
-                      <Alert variant={strengthVariant} className="mt-3 py-2 border-0 " style={{ borderRadius: "8px" }}>
+                      <Alert variant={strengthVariant} className="mt-3 py-2 border-0 " style={{ borderRadius: '8px' }}>
                         <div className="d-flex flex-column align-items-start justify-content-between ">
                           <small className="fw-semibold">Strength : {strengthLabel}</small>
                           <small className="d-flex flex-wrap justify-content-center flex-column">
@@ -259,7 +263,12 @@ const ChangePassword = () => {
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                         className="py-3 px-4 border-0"
-                        style={{ backgroundColor: "#f8f9fa", borderRadius: "12px", fontSize: "1.1em", paddingRight: "50px" }}
+                        style={{
+                          backgroundColor: '#f8f9fa',
+                          borderRadius: '12px',
+                          fontSize: '1.1em',
+                          paddingRight: '50px'
+                        }}
                       />
                       <Button
                         type="button"
@@ -283,10 +292,9 @@ const ChangePassword = () => {
                     className="w-100 py-3 fw-semibold border-0"
                     disabled={loading}
                     style={{
-                      borderRadius: "12px",
-                      background: "linear-gradient(135deg, rgb(29, 73, 142) 0%, rgb(52, 152, 219) 100%)",
-                      fontSize: "1.1em",
-                      transition: "all 0.3s ease",
+                      borderRadius: '12px',
+                      fontSize: '1.1em',
+                      transition: 'all 0.3s ease'
                     }}
                   >
                     {loading ? (
