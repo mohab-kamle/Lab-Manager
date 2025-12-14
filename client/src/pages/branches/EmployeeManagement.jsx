@@ -1,14 +1,38 @@
 import React, { useEffect, useState } from "react";
-import { Container, Button, Modal, Form, Alert, Row, Col, Badge, Card } from "react-bootstrap";
+import {
+  Container,
+  Button,
+  Modal,
+  Form,
+  Alert,
+  Row,
+  Col,
+  Badge,
+  Card,
+} from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
-import { Pencil, Trash2, Plus, Shield, Eye, UserPlus } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Plus,
+  Shield,
+  Eye,
+  UserPlus,
+  CheckCircle,
+  AlertCircle,
+  X,
+  AlertTriangle,
+  Info,
+  UserX,
+} from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import "../../styles/EmployeeManagement.css";
 
 const EmployeeManagement = () => {
   const { user } = useAuth();
@@ -19,7 +43,10 @@ const EmployeeManagement = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({
+    field: null,
+    direction: "asc",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -39,27 +66,79 @@ const EmployeeManagement = () => {
     nationality: "",
     passport_no: "",
     role: "",
-    branch_id: ""
+    branch_id: "",
   });
   const [branches, setBranches] = useState([]);
   const [formErrors, setFormErrors] = useState({});
 
   const apiUrl = import.meta.env.VITE_API_URL;
+  const [toastData, setToastData] = useState({
+    show: false,
+    message: "",
+    type: "",
+    position: "right",
+    isHiding: false,
+  });
+  const [confirmData, setConfirmData] = useState({
+    show: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    type: "danger", // danger, warning, info
+  });
+  const showConfirm = (title, message, onConfirm, type = "danger") => {
+    setConfirmData({
+      show: true,
+      title,
+      message,
+      onConfirm,
+      type,
+    });
+  };
+  const hideConfirm = () => {
+    setConfirmData({
+      show: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      type: "danger",
+    });
+  };
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const showToast = (message, type, position = "right", duration = 3000) => {
+    setToastData({ show: true, message, type, position, isHiding: false });
 
+    setTimeout(() => {
+      // Trigger hide animation
+      setToastData((prev) => ({ ...prev, isHiding: true }));
+
+      // Actually hide after animation completes
+      setTimeout(() => {
+        setToastData({
+          show: false,
+          message: "",
+          type: "",
+          position: "right",
+          isHiding: false,
+        });
+      }, 300); // Match animation duration
+    }, duration);
+  };
+  const [isDeleting, setIsDeleting] = useState(false);
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
         const [employeesRes, rolesRes, branchesRes] = await Promise.all([
           axios.get(`${apiUrl}/emp`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
           }),
           axios.get(`${apiUrl}/emp/roles/available`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
           }),
           axios.get(`${apiUrl}/branches`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         setEmployees(employeesRes.data);
@@ -68,22 +147,26 @@ const EmployeeManagement = () => {
 
         // Set up table headers
         const headers = [
-          { field: 'name', label: 'Name', sortable: true },
-          { field: 'username', label: 'Username', sortable: true },
-          { field: 'email', label: 'Email', sortable: true },
-          { field: 'role', label: 'Role', sortable: true },
-          { field: 'gender', label: 'Gender', sortable: true },
-          { field: 'birth_date', label: 'Birth Date', sortable: true },
-          { field: 'national_id', label: 'National ID', sortable: true },
-          { field: 'nationality', label: 'Nationality', sortable: true },
-          { field: 'branch', label: 'Branch', sortable: false }
+          { field: "name", label: "Name", sortable: true },
+          { field: "username", label: "Username", sortable: true },
+          { field: "email", label: "Email", sortable: true },
+          { field: "role", label: "Role", sortable: true },
+          { field: "gender", label: "Gender", sortable: true },
+          { field: "birth_date", label: "Birth Date", sortable: true },
+          { field: "national_id", label: "National ID", sortable: true },
+          { field: "nationality", label: "Nationality", sortable: true },
+          { field: "branch", label: "Branch", sortable: false },
         ];
 
         setTableHeaders(headers);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError("Failed to fetch data. Please try again later.");
+        showToast(
+          "Failed to fetch data. Please try again later.",
+          "error",
+          "center"
+        );
         setLoading(false);
       }
     };
@@ -97,7 +180,9 @@ const EmployeeManagement = () => {
       // Clean up the employee object
       const cleanedEmployee = {
         ...employee,
-        birth_date: employee.birth_date ? new Date(employee.birth_date).toISOString().split('T')[0] : null
+        birth_date: employee.birth_date
+          ? new Date(employee.birth_date).toISOString().split("T")[0]
+          : null,
       };
 
       // Validate the cleaned employee
@@ -108,77 +193,109 @@ const EmployeeManagement = () => {
       }
 
       const token = localStorage.getItem("token");
-      setLoading(true);
-      setError(null);
+      setIsSubmitting(true);
 
       let response;
       if (editingEmployee) {
         // Update existing employee
-        response = await axios.put(`${apiUrl}/emp/${editingEmployee.id}`, cleanedEmployee, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        response = await axios.put(
+          `${apiUrl}/emp/${editingEmployee.id}`,
+          cleanedEmployee,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         // Update the employees state
-        setEmployees(prevEmployees => prevEmployees.map(emp => 
-          emp.id === editingEmployee.id ? response.data : emp
-        ));
+        setEmployees((prevEmployees) =>
+          prevEmployees.map((emp) =>
+            emp.id === editingEmployee.id ? response.data : emp
+          )
+        );
       } else {
         // Create new employee
         response = await axios.post(`${apiUrl}/emp`, cleanedEmployee, {
           headers: { Authorization: `Bearer ${token}` },
         });
         // Add the new employee to the employees state
-        setEmployees(prevEmployees => [...prevEmployees, response.data]);
+        setEmployees((prevEmployees) => [...prevEmployees, response.data]);
       }
-
+      const savedName = editingEmployee ? editingEmployee.name : employee.name;
+      showToast(
+        editingEmployee
+          ? `"${savedName}" updated successfully!`
+          : `"${savedName}" added successfully!`,
+        "success",
+        "center"
+      );
       setShowAddModal(false);
       handleResetForm();
     } catch (error) {
-      console.error('Error saving employee:', error);
-      setError(error.response?.data?.error || 'Failed to save employee');
+      const errorMessage =
+        error.response?.data?.error || "Failed to save employee";
+      console.error("Error saving employee:", error);
+      showToast(
+        error.response?.data?.error || "Failed to save employee",
+        "error",
+        "right"
+      );
+      if (errorMessage.toLowerCase().includes("username")) {
+        setFormErrors({
+          ...formErrors,
+          username: errorMessage,
+        });
+      }
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, name) => {
     try {
       const token = localStorage.getItem("token");
-      setLoading(true);
-      setError(null);
+      setIsDeleting(true);
 
       await axios.delete(`${apiUrl}/emp/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       // Update the employees state
-      setEmployees(prevEmployees => prevEmployees.filter(emp => emp.id !== id));
+      setEmployees((prevEmployees) =>
+        prevEmployees.filter((emp) => emp.id !== id)
+      );
+      showToast(`"${name}" deleted successfully!`, "success", "center");
       setShowDeleteModal(false);
       setEmployeeToDelete(null);
     } catch (error) {
       console.error("Error deleting employee:", error);
-      setError("Failed to delete employee. Please try again.");
+      showToast("Failed to delete employee.", "error", "right");
     } finally {
-      setLoading(false);
+      setShowDeleteModal(false);
+      setEmployeeToDelete(null);
+      setIsDeleting(false);
     }
   };
 
   const handleViewPermissions = async (role) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`${apiUrl}/emp/roles/${role}/permissions`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await axios.get(
+        `${apiUrl}/emp/roles/${role}/permissions`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setRolePermissions(response.data);
       setSelectedRole(role);
       setShowPermissionsModal(true);
     } catch (error) {
       console.error("Error fetching permissions:", error);
-      setError("Failed to fetch permissions");
+      showToast("Failed to fetch permissions", "error", "right");
     }
   };
 
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredEmployees = employees.filter((employee) => {
+    const matchesSearch =
+      employee.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       employee.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       employee.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       employee.role?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -187,16 +304,16 @@ const EmployeeManagement = () => {
 
   const sortedEmployees = [...filteredEmployees].sort((a, b) => {
     if (!sortConfig.field) return 0;
-    
+
     const aValue = a[sortConfig.field];
     const bValue = b[sortConfig.field];
-    
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortConfig.direction === "asc" 
+
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      return sortConfig.direction === "asc"
         ? aValue.localeCompare(bValue)
         : bValue.localeCompare(aValue);
     }
-    
+
     return 0;
   });
 
@@ -223,8 +340,10 @@ const EmployeeManagement = () => {
           setEditingEmployee(rowData);
           setEmployee({
             ...rowData,
-            birth_date: rowData.birth_date ? new Date(rowData.birth_date) : null,
-            password: "" // Don't show password
+            birth_date: rowData.birth_date
+              ? new Date(rowData.birth_date)
+              : null,
+            password: "", // Don't show password
           });
           setShowAddModal(true);
         }}
@@ -235,41 +354,46 @@ const EmployeeManagement = () => {
         variant="outline-danger"
         size="sm"
         onClick={() => {
-          setEmployeeToDelete(rowData);
-          setShowDeleteModal(true);
+          showConfirm(
+            "Delete Employee?",
+            `Are you sure you want to delete "${rowData.name}"? This action cannot be undone.`,
+            () => handleDelete(rowData.id, rowData.name),
+            "danger"
+          );
         }}
         disabled={rowData.id === user?.id} // Prevent deleting own account
       >
-        <Trash2 size={16} />
+        <UserX size={18} />
       </Button>
     </div>
   );
 
   const validateForm = (employee) => {
     const errors = {};
-    if (!employee.name) errors.name = 'Name is required';
-    if (!employee.username) errors.username = 'Username is required';
-    if (!editingEmployee && !employee.password) errors.password = 'Password is required';
-    if (!employee.role) errors.role = 'Role is required';
-    if (!employee.branch_id) errors.branch_id = 'Branch is required';
+    if (!employee.name) errors.name = "Name is required";
+    if (!employee.username) errors.username = "Username is required";
+    if (!editingEmployee && !employee.password)
+      errors.password = "Password is required";
+    if (!employee.role) errors.role = "Role is required";
+    if (!employee.branch_id) errors.branch_id = "Branch is required";
     // Email validation
     if (employee.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(employee.email)) {
-        errors.email = 'Invalid email format';
+        errors.email = "Invalid email format";
       }
     }
     if (employee.username && employee.username.length < 3) {
-      errors.username = 'Username must be at least 3 characters';
+      errors.username = "Username must be at least 3 characters";
     }
     if (!editingEmployee && employee.password && employee.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
+      errors.password = "Password must be at least 6 characters";
     }
     return errors;
   };
 
   const formatCellData = (value, field, rowData) => {
-    if (value === null || value === undefined) return '-';
+    if (value === null || value === undefined) return "-";
     switch (field) {
       case 'birth_date':
         return value ? new Date(value).toLocaleDateString() : '-';
@@ -279,28 +403,32 @@ const EmployeeManagement = () => {
         } else if (value === 'f' || value === 'Female') {
           return 'Female';
         } else {
-          return '-';
+          return "-";
         }
-      case 'role':
+      case "role":
         return (
-          <Badge 
+          <Badge
             bg={
-              value === 'admin' ? 'danger' :
-              value === 'receptionist' ? 'primary' :
-              value === 'chemist' ? 'success' :
-              value === 'doctor' ? 'info' :
-              'secondary'
+              value === "admin"
+                ? "danger"
+                : value === "receptionist"
+                ? "primary"
+                : value === "chemist"
+                ? "success"
+                : value === "doctor"
+                ? "info"
+                : "secondary"
             }
           >
             {value?.charAt(0).toUpperCase() + value?.slice(1)}
           </Badge>
         );
-      case 'branch':
-        if (!rowData) return '-';
-        const branch = branches.find(b => b.id === rowData.branch_id);
-        return branch ? branch.name : '-';
+      case "branch":
+        if (!rowData) return "-";
+        const branch = branches.find((b) => b.id === rowData.branch_id);
+        return branch ? branch.name : "-";
       default:
-        return String(value || '-');
+        return String(value || "-");
     }
   };
 
@@ -316,18 +444,23 @@ const EmployeeManagement = () => {
       nationality: "",
       passport_no: "",
       role: "",
-      branch_id: ""
+      branch_id: "",
     });
     setFormErrors({});
   };
 
   const getRoleColor = (role) => {
     switch (role) {
-      case 'admin': return 'danger';
-      case 'receptionist': return 'primary';
-      case 'chemist': return 'success';
-      case 'doctor': return 'info';
-      default: return 'secondary';
+      case "admin":
+        return "danger";
+      case "receptionist":
+        return "primary";
+      case "chemist":
+        return "success";
+      case "doctor":
+        return "info";
+      default:
+        return "secondary";
     }
   };
 
@@ -335,14 +468,12 @@ const EmployeeManagement = () => {
     <Container fluid className="employee-management-container">
       {loading ? (
         <LoadingSpinner message="Loading employee list..." />
-      ) : error ? (
-        <Alert variant="danger">{error}</Alert>
       ) : (
         <>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h2>Employee Management</h2>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={() => {
                 setEditingEmployee(null);
                 handleResetForm();
@@ -360,14 +491,16 @@ const EmployeeManagement = () => {
             itemsPerPage={itemsPerPage}
             setItemsPerPage={setItemsPerPage}
             setCurrentPage={setCurrentPage}
-            sortableFields={tableHeaders.filter(h => h.sortable).map(h => h.field)}
+            sortableFields={tableHeaders
+              .filter((h) => h.sortable)
+              .map((h) => h.field)}
             sortConfig={sortConfig}
             setSortConfig={setSortConfig}
           />
-          
+
           <DynamicTable
             data={currentEmployees}
-            columns={tableHeaders.map(header => header.field)}
+            columns={tableHeaders.map((header) => header.field)}
             formatCellData={formatCellData}
             ActionComponent={ActionComponent}
             customHeaders={tableHeaders.reduce((acc, header) => {
@@ -375,7 +508,7 @@ const EmployeeManagement = () => {
               return acc;
             }, {})}
           />
-          
+
           <TablePagination
             currentPage={currentPage}
             pageCount={pageCount}
@@ -383,22 +516,20 @@ const EmployeeManagement = () => {
           />
 
           {/* Add/Edit Modal */}
-          <Modal show={showAddModal} onHide={() => {
-            setShowAddModal(false);
-            setError(null);
-            setFormErrors({});
-          }} size="lg">
+          <Modal
+            show={showAddModal}
+            onHide={() => {
+              setShowAddModal(false);
+              setFormErrors({});
+            }}
+            size="lg"
+          >
             <Modal.Header closeButton>
               <Modal.Title>
                 {editingEmployee ? "Edit" : "Add"} Employee
               </Modal.Title>
             </Modal.Header>
             <Modal.Body>
-              {error && (
-                <Alert variant="danger" className="mb-3">
-                  {error}
-                </Alert>
-              )}
               <Form onSubmit={handleAddEmployee} noValidate id="employee-form">
                 <Row>
                   <Col md={6}>
@@ -410,7 +541,8 @@ const EmployeeManagement = () => {
                         value={employee.name}
                         onChange={(e) => {
                           setEmployee({ ...employee, name: e.target.value });
-                          if (formErrors.name) setFormErrors({ ...formErrors, name: null });
+                          if (formErrors.name)
+                            setFormErrors({ ...formErrors, name: null });
                         }}
                         isInvalid={!!formErrors.name}
                       />
@@ -427,8 +559,12 @@ const EmployeeManagement = () => {
                         placeholder="Enter username"
                         value={employee.username}
                         onChange={(e) => {
-                          setEmployee({ ...employee, username: e.target.value });
-                          if (formErrors.username) setFormErrors({ ...formErrors, username: null });
+                          setEmployee({
+                            ...employee,
+                            username: e.target.value,
+                          });
+                          if (formErrors.username)
+                            setFormErrors({ ...formErrors, username: null });
                         }}
                         isInvalid={!!formErrors.username}
                       />
@@ -444,16 +580,22 @@ const EmployeeManagement = () => {
                       <Form.Label>Branch *</Form.Label>
                       <Form.Select
                         value={employee.branch_id}
-                        onChange={e => {
-                          setEmployee({ ...employee, branch_id: e.target.value });
-                          if (formErrors.branch_id) setFormErrors({ ...formErrors, branch_id: null });
+                        onChange={(e) => {
+                          setEmployee({
+                            ...employee,
+                            branch_id: e.target.value,
+                          });
+                          if (formErrors.branch_id)
+                            setFormErrors({ ...formErrors, branch_id: null });
                         }}
                         isInvalid={!!formErrors.branch_id}
                         required
                       >
                         <option value="">Select Branch</option>
-                        {branches.map(branch => (
-                          <option key={branch.id} value={branch.id}>{branch.name}</option>
+                        {branches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
                         ))}
                       </Form.Select>
                       <Form.Control.Feedback type="invalid">
@@ -466,14 +608,24 @@ const EmployeeManagement = () => {
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Password {!editingEmployee && '*'}</Form.Label>
+                      <Form.Label>
+                        Password {!editingEmployee && "*"}
+                      </Form.Label>
                       <Form.Control
                         type="password"
-                        placeholder={editingEmployee ? "Leave blank to keep current" : "Enter password"}
+                        placeholder={
+                          editingEmployee
+                            ? "Leave blank to keep current"
+                            : "Enter password"
+                        }
                         value={employee.password}
                         onChange={(e) => {
-                          setEmployee({ ...employee, password: e.target.value });
-                          if (formErrors.password) setFormErrors({ ...formErrors, password: null });
+                          setEmployee({
+                            ...employee,
+                            password: e.target.value,
+                          });
+                          if (formErrors.password)
+                            setFormErrors({ ...formErrors, password: null });
                         }}
                         isInvalid={!!formErrors.password}
                       />
@@ -494,12 +646,13 @@ const EmployeeManagement = () => {
                         value={employee.role}
                         onChange={(e) => {
                           setEmployee({ ...employee, role: e.target.value });
-                          if (formErrors.role) setFormErrors({ ...formErrors, role: null });
+                          if (formErrors.role)
+                            setFormErrors({ ...formErrors, role: null });
                         }}
                         isInvalid={!!formErrors.role}
                       >
                         <option value="">Select Role</option>
-                        {roles.map(role => (
+                        {roles.map((role) => (
                           <option key={role.value} value={role.value}>
                             {role.label} - {role.description}
                           </option>
@@ -522,7 +675,8 @@ const EmployeeManagement = () => {
                         value={employee.email}
                         onChange={(e) => {
                           setEmployee({ ...employee, email: e.target.value });
-                          if (formErrors.email) setFormErrors({ ...formErrors, email: null });
+                          if (formErrors.email)
+                            setFormErrors({ ...formErrors, email: null });
                         }}
                         isInvalid={!!formErrors.email}
                       />
@@ -536,7 +690,9 @@ const EmployeeManagement = () => {
                       <Form.Label>Gender</Form.Label>
                       <Form.Select
                         value={employee.gender}
-                        onChange={(e) => setEmployee({ ...employee, gender: e.target.value })}
+                        onChange={(e) =>
+                          setEmployee({ ...employee, gender: e.target.value })
+                        }
                       >
                         <option value="">Select Gender</option>
                         <option value="Male">Male</option>
@@ -552,7 +708,9 @@ const EmployeeManagement = () => {
                       <Form.Label>Birth Date</Form.Label>
                       <DatePicker
                         selected={employee.birth_date}
-                        onChange={(date) => setEmployee({ ...employee, birth_date: date })}
+                        onChange={(date) =>
+                          setEmployee({ ...employee, birth_date: date })
+                        }
                         className="form-control"
                         dateFormat="yyyy-MM-dd"
                         maxDate={new Date()}
@@ -566,7 +724,12 @@ const EmployeeManagement = () => {
                         type="text"
                         placeholder="Enter national ID"
                         value={employee.national_id}
-                        onChange={(e) => setEmployee({ ...employee, national_id: e.target.value })}
+                        onChange={(e) =>
+                          setEmployee({
+                            ...employee,
+                            national_id: e.target.value,
+                          })
+                        }
                       />
                     </Form.Group>
                   </Col>
@@ -580,7 +743,12 @@ const EmployeeManagement = () => {
                         type="text"
                         placeholder="Enter nationality"
                         value={employee.nationality}
-                        onChange={(e) => setEmployee({ ...employee, nationality: e.target.value })}
+                        onChange={(e) =>
+                          setEmployee({
+                            ...employee,
+                            nationality: e.target.value,
+                          })
+                        }
                       />
                     </Form.Group>
                   </Col>
@@ -591,7 +759,12 @@ const EmployeeManagement = () => {
                         type="text"
                         placeholder="Enter passport number"
                         value={employee.passport_no}
-                        onChange={(e) => setEmployee({ ...employee, passport_no: e.target.value })}
+                        onChange={(e) =>
+                          setEmployee({
+                            ...employee,
+                            passport_no: e.target.value,
+                          })
+                        }
                       />
                     </Form.Group>
                   </Col>
@@ -599,55 +772,40 @@ const EmployeeManagement = () => {
               </Form>
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={() => {
-                setShowAddModal(false);
-                setError(null);
-                setFormErrors({});
-              }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setFormErrors({});
+                }}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 type="submit"
                 form="employee-form"
-                disabled={loading}
+                disabled={isSubmitting}
               >
-                {loading ? "Saving..." : (editingEmployee ? "Update" : "Add")}
+                {isSubmitting
+                  ? "Saving..."
+                  : editingEmployee
+                  ? "Update"
+                  : "Add"}
               </Button>
             </Modal.Footer>
           </Modal>
-
-          {/* Delete Confirmation Modal */}
-          <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-            <Modal.Header closeButton>
-              <Modal.Title>Confirm Delete</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <Alert variant="warning">
-                Are you sure you want to delete this employee?
-                This action cannot be undone.
-              </Alert>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </Button>
-              <Button 
-                variant="danger" 
-                onClick={() => handleDelete(employeeToDelete?.id)}
-                disabled={loading}
-              >
-                {loading ? "Deleting..." : "Delete"}
-              </Button>
-            </Modal.Footer>
-          </Modal>
-
           {/* Permissions Modal */}
-          <Modal show={showPermissionsModal} onHide={() => setShowPermissionsModal(false)}>
+          <Modal
+            show={showPermissionsModal}
+            onHide={() => setShowPermissionsModal(false)}
+          >
             <Modal.Header closeButton>
               <Modal.Title>
                 <Shield size={20} className="me-2" />
-                Role Permissions: {selectedRole?.charAt(0).toUpperCase() + selectedRole?.slice(1)}
+                Role Permissions:{" "}
+                {selectedRole?.charAt(0).toUpperCase() + selectedRole?.slice(1)}
               </Modal.Title>
             </Modal.Header>
             <Modal.Body>
@@ -660,7 +818,9 @@ const EmployeeManagement = () => {
                   <ul className="list-unstyled">
                     {rolePermissions.permissions.map((permission, index) => (
                       <li key={index} className="mb-2">
-                        <Badge bg="success" className="me-2">✓</Badge>
+                        <Badge bg="success" className="me-2">
+                          ✓
+                        </Badge>
                         {permission}
                       </li>
                     ))}
@@ -669,12 +829,132 @@ const EmployeeManagement = () => {
               )}
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowPermissionsModal(false)}>
+              <Button
+                variant="secondary"
+                onClick={() => setShowPermissionsModal(false)}
+              >
                 Close
               </Button>
             </Modal.Footer>
           </Modal>
         </>
+      )}
+      {/* Toast Notification */}
+      {toastData.show && (
+        <div
+          className={`
+      ${
+        toastData.position === "center"
+          ? "toast-container-center"
+          : "toast-container-right"
+      }
+      ${toastData.isHiding ? "hiding" : ""}
+    `}
+          onClick={() => {
+            if (toastData.position === "center") {
+              // Trigger hide animation first
+              setToastData({ ...toastData, isHiding: true });
+              setTimeout(() => {
+                setToastData({
+                  show: false,
+                  message: "",
+                  type: "",
+                  position: "right",
+                  isHiding: false,
+                });
+              }, 300); // Match animation duration
+            }
+          }}
+        >
+          <div className={`toast-card ${toastData.type}`}>
+            {/* Icon */}
+            <div className="icon-box">
+              {toastData.type === "success" ? (
+                <CheckCircle
+                  size={toastData.position === "center" ? 28 : 22}
+                  style={{ color: "var(--toast-success)" }}
+                />
+              ) : (
+                <AlertCircle
+                  size={toastData.position === "center" ? 28 : 22}
+                  style={{ color: "var(--toast-error)" }}
+                />
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="toast-content">
+              <h5 className="toast-title">
+                {toastData.type === "success" ? "Success!" : "Error!"}
+              </h5>
+              <p className="toast-message">{toastData.message}</p>
+            </div>
+
+            {/* Close Button - Only for Right Toast */}
+            {toastData.position !== "center" && (
+              <button
+                className="toast-close-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setToastData({ ...toastData, isHiding: true });
+                  setTimeout(() => {
+                    setToastData({
+                      show: false,
+                      message: "",
+                      type: "",
+                      position: "right",
+                      isHiding: false,
+                    });
+                  }, 300);
+                }}
+              >
+                <X size={18} />
+              </button>
+            )}
+
+            {/* Progress Bar */}
+            <div className="toast-progress"></div>
+          </div>
+        </div>
+      )}
+      {/* Confirmation Dialog */}
+      {confirmData.show && (
+        <div
+          className="confirm-overlay"
+          onClick={hideConfirm} // Click outside to close
+        >
+          <div
+            className={`confirm-card ${confirmData.type}`}
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking card
+          >
+            {/* Icon */}
+            <div className={`confirm-icon ${confirmData.type}`}>
+              {confirmData.type === "danger" && <AlertCircle size={40} />}
+              {confirmData.type === "warning" && <AlertTriangle size={40} />}
+              {confirmData.type === "info" && <Info size={40} />}
+            </div>
+
+            {/* Content */}
+            <h3 className="confirm-title">{confirmData.title}</h3>
+            <p className="confirm-message">{confirmData.message}</p>
+
+            {/* Buttons */}
+            <div className="confirm-buttons">
+              <button className="confirm-btn cancel" onClick={hideConfirm}>
+                Cancel
+              </button>
+              <button
+                className={`confirm-btn ${confirmData.type}`}
+                onClick={() => {
+                  confirmData.onConfirm();
+                  hideConfirm();
+                }}
+              >
+                {confirmData.type === "danger" ? "Yes, Delete" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </Container>
   );
