@@ -473,6 +473,11 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
                 break;
         }
 
+        // Delete from branch_has_employee
+        await sequelize.models.branch_has_employee.destroy({
+             where: { employee_id: emp.id }
+        });
+
         // Delete employee record
         await emp.destroy();
         res.json({ message: "Employee deleted successfully" });
