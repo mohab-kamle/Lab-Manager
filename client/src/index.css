@@ -29,6 +29,14 @@
   --warning: oklch(0.5 0.2 100);
   --success: oklch(0.5 0.2 160);
   --info: oklch(0.5 0.2 260);
+  /* Toast Specific Colors */
+  --toast-success: #10B981;
+  --toast-success-bg: rgba(16, 185, 129, 0.1);
+  --toast-error: #EF4444;
+  --toast-error-bg: rgba(239, 68, 68, 0.1);
+  --toast-text: #111827;
+  --toast-text-muted: #374151;
+  --toast-bg: #ffffff;
 }
 body.dark {
     /* hsl (fallback color) */
@@ -61,4 +69,12 @@ body.dark {
   --warning: oklch(0.7 0.2 100);
   --success: oklch(0.7 0.2 160);
   --info: oklch(0.7 0.2 260);
+   /* Toast Specific Colors (Dark Mode) */
+  --toast-success: #34D399;
+  --toast-success-bg: rgba(52, 211, 153, 0.15);
+  --toast-error: #F87171;
+  --toast-error-bg: rgba(248, 113, 113, 0.15);
+  --toast-text: #F9FAFB;
+  --toast-text-muted: #D1D5DB;
+  --toast-bg: #1F2937;
 }
