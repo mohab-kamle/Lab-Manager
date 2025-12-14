@@ -153,7 +153,6 @@ function App() {
               <Route path="employee/medical-reports" element={<PrivateRoute allowedRoles={['employee']}><MedicalReports /></PrivateRoute>} />
               {/* Patient routes */}
               <Route path="patient/dashboard" element={<PrivateRoute allowedRoles={['patient']}><PatientDashboard /></PrivateRoute>} />
-              
               <Route path="patient/profile" element={<PrivateRoute allowedRoles={['patient']}><PatientProfile /></PrivateRoute>} />
               <Route path="patient/profile/update" element={<PrivateRoute allowedRoles={['patient']}><PatientUpdateProfile /></PrivateRoute>} />
               <Route path="patient/reports" element={<PrivateRoute allowedRoles={['patient']}><PatientReports /></PrivateRoute>} />
