@@ -36,6 +36,7 @@ import KnowUs from './pages/info/KnowUs';
 import MedicalReports from './pages/reports/MedicalReports';
 import EmployeeManagement from './pages/branches/EmployeeManagement';
 import LabManagement from './pages/lab/LabManagement';
+import AdminProfile from './pages/admin/AdminProfile';
 
 const LabRoutes = () => (
   <Routes>
@@ -99,6 +100,7 @@ const LabRoutes = () => (
     <Route path="admin/dashboard/test-group-categories" element={<PrivateRoute element={<TestGroupCategories />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
     <Route path="admin/dashboard/test-group-components" element={<PrivateRoute element={<TestGroupComponents />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
     <Route path="admin/dashboard/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
+    <Route path="admin/dashboard/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />
     <Route path="admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
   </Routes>
 );
