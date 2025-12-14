@@ -2,12 +2,7 @@ import React, { useState } from "react";
 import { Container, Row, Col } from "react-bootstrap";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import PrivateRoute from "../../components/auth/PrivateRoute";
-import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 const PatientDashboard = () => {
-  useEffect(() => {
-      resetNavbarTitles();
-      resetNavbarActiveState();
-    }, []);
   return (
     <>
       <h1>welcome to the patient</h1>
