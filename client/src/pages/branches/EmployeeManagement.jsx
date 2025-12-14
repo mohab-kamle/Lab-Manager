@@ -274,9 +274,9 @@ const EmployeeManagement = () => {
       case 'birth_date':
         return value ? new Date(value).toLocaleDateString() : '-';
       case 'gender':
-        if (value === 'm') {
+        if (value === 'm' || value === 'Male') {
           return 'Male';
-        } else if (value === 'f') {
+        } else if (value === 'f' || value === 'Female') {
           return 'Female';
         } else {
           return '-';
@@ -539,8 +539,8 @@ const EmployeeManagement = () => {
                         onChange={(e) => setEmployee({ ...employee, gender: e.target.value })}
                       >
                         <option value="">Select Gender</option>
-                        <option value="m">Male</option>
-                        <option value="f">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
