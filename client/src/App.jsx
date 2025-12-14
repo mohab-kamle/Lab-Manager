@@ -14,6 +14,7 @@ import Register from './pages/auth/Register';
 import PaymentCallback from './pages/payment/PaymentCallback';
 import ChangePassword from './pages/auth/ChangePassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminProfile from './pages/admin/AdminProfile';
 import ChemistDashboard from './pages/chemist/ChemistDashboard';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
@@ -97,6 +98,7 @@ function App() {
               />
               {/* Admin routes */}
               <Route path="admin/dashboard" element={<PrivateRoute allowedRoles={['admin']}><AdminDashboard /></PrivateRoute>} />
+              <Route path="admin/dashboard/profile" element={<PrivateRoute allowedRoles={['admin']}><AdminProfile /></PrivateRoute>} />
               <Route path="admin/lab-management" element={<PrivateRoute allowedRoles={['admin']}><LabManagement /></PrivateRoute>} />
               <Route path="admin/patients" element={<PrivateRoute allowedRoles={['admin']}><PatientsAdminView /></PrivateRoute>} />
               <Route path="admin/patients/analytics" element={<PrivateRoute allowedRoles={['admin']}><PatientsAnalytics /></PrivateRoute>} />

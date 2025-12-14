@@ -18,42 +18,26 @@ import {
   TrendingUp,
   ArrowUp
 } from 'lucide-react';
-import LabIcon from '../../assets/LabIcon.png';
+import LabIcon from '../../assets/LabIcon.webp';
 import '../../styles/KnowUs.css';
-
+import FloatingBackToTopButton from '../../components/ui/FloatingBackToTopButton';
 const KnowUs = () => {
-    const [showScrollTop, setShowScrollTop] = useState(false);
 
-    useEffect(() => {
-        const handleScroll = () => {
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            setShowScrollTop(scrollTop > 300);
-        };
-        window.scrollTo(0, 0);
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+// Animation Variants
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 1, ease: "easeOut" } }
+};
 
-    const scrollToTop = () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    };
-
-    const fadeInUp = {
-        initial: { opacity: 0, y: 60 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.6 }
-    };
-
-    const staggerContainer = {
-        animate: {
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
-    };
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15
+    }
+  }
+};
 
     const values = [
         {
@@ -79,30 +63,30 @@ const KnowUs = () => {
     ];
 
     const stats = [
-        { number: "2025", label: "Year Launched", icon: <Award size={24} /> },
-        { number: "100+", label: "Labs Registered", icon: <FlaskConical size={24} /> },
-        { number: "10+", label: "Team Members", icon: <Stethoscope size={24} /> },
-        { number: "100%", label: "Cloud Based", icon: <TrendingUp size={24} /> }
+        { number: "2025", label: "Year Launched", icon: <Award size={36} color='var(--text)'/> },
+        { number: "100+", label: "Labs Registered", icon: <FlaskConical size={36} color='var(--text)' /> },
+        { number: "10+", label: "Team Members", icon: <Stethoscope size={36} color='var(--text)' /> },
+        { number: "100%", label: "Cloud Based", icon: <TrendingUp size={36} color='var(--text)' /> }
     ];
 
     const services = [
         {
-            icon: <Microscope size={32} />,
+            icon: <Microscope size={32} color='var(--primary)' />,
             title: "Clinical Chemistry",
             description: "Comprehensive blood chemistry analysis for accurate diagnosis."
         },
         {
-            icon: <FlaskConical size={32} />,
+            icon: <FlaskConical size={32} color='var(--primary)' />,
             title: "Microbiology",
             description: "Advanced microbial testing and culture analysis."
         },
         {
-            icon: <Stethoscope size={32} />,
+            icon: <Stethoscope size={32} color='var(--primary)' />,
             title: "Hematology",
             description: "Complete blood count and blood disorder testing."
         },
         {
-            icon: <TrendingUp size={32} />,
+            icon: <TrendingUp size={32} color='var(--primary)' />,
             title: "Immunology",
             description: "Specialized immune system and allergy testing."
         }
@@ -114,27 +98,27 @@ const KnowUs = () => {
             <section className="hero-section">
                 <Container fluid>
                     <Row className="align-items-center min-vh-100">
-                        <Col lg={6} className="text-center text-lg-start">
+                        <Col lg={12} className="text-center text-lg-start px-5">
                             <motion.div
-                                initial={{ opacity: 0, x: -50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.8 }}
+                                initial="hidden"
+                                animate="visible"
+                                variants={staggerContainer}
                                 style={{ position: 'relative', zIndex: 10 }}
                             >
-                                <Badge bg="primary" className="mb-3 px-3 py-2">
-                                    Established 2025
-                                </Badge>
-                                <h1 className="hero-title mb-4">
+                                <motion.div variants={fadeInUp} className="badge-modern mb-3 w-auto">
+                                    <span className="badge-dot"></span> Established 2025
+                                </motion.div>
+                                <motion.h1 variants={fadeInUp} className="hero-title mb-4">
                                     Leading Medical Laboratory
                                     <span className="text-primary"> Excellence</span>
-                                </h1>
-                                <p className="hero-subtitle mb-4">
+                                </motion.h1>
+                                <motion.p variants={fadeInUp} className="hero-subtitle mb-4">
                                     we want to be at the forefront of medical diagnostics, 
                                     providing accurate, reliable, and timely laboratory services to healthcare 
                                     providers and patients across the region.
-                                </p>
-                                <div className="hero-buttons">
-                                    <button className="btn btn-primary btn-lg me-3 mb-2" onClick={() => {
+                                </motion.p>
+                                <motion.div variants={fadeInUp} className="hero-buttons">
+                                    <button className="btn btn-primary btn-lg mb-2" onClick={() => {
                                         const servicesSection = document.getElementById('servicesSection');
                                         if (servicesSection) {
                                             servicesSection.scrollIntoView({ behavior: 'smooth' });
@@ -150,20 +134,7 @@ const KnowUs = () => {
                                     }}>
                                         Contact Us
                                     </button>
-                                </div>
-                            </motion.div>
-                        </Col>
-                        <Col lg={6} className="text-center">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.8, delay: 0.2 }}
-                            >
-                                <img 
-                                    src={LabIcon} 
-                                    alt="Laboratory Icon" 
-                                    className="hero-image"
-                                />
+                                </motion.div>
                             </motion.div>
                         </Col>
                     </Row>
@@ -411,21 +382,7 @@ const KnowUs = () => {
                 </Container>
             </section>
 
-            {/* Floating Back to Top Button */}
-            <motion.button
-                className="scroll-to-top-btn"
-                onClick={scrollToTop}
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ 
-                    opacity: showScrollTop ? 1 : 0, 
-                    scale: showScrollTop ? 1 : 0 
-                }}
-                transition={{ duration: 0.3 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-            >
-                <ArrowUp size={24} />
-            </motion.button>
+            <FloatingBackToTopButton />
         </div>
     );
 }
