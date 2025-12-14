@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert } from 'react-bootstrap';
-import { Users, FlaskConical, FileText, Plus, Activity, UserPlus, ClipboardList, BarChart2, DollarSign, CreditCard, TrendingUp, Percent, Settings } from 'lucide-react';
+import { Users, FlaskConical, FileText, Plus, Activity, UserPlus, ClipboardList, BarChart2, DollarSign, CreditCard, TrendingUp, Percent, Settings, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useLabPrefix from '../../hooks/useLabPrefix';
@@ -56,6 +56,12 @@ const AdminDashboard = () => {
       label: 'Lab Management', 
       onClick: () => navigate(`/${prefix}/admin/lab-management`),
       variant: 'outline-info'
+    },
+    { 
+      icon: <User size={20} />, 
+      label: 'My Profile', 
+      onClick: () => navigate(`/${prefix}/admin/dashboard/profile`),
+      variant: 'outline-primary'
     },
     { 
       icon: <Activity size={20} />, 

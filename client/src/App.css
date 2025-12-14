@@ -206,4 +206,54 @@
   filter: brightness(0.8);
 }
 
+/* Floating Back to Top Button */
+.scroll-to-top-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #004a93 0%, #0056b3 100%);
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 74, 147, 0.3);
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
 
+.scroll-to-top-btn:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #0066cc 100%);
+    box-shadow: 0 6px 25px rgba(0, 74, 147, 0.4);
+    transform: translateY(-2px);
+}
+
+.scroll-to-top-btn:active {
+    transform: translateY(0);
+}
+
+/* Responsive design for scroll to top button */
+@media (max-width: 768px) {
+    .scroll-to-top-btn {
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+    }
+    
+    .scroll-to-top-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .scroll-to-top-btn {
+        display: none;
+    }
+} 

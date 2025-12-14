@@ -395,13 +395,13 @@ const EmployeeManagement = () => {
   const formatCellData = (value, field, rowData) => {
     if (value === null || value === undefined) return "-";
     switch (field) {
-      case "birth_date":
-        return value ? new Date(value).toLocaleDateString() : "-";
-      case "gender":
-        if (value === "m") {
-          return "Male";
-        } else if (value === "f") {
-          return "Female";
+      case 'birth_date':
+        return value ? new Date(value).toLocaleDateString() : '-';
+      case 'gender':
+        if (value === 'm' || value === 'Male') {
+          return 'Male';
+        } else if (value === 'f' || value === 'Female') {
+          return 'Female';
         } else {
           return "-";
         }
@@ -695,8 +695,8 @@ const EmployeeManagement = () => {
                         }
                       >
                         <option value="">Select Gender</option>
-                        <option value="m">Male</option>
-                        <option value="f">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
