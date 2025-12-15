@@ -34,7 +34,7 @@ import axios from "axios";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { formatDate } from "../../utils/dateFormatter";
 import { motion } from "framer-motion";
-import { toast } from "react-toastify";
+import { useToast } from "../../components/ui/ToastContext";
 import "../../styles/AdminProfile.css";
 import DoctorAnimation from "../../assets/Doctor.lottie";
 const InfoCard = ({
@@ -113,6 +113,7 @@ const InfoCard = ({
 
 const AdminProfile = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -186,14 +187,16 @@ const AdminProfile = () => {
       newErrors.username = "Username is required";
     }
 
-    if (!formData.email || formData.email.trim() === "") {
-      newErrors.email = "Email is required";
-    } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
     if (formData.national_id && isNaN(formData.national_id)) {
       newErrors.national_id = "National ID must be numeric";
+    }
+
+    if (
+      formData.email &&
+      formData.email.trim() !== "" &&
+      !emailRegex.test(formData.email)
+    ) {
+      newErrors.email = "Invalid email format";
     }
 
     setErrors(newErrors);
@@ -204,6 +207,25 @@ const AdminProfile = () => {
     if (!validateForm()) {
       toast.error("Please fix validation errors");
       return;
+    }
+
+    // Warning for email but allow save
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // 1. Invalid Format (only if provided) -> Block
+    if (
+      formData.email &&
+      formData.email.trim() !== "" &&
+      !emailRegex.test(formData.email)
+    ) {
+      toast.error("Invalid email format");
+      return;
+    }
+
+    // 2. Empty -> Warn & Delay
+    if (!formData.email || formData.email.trim() === "") {
+      toast.warning("Email is missing. Profile will be saved shortly.");
+      await new Promise((resolve) => setTimeout(resolve, 3500));
     }
 
     setSaveLoading(true);

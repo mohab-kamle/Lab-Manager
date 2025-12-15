@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Form, Button, Alert } from "react-bootstrap";
+import { Container, Row, Col, Form, Button } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -7,19 +7,16 @@ import { Formik, Field, ErrorMessage, Form as FormikForm } from "formik";
 import * as Yup from "yup";
 import { formatDateForInput } from "../../utils/dateFormatter";
 import useLabPrefix from "../../hooks/useLabPrefix";
+import { toast } from "react-toastify";
+import { motion } from "framer-motion";
+import { Save, ArrowLeft } from "lucide-react";
+import "../../styles/PatientProfile.css";
 
 const PatientUpdateProfile = () => {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
   const apiUrl = import.meta.env.VITE_API_URL;
   const prefix = useLabPrefix();
-  useEffect(() => {
-    // Set API URL with fallback
-    const serverUrl = import.meta.env.VITE_API_URL;
-    console.log("Server URL from env:", serverUrl);
-    // setApiUrl(serverUrl || "http://localhost:3001"); // This line is removed as per the edit hint
-  }, []);
 
   const initialValues = {
     name: user?.name || "",
@@ -37,10 +34,17 @@ const PatientUpdateProfile = () => {
   const validationSchema = Yup.object({
     name: Yup.string().required("Name is required"),
     birth_date: Yup.date().nullable().required("Birth date is required"),
-    gender: Yup.string().oneOf(["Male", "Female"], "Invalid gender").required("Gender is required"),
+    gender: Yup.string()
+      .oneOf(["Male", "Female"], "Invalid gender")
+      .required("Gender is required"),
     primaryPhone: Yup.string().matches(/^\d+$/, "Must be a valid phone number"),
-    secondaryPhone: Yup.string().matches(/^\d+$/, "Must be a valid phone number"),
-    email: Yup.string().email("Invalid email format").required("Email is required"),
+    secondaryPhone: Yup.string().matches(
+      /^\d+$/,
+      "Must be a valid phone number"
+    ),
+    email: Yup.string()
+      .email("Invalid email format")
+      .required("Email is required"),
     address: Yup.string(),
     nationality: Yup.string(),
     passport_no: Yup.string().matches(/^\d+$/, "Invalid passport number"),
@@ -48,32 +52,32 @@ const PatientUpdateProfile = () => {
   });
 
   const handleSubmit = async (values, { setSubmitting }) => {
-    setError("");
     const token = localStorage.getItem("token");
-    
+
     if (!token) {
-      setError("You are not authenticated. Please log in again.");
+      toast.error("You are not authenticated. Please log in again.");
       navigate("/login");
       return;
     }
 
     try {
-      console.log("Current API URL:", apiUrl);
-      console.log("Sending update request to:", `${apiUrl}/patient/update`);
-      
       const requestData = {
         ...values,
-        phones: []
+        phones: [],
       };
 
       if (values.primaryPhone) {
-        requestData.phones.push({ phone_number: values.primaryPhone, type: 'primary' });
+        requestData.phones.push({
+          phone_number: values.primaryPhone,
+          type: "primary",
+        });
       }
       if (values.secondaryPhone) {
-        requestData.phones.push({ phone_number: values.secondaryPhone, type: 'secondary' });
+        requestData.phones.push({
+          phone_number: values.secondaryPhone,
+          type: "secondary",
+        });
       }
-      
-      console.log("Request data:", requestData);
 
       const response = await axios.put(
         `${apiUrl}/patient/update`,
@@ -81,33 +85,30 @@ const PatientUpdateProfile = () => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            "Content-Type": "application/json",
+          },
         }
       );
 
-      console.log("Update response:", response.data);
-
       if (response.data.success) {
-        console.log("Updated user data from backend:", response.data.updatedUser);
-        // Use the new updateUser function from context
         setUser(response.data.updatedUser);
+        toast.success("Profile updated successfully!");
         navigate(`/${prefix}/patient/profile`, { replace: true });
       } else {
-        setError(response.data.message || "Failed to update profile");
+        toast.error(response.data.message || "Failed to update profile");
       }
     } catch (error) {
-      console.error("Error updating profile:", error.response || error);
-      
+      console.error("Error updating profile:", error);
+
       if (error.response?.status === 401) {
-        setError("Your session has expired. Please log in again.");
+        toast.error("Your session has expired. Please log in again.");
         localStorage.removeItem("token");
         navigate("/login", { replace: true });
       } else {
-        setError(
-          error.response?.data?.message || 
-          error.message || 
-          "An error occurred while updating your profile"
+        toast.error(
+          error.response?.data?.message ||
+            error.message ||
+            "An error occurred while updating your profile"
         );
       }
     } finally {
@@ -115,104 +116,259 @@ const PatientUpdateProfile = () => {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  };
+
   return (
-    <Container className="mt-4">
-      <Row className="justify-content-center">
-        <Col md={8}>
-          <Card className="shadow-lg rounded">
-            <Card.Header className="bg-primary text-white text-center">
-              <h3>Update Profile</h3>
-            </Card.Header>
-            <Card.Body>
-              {error && <Alert variant="danger">{error}</Alert>}
-              <Formik
-                initialValues={initialValues}
-                validationSchema={validationSchema}
-                onSubmit={handleSubmit}
-                enableReinitialize
-              >
-                {({ isSubmitting }) => (
-                  <FormikForm>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Name</Form.Label>
-                      <Field type="text" name="name" className="form-control" />
-                      <ErrorMessage name="name" component="div" className="text-danger" />
-                    </Form.Group>
+    <div className="cheerful-container py-5">
+      <Container>
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
+          <div className="mb-4">
+            <Button
+              variant="link"
+              className="text-decoration-none text-muted p-0 d-flex align-items-center gap-2"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft size={20} /> Back to Profile
+            </Button>
+          </div>
 
-                    <Form.Group className="mb-3">
-                      <Form.Label>Birth Date</Form.Label>
-                      <Field type="date" name="birth_date" className="form-control" />
-                      <ErrorMessage name="birth_date" component="div" className="text-danger" />
-                    </Form.Group>
+          <Row className="justify-content-center">
+            <Col md={8}>
+              <div className="patient-profile-card p-4 p-md-5">
+                <div className="text-center mb-4">
+                  <h2 className="fw-bold text-primary">Update Profile</h2>
+                  <p className="text-muted">Keep your information up-to-date</p>
+                </div>
 
-                    <Form.Group className="mb-3">
-                      <Form.Label>Gender</Form.Label>
-                      <Field as="select" name="gender" className="form-control">
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </Field>
-                      <ErrorMessage name="gender" component="div" className="text-danger" />
-                    </Form.Group>
+                <Formik
+                  initialValues={initialValues}
+                  validationSchema={validationSchema}
+                  onSubmit={handleSubmit}
+                  enableReinitialize
+                >
+                  {({ isSubmitting }) => (
+                    <FormikForm>
+                      <Row>
+                        <Col md={6}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Name
+                            </Form.Label>
+                            <Field
+                              type="text"
+                              name="name"
+                              className="form-control rounded-pill"
+                              placeholder="Enter your name"
+                            />
+                            <ErrorMessage
+                              name="name"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Birth Date
+                            </Form.Label>
+                            <Field
+                              type="date"
+                              name="birth_date"
+                              className="form-control rounded-pill"
+                            />
+                            <ErrorMessage
+                              name="birth_date"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Gender
+                            </Form.Label>
+                            <Field
+                              as="select"
+                              name="gender"
+                              className="form-control rounded-pill form-select"
+                            >
+                              <option value="">Select Gender</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                            </Field>
+                            <ErrorMessage
+                              name="gender"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Email
+                            </Form.Label>
+                            <Field
+                              type="email"
+                              name="email"
+                              className="form-control rounded-pill"
+                              placeholder="name@example.com"
+                            />
+                            <ErrorMessage
+                              name="email"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Primary Phone
+                            </Form.Label>
+                            <Field
+                              type="text"
+                              name="primaryPhone"
+                              className="form-control rounded-pill"
+                              placeholder="01xxxxxxxxx"
+                            />
+                            <ErrorMessage
+                              name="primaryPhone"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Secondary Phone
+                            </Form.Label>
+                            <Field
+                              type="text"
+                              name="secondaryPhone"
+                              className="form-control rounded-pill"
+                              placeholder="Optiona"
+                            />
+                            <ErrorMessage
+                              name="secondaryPhone"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={12}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Address
+                            </Form.Label>
+                            <Field
+                              type="text"
+                              name="address"
+                              className="form-control rounded-4"
+                              placeholder="Your address"
+                            />
+                            <ErrorMessage
+                              name="address"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Nationality
+                            </Form.Label>
+                            <Field
+                              type="text"
+                              name="nationality"
+                              className="form-control rounded-pill"
+                            />
+                            <ErrorMessage
+                              name="nationality"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              Passport No
+                            </Form.Label>
+                            <Field
+                              type="text"
+                              name="passport_no"
+                              className="form-control rounded-pill"
+                            />
+                            <ErrorMessage
+                              name="passport_no"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                          <Form.Group className="mb-3">
+                            <Form.Label className="fw-bold small text-uppercase text-muted">
+                              National ID
+                            </Form.Label>
+                            <Field
+                              type="text"
+                              name="national_id"
+                              className="form-control rounded-pill"
+                            />
+                            <ErrorMessage
+                              name="national_id"
+                              component="div"
+                              className="text-danger small mt-1"
+                            />
+                          </Form.Group>
+                        </Col>
+                      </Row>
 
-                    <Form.Group className="mb-3">
-                      <Form.Label>Primary Phone</Form.Label>
-                      <Field type="text" name="primaryPhone" className="form-control" />
-                      <ErrorMessage name="primaryPhone" component="div" className="text-danger" />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                      <Form.Label>Secondary Phone</Form.Label>
-                      <Field type="text" name="secondaryPhone" className="form-control" />
-                      <ErrorMessage name="secondaryPhone" component="div" className="text-danger" />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                      <Form.Label>Email</Form.Label>
-                      <Field type="email" name="email" className="form-control" />
-                      <ErrorMessage name="email" component="div" className="text-danger" />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                      <Form.Label>Address</Form.Label>
-                      <Field type="text" name="address" className="form-control" />
-                      <ErrorMessage name="address" component="div" className="text-danger" />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                      <Form.Label>Nationality</Form.Label>
-                      <Field type="text" name="nationality" className="form-control" />
-                      <ErrorMessage name="nationality" component="div" className="text-danger" />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                      <Form.Label>Passport No</Form.Label>
-                      <Field type="text" name="passport_no" className="form-control" />
-                      <ErrorMessage name="passport_no" component="div" className="text-danger" />
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                      <Form.Label>National ID</Form.Label>
-                      <Field type="text" name="national_id" className="form-control" />
-                      <ErrorMessage name="national_id" component="div" className="text-danger" />
-                    </Form.Group>
-
-                    <Button 
-                      variant="primary" 
-                      type="submit" 
-                      disabled={isSubmitting}
-                      className="w-100"
-                    >
-                      {isSubmitting ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </FormikForm>
-                )}
-              </Formik>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+                      <div className="text-center mt-4">
+                        <Button
+                          className="cheerful-btn cheerful-btn-primary w-50 d-inline-flex align-items-center justify-content-center gap-2"
+                          type="submit"
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <span
+                                className="spinner-border spinner-border-sm"
+                                role="status"
+                                aria-hidden="true"
+                              ></span>
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save size={18} />
+                              <span>Save Changes</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </FormikForm>
+                  )}
+                </Formik>
+              </div>
+            </Col>
+          </Row>
+        </motion.div>
+      </Container>
+    </div>
   );
 };
 
