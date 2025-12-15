@@ -36,7 +36,7 @@ import { formatDate } from "../../utils/dateFormatter";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import "../../styles/AdminProfile.css";
-import DoctoreAnimation from "../../assets/Doctor.lottie";
+import DoctorAnimation from "../../assets/Doctor.lottie";
 const InfoCard = ({
   icon: Icon,
   label,
@@ -266,7 +266,7 @@ const AdminProfile = () => {
             style={{ width: "140px", height: "140px" }}
           >
             <DotLottieReact
-              src={DoctoreAnimation}
+              src={DoctorAnimation}
               loop={false}
               autoplay={true}
               style={{ width: "85%", height: "85%" }}
