@@ -42,6 +42,7 @@ export default defineConfig({
       }
     })
   ],
+  assetsInclude: ['**/*.lottie'],
   base: "/", // Ensures correct paths for assets
   build: {
     outDir: "dist", // Vercel looks for 'dist' by default
