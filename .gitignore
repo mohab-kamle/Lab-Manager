@@ -34,4 +34,5 @@ coverage/
 .idea/
 .DS_Store 
 .trae/
+.agent/
 Dump20251013.sql
