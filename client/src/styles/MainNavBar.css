@@ -23,6 +23,23 @@
   stroke: red;
 }
 
+.logout-link:hover span {
+  color: red;
+  transition: color 0.3s ease;
+}
+
+.dropdown-menu {
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transform: none !important;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+}
+
 #dropdown-basic {
   border-radius: 14px;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -30,17 +47,16 @@
   backdrop-filter: blur(10px);
   padding: 6px 10px;
   font-size: 0.8rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: 
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
   white-space: nowrap;
-  transform: translateY(0);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   color: var(--text);
 }
 
-#dropdown-basic:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--border-muted);
-}
+
 
 #dropdown-basic:hover {
   transform: translateY(-3px);
@@ -80,8 +96,11 @@
   flex-wrap: nowrap; 
   gap: 8px;
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #basic-navbar-nav {
@@ -118,7 +137,7 @@
 
 .welcome-label {
   position: fixed;
-  top: 92px;
+  top: 105px;
   left: 80%;
   transform: translateX(-50%);
   background: var(--bg);
@@ -254,7 +273,15 @@ body {
 /*  */
 .navbar .container {
   max-width: 78%;
-  /* padding-left: 10px;
-  padding-right: 10px; */
+
 }
-/*  */
+/* Login Button Glow Effect */
+.login-btn-glow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4) !important;
+  background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%) !important;
+}
+
+.login-btn-glow:active {
+  transform: translateY(0);
+}
