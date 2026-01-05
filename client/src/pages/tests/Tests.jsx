@@ -4,7 +4,7 @@ import { Container, Button, Modal, Form, Alert, Row, Col, Card } from "react-boo
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, X, Download, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 const Tests = () => {
@@ -671,8 +671,11 @@ const Tests = () => {
       
       {/* Test Details Modal */}
       <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Test Details: {selectedTest?.name}</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowDetailsModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>
           {selectedTest && (
@@ -788,8 +791,11 @@ const Tests = () => {
 
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>{editingTest ? "Edit Test" : "Add New Test"}</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
