@@ -3,16 +3,23 @@ require("dotenv").config();
 const { medical_report, employee} = require('../models');
 const SECRET_KEY = process.env.SECRET_KEY;
 
+if (!SECRET_KEY) {
+  console.error("FATAL ERROR: SECRET_KEY is not defined.");
+}
 
 // File access authorization middleware
 const authorizeFileAccess = async (req, res, next) => {
+  if (!SECRET_KEY) {
+    return res.status(500).json({ error: "Internal server error." });
+  }
+
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
       return res.status(401).json({ error: 'Access token required' });
     }
 
-    const decoded = jwt.verify(token, SECRET_KEY/*process.env.JWT_SECRET*/);
+    const decoded = jwt.verify(token, SECRET_KEY);
     
     // Add user info to request
     req.user = decoded;

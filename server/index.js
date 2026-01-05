@@ -52,9 +52,18 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
-      // For debugging, temporarily allow all origins
-      console.log('CORS: Temporarily allowing blocked origin for debugging:', origin);
-      callback(null, true);
+
+      // In development, we might want to be more lenient, but for security we should block unknown origins
+      // If you are developing locally and your origin is blocked, add it to allowedOrigins
+
+      if (process.env.NODE_ENV !== 'production') {
+        // Warn but allow in non-production if needed, or better yet, block it to enforce security
+        console.warn('CORS: WARNING - Allowing blocked origin in non-production environment:', origin);
+        callback(null, true);
+      } else {
+        // Block in production
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true,
@@ -121,7 +130,16 @@ app.use('/uploads/public', express.static(publicUploadsPath, {
 // Serve PRIVATE files with authentication (medical reports, patient documents)
 app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
   const filename = req.params.filename;
-  const filePath = path.join(privateUploadsPath, filename);
+
+  // Security check: Prevent path traversal
+  const safeFilename = path.normalize(filename).replace(/^(\.\.(\/|\\|$))+/, '');
+  const filePath = path.join(privateUploadsPath, safeFilename);
+
+  // Verify the resolved path is still within the private directory
+  if (!filePath.startsWith(privateUploadsPath)) {
+    console.error(`Security Alert: Path traversal attempt blocked. IP: ${req.ip}, User: ${req.user ? req.user.id : 'unknown'}`);
+    return res.status(403).json({ error: 'Access denied' });
+  }
   
   // Check if file exists
   if (!fs.existsSync(filePath)) {
@@ -146,7 +164,16 @@ app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
 // Serve COMMENT IMAGES with authentication
 app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => {
   const filename = req.params.filename;
-  const filePath = path.join(commentImagesPath, filename);
+
+  // Security check: Prevent path traversal
+  const safeFilename = path.normalize(filename).replace(/^(\.\.(\/|\\|$))+/, '');
+  const filePath = path.join(commentImagesPath, safeFilename);
+
+  // Verify the resolved path is still within the comment images directory
+  if (!filePath.startsWith(commentImagesPath)) {
+    console.error(`Security Alert: Path traversal attempt blocked. IP: ${req.ip}, User: ${req.user ? req.user.id : 'unknown'}`);
+    return res.status(403).json({ error: 'Access denied' });
+  }
   
   // Check if file exists
   if (!fs.existsSync(filePath)) {
@@ -686,23 +713,28 @@ async function fixPrimaryKeyConflict() {
 // Only sync database on master process in cluster mode to prevent race conditions
 const shouldSyncDatabase = !process.env.pm_id || process.env.pm_id === '0';
 
-if (shouldSyncDatabase) {
-  console.log('🔧 Master process - performing database synchronization...');
-  syncDatabase()
-    .then(async () => {
-      await startServer();
-    })
-    .catch((error) => {
-      console.error("❌ Server startup failed:", error);
+// Check if run directly
+if (require.main === module) {
+  if (shouldSyncDatabase) {
+    console.log('🔧 Master process - performing database synchronization...');
+    syncDatabase()
+      .then(async () => {
+        await startServer();
+      })
+      .catch((error) => {
+        console.error("❌ Server startup failed:", error);
+        process.exit(1);
+      });
+  } else {
+    console.log('👷 Worker process - skipping database sync, starting server directly...');
+    startServer().catch((error) => {
+      console.error('❌ Server startup failed:', error);
       process.exit(1);
     });
-} else {
-  console.log('👷 Worker process - skipping database sync, starting server directly...');
-  startServer().catch((error) => {
-    console.error('❌ Server startup failed:', error);
-    process.exit(1);
-  });
+  }
 }
+
+module.exports = app;
 
 // Extract server startup logic into a separate function
 async function startServer() {

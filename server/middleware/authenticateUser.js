@@ -4,7 +4,15 @@ require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const isProd = process.env.NODE_ENV === 'production';
 
+if (!SECRET_KEY) {
+  console.error("FATAL ERROR: SECRET_KEY is not defined.");
+}
+
 const authenticateUser = async (req, res, next) => {
+    if (!SECRET_KEY) {
+      return res.status(500).json({ error: "Internal server error." });
+    }
+
     if (!isProd) {
       console.log('Authentication middleware - Headers:', {
         authorization: req.header("Authorization") ? 'Present' : 'Missing',
