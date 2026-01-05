@@ -4,7 +4,7 @@ import { Container, Button, Modal, Form, Alert } from "react-bootstrap";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Info } from "lucide-react";
+import { Pencil, Trash2, Plus, Info, CircleX } from "lucide-react";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const CultureOptions = () => {
@@ -370,8 +370,11 @@ const CultureOptions = () => {
       
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>{editingOption ? "Edit Culture Option" : "Add New Culture Option"}</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
@@ -394,8 +397,11 @@ const CultureOptions = () => {
       
       {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Confirm Delete</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>Are you sure you want to delete the culture option "{optionToDelete?.option}"? This action cannot be undone.</Modal.Body>
         <Modal.Footer>
@@ -406,8 +412,11 @@ const CultureOptions = () => {
 
       {/* Sub-options Modal */}
       <Modal show={showSubOptionsModal} onHide={() => setShowSubOptionsModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Sub-options for {currentSubOptions.name}</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowSubOptionsModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>
           {currentSubOptions.subOptions?.length > 0 ? (
