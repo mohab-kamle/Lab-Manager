@@ -711,15 +711,22 @@ router.get('/components', authenticateUser, authorizeRoles(...allowedRoles), ten
     const components = await tg_component.findAll({
       include: [
         { model: test_group, as: 'test_group', attributes: ['id', 'name'] },
-        { model: tgc_category, as: 'category', attributes: ['id', 'name'] }
+        { 
+          model: tgc_category, 
+          as: 'category', 
+          attributes: ['id', 'name'],
+          paranoid: false, // Include soft-deleted categories
+          required: false  // Ensure LEFT JOIN so component shows even if category is missing
+        }
       ]
     });
+    
     // Return empty array if no components found
     res.json(components || []);
   } catch (err) {
     console.error('Error fetching test group components:', err);
-    // Return empty array on error to prevent frontend crashes
-    res.json([]);
+    // Return error to frontend for debugging
+    res.status(500).json({ error: err.message });
   }
 });
 
