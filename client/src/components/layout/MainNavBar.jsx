@@ -33,7 +33,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
 import VersionBadge from "../ui/VersionBadge";
 
-import "../../styles/primaryNav.css";
+import "../../styles/MainNavBar.css";
 
 export const defaultTitles = {
   testGroups: "Test Groups",
@@ -255,7 +255,7 @@ const MainNavBar = () => {
             <img
               src={labIcon}
               alt=""
-              style={{ width: "40px", height: "40px", borderRadius: "50%" }}
+              style={{ width: "50px", height: "50px", borderRadius: "50%" }}
             />
             <span
               style={{
@@ -832,18 +832,24 @@ const MainNavBar = () => {
                   >
                     <DoorClosed className="door-icon door-closed" size={30} />
                     <DoorOpen className="door-icon door-open" size={30} />
+                    <span className="ms-2 fw-medium d-none d-lg-inline">Logout</span>
                   </Nav.Link>
                 </>
               ) : (
-                <Nav.Link
+                <Button
                   as={Link}
                   to="/login"
+                  variant="primary"
                   onClick={() => setExpanded(false)}
-                  // Optional: Add specific styling for the login button
-                  className="ms-2" 
+                  className="ms-2 px-4 fw-bold shadow-sm rounded-pill login-btn-glow"
+                  style={{
+                    border: "none",
+                    letterSpacing: "0.5px",
+                    transition: "all 0.3s ease"
+                  }}
                 >
                   Login
-                </Nav.Link>
+                </Button>
               )}
             </Nav>
           </Navbar.Collapse>

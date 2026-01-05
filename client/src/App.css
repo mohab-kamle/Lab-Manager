@@ -185,26 +185,7 @@
   background-color: var(--lab-primary-color);
 }
 
-/* Custom scrollbar */
-.lab-layout ::-webkit-scrollbar {
-  width: 2px;
-}
-
-.lab-layout ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.lab-layout ::-webkit-scrollbar-thumb {
-  background: var(--lab-primary-color);
-  width: 2px;
-  border-radius: 4px;
-}
-
-.lab-layout ::-webkit-scrollbar-thumb:hover {
-  background: var(--lab-primary-color);
-  filter: brightness(0.8);
-}
+/* Custom scrollbar removed to use global styles */
 
 /* Floating Back to Top Button */
 .scroll-to-top-btn {
@@ -257,3 +238,35 @@
         display: none;
     }
 } 
+
+/* Modal Styles Override */
+.modal-header {
+  background-color: var(--primary) !important;
+  color: white !important;
+  border-bottom: none !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  opacity: 0.8;
+}
+
+.modal-close-btn:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}

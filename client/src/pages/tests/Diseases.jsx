@@ -1,7 +1,7 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { Container, Button, Modal, Form, Alert } from "react-bootstrap";
-import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
@@ -296,10 +296,13 @@ const Diseases = () => {
       
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>
             {editingDisease ? "Edit Disease" : "Add New Disease"}
           </Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
@@ -337,8 +340,11 @@ const Diseases = () => {
 
       {/* Import Modal */}
       <Modal show={showImportModal} onHide={() => setShowImportModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Import Diseases</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="info" className="mb-3">
@@ -389,8 +395,11 @@ const Diseases = () => {
 
       {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Confirm Delete</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>
           Are you sure you want to delete the disease "{diseaseToDelete?.name}"? This action cannot be undone.
