@@ -35,6 +35,8 @@ import {
   Plus,
   ArrowDownWideNarrow,
   ArrowUpWideNarrow,
+  CircleX,
+  Undo,
 } from "lucide-react";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
 import { toast } from "react-toastify";
@@ -545,18 +547,32 @@ const MedicalReports = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      const updateData = {
-        done: 1,
-        pending: 0,
-        signatory_name: user.name,
-        date: new Date().toISOString(),
-      };
+      // Determine if we are signing or unsigning
+      const isSigning = report.done !== 1;
 
-      // Set the appropriate signatory ID based on user role
-      if (user.role === "admin") {
-        updateData.signatory_admin_id = user.id;
-      } else if (user.role === "chemist") {
-        updateData.signatory_id = user.id;
+      const updateData = isSigning
+        ? {
+            done: 1,
+            pending: 0,
+            signatory_name: user.name,
+            date: new Date().toISOString(),
+          }
+        : {
+            done: 0,
+            pending: 1,
+            signatory_name: null,
+            signatory_id: null,
+            signatory_admin_id: null,
+            reported_at: null,
+          };
+
+      if (isSigning) {
+        // Set the appropriate signatory ID based on user role
+        if (user.role === "admin") {
+          updateData.signatory_admin_id = user.id;
+        } else if (user.role === "chemist") {
+          updateData.signatory_id = user.id;
+        }
       }
 
       const response = await axios.put(
@@ -571,11 +587,13 @@ const MedicalReports = () => {
 
       setShowEditModal(false);
       setEditingReport(null);
-      toast.success("Report signed successfully");
+      toast.success(
+        isSigning ? "Report signed successfully" : "Report unsigned successfully"
+      );
     } catch (error) {
-      console.error("Error signing report:", error);
-      setError("Failed to sign report");
-      toast.error("Failed to sign report");
+      console.error("Error signing/unsigning report:", error);
+      setError("Failed to update report status");
+      toast.error("Failed to update report status");
     } finally {
       setSigningReport(null);
     }
@@ -688,25 +706,46 @@ const MedicalReports = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      await axios.post(
-        `${apiUrl}/medical-reports/${report.id}/collected`,
-        {},
-        { headers }
-      );
+      // Check if we are collecting or uncollecting
+      const isCollecting = !report.collected_at;
+
+      if (isCollecting) {
+        // Use existing endpoint for collecting because it might trigger other side effects (like date updates in specific ways)
+        // Although the code shows it just calls updateMedicalReportDates, sticking to it for collecting is safe.
+        await axios.post(
+          `${apiUrl}/medical-reports/${report.id}/collected`,
+          {},
+          { headers }
+        );
+      } else {
+        // Use PUT endpoint to clear the collected_at date
+        await axios.put(
+          `${apiUrl}/medical-reports/${report.id}`,
+          { collected_at: null },
+          { headers }
+        );
+      }
 
       // Update the local state
       setReports((prevReports) =>
         prevReports.map((r) =>
           r.id === report.id
-            ? { ...r, collected_at: new Date().toISOString() }
+            ? {
+                ...r,
+                collected_at: isCollecting ? new Date().toISOString() : null,
+              }
             : r
         )
       );
 
-      toast.success("Sample marked as collected");
+      toast.success(
+        isCollecting
+          ? "Sample marked as collected"
+          : "Sample marked as uncollected"
+      );
     } catch (error) {
-      console.error("Error marking sample as collected:", error);
-      toast.error("Failed to mark sample as collected");
+      console.error("Error updating sample collection status:", error);
+      toast.error("Failed to update sample collection status");
     } finally {
       setMarkingCollected(null);
     }
@@ -1544,40 +1583,50 @@ const MedicalReports = () => {
 
   const ActionComponent = ({ rowData }) => {
     return (
-      <div className="d-flex gap-2">
+      <div className="d-flex gap-1 justify-content-center">
         <Button
           variant="outline-primary"
-          size="sm"
+          className="action-btn-fixed"
           onClick={() => handleEdit(rowData)}
           title="Edit Report"
         >
           <Pencil size={16} />
         </Button>
-        {rowData.done === 0 && (
-          <Button
-            variant="outline-success"
-            size="sm"
-            onClick={() => handleSign(rowData)}
-            title="Sign Report"
-            disabled={signingReport === rowData.id}
-          >
-            {signingReport === rowData.id ? (
-              <div className="spinner-border spinner-border-sm" role="status" />
-            ) : (
-              <CheckCircle size={16} />
-            )}
-          </Button>
-        )}
+        <Button
+          variant={
+            rowData.done === 1 ? "outline-secondary" : "outline-success"
+          }
+          className="action-btn-fixed"
+          onClick={() => handleSign(rowData)}
+          title={rowData.done === 1 ? "Unsign Report" : "Sign Report"}
+          disabled={signingReport === rowData.id}
+        >
+          {signingReport === rowData.id ? (
+            <div
+              className="spinner-border spinner-border-sm"
+              role="status"
+              style={{ width: "12px", height: "12px" }}
+            />
+          ) : rowData.done === 1 ? (
+            <Undo size={16} />
+          ) : (
+            <CheckCircle size={16} />
+          )}
+        </Button>
         {rowData.bill_id && (
           <Button
             variant="outline-info"
-            size="sm"
+            className="action-btn-fixed"
             onClick={() => handleViewInvoice(rowData)}
             title="View Invoice"
             disabled={loadingInvoice === rowData.id}
           >
             {loadingInvoice === rowData.id ? (
-              <div className="spinner-border spinner-border-sm" role="status" />
+              <div
+                className="spinner-border spinner-border-sm"
+                role="status"
+                style={{ width: "12px", height: "12px" }}
+              />
             ) : (
               <FileText size={16} />
             )}
@@ -1586,43 +1635,61 @@ const MedicalReports = () => {
         {(user.role === "admin" || user.role === "chemist") && (
           <Button
             variant="outline-warning"
-            size="sm"
+            className="action-btn-fixed"
             onClick={() => handleEnterResults(rowData)}
             title="Enter Results"
             disabled={enteringResults === rowData.id}
           >
             {enteringResults === rowData.id ? (
-              <div className="spinner-border spinner-border-sm" role="status" />
+              <div
+                className="spinner-border spinner-border-sm"
+                role="status"
+                style={{ width: "12px", height: "12px" }}
+              />
             ) : (
               <TestTube size={16} />
             )}
           </Button>
         )}
-        {!rowData.collected_at && (
-          <Button
-            variant="outline-info"
-            size="sm"
-            onClick={() => handleMarkCollected(rowData)}
-            title="Mark as Collected"
-            disabled={markingCollected === rowData.id}
-          >
-            {markingCollected === rowData.id ? (
-              <div className="spinner-border spinner-border-sm" role="status" />
-            ) : (
-              <Save size={16} />
-            )}
-          </Button>
-        )}
-        {/* Direct PDF Download - fetch and download in one step */}
-        <DirectPDFDownload
-          reportId={rowData.id}
-          patient={rowData.patient}
-          apiUrl={apiUrl}
-        />
+        <Button
+          variant={
+            rowData.collected_at ? "outline-secondary" : "outline-info"
+          }
+          className="action-btn-fixed"
+          onClick={() => handleMarkCollected(rowData)}
+          title={
+            rowData.collected_at
+              ? "Mark as Uncollected"
+              : "Mark as Collected"
+          }
+          disabled={markingCollected === rowData.id}
+        >
+          {markingCollected === rowData.id ? (
+            <div
+              className="spinner-border spinner-border-sm"
+              role="status"
+              style={{ width: "12px", height: "12px" }}
+            />
+          ) : rowData.collected_at ? (
+            <Undo size={16} />
+          ) : (
+            <Save size={16} />
+          )}
+        </Button>
+        {/* Direct PDF Download - wrapped to maintain layout if component supports it, otherwise assumed consistent */}
+        <div className="action-btn-wrapper">
+          <DirectPDFDownload
+            reportId={rowData.id}
+            patient={rowData.patient}
+            apiUrl={apiUrl}
+            className="action-btn-fixed"
+          />
+        </div>
+
         {/* PDF Preview Button */}
         <Button
           variant="outline-secondary"
-          size="sm"
+          className="action-btn-fixed"
           onClick={async () => {
             try {
               const token = localStorage.getItem("token");
@@ -1656,7 +1723,7 @@ const MedicalReports = () => {
         </Button>
         <Button
           variant="outline-danger"
-          size="sm"
+          className="action-btn-fixed"
           onClick={() => {
             setReportToDelete(rowData);
             setShowDeleteModal(true);
@@ -1665,7 +1732,11 @@ const MedicalReports = () => {
           disabled={deletingReport}
         >
           {deletingReport ? (
-            <div className="spinner-border spinner-border-sm" role="status" />
+            <div
+              className="spinner-border spinner-border-sm"
+              role="status"
+              style={{ width: "12px", height: "12px" }}
+            />
           ) : (
             <Trash2 size={16} />
           )}
@@ -1846,8 +1917,14 @@ const MedicalReports = () => {
             }}
             size="lg"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Edit Medical Report</Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowEditModal(false);
+                setEditingReport(null);
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Form onSubmit={handleUpdate}>
@@ -1932,8 +2009,11 @@ const MedicalReports = () => {
             show={showDeleteModal}
             onHide={() => setShowDeleteModal(false)}
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               Are you sure you want to delete this medical report? This action
@@ -1975,8 +2055,14 @@ const MedicalReports = () => {
             }}
             size="lg"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Invoice Details</Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowInvoiceModal(false);
+                setSelectedInvoice(null);
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {selectedInvoice && (
@@ -2138,8 +2224,24 @@ const MedicalReports = () => {
             }}
             size="xl"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Enter Test & Culture Results</Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowResultsModal(false);
+                setSelectedReportForResults(null);
+                setResultsData({
+                  test_results: [],
+                  culture_results: [],
+                  test_component_results: {},
+                });
+                setCultureAntibiotics({});
+                setExpandedSections({});
+                setAntibioticSearch({});
+                setShowAddAntibioticModal({});
+                setSelectedCultureOptions({});
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {selectedReportForResults && (
@@ -3838,8 +3940,14 @@ const MedicalReports = () => {
             }}
             size="xl"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>PDF Preview</Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowPDFPreview(false);
+                setSelectedReportForPDF(null);
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {selectedReportForPDF && selectedReportForPDF.patient && (
@@ -3879,8 +3987,16 @@ const MedicalReports = () => {
                   }
                   size="md"
                 >
-                  <Modal.Header closeButton>
+                  <Modal.Header>
                     <Modal.Title>Add New Antibiotic</Modal.Title>
+                    <button className="modal-close-btn" onClick={() =>
+                      setShowAddAntibioticModal((prev) => ({
+                        ...prev,
+                        [cultureResultId]: false,
+                      }))
+                    }>
+                      <CircleX size={24} />
+                    </button>
                   </Modal.Header>
                   <Modal.Body>
                     <Form>
