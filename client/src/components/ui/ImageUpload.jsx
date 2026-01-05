@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { Upload, X, Image as ImageIcon, AlertCircle } from 'lucide-react';
 
 const ImageUpload = ({ 
@@ -124,8 +125,18 @@ const ImageUpload = ({
     <div className={`space-y-4 ${className}`}>
       {/* Upload Area */}
       <div
+        role="button"
+        tabIndex={disabled || images.length >= maxImages ? -1 : 0}
+        aria-label="Upload images"
+        aria-disabled={disabled || images.length >= maxImages}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openFileDialog();
+          }
+        }}
         className={`
-          relative border-2 border-dashed rounded-lg p-6 text-center transition-colors
+          relative border-2 border-dashed rounded-lg p-6 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2
           ${dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}
           ${images.length >= maxImages ? 'opacity-50 cursor-not-allowed' : ''}
@@ -205,12 +216,14 @@ const ImageUpload = ({
           {/* Remove Button */}
           {!disabled && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 removeImage(index);
               }}
               className=" d-flex items-center justify-center bg-danger text-white absolute top-1 right-1 border-0 rounded-3 group-hover:opacity-100 transition-opacity"
               title="Remove image"
+              aria-label={`Remove image ${image.name || index + 1}`}
             >
               <X size={16} />
             </button>
@@ -228,6 +241,20 @@ const ImageUpload = ({
 
     </div>
   );
+};
+
+ImageUpload.propTypes = {
+  images: PropTypes.arrayOf(PropTypes.shape({
+    preview: PropTypes.string,
+    url: PropTypes.string,
+    image_path: PropTypes.string,
+    name: PropTypes.string,
+    image_name: PropTypes.string,
+  })),
+  onImagesChange: PropTypes.func.isRequired,
+  maxImages: PropTypes.number,
+  disabled: PropTypes.bool,
+  className: PropTypes.string,
 };
 
 export default ImageUpload;
