@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Container } from 'react-bootstrap';
+import { toast } from 'react-toastify';
 import Toolbar from '../../components/layout/Toolbar';
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from '../../components/ui/DynamicTable';
@@ -23,11 +24,13 @@ const TestGroupComponents = () => {
       try {
         const token = localStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
+        
         const response = await axios.get(`${apiUrl}/test-groups/components`, { headers });
         setComponents(response.data || []);
       } catch (err) {
         console.error('Error fetching components:', err);
         setComponents([]); // Set empty array instead of error
+        toast.error("Failed to load test group components.");
       } finally {
         setLoading(false);
       }
@@ -101,7 +104,7 @@ const TestGroupComponents = () => {
           <DynamicTable
             data={currentComponents}
             columns={columns.map(col => col.key)}
-            columnLabels={columns.reduce((acc, col) => { acc[col.key] = col.label; return acc; }, {})}
+            customHeaders={columns.reduce((acc, col) => { acc[col.key] = col.label; return acc; }, {})}
             formatCellData={formatCellData}
             ActionComponent={null}
           />
