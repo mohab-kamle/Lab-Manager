@@ -5,7 +5,7 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, CircleX } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
@@ -458,10 +458,19 @@ const PackagesAndOffers = () => {
             setLastAttemptedItem(null);
             setFormErrors({});
           }} size="lg">
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>
                 {editingItem ? "Edit" : "Add"} {item.type === "package" ? "Package" : "Offer"}
               </Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowAddModal(false);
+                setError(null);
+                setShowRetryButton(false);
+                setLastAttemptedItem(null);
+                setFormErrors({});
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {error && (
@@ -721,8 +730,11 @@ const PackagesAndOffers = () => {
 
           {/* Delete Confirmation Modal */}
           <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Alert variant="warning">

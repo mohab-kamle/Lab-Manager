@@ -4,7 +4,7 @@ import { Container, Button, Modal, Form, Alert, Toast, ToastContainer } from "re
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, CircleX } from "lucide-react";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const TestGroupCategories = () => {
@@ -287,8 +287,11 @@ const TestGroupCategories = () => {
       )}
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>{editingCategory ? "Edit Category" : "Add New Category"}</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
@@ -327,8 +330,11 @@ const TestGroupCategories = () => {
       </Modal>
       {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Confirm Soft Delete</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>
           Are you sure you want to soft delete the category "{categoryToDelete?.name}"? 
@@ -342,8 +348,11 @@ const TestGroupCategories = () => {
       </Modal>
       {/* Restore Confirmation Modal */}
       <Modal show={showRestoreModal} onHide={() => setShowRestoreModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Confirm Restore</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowRestoreModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>Are you sure you want to restore the category "{categoryToRestore?.name}"? This will make it available for use again.</Modal.Body>
         <Modal.Footer>

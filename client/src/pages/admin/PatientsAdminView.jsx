@@ -5,11 +5,12 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
-import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { toast } from 'react-toastify';
 
 
 
@@ -21,7 +22,7 @@ const PatientsAdminView = () => {
   const [referrals, setReferrals] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // const [error, setError] = useState(null); // Removed blocking error state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
@@ -86,8 +87,7 @@ const PatientsAdminView = () => {
     return { day: "", month: "", year: "" };
   };
   const [formErrors, setFormErrors] = useState({});
-  const [lastAttemptedPatient, setLastAttemptedPatient] = useState(null);
-  const [showRetryButton, setShowRetryButton] = useState(false);
+  // Removed retry logic states as they are no longer needed
   const [importFile, setImportFile] = useState(null);
   const [selectedPatients, setSelectedPatients] = useState([]);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
@@ -160,7 +160,9 @@ const PatientsAdminView = () => {
           { field: 'address', label: 'Address', sortable: true },
           { field: 'total', label: 'Total', sortable: true },
           { field: 'paid', label: 'Paid', sortable: true },
-          { field: 'due', label: 'Due', sortable: true },
+
+          { field: 'amount_due', label: 'Amount Due', sortable: false },
+          { field: 'credit', label: 'Credit', sortable: false },
           { field: 'contract_id', label: 'Contract', sortable: true },
           { field: 'referral_id', label: 'Referral', sortable: true },
           { field: 'diseases_id_diseases', label: 'Diseases', sortable: false }
@@ -170,7 +172,7 @@ const PatientsAdminView = () => {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError("Failed to fetch data. Please try again later.");
+        toast.error("Failed to fetch data. Please try again later.");
         setLoading(false);
       }
     };
@@ -215,8 +217,6 @@ const PatientsAdminView = () => {
 
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
-      setShowRetryButton(false);
 
       let response;
       if (editingPatient) {
@@ -242,19 +242,14 @@ const PatientsAdminView = () => {
       handleResetForm();
     } catch (error) {
       console.error('Error saving patient:', error);
-      setError(error.response?.data?.error || 'Failed to save patient');
-      setShowRetryButton(true);
+      toast.error(error.response?.data?.error || 'Failed to save patient');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRetry = () => {
-    if (lastAttemptedPatient) {
-      setPatient(lastAttemptedPatient);
-      handleAddPatient();
-    }
-  };
+  // handleRetry removed
+
 
   const handleDelete = async (id) => {
     try {
@@ -272,7 +267,7 @@ const PatientsAdminView = () => {
       setPatientToDelete(null);
     } catch (error) {
       console.error("Error deleting patient:", error);
-      setError("Failed to delete patient. Please try again.");
+      toast.error("Failed to delete patient. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -304,17 +299,17 @@ const PatientsAdminView = () => {
 
       const result = await exportToExcel(exportData, 'patients', 'Patients');
       if (!result.success) {
-        setError(`Export failed: ${result.message}`);
+        toast.error(`Export failed: ${result.message}`);
       }
     } catch (error) {
       console.error('Export error:', error);
-      setError('Failed to export patients');
+      toast.error('Failed to export patients');
     }
   };
 
   const handleImport = async () => {
     if (!importFile) {
-      setError("Please select a file to import");
+      toast.error("Please select a file to import");
       return;
     }
 
@@ -344,7 +339,7 @@ const PatientsAdminView = () => {
       alert(`Successfully imported ${response.data.imported} patients`);
     } catch (error) {
       console.error('Error importing patients:', error);
-      setError(error.response?.data?.error || 'Failed to import patients');
+      toast.error(error.response?.data?.error || 'Failed to import patients');
     } finally {
       setLoading(false);
     }
@@ -352,7 +347,7 @@ const PatientsAdminView = () => {
 
   const handleBulkDelete = async () => {
     if (selectedPatients.length === 0) {
-      setError("Please select patients to delete");
+      toast.error("Please select patients to delete");
       return;
     }
 
@@ -373,7 +368,7 @@ const PatientsAdminView = () => {
       alert(`Successfully deleted ${selectedPatients.length} patients`);
     } catch (error) {
       console.error("Error bulk deleting patients:", error);
-      setError("Failed to delete patients. Please try again.");
+      toast.error("Failed to delete patients. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -381,7 +376,7 @@ const PatientsAdminView = () => {
 
   const handleBulkUpdate = async () => {
     if (selectedPatients.length === 0) {
-      setError("Please select patients to update");
+      toast.error("Please select patients to update");
       return;
     }
 
@@ -413,7 +408,7 @@ const PatientsAdminView = () => {
       alert(`Successfully updated ${selectedPatients.length} patients`);
     } catch (error) {
       console.error("Error bulk updating patients:", error);
-      setError("Failed to update patients. Please try again.");
+      toast.error("Failed to update patients. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -559,8 +554,11 @@ const PatientsAdminView = () => {
     return errors;
   };
 
-  const formatCellData = (value, field) => {
-    if (value === null || value === undefined) return '-';
+  const formatCellData = (value, field, rowData) => {
+    // Determine if we should skip the check for computed columns
+    const isComputedColumn = ['amount_due', 'credit'].includes(field);
+    
+    if ((value === null || value === undefined) && !isComputedColumn) return '-';
     
     switch (field) {
       case 'birth_date':
@@ -573,7 +571,21 @@ const PatientsAdminView = () => {
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
       case 'paid':
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
-      case 'due':
+      case 'amount_due':
+        // Use rowData.due if available since amount_due is computed from it
+        const dueAmount = rowData && rowData.due ? parseFloat(rowData.due) : 0;
+        if (dueAmount > 0.01) {
+          return <span className="text-danger fw-bold">EGP {dueAmount.toFixed(2)}</span>;
+        }
+        return <span className="text-muted">-</span>;
+      case 'credit':
+        // Use rowData.due if available since credit is computed from it (negative due)
+        const creditAmount = rowData && rowData.due ? parseFloat(rowData.due) : 0;
+        if (creditAmount < -0.01) {
+          return <span className="text-success fw-bold">EGP {Math.abs(creditAmount).toFixed(2)}</span>;
+        }
+        return <span className="text-muted">-</span>;
+      case 'due': // keeping for backward compatibility if needed elsewhere
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
       case 'contract_id':
         if (!value) return '-';
@@ -663,7 +675,7 @@ const PatientsAdminView = () => {
       });
     } catch (error) {
       console.error('Error creating contract:', error);
-      setError(error.response?.data?.error || 'Failed to create contract');
+      toast.error(error.response?.data?.error || 'Failed to create contract');
     } finally {
       setLoading(false);
     }
@@ -695,7 +707,7 @@ const PatientsAdminView = () => {
       });
     } catch (error) {
       console.error('Error creating referral:', error);
-      setError(error.response?.data?.error || 'Failed to create referral');
+      toast.error(error.response?.data?.error || 'Failed to create referral');
     } finally {
       setLoading(false);
     }
@@ -704,7 +716,7 @@ const PatientsAdminView = () => {
   const handleAddDisease = async () => {
     try {
       if (!newDisease.name.trim()) {
-        setError('Disease name is required');
+        toast.error('Disease name is required');
         return;
       }
 
@@ -729,7 +741,7 @@ const PatientsAdminView = () => {
       });
     } catch (error) {
       console.error('Error creating disease:', error);
-      setError(error.response?.data?.error || 'Failed to create disease');
+      toast.error(error.response?.data?.error || 'Failed to create disease');
     } finally {
       setLoading(false);
     }
@@ -739,8 +751,6 @@ const PatientsAdminView = () => {
     <Container fluid className="patients-admin-container">
       {loading ? (
         <LoadingSpinner message="Loading patients..." />
-      ) : error ? (
-        <Alert variant="danger">{error}</Alert>
       ) : (
         <>
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
@@ -845,27 +855,21 @@ const PatientsAdminView = () => {
           {/* Add/Edit Modal */}
           <Modal show={showAddModal} onHide={() => {
             setShowAddModal(false);
-            setError(null);
-            setShowRetryButton(false);
-            setLastAttemptedPatient(null);
             setFormErrors({});
           }} size="lg">
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>
                 {editingPatient ? "Edit" : "Add"} Patient
               </Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowAddModal(false);
+                setFormErrors({});
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
-              {error && (
-                <Alert variant="danger" className="mb-3">
-                  {error}
-                  {showRetryButton && (
-                    <Button variant="outline-danger" size="sm" className="ms-2" onClick={handleRetry}>
-                      Try Again
-                    </Button>
-                  )}
-                </Alert>
-              )}
+              {/* Error alert removed, using toast instead */}
               <Form onSubmit={handleAddPatient} noValidate id="patient-form">
                 {editingPatient && (
                   <Row>
@@ -1312,8 +1316,11 @@ const PatientsAdminView = () => {
 
           {/* Import Modal */}
           <Modal show={showImportModal} onHide={() => setShowImportModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Import Patients</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Form.Group className="mb-3">
@@ -1344,8 +1351,11 @@ const PatientsAdminView = () => {
 
           {/* Delete Confirmation Modal */}
           <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Alert variant="warning">
@@ -1368,8 +1378,11 @@ const PatientsAdminView = () => {
 
           {/* Bulk Delete Modal */}
           <Modal show={showBulkDeleteModal} onHide={() => setShowBulkDeleteModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Confirm Bulk Delete</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowBulkDeleteModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Alert variant="warning">
@@ -1393,8 +1406,11 @@ const PatientsAdminView = () => {
 
           {/* Bulk Update Modal */}
           <Modal show={showBulkUpdateModal} onHide={() => setShowBulkUpdateModal(false)} size="lg">
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Bulk Update Patients</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowBulkUpdateModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Alert variant="info">
@@ -1454,8 +1470,11 @@ const PatientsAdminView = () => {
 
           {/* Disease Details Modal */}
           <Modal show={showDiseaseModal} onHide={() => setShowDiseaseModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Disease Details</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowDiseaseModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {selectedDisease && (
@@ -1478,15 +1497,14 @@ const PatientsAdminView = () => {
 
           {/* Add Contract Modal */}
           <Modal show={showContractModal} onHide={() => setShowContractModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Add New Contract</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowContractModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
-              {error && (
-                <Alert variant="danger" className="mb-3">
-                  {error}
-                </Alert>
-              )}
+              {/* Error alert removed */}
               <Form>
                 <Row>
                   <Col md={12}>
@@ -1597,11 +1615,7 @@ const PatientsAdminView = () => {
               <Modal.Title>Add New Disease</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-              {error && (
-                <Alert variant="danger" className="mb-3">
-                  {error}
-                </Alert>
-              )}
+              {/* Error alert removed */}
               <Form>
                 <Row>
                   <Col md={12}>
@@ -1652,11 +1666,7 @@ const PatientsAdminView = () => {
               <Modal.Title>Add New Referral</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-              {error && (
-                <Alert variant="danger" className="mb-3">
-                  {error}
-                </Alert>
-              )}
+              {/* Error alert removed */}
               <Form>
                 <Row>
                   <Col md={6}>
