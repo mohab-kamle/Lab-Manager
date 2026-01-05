@@ -28,7 +28,7 @@
     "jspdf-autotable": "^5.0.2",
     "jspdf-font": "^1.0.7",
     "lottie-react": "^2.4.1",
-    "lucide-react": "^0.475.0",
+    "lucide-react": "^0.554.0",
     "luxon": "^3.6.1",
     "pdfmake": "^0.2.20",
     "prop-types": "^15.8.1",
