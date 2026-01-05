@@ -20,10 +20,10 @@ $highlight: hsl(213, 100%, 100%);
 $border: hsl(208, 100%, 46%);
 $border-muted: hsl(212, 100%, 65%);
 $primary: hsl(212, 100%, 27%);
-$secondary: hsl(30, 100%, 15%);
+$secondary: hsl(25, 95%, 55%);
 $danger: hsl(4, 99%, 37%);
-$warning: hsl(50, 100%, 12%);
-$success: hsl(159, 100%, 9%);
+$warning: hsl(50, 100%, 50%);
+$success: hsl(150, 60%, 45%);
 $info: hsl(215, 95%, 42%);
 
 /* Dark mode colors */
@@ -45,51 +45,49 @@ $dark-info: hsl(217, 100%, 70%);
 /* -------------------------------
    3) Apply to Bootstrap
 --------------------------------- */
-@use "bootstrap/scss/bootstrap" with (
-  $font-family-sans-serif: $font-family-sans-serif,
-  $font-family-base: $font-family-base,
-  $primary: $primary,
-  $secondary: $secondary,
-  $danger: $danger,
-  $warning: $warning,
-  $success: $success,
-  $info: $info
-);
+@use "bootstrap/scss/bootstrap" with ($font-family-sans-serif: $font-family-sans-serif,
+   $font-family-base: $font-family-base,
+   $primary: $primary,
+   $secondary: $secondary,
+   $danger: $danger,
+   $warning: $warning,
+   $success: $success,
+   $info: $info);
 
 /* -------------------------------
    4) Push colors to :root for CSS use
 --------------------------------- */
 :root {
-  --logo-color: #{$logo-color};
-  --bg-dark: #{$bg-dark};
-  --bg: #{$bg};
-  --bg-light: #{$bg-light};
-  --text: #{$text};
-  --text-muted: #{$text-muted};
-  --highlight: #{$highlight};
-  --border: #{$border};
-  --border-muted: #{$border-muted};
-  --primary: #{$primary};
-  --secondary: #{$secondary};
-  --danger: #{$danger};
-  --warning: #{$warning};
-  --success: #{$success};
-  --info: #{$info};
+   --logo-color: #{$logo-color};
+   --bg-dark: #{$bg-dark};
+   --bg: #{$bg};
+   --bg-light: #{$bg-light};
+   --text: #{$text};
+   --text-muted: #{$text-muted};
+   --highlight: #{$highlight};
+   --border: #{$border};
+   --border-muted: #{$border-muted};
+   --primary: #{$primary};
+   --secondary: #{$secondary};
+   --danger: #{$danger};
+   --warning: #{$warning};
+   --success: #{$success};
+   --info: #{$info};
 }
 
 body.dark {
-  --bg-dark: #{$dark-bg-dark};
-  --bg: #{$dark-bg};
-  --bg-light: #{$dark-bg-light};
-  --text: #{$dark-text};
-  --text-muted: #{$dark-text-muted};
-  --highlight: #{$dark-highlight};
-  --border: #{$dark-border};
-  --border-muted: #{$dark-border-muted};
-  --primary: #{$dark-primary};
-  --secondary: #{$dark-secondary};
-  --danger: #{$dark-danger};
-  --warning: #{$dark-warning};
-  --success: #{$dark-success};
-  --info: #{$dark-info};
+   --bg-dark: #{$dark-bg-dark};
+   --bg: #{$dark-bg};
+   --bg-light: #{$dark-bg-light};
+   --text: #{$dark-text};
+   --text-muted: #{$dark-text-muted};
+   --highlight: #{$dark-highlight};
+   --border: #{$dark-border};
+   --border-muted: #{$dark-border-muted};
+   --primary: #{$dark-primary};
+   --secondary: #{$dark-secondary};
+   --danger: #{$dark-danger};
+   --warning: #{$dark-warning};
+   --success: #{$dark-success};
+   --info: #{$dark-info};
 }
