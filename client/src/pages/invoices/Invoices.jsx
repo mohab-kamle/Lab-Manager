@@ -927,6 +927,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
   // Function to toggle cell expansion
   const toggleCellExpansion = (rowId, columnType) => {
+    const cellKey = `${rowId}-${columnType}`;
     setExpandedCells(prev => ({
       ...prev,
       [cellKey]: !prev[cellKey]
@@ -1851,6 +1852,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         onChange={(date) => setInvoice({ ...invoice, date })}
                         dateFormat="yyyy-MM-dd"
                         placeholderText="Select date"
+                        minDate={new Date(new Date().setFullYear(new Date().getFullYear() - 5))}
                         maxDate={new Date(new Date().setFullYear(new Date().getFullYear() + 1))}
                       />
                     </Form.Group>
