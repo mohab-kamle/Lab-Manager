@@ -4,7 +4,7 @@ import { Container, Button, Modal, Form, Alert } from "react-bootstrap";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
@@ -307,8 +307,11 @@ const Antibiotics = () => {
       
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>{editingAntibiotic ? "Edit Antibiotic" : "Add New Antibiotic"}</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
@@ -349,8 +352,11 @@ const Antibiotics = () => {
       
       {/* Import Modal */}
       <Modal show={showImportModal} onHide={() => setShowImportModal(false)} size="lg">
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Import Antibiotics</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="info" className="mb-3">
@@ -402,8 +408,11 @@ const Antibiotics = () => {
       
       {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Confirm Delete</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>Are you sure you want to delete the antibiotic "{antibioticToDelete?.name}"? This action cannot be undone.</Modal.Body>
         <Modal.Footer>
