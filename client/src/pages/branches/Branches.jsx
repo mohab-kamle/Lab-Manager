@@ -5,7 +5,7 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
-import { Pencil, Trash2, Plus, Download, Upload } from "lucide-react";
+import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
@@ -362,8 +362,11 @@ const Branches = () => {
 
           {/* Lab Selection Modal */}
           <Modal show={showLabSelectModal} onHide={() => setShowLabSelectModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Select Lab</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowLabSelectModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {labs.length === 0 ? (
@@ -390,8 +393,11 @@ const Branches = () => {
 
           {/* Add/Edit Branch Modal */}
           <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>{editingBranch ? "Edit Branch" : "Add New Branch"}</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowAddModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Form>
@@ -472,8 +478,11 @@ const Branches = () => {
 
           {/* Import Modal */}
           <Modal show={showImportModal} onHide={() => setShowImportModal(false)} size="lg">
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Import Branches</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Alert variant="info" className="mb-3">
@@ -527,8 +536,11 @@ const Branches = () => {
 
           {/* Delete Confirmation Modal */}
           <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Alert variant="warning">
