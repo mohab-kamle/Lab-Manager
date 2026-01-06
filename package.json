@@ -1,7 +1,9 @@
 {
   "name": "lab-manager-root",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "install:all": "pnpm install"
