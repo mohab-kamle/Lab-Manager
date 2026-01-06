@@ -50,8 +50,10 @@ CMD ["npm", "run", "dev", "--", "--host"]
 # 5. PRODUCTION: Client (Nginx)
 # -----------------------------------------------------------------------------
 FROM nginx:alpine AS client-prod
-# Copy the built assets from the 'client-build' stage
-COPY /app/client/dist /usr/share/nginx/html
+# CHANGED: Copy directly from the host context (files uploaded by GH Actions)
+# We remove '--from=client-build' because we are using the files on disk
+COPY client/dist /usr/share/nginx/html
+
 COPY client/nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
