@@ -12,19 +12,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+        
       # 1. Build the frontend locally on GitHub
       - name: Build frontend
-        working-directory: ./client
         run: |
-          # GENERATE ENV FILE (On the Runner)
-          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env.production
+          # Create the env file inside the client folder manually
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > client/.env.production
 
-          # Now install and build
+          # Install pnpm
           npm install -g pnpm
+
+          # Install dependencies from the ROOT 
           pnpm install --frozen-lockfile
-          # --ignore-scripts prevents 'postbuild' from running and crashing the deploy
-          pnpm run build -- --mode production --ignore-scripts
+
+          # Run the build command specifically for the 'client' package
+          # This runs the 'build' script defined in client/package.json
+          pnpm --filter client run build -- --mode production --ignore-scripts
       # --- NEW: Configure AWS & Open Firewall ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
