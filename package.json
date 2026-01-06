@@ -1,10 +1,27 @@
 {
-	"dependencies": {
-		"mysql2": "^3.15.3",
-		"redis": "^5.10.0",
-		"sequelize": "^6.37.7"
-	},
-	"devDependencies": {
-		"sequelize-cli": "^6.6.3"
-	}
+  "name": "lab-manager-root",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "install:all": "pnpm install"
+  },
+  "devDependencies": {
+    "sequelize-cli": "^6.6.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@emotion/react": "^11.11.4"
+    },
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "@swc/core",
+      "bcrypt",
+      "core-js",
+      "es5-ext",
+      "esbuild",
+      "puppeteer",
+      "sharp"
+    ]
+  }
 }
