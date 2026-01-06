@@ -4,6 +4,7 @@
   "version": "1.1.0 beta.stable",
   "type": "module",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "dev": "vite",
     "prebuild": "node sync-version.cjs",
     "build": "vite build",
@@ -68,18 +69,5 @@
     "vite": "^6.3.5",
     "vite-plugin-image-optimizer": "^2.0.2",
     "vite-plugin-remove-console": "^2.2.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@emotion/react": "^11.11.4"
-    },
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "@swc/core",
-      "core-js",
-      "esbuild",
-      "puppeteer",
-      "sharp"
-    ]
   }
 }
