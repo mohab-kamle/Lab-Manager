@@ -37,8 +37,9 @@ services:
 
   backend:
     build:
-      context: ./server
+      context: .  # CHANGED: Context is now the root
       dockerfile: Dockerfile
+      target: server-dev
       args:
         NODE_ENV: development
     container_name: labmanager-backend-dev
@@ -54,11 +55,12 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./server:/app
-      - /app/node_modules
-      - uploads_data_dev:/app/uploads
-      - logs_data_dev:/app/logs
-      - ./uploads:/app/uploads/shared
+      - ./server:/app/server       # CHANGED: Mount source to /app/server
+      - /app/node_modules          # CHANGED: Preserve root node_modules
+      - /app/server/node_modules   # CHANGED: Preserve server node_modules
+      - uploads_data_dev:/app/server/uploads # CHANGED: Update path
+      - logs_data_dev:/app/server/logs       # CHANGED: Update path
+      - ./uploads:/app/server/uploads/shared # CHANGED: Update path
     depends_on:
       redis:
         condition: service_started
@@ -66,7 +68,8 @@ services:
         condition: service_healthy
     networks:
       - labmanager-network
-    command: sh -c "npx sequelize-cli db:create && npm run dev && npx sequelize-cli db:migrate"
+    # CHANGED: Added 'prefix' to run command in the server workspace
+    command: sh -c "npx sequelize-cli db:create && npm run dev --prefix server && npx sequelize-cli db:migrate"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
@@ -76,8 +79,9 @@ services:
 
   frontend:
     build:
-      context: ./client
-      dockerfile: Dockerfile.dev
+      context: . # CHANGED: Context is now the root
+      dockerfile: Dockerfile
+      target: client-dev
       args:
         NODE_ENV: development
     container_name: labmanager-frontend-dev
@@ -91,13 +95,15 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./client:/app
-      - /app/node_modules
+      - ./client:/app/client      # CHANGED: Mount source to /app/client
+      - /app/node_modules         # CHANGED: Preserve root node_modules
+      - /app/client/node_modules  # CHANGED: Preserve client node_modules
     depends_on:
       - backend
     networks:
       - labmanager-network
-    command: sh -c "npm run dev -- --host 0.0.0.0 --port 5173"
+    # CHANGED: Added 'prefix' to run command in the client workspace
+    command: sh -c "npm run dev --prefix client -- --host 0.0.0.0 --port 5173"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s

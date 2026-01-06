@@ -502,6 +502,7 @@ npm run preview        # Preview production build
 - Added Nginx configuration for frontend
 - Improved Docker Compose setup
 - Enhanced production deployment workflow
+- **[New]** Detailed documentation of Docker & PNPM Setup: [View Logic](docs/DOCKER_ARCHITECTURE.md)
 
 ## Future Enhancements
 
