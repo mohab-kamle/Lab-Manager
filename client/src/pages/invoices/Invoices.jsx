@@ -633,7 +633,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         total: invoice.total,
         paid: invoice.paid || 0,
         due: invoice.due,
-        due: invoice.due,
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
         branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined
