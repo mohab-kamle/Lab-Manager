@@ -49,6 +49,9 @@ const authorizeFileAccess = async (req, res, next) => {
         } else {
           return res.status(403).json({ error: 'Insufficient permissions' });
         }
+      } else {
+        // Enforce naming convention - deny access if filename doesn't start with report ID
+        return res.status(403).json({ error: 'Access denied: Invalid file format' });
       }
     }
     
