@@ -219,6 +219,7 @@ const UnifiedLogin = () => {
                         variant={userType === type.value ? "primary" : "outline-primary"}
                         size="sm"
                         onClick={() => handleUserTypeChange(type.value)}
+                        aria-pressed={userType === type.value}
                         className="d-flex align-items-center gap-2 px-2 py-2 rounded-pill"
                         style={{
                           transition: 'all 0.3s ease',
@@ -343,6 +344,7 @@ const UnifiedLogin = () => {
                             size="sm"
                             className="position-absolute end-0 top-0 h-100 border-0 text-muted"
                             onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
                             style={{ padding: '0 15px' }}
                           >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
