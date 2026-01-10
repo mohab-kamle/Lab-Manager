@@ -1,3 +1,3 @@
-## 2024-05-23 - Accessibility Improvements
-**Learning:** Adding keyboard accessibility to custom drag-and-drop zones is crucial. Using `role="button"`, `tabIndex="0"`, and `onKeyDown` allows keyboard users to trigger the file dialog.
-**Action:** Always check interactive `div`s for keyboard support and semantic roles.
+## 2026-01-10 - Accessibility in Login Flow and Loading States
+**Learning:** Adding dynamic `aria-label` to password toggles and `aria-pressed` to role selection buttons significantly improves the login experience for screen reader users without visual changes. Similarly, ensuring loading spinners have `role="status"` and visually hidden text makes async operations perceptible to assistive technology.
+**Action:** Always check interactive elements (especially icon-only buttons and custom radio-like groups) for appropriate ARIA attributes. Verify loading states are announced.
