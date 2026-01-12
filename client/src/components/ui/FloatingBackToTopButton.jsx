@@ -31,6 +31,9 @@ const FloatingBackToTopButton = () => {
                 transition={{ duration: 0.3 }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
+                aria-label="Back to top"
+                tabIndex={showScrollTop ? 0 : -1}
+                style={{ pointerEvents: showScrollTop ? 'auto' : 'none' }}
             >
                 <ArrowUp size={24} />
             </motion.button>
