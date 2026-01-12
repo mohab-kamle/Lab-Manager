@@ -166,87 +166,135 @@ router.get(
         testGroupCountMap[item.medical_report_id] = parseInt(item.count, 10);
       });
 
-      // Note: Test and culture counts are now calculated from the actual associations
-      // instead of separate count queries for better accuracy and performance
+      // Optimized: Fetch tests and cultures separately to avoid N+M Cartesian product in the main query
+      // This is "Application-Side Join" which is often faster for complex includes
 
-      // Then get all medical reports with their associations
-      const reports = await db.medical_report.findAll({
-        where: {
-          lab_id: req.tenant.lab_id,
-        },
-        include: [
-          {
-            model: db.patient,
-            as: "patient",
-            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
+      const [reports, tests, cultures] = await Promise.all([
+        db.medical_report.findAll({
+          where: {
+            id: {
+              [Op.in]: medicalReportIds
+            }
+          },
+          include: [
+            {
+              model: db.patient,
+              as: "patient",
+              attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+              include: [
+                {
+                  model: db.referral,
+                  as: "referral",
+                  attributes: [
+                    "id",
+                    "doctor_name",
+                    "specialization",
+                    "phone",
+                    "email",
+                  ],
+                },
+              ],
+            },
+            {
+              model: db.bill,
+              as: "bill",
+              attributes: ["id", "date"],
+            },
+            {
+              model: db.admin,
+              as: "signatory_admin",
+              attributes: ["id"],
+              include: [
+                {
+                  model: db.employee,
+                  as: "id_employee",
+                  attributes: ["id", "name"],
               },
             ],
+            },
+            {
+              model: db.chemist,
+              as: "signatory",
+              attributes: ["id"],
+              include: [
+                {
+                  model: db.employee,
+                  as: "id_employee",
+                  attributes: ["id", "name"],
+                },
+              ],
+            },
+          ],
+        }),
+        // Fetch tests for these reports
+        medicalReportIds.length > 0 ? db.medical_report_has_test.findAll({
+          where: {
+            medical_report_id: {
+              [Op.in]: medicalReportIds
+            }
           },
-          {
+          include: [{
             model: db.test,
-            as: "tests",
-            through: { attributes: [] },
-            attributes: ["id", "name"],
+            as: 'test', // Assuming default alias or standard naming, usually singular of table name if not aliased
+            attributes: ['id', 'name']
+          }]
+        }) : [],
+        // Fetch cultures for these reports
+        medicalReportIds.length > 0 ? db.medical_report_has_culture.findAll({
+          where: {
+            medical_report_id: {
+              [Op.in]: medicalReportIds
+            }
           },
-          {
+          include: [{
             model: db.culture,
-            as: "cultures",
-            through: { attributes: [] },
-            attributes: ["id", "name"],
-          },
-          {
-            model: db.bill,
-            as: "bill",
-            attributes: ["id", "date"],
-          },
-          {
-            model: db.admin,
-            as: "signatory_admin",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-          {
-            model: db.chemist,
-            as: "signatory",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-        ],
-      });
+            as: 'culture',
+            attributes: ['id', 'name']
+          }]
+        }) : []
+      ]);
+
+      // Group tests and cultures by medical_report_id
+      const testsMap = {};
+      const culturesMap = {};
+
+      if (tests) {
+        tests.forEach(item => {
+          if (!testsMap[item.medical_report_id]) testsMap[item.medical_report_id] = [];
+          if (item.test) { // Ensure test object exists
+            testsMap[item.medical_report_id].push({
+              id: item.test.id,
+              name: item.test.name
+            });
+          }
+        });
+      }
+
+      if (cultures) {
+        cultures.forEach(item => {
+          if (!culturesMap[item.medical_report_id]) culturesMap[item.medical_report_id] = [];
+          if (item.culture) {
+            culturesMap[item.medical_report_id].push({
+              id: item.culture.id,
+              name: item.culture.name
+            });
+          }
+        });
+      }
 
       // Add patient_name, counts, and test group counts to each report for easier access
       const reportsWithPatientName = reports.map((report) => {
         const reportData = report.get({ plain: true });
+        const reportTests = testsMap[reportData.id] || [];
+        const reportCultures = culturesMap[reportData.id] || [];
+
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
-          tests: reportData.tests || [],
-          cultures: reportData.cultures || [],
-          tests_count: (reportData.tests || []).length,
-          cultures_count: (reportData.cultures || []).length,
+          tests: reportTests,
+          cultures: reportCultures,
+          tests_count: reportTests.length,
+          cultures_count: reportCultures.length,
           test_groups_count: testGroupCountMap[reportData.id] || 0,
           invoice_id: reportData.bill?.id || null,
         };
