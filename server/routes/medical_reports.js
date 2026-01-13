@@ -265,6 +265,7 @@ router.get(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee" , "patient"),
+  tenantContext,
   async (req, res) => {
     try {
       // Check if this is a PDF generation request for optimized loading
@@ -272,7 +273,11 @@ router.get(
       
       // Optimized query for PDF generation - loads only essential data
       if (isPdfRequest) {
-        const report = await db.medical_report.findByPk(req.params.id, {
+        const report = await db.medical_report.findOne({
+          where: {
+            id: req.params.id,
+            lab_id: req.tenant.lab_id
+          },
           attributes: [
             "id",
             "lab_id",
@@ -409,6 +414,11 @@ router.get(
           return res.status(404).json({ error: "Medical report not found" });
         }
 
+        // Security check for patients
+        if (req.user.role === 'patient' && report.patient_id !== req.user.id) {
+           return res.status(403).json({ error: "Access denied" });
+        }
+
         // Simplified response for PDF generation
         const reportData = report.get({ plain: true });
         const enrichedReport = {
@@ -421,7 +431,11 @@ router.get(
       }
       
       // Full query for regular requests (non-PDF)
-      const report = await db.medical_report.findByPk(req.params.id, {
+      const report = await db.medical_report.findOne({
+        where: {
+          id: req.params.id,
+          lab_id: req.tenant.lab_id
+        },
         attributes: [
           "id",
           "lab_id",
@@ -624,6 +638,11 @@ router.get(
       });
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
+      }
+
+      // Security check for patients
+      if (req.user.role === 'patient' && report.patient_id !== req.user.id) {
+         return res.status(403).json({ error: "Access denied" });
       }
 
       // Get test group results for processing
@@ -908,6 +927,7 @@ router.put(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  tenantContext,
   invalidateMedicalReportCache, // Invalidate cache when medical report is updated
   invalidateListCache, // Invalidate list cache when medical report is updated
   async (req, res) => {
@@ -929,7 +949,12 @@ router.put(
         reported_at,
       } = req.body;
 
-      const report = await db.medical_report.findByPk(req.params.id);
+      const report = await db.medical_report.findOne({
+        where: {
+          id: req.params.id,
+          lab_id: req.tenant.lab_id
+        }
+      });
 
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
@@ -1103,10 +1128,16 @@ router.delete(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  tenantContext,
   invalidateListCache, // Invalidate list cache when medical report is deleted
   async (req, res) => {
     try {
-      const report = await db.medical_report.findByPk(req.params.id);
+      const report = await db.medical_report.findOne({
+        where: {
+          id: req.params.id,
+          lab_id: req.tenant.lab_id
+        }
+      });
 
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
