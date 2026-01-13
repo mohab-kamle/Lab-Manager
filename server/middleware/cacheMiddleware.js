@@ -459,4 +459,61 @@ module.exports = {
   
   // Factory function for custom cache middleware
   createCacheMiddleware,
+
+  // Invoice cache middleware
+  cacheInvoicesList,
+  invalidateInvoicesList,
+};
+
+/**
+ * Cache middleware for invoices list
+ */
+const cacheInvoicesList = createCacheMiddleware(
+  (req) => {
+    const labId = req.tenant?.lab_id || 'unknown';
+    // Use query params as part of the key if there are filters in the future
+    return `invoices:list:${labId}`;
+  },
+  async (cacheKey, req) => {
+    const labId = req.tenant?.lab_id;
+    return await cacheService.getInvoicesList(labId);
+  },
+  async (cacheKey, data, req) => {
+    const labId = req.tenant?.lab_id;
+    return await cacheService.setInvoicesList(labId, {}, data);
+  },
+  300 // 5 minutes TTL
+);
+
+/**
+ * Cache invalidation middleware for invoice updates
+ */
+const invalidateInvoicesList = async (req, res, next) => {
+  // Store original json method
+  const originalJson = res.json;
+
+  // Override json method to invalidate cache after successful update
+  res.json = function(data) {
+    // Invalidate list cache on successful creation/update/deletion
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const labId = req.tenant?.lab_id || req.user?.lab_id;
+      if (labId && cacheService.isConnected) {
+        console.log(`🗑️ Invalidating invoices cache for lab ID: ${labId}`);
+        cacheService.invalidateInvoicesCache(labId)
+          .then(() => {
+            console.log(`✅ Invoices cache invalidated for lab ID: ${labId}`);
+          })
+          .catch(err => {
+            console.warn(`⚠️ Failed to invalidate invoices cache for lab ID ${labId}:`, err.message);
+          });
+      } else if (!cacheService.isConnected) {
+        console.log('🔌 Cache service disconnected - skipping invoices cache invalidation');
+      }
+    }
+
+    // Call original json method
+    return originalJson.call(this, data);
+  };
+
+  next();
 };
