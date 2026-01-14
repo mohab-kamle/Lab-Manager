@@ -4,7 +4,7 @@ import { Container, Button, Modal, Toast, ToastContainer } from "react-bootstrap
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, CircleX } from "lucide-react";
 import TestGroupEditor from "./TestGroupEditor";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
@@ -287,8 +287,11 @@ const TestGroups = () => {
       )}
       {showEditor && (
         <Modal show={showEditor} onHide={() => setShowEditor(false)} size="xl">
-          <Modal.Header closeButton>
+          <Modal.Header>
             <Modal.Title>{editingGroupId ? "Edit Test Group" : "Add Test Group"}</Modal.Title>
+            <button className="modal-close-btn" onClick={() => setShowEditor(false)}>
+              <CircleX size={24} />
+            </button>
           </Modal.Header>
           <Modal.Body>
             <TestGroupEditor
@@ -314,8 +317,11 @@ const TestGroups = () => {
       </ToastContainer>
       {/* Delete Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Confirm Soft Delete</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>
           Are you sure you want to soft delete the test group "{groupToDelete?.name}"? 
@@ -330,8 +336,11 @@ const TestGroups = () => {
 
       {/* Restore Confirmation Modal */}
       <Modal show={showRestoreModal} onHide={() => setShowRestoreModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header>
           <Modal.Title>Confirm Restore</Modal.Title>
+          <button className="modal-close-btn" onClick={() => setShowRestoreModal(false)}>
+            <CircleX size={24} />
+          </button>
         </Modal.Header>
         <Modal.Body>Are you sure you want to restore the test group "{groupToRestore?.name}"? This will make it available for use again.</Modal.Body>
         <Modal.Footer>

@@ -16,21 +16,17 @@ Disallow: /chemist/
 Disallow: /receptionist/
 
 # Disallow access to technical directories
-Disallow: /static/js/
-Disallow: /static/css/
 Disallow: /uploads/
 
 # Allow access to public pages (if any)
 Allow: /
-Allow: /about
-Allow: /contact
-Allow: /services
+Allow: /know-us
 
 # Crawl delay (optional - be respectful to server resources)
 Crawl-delay: 1
 
 # Sitemap location (you should create this)
-# Sitemap: https://yourdomain.com/sitemap.xml
+Sitemap: https://labdoctors-laboratories.com/sitemap.xml
 
 # Notes:
 # - This is a medical system handling sensitive patient data

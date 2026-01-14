@@ -126,17 +126,69 @@ router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantC
     }
 });
 
+// Skip password change (admins only!)
+router.put("/skip-password-change", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
+    try {
+        // Find employee
+        const emp = await employee.findByPk(req.user.id);
+        if (!emp) {
+            return res.status(404).json({ error: "Employee not found" });
+        }
+
+        // Change login Status for admins
+        if(req.user.role === 'admin'){
+            const adminObj = await admin.findByPk(req.user.id);
+            if(adminObj.isFirstTimeLogin) await adminObj.update({isFirstTimeLogin: false});
+        }
+
+        res.json({ message: "Password change skipped successfully" });
+
+    } catch (error) {
+        console.error('Error skipping password change:', error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
 // Get all employees (admin only)
 router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const employees = await employee.findAll({
             attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
+            include: [
+                {
+                    model: sequelize.models.branch_has_employee,
+                    as: 'branch_has_employees',
+                    include: [
+                        {
+                            model: sequelize.models.branch,
+                            as: 'branch',
+                            attributes: ['id', 'name']
+                        }
+                    ]
+                }
+            ],
             order: [['name', 'ASC']],
             where: {
                 lab_id: req.tenant.lab_id
             }
         });
-        res.json(employees);
+
+        // Flatten the structure for the frontend
+        const result = employees.map(emp => {
+            const empData = emp.toJSON();
+            // Assuming an employee belongs to one branch for now as per UI
+            const branchRelationship = empData.branch_has_employees && empData.branch_has_employees[0];
+            
+            return {
+                ...empData,
+                branch_id: branchRelationship ? branchRelationship.branch_id : null,
+                branch_name: branchRelationship && branchRelationship.branch ? branchRelationship.branch.name : null,
+                // Remove the nested object to keep payload clean
+                branch_has_employees: undefined 
+            };
+        });
+
+        res.json(result);
     } catch (error) {
         console.error('Error fetching employees:', error);
         res.status(500).json({ error: "Internal server error" });

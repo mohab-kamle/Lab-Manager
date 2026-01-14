@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Printer, Settings, Eye } from "lucide-react";
+import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
@@ -214,10 +214,21 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     }
   }, [searchTerm, patients]);
 
-  const patientOptions = filteredPatients.map(patient => ({
-    value: patient.id,
-    label: `${patient.name} (${patient.patientcode}) - ${patient.national_id} - ${patient.phone}`
-  }));
+  const patientOptions = filteredPatients.map((patient) => {
+    const parts = [];
+    if (patient.name) {
+      parts.push(
+        `${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`
+      );
+    }
+    if (patient.national_id) parts.push(patient.national_id);
+    if (patient.phone) parts.push(patient.phone);
+
+    return {
+      value: patient.id,
+      label: parts.join(" - "),
+    };
+  });
 
   // Helper function to calculate total from payment methods
   const calculatePaymentTotal = (payments) => {
@@ -622,7 +633,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         total: invoice.total,
         paid: invoice.paid || 0,
         due: invoice.due,
-        date: new Date().toISOString(),
+        date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
         branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined
       };
@@ -923,7 +934,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   };
 
   const formatCellData = (value, header, rowData) => {
-    if (value === null || value === undefined) return '-';
+    if ((value === null || value === undefined) && !['amount_due', 'credit'].includes(header)) return '-';
     
     switch (header) {
       case 'date':
@@ -1147,6 +1158,20 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             </tbody>
           </table>
         );
+      case 'amount_due':
+        const dueAmount = Number(rowData.due || 0);
+        if (dueAmount > 0.01) {
+          return <span className="text-danger fw-bold">EGP {dueAmount.toFixed(2)}</span>;
+        }
+        return <span className="text-muted">-</span>;
+
+      case 'credit':
+        const creditAmount = Number(rowData.due || 0);
+        if (creditAmount < -0.01) {
+          return <span className="text-success fw-bold">EGP {Math.abs(creditAmount).toFixed(2)}</span>;
+        }
+        return <span className="text-muted">-</span>;
+
       case 'subtotal':
       case 'total':
       case 'paid':
@@ -1310,7 +1335,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               "total",
               "payments",
               "paid",
-              "due",
+              "amount_due",
+              "credit",
               "status"
             ]}
             formatCellData={formatCellData}
@@ -1336,10 +1362,20 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               }}
               size="lg"
             >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>
                 {editingInvoice ? "Edit" : "New"} Invoice
               </Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowAddModal(false);
+                resetForm();
+                setError(null);
+                setSuccessMessage("");
+                setStatusDetectionError("");
+                setModalSuccessMessage("");
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {showFormErrorAlert && Object.keys(formErrors).length > 0 && (
@@ -1815,6 +1851,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         onChange={(date) => setInvoice({ ...invoice, date })}
                         dateFormat="yyyy-MM-dd"
                         placeholderText="Select date"
+                        minDate={new Date(new Date().setFullYear(new Date().getFullYear() - 5))}
+                        maxDate={new Date(new Date().setFullYear(new Date().getFullYear() + 1))}
                       />
                     </Form.Group>
                   </Col>
@@ -2205,12 +2243,12 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         </Col>
                         <Col md={6}>
                           <Form.Group className="mb-3">
-                            <Form.Label>Due</Form.Label>
+                            <Form.Label>{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
                             <Form.Control
                               type="text"
-                              value={`EGP ${invoice.due?.toFixed(2) || "0.00"}`}
+                              value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
                               disabled
-                              className={invoice.due > 0 ? "text-danger fw-bold" : "text-success fw-bold"}
+                              className={(invoice.due || 0) > 0.01 ? "text-danger fw-bold" : "text-success fw-bold"}
                             />
                           </Form.Group>
                         </Col>
@@ -2337,8 +2375,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             show={showDeleteModal}
             onHide={() => setShowDeleteModal(false)}
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               Are you sure you want to delete this invoice?
@@ -2373,8 +2414,17 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             }}
             size="lg"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Manage Invoice Statuses</Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowStatusModal(false);
+                setEditingStatus(null);
+                setStatusFormData({ state: "", details: "" });
+                setStatusFormErrors({});
+                setShowStatusFormErrorAlert(false);
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {showStatusFormErrorAlert && Object.keys(statusFormErrors).length > 0 && (
@@ -2551,8 +2601,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             show={showStatusDeleteModal}
             onHide={() => setShowStatusDeleteModal(false)}
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowStatusDeleteModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               Are you sure you want to delete this status?
@@ -2577,8 +2630,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
           {/* Add Disease Modal */}
           <Modal show={showDiseaseCreateModal} onHide={() => setShowDiseaseCreateModal(false)}>
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Add New Disease</Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowDiseaseCreateModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {error && (
@@ -2639,8 +2695,14 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             }}
             size="lg"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Add New Referral</Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowReferralModal(false);
+                setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Form>
@@ -2725,8 +2787,14 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             }}
             size="xl"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>Invoice PDF Preview</Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowPDFPreview(false);
+                setSelectedInvoiceForPDF(null);
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {selectedInvoiceForPDF && (
