@@ -180,13 +180,15 @@ const HomePage = () => {
                 className="hero-image-wrapper mb-2"
                 initial={{ opacity: 0, scale: 0.8, rotateX: 10 }}
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                transition={{ duration: 1, delay: 0.2 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
               >
                 <div className="glass-panel-glow" />
                 <motion.img 
                   src={heroImage} 
                   alt="LabManager Dashboard" 
                   className="img-fluid rounded-4 shadow-3d border border-white-translucent"
+                  fetchPriority="high"
+                  loading="eager"
                   animate={{ y: [0, -15, 0] }} 
                   transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
                 />
