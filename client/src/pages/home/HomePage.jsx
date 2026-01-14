@@ -41,7 +41,11 @@ import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layo
 // Assets & Styles
 import heroImage from "../../assets/heroImage.webp"; // this is Dashboard Screenshot
 import "../../styles/HomePage.css";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+
+// Lazy load DotLottieReact
+const DotLottieReact = React.lazy(() => 
+  import("@lottiefiles/dotlottie-react").then(module => ({ default: module.DotLottieReact }))
+);
 
 // Animation Variants
 const fadeInUp = {
@@ -246,12 +250,14 @@ const HomePage = () => {
               <div className="p-4 h-100 d-flex flex-column">
                 <div className="mb-auto">
                   <div className="icon-box text-primary mb-3  rounded-5" style={{ border: '3px solid var(--border)' }}>
-                    <DotLottieReact
-                      src="/Gears Lottie Animation.lottie"
-                      autoplay
-                      loop
-                      style={{ width: '100px', height: '100px' }}
-                    />
+                    <React.Suspense fallback={<div style={{ width: '100px', height: '100px' }} />}>
+                      <DotLottieReact
+                        src="/Gears Lottie Animation.lottie"
+                        autoplay
+                        loop
+                        style={{ width: '100px', height: '100px' }}
+                      />
+                    </React.Suspense>
                   </div>
                   <h3>Complete Operations</h3>
                   <p className="text-muted">Manage cultures, antibiotics, inventory, and patient history from a single command center.</p>
@@ -300,12 +306,14 @@ const HomePage = () => {
               <div className="p-4 d-flex align-items-center gap-4">
                  <div className="flex-grow-1">
                     <div className="icon-box text-success mb-3">
-                      <DotLottieReact
-                        src="/Electricity charging.lottie"
-                        autoplay
-                        loop
-                        style={{ width: '60px', height: '50px' }}
-                      />
+                      <React.Suspense fallback={<div style={{ width: '60px', height: '50px' }} />}>
+                        <DotLottieReact
+                          src="/Electricity charging.lottie"
+                          autoplay
+                          loop
+                          style={{ width: '60px', height: '50px' }}
+                        />
+                      </React.Suspense>
                     </div>
                     <h4>Lightning Fast Performance</h4>
                     <p className="text-muted mb-0">Built on modern tech stacks for instant search and loading.</p>
