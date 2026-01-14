@@ -15,6 +15,7 @@ import "react-toastify/dist/ReactToastify.css";
 import VersionBadge from "./components/ui/VersionBadge";
 import PageTransition from "./components/layout/PageTransition";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
+import ToastProvider from "./components/ui/ToastContext";
 
 // Pages - Lazy Loaded
 const HomePage = React.lazy(() => import("./pages/home/HomePage"));
@@ -102,6 +103,7 @@ function AppContent() {
 
   return (
     <div className="App">
+      <MainNavBar />
       <ToastContainer
         position="top-right"
         autoClose={5000}
@@ -114,7 +116,6 @@ function AppContent() {
         pauseOnHover
         theme="colored"
       />
-      <MainNavBar />
       <Suspense fallback={<LoadingSpinner />}>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
@@ -759,7 +760,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );
