@@ -146,3 +146,21 @@
   background: var(--primary);
   color: var(--bg);
 }
+
+/* ================================
+   Refactored Inline Styles
+   ================================ */
+
+.info-card-label {
+  font-size: 0.75rem !important;
+}
+
+.profile-avatar-container {
+  width: 140px;
+  height: 140px;
+}
+
+.profile-animation {
+  width: 85% !important;
+  height: 85% !important;
+}

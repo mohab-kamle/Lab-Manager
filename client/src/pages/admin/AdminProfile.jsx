@@ -60,10 +60,7 @@ const InfoCard = ({
       <Icon size={24} className={`text-${color}`} />
     </div>
     <div className="flex-grow-1">
-      <small
-        className="text-muted d-block text-uppercase fw-bold"
-        style={{ fontSize: "0.75rem" }}
-      >
+      <small className="text-muted d-block text-uppercase fw-bold info-card-label">
         {label}
       </small>
       {isEditing ? (
@@ -284,14 +281,13 @@ const AdminProfile = () => {
         <div className="d-inline-block position-relative mb-3">
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="bg-dark bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center shadow overflow-hidden border border-4 border-white"
-            style={{ width: "140px", height: "140px" }}
+            className="bg-white rounded-circle d-flex align-items-center justify-content-center shadow overflow-hidden border border-2 border-primary profile-avatar-container"
           >
             <DotLottieReact
               src={DoctorAnimation}
               loop={false}
               autoplay={true}
-              style={{ width: "85%", height: "85%" }}
+              className="profile-animation"
             />
           </motion.div>
         </div>
