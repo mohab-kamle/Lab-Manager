@@ -63,6 +63,21 @@ const staggerContainer = {
   }
 };
 
+const LazyLottie = ({ src, style, ...props }) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "200px" });
+  
+  return (
+    <div ref={ref} style={style}>
+      {isInView && (
+        <React.Suspense fallback={<div style={style} />}>
+          <DotLottieReact src={src} style={style} {...props} />
+        </React.Suspense>
+      )}
+    </div>
+  );
+};
+
 const HomePage = () => {
   // --- Existing Logic Preserved ---
   const [showDemoModal, setShowDemoModal] = useState(false);
@@ -252,14 +267,12 @@ const HomePage = () => {
               <div className="p-4 h-100 d-flex flex-column">
                 <div className="mb-auto">
                   <div className="icon-box text-primary mb-3  rounded-5" style={{ border: '3px solid var(--border)' }}>
-                    <React.Suspense fallback={<div style={{ width: '100px', height: '100px' }} />}>
-                      <DotLottieReact
-                        src="/Gears Lottie Animation.lottie"
-                        autoplay
-                        loop
-                        style={{ width: '100px', height: '100px' }}
-                      />
-                    </React.Suspense>
+                    <LazyLottie
+                      src="/Gears Lottie Animation.lottie"
+                      autoplay
+                      loop
+                      style={{ width: '100px', height: '100px' }}
+                    />
                   </div>
                   <h3>Complete Operations</h3>
                   <p className="text-muted">Manage cultures, antibiotics, inventory, and patient history from a single command center.</p>
@@ -308,14 +321,12 @@ const HomePage = () => {
               <div className="p-4 d-flex align-items-center gap-4">
                  <div className="flex-grow-1">
                     <div className="icon-box text-success mb-3">
-                      <React.Suspense fallback={<div style={{ width: '60px', height: '50px' }} />}>
-                        <DotLottieReact
-                          src="/Electricity charging.lottie"
-                          autoplay
-                          loop
-                          style={{ width: '60px', height: '50px' }}
-                        />
-                      </React.Suspense>
+                      <LazyLottie
+                        src="/Electricity charging.lottie"
+                        autoplay
+                        loop
+                        style={{ width: '60px', height: '50px' }}
+                      />
                     </div>
                     <h4>Lightning Fast Performance</h4>
                     <p className="text-muted mb-0">Built on modern tech stacks for instant search and loading.</p>

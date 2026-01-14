@@ -27,7 +27,7 @@ export default defineConfig({
     // Step 3: Critical CSS Inlining
     critical({
       criticalUrl: '',
-      criticalBase: './',
+      criticalBase: 'dist/',
       criticalPages: [
         { uri: '', template: 'index' },
       ],
@@ -51,7 +51,12 @@ export default defineConfig({
         // Step 4: Long-term Asset Caching with hashed filenames
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash].[ext]'
+        assetFileNames: 'assets/[name].[hash].[ext]',
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['bootstrap', 'react-bootstrap', 'lucide-react'],
+          utils: ['axios', 'luxon', 'formik', 'yup']
+        }
       }
     },
     // Enable compression and optimization
