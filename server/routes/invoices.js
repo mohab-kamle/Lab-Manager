@@ -154,7 +154,8 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
             due = 0,
             status_id,
             receptionist_id,
-            branch_id // <-- add branch_id here
+            branch_id, // <-- add branch_id here
+            date
         } = req.body;
 
         // Validate required fields
@@ -181,7 +182,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), asyn
         console.log('[INVOICE DEBUG] Incoming branch_id:', branch_id, 'Type:', typeof branch_id);
         // Create the bill
         const newBill = await bill.create({
-            date: new Date(),
+            date: date ? new Date(date) : new Date(),
             paid,
             due,
             subtotal,

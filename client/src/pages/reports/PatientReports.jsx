@@ -7,14 +7,17 @@ import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import PrintPDF from "../../components/pdf/PrintPDF";
 import { formatDate } from "../../utils/dateFormatter";
-import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import headerImage from "../../assets/headerpdf.png";
 import footerImage from "../../assets/footerpdf.png";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
-
+const loadPdf = async () => {
+  const { jsPDF } = await import("jspdf");
+  const pdf = new jsPDF();
+  return pdf; 
+};
 function generateMedicalReportPDF(patient, report) {
-  const doc = new jsPDF("p", "mm", "a4");
+  const doc = loadPdf("p", "mm", "a4");
   try { doc.addImage(headerImage, "PNG", 10, 10, 190, 30); } catch {}
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);

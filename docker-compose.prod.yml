@@ -50,8 +50,9 @@ services:
 
   backend:
     build:
-      context: ./server
+      context: .
       dockerfile: Dockerfile
+      target: server-prod
       args:
         NODE_ENV: production
     container_name: labmanager-backend
@@ -87,8 +88,9 @@ services:
       
   frontend:
     build:
-      context: ./client
+      context: .
       dockerfile: Dockerfile
+      target: client-prod
     container_name: labmanager-frontend
     restart: unless-stopped
     ports:

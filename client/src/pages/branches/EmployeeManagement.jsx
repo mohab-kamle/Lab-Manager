@@ -25,6 +25,7 @@ import {
   CheckCircle,
   AlertCircle,
   X,
+  CircleX,
   AlertTriangle,
   Info,
   UserX,
@@ -460,10 +461,16 @@ const EmployeeManagement = () => {
             }}
             size="lg"
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>
                 {editingEmployee ? "Edit" : "Add"} Employee
               </Modal.Title>
+              <button className="modal-close-btn" onClick={() => {
+                setShowAddModal(false);
+                setFormErrors({});
+              }}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               <Form onSubmit={handleAddEmployee} noValidate id="employee-form">
@@ -737,12 +744,15 @@ const EmployeeManagement = () => {
             show={showPermissionsModal}
             onHide={() => setShowPermissionsModal(false)}
           >
-            <Modal.Header closeButton>
+            <Modal.Header>
               <Modal.Title>
                 <Shield size={20} className="me-2" />
                 Role Permissions:{" "}
                 {selectedRole?.charAt(0).toUpperCase() + selectedRole?.slice(1)}
               </Modal.Title>
+              <button className="modal-close-btn" onClick={() => setShowPermissionsModal(false)}>
+                <CircleX size={24} />
+              </button>
             </Modal.Header>
             <Modal.Body>
               {rolePermissions && (
