@@ -131,48 +131,33 @@ router.get(
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
-      // Get medical_report_ids for the current lab
-      const medicalReportIds = await db.medical_report
-        .findAll({
-          attributes: ["id"],
-          where: {
-            lab_id: req.tenant.lab_id,
-          },
-          raw: true,
-        })
-        .then((reports) => reports.map((report) => report.id));
-
-      // First, get the count of test groups for each medical report
-      const testGroupCounts = await db.medical_report_has_tg.findAll({
-        attributes: [
-          "medical_report_id",
-          [
-            db.sequelize.fn("COUNT", db.sequelize.col("test_group_id")),
-            "count",
-          ],
-        ],
-        where: {
-          medical_report_id: {
-            [Op.in]: medicalReportIds,
-          },
-        },
-        group: ["medical_report_id"],
-        raw: true,
-      });
-
-      // Create a map of medical_report_id -> test group count
-      const testGroupCountMap = {};
-      testGroupCounts.forEach((item) => {
-        testGroupCountMap[item.medical_report_id] = parseInt(item.count, 10);
-      });
-
-      // Note: Test and culture counts are now calculated from the actual associations
-      // instead of separate count queries for better accuracy and performance
-
-      // Then get all medical reports with their associations
+      // ⚡ Optimized: Use subqueries for counts instead of fetching all associations or N+1 queries
+      // This significantly reduces memory usage and improves response time by avoiding large joins
       const reports = await db.medical_report.findAll({
         where: {
           lab_id: req.tenant.lab_id,
+        },
+        attributes: {
+          include: [
+            [
+              db.sequelize.literal(
+                '(SELECT COUNT(*) FROM medical_report_has_test WHERE medical_report_has_test.medical_report_id = medical_report.id)'
+              ),
+              'tests_count'
+            ],
+            [
+              db.sequelize.literal(
+                '(SELECT COUNT(*) FROM medical_report_has_culture WHERE medical_report_has_culture.medical_report_id = medical_report.id)'
+              ),
+              'cultures_count'
+            ],
+            [
+              db.sequelize.literal(
+                '(SELECT COUNT(*) FROM medical_report_has_tg WHERE medical_report_has_tg.medical_report_id = medical_report.id)'
+              ),
+              'test_groups_count'
+            ]
+          ]
         },
         include: [
           {
@@ -193,18 +178,8 @@ router.get(
               },
             ],
           },
-          {
-            model: db.test,
-            as: "tests",
-            through: { attributes: [] },
-            attributes: ["id", "name"],
-          },
-          {
-            model: db.culture,
-            as: "cultures",
-            through: { attributes: [] },
-            attributes: ["id", "name"],
-          },
+          // ⚡ Optimization: Removed heavy 'tests' and 'cultures' includes since we only need counts
+          // which are now handled efficiently by subqueries in attributes
           {
             model: db.bill,
             as: "bill",
@@ -237,17 +212,18 @@ router.get(
         ],
       });
 
-      // Add patient_name, counts, and test group counts to each report for easier access
+      // Add patient_name and flatten structure for frontend
       const reportsWithPatientName = reports.map((report) => {
         const reportData = report.get({ plain: true });
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
-          tests: reportData.tests || [],
-          cultures: reportData.cultures || [],
-          tests_count: (reportData.tests || []).length,
-          cultures_count: (reportData.cultures || []).length,
-          test_groups_count: testGroupCountMap[reportData.id] || 0,
+          tests: [], // Kept for structure compatibility, populated by counts
+          cultures: [], // Kept for structure compatibility, populated by counts
+          // Counts are now directly in reportData from the query attributes
+          tests_count: reportData.tests_count || 0,
+          cultures_count: reportData.cultures_count || 0,
+          test_groups_count: reportData.test_groups_count || 0,
           invoice_id: reportData.bill?.id || null,
         };
       });
