@@ -25,17 +25,14 @@
 }
 
 :root {
-<<<<<<< HEAD
   /* hsl (fallback color) */
-=======
   /* Scrollbar Variables */
   --scrollbar-bg: transparent;
   --scrollbar-thumb: hsl(212 100% 27%);
   --scrollbar-thumb-hover: hsl(212 100% 37%);
   --scrollbar-width: 10px;
 
-    /* hsl (fallback color) */
->>>>>>> origin/main
+  /* hsl (fallback color) */
   --bg-dark: hsl(214 100% 94%);
   --bg: hsl(214 100% 99%);
   --bg-light: hsl(214 100% 100%);
@@ -114,7 +111,6 @@ body.dark {
   --toast-success-bg: rgba(52, 211, 153, 0.15);
   --toast-error: #f87171;
   --toast-error-bg: rgba(248, 113, 113, 0.15);
-<<<<<<< HEAD
   --toast-warning: #fbbf24;
   --toast-warning-bg: rgba(251, 191, 36, 0.15);
   --toast-info: #60a5fa;
@@ -122,11 +118,6 @@ body.dark {
   --toast-text: #f9fafb;
   --toast-text-muted: #d1d5db;
   --toast-bg: #1f2937;
-}
-=======
-  --toast-text: #F9FAFB;
-  --toast-text-muted: #D1D5DB;
-  --toast-bg: #1F2937;
 }
 
 /* Fixed size action buttons for tables */
@@ -139,4 +130,3 @@ body.dark {
   justify-content: center;
   border-radius: 4px;
 }
->>>>>>> origin/main
