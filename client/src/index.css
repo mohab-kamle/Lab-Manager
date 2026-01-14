@@ -1,5 +1,41 @@
+/* Global Scrollbar Styling */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid var(--scrollbar-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
 :root {
+<<<<<<< HEAD
   /* hsl (fallback color) */
+=======
+  /* Scrollbar Variables */
+  --scrollbar-bg: transparent;
+  --scrollbar-thumb: hsl(212 100% 27%);
+  --scrollbar-thumb-hover: hsl(212 100% 37%);
+  --scrollbar-width: 10px;
+
+    /* hsl (fallback color) */
+>>>>>>> origin/main
   --bg-dark: hsl(214 100% 94%);
   --bg: hsl(214 100% 99%);
   --bg-light: hsl(214 100% 100%);
@@ -9,10 +45,10 @@
   --border: hsl(208 100% 46%);
   --border-muted: hsl(212 100% 65%);
   --primary: hsl(212 100% 27%);
-  --secondary: hsl(30 100% 15%);
+  --secondary: hsl(25 95% 55%);
   --danger: hsl(4 99% 37%);
-  --warning: hsl(50 100% 12%);
-  --success: hsl(159 100% 9%);
+  --warning: hsl(50 100% 50%);
+  --success: hsl(150 60% 45%);
   --info: hsl(215 95% 42%);
   /* oklch */
   --bg-dark: oklch(0.92 0.1 255);
@@ -24,10 +60,10 @@
   --border: oklch(0.6 0.2 255);
   --border-muted: oklch(0.7 0.2 255);
   --primary: oklch(0.4 0.2 255);
-  --secondary: oklch(0.4 0.2 75);
+  --secondary: oklch(0.7 0.18 45);
   --danger: oklch(0.5 0.2 30);
-  --warning: oklch(0.5 0.2 100);
-  --success: oklch(0.5 0.2 160);
+  --warning: oklch(0.85 0.18 95);
+  --success: oklch(0.7 0.18 150);
   --info: oklch(0.5 0.2 260);
   /* Toast Specific Colors */
   --toast-success: #10b981;
@@ -78,6 +114,7 @@ body.dark {
   --toast-success-bg: rgba(52, 211, 153, 0.15);
   --toast-error: #f87171;
   --toast-error-bg: rgba(248, 113, 113, 0.15);
+<<<<<<< HEAD
   --toast-warning: #fbbf24;
   --toast-warning-bg: rgba(251, 191, 36, 0.15);
   --toast-info: #60a5fa;
@@ -86,3 +123,20 @@ body.dark {
   --toast-text-muted: #d1d5db;
   --toast-bg: #1f2937;
 }
+=======
+  --toast-text: #F9FAFB;
+  --toast-text-muted: #D1D5DB;
+  --toast-bg: #1F2937;
+}
+
+/* Fixed size action buttons for tables */
+.action-btn-fixed {
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+>>>>>>> origin/main
