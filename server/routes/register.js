@@ -14,8 +14,8 @@ var transporter = nodemailer.createTransport({
   port: 465,
   secure: true, // use SSL
   auth: {
-      user: process.env.EMAIL_USER || 'myzoho@zoho.com',
-      pass: process.env.EMAIL_PASS || 'myPassword'
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
   }
 });
 
@@ -104,7 +104,7 @@ router.post('/complete/:merchantOrderId', async (req, res) => {
             role: adminEmployee.role,
             lab_id: existingLab.id,
           },
-          process.env.JWT_SECRET || 'your-secret-key',
+          process.env.SECRET_KEY,
           { expiresIn: '6h' }
         );
         
@@ -259,7 +259,7 @@ router.post('/complete/:merchantOrderId', async (req, res) => {
         role: adminEmployee.role,
         lab_id: newLab.id,
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.SECRET_KEY,
       { expiresIn: '6h' }
     );
     
