@@ -1,16 +1,15 @@
 import React, { useState } from "react";
-import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
+import { Container, Form, Button, Alert, Card, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Eye, EyeOff, User, Lock, Shield, ArrowRight, HelpCircle } from "lucide-react";
 import axios from "axios";
-import useLabPrefix from "../../hooks/useLabPrefix";
 import { useLab } from "../../context/LabContext";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { motion } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 const UnifiedLogin = () => {
-  const { fetchLabInfo, labInfo } = useLab();
+  const { fetchLabInfo } = useLab();
   const [userType, setUserType] = useState("employee"); // Default to employee
   const [credentials, setCredentials] = useState({
     username: "",
@@ -261,7 +260,7 @@ const UnifiedLogin = () => {
                 
 
                 {error && (
-                  <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
+                  <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }} aria-live="assertive">
                     <div className="d-flex align-items-center">
                       <div className="me-2">⚠️</div>
                       <div>{error}</div>
@@ -345,6 +344,7 @@ const UnifiedLogin = () => {
                             className="position-absolute end-0 top-0 h-100 border-0 text-muted"
                             onClick={() => setShowPassword(!showPassword)}
                             aria-label={showPassword ? "Hide password" : "Show password"}
+                            aria-pressed={showPassword}
                             style={{ padding: '0 15px' }}
                           >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
