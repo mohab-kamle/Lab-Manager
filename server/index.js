@@ -168,19 +168,9 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => 
   res.sendFile(filePath);
 });
 
-// Legacy support for existing comment-images (maintain backward compatibility)
-app.use('/uploads/comment-images', express.static(commentImagesPath, {
-  maxAge: '1h',
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif') || filePath.endsWith('.webp')) {
-      res.setHeader('Content-Type', 'image/' + filePath.split('.').pop());
-    }
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  }
-}));
+// Legacy support for existing comment-images REMOVED for security
+// app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
+// Access is now strictly controlled via authenticated route above
 
 console.log('📁 Secure file serving configured:');
 console.log('  - Public files: /uploads/public (no auth required)');

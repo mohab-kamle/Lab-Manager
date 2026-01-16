@@ -49,6 +49,10 @@ const authorizeFileAccess = async (req, res, next) => {
         } else {
           return res.status(403).json({ error: 'Insufficient permissions' });
         }
+      } else {
+        // If filename does not follow convention, deny access for security
+        console.warn(`Blocked access to comment image with invalid filename format: ${filename}`);
+        return res.status(403).json({ error: 'Access denied: Invalid filename format' });
       }
     }
     
