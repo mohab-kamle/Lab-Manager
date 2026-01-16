@@ -1,6 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { lab, lab_settings: LabSettings, lab_activity_log: LabActivityLog, employee } = require('../models');
+const {
+  lab,
+  lab_settings: LabSettings,
+  lab_activity_log: LabActivityLog,
+  employee,
+  patient,
+  medical_report,
+  bill,
+  medical_report_has_test,
+  medical_report_has_culture,
+  medical_report_has_tg
+} = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const { tenantContext } = require('../middleware/tenantContext');
 const authorizeRoles = require('../middleware/authorizeRoles');
@@ -466,13 +477,70 @@ router.get('/:labId/stats', authenticateUser, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // TODO: Add actual statistics queries
+    // Calculate date range for current month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date();
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    const [
+      patientCount,
+      reportCount,
+      testCount,
+      cultureCount,
+      tgCount,
+      revenue,
+      labInfo
+    ] = await Promise.all([
+      patient.count({ where: { lab_id: labId } }),
+      medical_report.count({ where: { lab_id: labId } }),
+      medical_report_has_test.count({
+        include: [{
+          model: medical_report,
+          as: 'medical_report',
+          where: { lab_id: labId },
+          required: true
+        }]
+      }),
+      medical_report_has_culture.count({
+        include: [{
+          model: medical_report,
+          as: 'medical_report',
+          where: { lab_id: labId },
+          required: true
+        }]
+      }),
+      medical_report_has_tg.count({
+        include: [{
+          model: medical_report,
+          as: 'medical_report',
+          where: { lab_id: labId },
+          required: true
+        }]
+      }),
+      bill.sum('total', {
+        where: {
+          lab_id: labId,
+          date: {
+            [Op.between]: [startOfMonth, endOfMonth]
+          }
+        }
+      }),
+      lab.findByPk(labId, { attributes: ['subscription_status'] })
+    ]);
+
+    const isActive = (labInfo && (labInfo.subscription_status === 'active' || labInfo.subscription_status === 'trial')) ? 1 : 0;
+
     const stats = {
-      totalPatients: 0,
-      totalTests: 0,
-      totalReports: 0,
-      monthlyRevenue: 0,
-      activeSubscriptions: 1
+      totalPatients: patientCount,
+      totalTests: testCount + cultureCount + tgCount,
+      totalReports: reportCount,
+      monthlyRevenue: revenue || 0,
+      activeSubscriptions: isActive
     };
 
     res.json(stats);
