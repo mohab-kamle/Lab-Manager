@@ -8,6 +8,7 @@ const helmet = require("helmet");
 const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
+const { globalLimiter } = require("./middleware/rateLimiters");
 const { employee, patient, phone } = require("./models");
 
 // Subscription scheduler service
@@ -52,9 +53,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
-      // For debugging, temporarily allow all origins
-      console.log('CORS: Temporarily allowing blocked origin for debugging:', origin);
-      callback(null, true);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -70,6 +69,9 @@ app.use(express.json());
 
 // Apply security headers
 app.use(helmet());
+
+// Apply global rate limiter
+app.use(globalLimiter);
 
 // Compress responses
 const compression = require('compression');
@@ -168,49 +170,17 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => 
 
 // Legacy support for existing comment-images REMOVED for security
 // app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
+// Access is now strictly controlled via authenticated route above
 
 console.log('📁 Secure file serving configured:');
 console.log('  - Public files: /uploads/public (no auth required)');
 console.log('  - Private files: /uploads/private (auth required)');
 console.log('  - Comment images: /uploads/comment-images (auth required)');
 
-// Railway-specific CORS handling
+// Headers for environment info
 app.use((req, res, next) => {
-  // Railway sometimes requires specific headers
   res.header('X-Powered-By', 'LabManager API');
   res.header('X-Environment', process.env.NODE_ENV || 'development');
-  
-  // Ensure CORS headers are set for Railway
-  if (req.headers.origin) {
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-  }
-  
-  next();
-});
-
-// Additional CORS headers for all responses
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  // Set CORS headers
-  if (origin) {
-    res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*');
-  }
-  
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-Key');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight request');
-    res.status(204).end();
-    return;
-  }
-  
   next();
 });
 
