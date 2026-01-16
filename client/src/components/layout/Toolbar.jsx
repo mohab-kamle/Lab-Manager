@@ -65,6 +65,7 @@ const Toolbar = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
+            aria-label="Search"
           />
         </div>
 
@@ -76,6 +77,7 @@ const Toolbar = ({
               onChange={handleItemsPerPageChange} 
               min="1" 
               className="items-per-page-input"
+              aria-label="Items per page"
             />
             <span className="items-per-page-label">Items per page</span>
           </div>
@@ -87,6 +89,7 @@ const Toolbar = ({
               value={typeFilter || "all"} 
               onChange={(e) => handleTypeFilterChange(e.target.value)}
               className="custom-select"
+              aria-label="Filter by type"
             >
               <option value="all">All Types</option>
               <option value="package">Packages</option>
@@ -100,6 +103,7 @@ const Toolbar = ({
             value={sortConfig?.field || ""} 
             onChange={(e) => handleSortChange(e.target.value || "")}
             className="custom-select"
+            aria-label="Sort by"
           >
             <option value="">No Sorting</option>
             {sortableFields.map((field) => (
@@ -120,6 +124,7 @@ const Toolbar = ({
                   value={dateFilter.startDate} 
                   onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
                   className="date-input"
+                  aria-label="Start date"
                 />
               </div>
               <div className="date-input-group">
@@ -129,6 +134,7 @@ const Toolbar = ({
                   value={dateFilter.endDate}
                   onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
                   className="date-input"
+                  aria-label="End date"
                 />
               </div>
             </div>
