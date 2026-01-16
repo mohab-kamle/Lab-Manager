@@ -44,7 +44,11 @@ const imageStorage = multer.diskStorage({
   filename: function (req, file, cb) {
     // Generate secure filename with report ID for authorization
     // Format: reportId_commentType_timestamp_originalName
-    const reportId = req.params.id || req.body.reportId || 'unknown';
+    let reportId = req.params.id || req.body.reportId || 'unknown';
+    // Sanitize reportId to prevent path traversal
+    reportId = String(reportId).replace(/[^a-zA-Z0-9]/g, '');
+    if (!reportId) reportId = 'unknown';
+
     const commentType = req.body.commentType || 'general';
     const timestamp = Date.now();
     const randomSuffix = Math.round(Math.random() * 1E9);
