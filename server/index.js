@@ -8,6 +8,7 @@ const helmet = require("helmet");
 const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
+const { globalLimiter } = require("./middleware/rateLimiters");
 const { employee, patient, phone } = require("./models");
 
 // Subscription scheduler service
@@ -68,6 +69,9 @@ app.use(express.json());
 
 // Apply security headers
 app.use(helmet());
+
+// Apply global rate limiter
+app.use(globalLimiter);
 
 // Compress responses
 const compression = require('compression');
