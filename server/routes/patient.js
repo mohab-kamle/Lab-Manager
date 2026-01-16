@@ -11,16 +11,7 @@ require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { sequelize } = require("../models");
 const db = require('../models');
-const rateLimit = require('express-rate-limit');
-
-// Rate limiter for patient login
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                  // limit each IP to 10 requests per windowMs
-  standardHeaders: true,    // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false,
-  message: { error: "Too many login attempts, please try again later." }
-});
+const { loginLimiter } = require('../middleware/rateLimiters');
 
 // Configure multer for file uploads
 const upload = multer({ 
