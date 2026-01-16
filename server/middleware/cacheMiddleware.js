@@ -29,21 +29,21 @@ function createCacheMiddleware(cacheKeyGenerator, cacheGetter, cacheSetter, ttl 
         res.set('X-Cache', 'UNAVAILABLE');
         return next();
       }
-      
+
       // Generate cache key based on request
       const cacheKey = cacheKeyGenerator(req);
-      
+
       // Try to get data from cache with timeout
       const cacheStartTime = Date.now();
       const cachedData = await Promise.race([
         cacheGetter(cacheKey, req),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Cache timeout')), 2000)
         )
       ]);
-      
+
       const cacheTime = Date.now() - cacheStartTime;
-      
+
       if (cachedData) {
         // Add cache hit headers for debugging
         res.set('X-Cache', 'HIT');
@@ -51,16 +51,16 @@ function createCacheMiddleware(cacheKeyGenerator, cacheGetter, cacheSetter, ttl 
         console.log(`🎯 Cache HIT: ${cacheKey} (${cacheTime}ms)`);
         return res.json(cachedData);
       }
-      
+
       // Add cache miss header
       res.set('X-Cache', 'MISS');
       console.log(`❌ Cache MISS: ${cacheKey}`);
-      
+
       // Store original json method
       const originalJson = res.json;
-      
+
       // Override json method to cache the response
-      res.json = function(data) {
+      res.json = function (data) {
         // Cache the response data
         if (res.statusCode === 200 && data && cacheService.isConnected) {
           const cachePromise = cacheSetter(cacheKey, data, req, ttl);
@@ -72,21 +72,21 @@ function createCacheMiddleware(cacheKeyGenerator, cacheGetter, cacheSetter, ttl 
               console.warn(`⚠️ Cache SET failed for ${cacheKey}:`, err.message);
             });
         }
-        
+
         // Call original json method
         return originalJson.call(this, data);
       };
-      
+
       next();
     } catch (error) {
       console.warn(`⚠️ Cache middleware error for ${req.method} ${req.path}:`, error.message);
       res.set('X-Cache', 'ERROR');
-      
+
       // Reset json method if it was overridden
       if (res.json !== res.json.original) {
         res.json = res.json.original || res.json;
       }
-      
+
       next();
     }
   };
@@ -260,9 +260,9 @@ const cacheMedicalReportNewResultsData = createCacheMiddleware(
 const invalidateMedicalReportCache = async (req, res, next) => {
   // Store original json method
   const originalJson = res.json;
-  
+
   // Override json method to invalidate cache after successful update
-  res.json = function(data) {
+  res.json = function (data) {
     // Invalidate cache on successful update
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const reportId = req.params.id || req.params.reportId;
@@ -279,11 +279,11 @@ const invalidateMedicalReportCache = async (req, res, next) => {
         console.log('🔌 Cache service disconnected - skipping invalidation');
       }
     }
-    
+
     // Call original json method
     return originalJson.call(this, data);
   };
-  
+
   next();
 };
 
@@ -293,9 +293,9 @@ const invalidateMedicalReportCache = async (req, res, next) => {
 const invalidateTestResultsCache = async (req, res, next) => {
   // Store original json method
   const originalJson = res.json;
-  
+
   // Override json method to invalidate cache after successful update
-  res.json = function(data) {
+  res.json = function (data) {
     // Invalidate cache on successful update
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const testId = req.params.id || req.params.testId;
@@ -312,11 +312,11 @@ const invalidateTestResultsCache = async (req, res, next) => {
         console.log('🔌 Cache service disconnected - skipping test results invalidation');
       }
     }
-    
+
     // Call original json method
     return originalJson.call(this, data);
   };
-  
+
   next();
 };
 
@@ -326,9 +326,9 @@ const invalidateTestResultsCache = async (req, res, next) => {
 const invalidateCultureResultsCache = async (req, res, next) => {
   // Store original json method
   const originalJson = res.json;
-  
+
   // Override json method to invalidate cache after successful update
-  res.json = function(data) {
+  res.json = function (data) {
     // Invalidate cache on successful update
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const cultureId = req.params.id || req.params.cultureId;
@@ -345,11 +345,11 @@ const invalidateCultureResultsCache = async (req, res, next) => {
         console.log('🔌 Cache service disconnected - skipping culture results invalidation');
       }
     }
-    
+
     // Call original json method
     return originalJson.call(this, data);
   };
-  
+
   next();
 };
 
@@ -359,9 +359,9 @@ const invalidateCultureResultsCache = async (req, res, next) => {
 const invalidateListCache = async (req, res, next) => {
   // Store original json method
   const originalJson = res.json;
-  
+
   // Override json method to invalidate list cache after successful creation
-  res.json = function(data) {
+  res.json = function (data) {
     // Invalidate list cache on successful creation
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const labId = req.tenant?.lab_id;
@@ -380,11 +380,11 @@ const invalidateListCache = async (req, res, next) => {
         console.warn('⚠️ No lab ID found in request - skipping lab cache invalidation');
       }
     }
-    
+
     // Call original json method
     return originalJson.call(this, data);
   };
-  
+
   next();
 };
 
@@ -398,7 +398,7 @@ const addCacheHeaders = (maxAge = 300) => {
       'Cache-Control': `public, max-age=${maxAge}`,
       'ETag': `"${Date.now()}"`, // Simple ETag based on timestamp
     });
-    
+
     next();
   };
 };
@@ -409,11 +409,11 @@ const addCacheHeaders = (maxAge = 300) => {
 const handleConditionalRequests = (req, res, next) => {
   const ifNoneMatch = req.get('If-None-Match');
   const etag = res.get('ETag');
-  
+
   if (ifNoneMatch && etag && ifNoneMatch === etag) {
     return res.status(304).end();
   }
-  
+
   next();
 };
 
@@ -423,13 +423,68 @@ const handleConditionalRequests = (req, res, next) => {
 const warmCache = async (req, res, next) => {
   // This can be used on application startup or specific endpoints
   // to preload frequently accessed data
-  
+
   if (req.query.warmCache === 'true' && req.tenant?.lab_id) {
     cacheService.warmUpCache(req.tenant.lab_id).catch(err => {
       console.warn('Cache warm-up failed:', err.message);
     });
   }
-  
+
+  next();
+};
+
+
+
+/**
+ * Cache middleware for invoices list
+ */
+const cacheInvoicesList = createCacheMiddleware(
+  (req) => {
+    const labId = req.tenant?.lab_id || 'unknown';
+    // Use query params as part of the key if there are filters in the future
+    return `invoices:list:${labId}`;
+  },
+  async (cacheKey, req) => {
+    const labId = req.tenant?.lab_id;
+    return await cacheService.getInvoicesList(labId);
+  },
+  async (cacheKey, data, req) => {
+    const labId = req.tenant?.lab_id;
+    return await cacheService.setInvoicesList(labId, {}, data);
+  },
+  300 // 5 minutes TTL
+);
+
+/**
+ * Cache invalidation middleware for invoice updates
+ */
+const invalidateInvoicesList = async (req, res, next) => {
+  // Store original json method
+  const originalJson = res.json;
+
+  // Override json method to invalidate cache after successful update
+  res.json = function (data) {
+    // Invalidate list cache on successful creation/update/deletion
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      const labId = req.tenant?.lab_id || req.user?.lab_id;
+      if (labId && cacheService.isConnected) {
+        console.log(`🗑️ Invalidating invoices cache for lab ID: ${labId}`);
+        cacheService.invalidateInvoicesCache(labId)
+          .then(() => {
+            console.log(`✅ Invoices cache invalidated for lab ID: ${labId}`);
+          })
+          .catch(err => {
+            console.warn(`⚠️ Failed to invalidate invoices cache for lab ID ${labId}:`, err.message);
+          });
+      } else if (!cacheService.isConnected) {
+        console.log('🔌 Cache service disconnected - skipping invoices cache invalidation');
+      }
+    }
+
+    // Call original json method
+    return originalJson.call(this, data);
+  };
+
   next();
 };
 
@@ -445,18 +500,22 @@ module.exports = {
   cacheTestComponents,
   cacheMedicalReportTestGroups,
   cacheMedicalReportNewResultsData,
-  
+
   // Cache invalidation middleware
   invalidateMedicalReportCache,
   invalidateTestResultsCache,
   invalidateCultureResultsCache,
   invalidateListCache,
-  
+
   // Utility middleware
   addCacheHeaders,
   handleConditionalRequests,
   warmCache,
-  
+
   // Factory function for custom cache middleware
   createCacheMiddleware,
+
+  // Invoice cache middleware
+  cacheInvoicesList,
+  invalidateInvoicesList,
 };
