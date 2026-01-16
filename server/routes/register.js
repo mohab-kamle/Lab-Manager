@@ -7,6 +7,7 @@ const db = require('../models');
 const { lab, employee, admin, lab_settings, subscription, lab_payment, Sequelize } = db;
 const { Op } = Sequelize;
 const nodemailer = require('nodemailer');
+const { registrationLimiter } = require('../middleware/rateLimiters');
 
 // Configure email transporter
 var transporter = nodemailer.createTransport({
@@ -20,7 +21,7 @@ var transporter = nodemailer.createTransport({
 });
 
 // Complete lab registration after successful payment
-router.post('/complete/:merchantOrderId', async (req, res) => {
+router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) => {
   let transaction;
   
   try {
@@ -303,7 +304,7 @@ router.post('/complete/:merchantOrderId', async (req, res) => {
 });
 
 // Upgrade existing lab subscription - Step 1: Create payment intention only
-router.post('/upgrade', async (req, res) => {
+router.post('/upgrade', registrationLimiter, async (req, res) => {
   try {
     const { lab: labData, admin: adminData, subscription: subscriptionData } = req.body;
 
@@ -373,7 +374,7 @@ router.post('/upgrade', async (req, res) => {
 });
 
 // Register new lab with payment - Step 1: Create payment intention only
-router.post('/', async (req, res) => {
+router.post('/', registrationLimiter, async (req, res) => {
   try {
     const { lab: labData, admin: adminData, subscription: subscriptionData } = req.body;
 
