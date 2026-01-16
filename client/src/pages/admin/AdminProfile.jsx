@@ -271,50 +271,59 @@ const AdminProfile = () => {
 
   return (
     <Container fluid className="py-4">
-      {/* Header Section */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="mb-4 text-center"
-      >
-        <div className="d-inline-block position-relative mb-3">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            className="bg-white rounded-circle d-flex align-items-center justify-content-center shadow overflow-hidden border border-2 border-primary profile-avatar-container"
-          >
-            <DotLottieReact
-              src={DoctorAnimation}
-              loop={false}
-              autoplay={true}
-              className="profile-animation"
-            />
-          </motion.div>
-        </div>
-        <h2 className="fw-bold mb-1">{profile.name}</h2>
-        <motion.span
-          className={`role-badge ${profile.role?.toLowerCase() || "admin"}`}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Shield size={14} className="badge-icon" />
-          <span>{profile.role || "Admin"}</span>
-        </motion.span>
-      </motion.div>
-
-      {/* We removed the inline Alerts for success/error in favor of toasts, 
+      {/*Hellllo Amazing work !!! I changed somethings check Them hope you like it :) 
+      in the future we can add an additional card downside the admin avatar to support mutiple pages*/}
+      {/* We removed the inline Alerts for success/error in favor of toast notifications, 
           but can keep a subtle error alert if persistence is needed, 
           though user asked for toasts. Keeping it clean. */}
 
       <Row className="justify-content-center">
-        <Col lg={10}>
+        {/* Left Column: Header/Profile Summary */}
+        <Col lg={2} md={12} className="mb-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="text-center sticky-top"
+            style={{ top: "2rem", zIndex: 1 }}
+          >
+            <div className="d-inline-block position-relative mb-3">
+              <motion.div
+                animate={{ y: [0, 5, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                whileHover={{ scale: 1.05 }}
+                className="bg-white rounded-circle d-flex align-items-center justify-content-center shadow overflow-hidden border border-1 border-primary profile-avatar-container"
+              >
+                <DotLottieReact
+                  src={DoctorAnimation}
+                  loop={false}
+                  autoplay={true}
+                  className="profile-animation"
+                />
+              </motion.div>
+            </div>
+            <h2 className="fw-bold mb-1">{profile.name}</h2>
+            <motion.span
+              className={`role-badge ${profile.role?.toLowerCase() || "admin"}`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Shield size={14} className="badge-icon" />
+              <span>{profile.role || "Admin"}</span>
+            </motion.span>
+          </motion.div>
+        </Col>
+
+        {/* Right Column: Detail Cards */}
+        <Col lg={8} md={12}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <Card className="border-0 shadow-sm mb-4">
-              <Card.Header className="bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+              {/*when wraped it should be centered with justify content center*/}
+              <Card.Header className="bg-white border-bottom py-3 d-flex justify-content-center justify-content-md-between align-items-center flex-wrap gap-3 flex-md-nowrap ">
                 <h5 className="mb-0 fw-bold text-primary">
                   <User size={20} className="me-2" />
                   Personal Information
