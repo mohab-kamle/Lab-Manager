@@ -13,11 +13,11 @@ import footerImage from "../../assets/footerpdf.png";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 const loadPdf = async () => {
   const { jsPDF } = await import("jspdf");
-  const pdf = new jsPDF();
-  return pdf; 
+  return new jsPDF();
 };
-function generateMedicalReportPDF(patient, report) {
-  const doc = loadPdf("p", "mm", "a4");
+
+async function generateMedicalReportPDF(patient, report) {
+  const doc = await loadPdf();
   try { doc.addImage(headerImage, "PNG", 10, 10, 190, 30); } catch {}
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
@@ -426,7 +426,7 @@ const PatientReports = () => {
       // Use the patient data from the report response, not the user
       const patient = fullReportData.patient || rowData.patient || user;
       const transformed = transformReportForPDF(fullReportData, patient);
-      generateMedicalReportPDF(patient, transformed);
+      await generateMedicalReportPDF(patient, transformed);
     } catch (error) {
       console.error("Failed to fetch full report for PDF", error);
     } finally {
