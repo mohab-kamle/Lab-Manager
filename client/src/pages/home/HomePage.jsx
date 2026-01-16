@@ -41,7 +41,11 @@ import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layo
 // Assets & Styles
 import heroImage from "../../assets/heroImage.webp"; // this is Dashboard Screenshot
 import "../../styles/HomePage.css";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+
+// Lazy load DotLottieReact
+const DotLottieReact = React.lazy(() => 
+  import("@lottiefiles/dotlottie-react").then(module => ({ default: module.DotLottieReact }))
+);
 
 // Animation Variants
 const fadeInUp = {
@@ -57,6 +61,21 @@ const staggerContainer = {
       staggerChildren: 0.15
     }
   }
+};
+
+const LazyLottie = ({ src, style, ...props }) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "200px" });
+  
+  return (
+    <div ref={ref} style={style}>
+      {isInView && (
+        <React.Suspense fallback={<div style={style} />}>
+          <DotLottieReact src={src} style={style} {...props} />
+        </React.Suspense>
+      )}
+    </div>
+  );
 };
 
 const HomePage = () => {
@@ -176,13 +195,15 @@ const HomePage = () => {
                 className="hero-image-wrapper mb-2"
                 initial={{ opacity: 0, scale: 0.8, rotateX: 10 }}
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                transition={{ duration: 1, delay: 0.2 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
               >
                 <div className="glass-panel-glow" />
                 <motion.img 
                   src={heroImage} 
                   alt="LabManager Dashboard" 
                   className="img-fluid rounded-4 shadow-3d border border-white-translucent"
+                  fetchPriority="high"
+                  loading="eager"
                   animate={{ y: [0, -15, 0] }} 
                   transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
                 />
@@ -246,7 +267,7 @@ const HomePage = () => {
               <div className="p-4 h-100 d-flex flex-column">
                 <div className="mb-auto">
                   <div className="icon-box text-primary mb-3  rounded-5" style={{ border: '3px solid var(--border)' }}>
-                    <DotLottieReact
+                    <LazyLottie
                       src="/Gears Lottie Animation.lottie"
                       autoplay
                       loop
@@ -300,7 +321,7 @@ const HomePage = () => {
               <div className="p-4 d-flex align-items-center gap-4">
                  <div className="flex-grow-1">
                     <div className="icon-box text-success mb-3">
-                      <DotLottieReact
+                      <LazyLottie
                         src="/Electricity charging.lottie"
                         autoplay
                         loop
