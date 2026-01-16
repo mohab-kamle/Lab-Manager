@@ -321,6 +321,19 @@ class CacheService {
   }
 
   /**
+   * Cache invoices list
+   */
+  async getInvoicesList(labId, filters = {}) {
+    const key = this.generateKey('invoices:list', labId, JSON.stringify(filters));
+    return await this.get(key);
+  }
+
+  async setInvoicesList(labId, filters = {}, data, ttl = 300) {
+    const key = this.generateKey('invoices:list', labId, JSON.stringify(filters));
+    return await this.set(key, data, ttl);
+  }
+
+  /**
    * Invalidate cache when medical report is updated
    */
   async invalidateMedicalReport(reportId) {
@@ -334,6 +347,19 @@ class CacheService {
       `labmanager:report:newresults-data:*${reportId}*`,
       `labmanager:reports:list:*`, // Invalidate all lists as they might contain this report
       `labmanager:reports:summary:*`, // Invalidate summary as counts might change
+    ];
+
+    for (const pattern of patterns) {
+      await this.delPattern(pattern);
+    }
+  }
+
+  /**
+   * Invalidate invoices cache for a specific lab
+   */
+  async invalidateInvoicesCache(labId) {
+    const patterns = [
+      `labmanager:invoices:list:*${labId}*`,
     ];
 
     for (const pattern of patterns) {

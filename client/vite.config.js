@@ -27,7 +27,7 @@ export default defineConfig({
     // Step 3: Critical CSS Inlining
     critical({
       criticalUrl: '',
-      criticalBase: './',
+      criticalBase: 'dist/',
       criticalPages: [
         { uri: '', template: 'index' },
       ],
@@ -53,10 +53,7 @@ export default defineConfig({
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: {
-          // Step 2: Lazy-load Heavy Libraries - Separate chunks for better loading
           vendor: ['react', 'react-dom'],
-          // PDF libraries separated for lazy loading
-          pdf: ['@react-pdf/renderer', 'react-pdf', 'jspdf', 'html2canvas'],
           ui: ['bootstrap', 'react-bootstrap', 'lucide-react'],
           utils: ['axios', 'luxon', 'formik', 'yup']
         }
