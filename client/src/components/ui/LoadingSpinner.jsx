@@ -11,7 +11,9 @@ const LoadingSpinner = ({ message = "Loading..." , size = 250 , containerClassNa
           animationData={loadingAnimation} 
           loop={true}
           style={{ width: size, height: size }}
+          aria-hidden="true"
         />
+        <span className="visually-hidden">{message}</span>
     </div>
   );
 };
