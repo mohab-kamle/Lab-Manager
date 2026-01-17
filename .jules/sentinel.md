@@ -19,3 +19,8 @@
 **Vulnerability:** The server was configured to blindly reflect the `Origin` header in the `Access-Control-Allow-Origin` response header for any origin that wasn't explicitly allowed, effectively disabling CORS protection. This was done via a `callback(null, true)` in the `else` block of `corsOptions` and a redundant manual middleware.
 **Learning:** Debugging code left in production ("Temporarily allowing blocked origin for debugging") is a major security risk. Also, using multiple layers of CORS configuration (package + manual middleware) can lead to conflicting or overriding behaviors that weaken security.
 **Prevention:** Strictly enforce `callback(new Error('Not allowed by CORS'))` for unknown origins. Avoid manual CORS header manipulation when using a dedicated middleware library like `cors`. Ensure debugging code is stripped or strictly conditional on `NODE_ENV=development` (and even then, be careful).
+
+## 2024-05-24 - Weak Password Policy
+**Vulnerability:** Employees and Admins could be created with weak passwords (e.g., "123") due to a lack of server-side complexity validation in `server/routes/employee.js` and `server/routes/register.js`.
+**Learning:** Relying on client-side validation or assuming users will choose strong passwords is not enough. Validation must be enforced at the API level before hashing.
+**Prevention:** Implement a shared `validatePassword` utility and enforce it in all user creation and password update endpoints.

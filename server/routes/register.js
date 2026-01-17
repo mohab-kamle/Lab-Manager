@@ -7,6 +7,7 @@ const db = require('../models');
 const { lab, employee, admin, lab_settings, subscription, lab_payment, Sequelize } = db;
 const { Op } = Sequelize;
 const nodemailer = require('nodemailer');
+const { validatePassword } = require('../utils/passwordValidator');
 const { registrationLimiter } = require('../middleware/rateLimiters');
 
 // Configure email transporter
@@ -385,6 +386,12 @@ router.post('/', registrationLimiter, async (req, res) => {
 
     if (!labData.name || !labData.email || !adminData.name || !adminData.email || !adminData.username || !adminData.password) {
       return res.status(400).json({ error: 'All required fields must be provided' });
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(adminData.password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({ error: passwordValidation.message });
     }
 
     // Validate subscription plan

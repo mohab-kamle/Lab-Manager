@@ -7,6 +7,7 @@ const { loginLimiter } = require('../middleware/rateLimiters');
 
 const { employee, admin, sequelize } = require('../models'); 
 const { sign } = require('jsonwebtoken');
+const { validatePassword } = require('../utils/passwordValidator');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext } = require('../middleware/tenantContext');
@@ -91,6 +92,12 @@ router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantC
             // Return passwords mismatch 
             return res.status(400).json({ error: "Wrong old password!" });
         } else {
+            // Validate new password strength
+            const passwordValidation = validatePassword(newPassword);
+            if (!passwordValidation.isValid) {
+                return res.status(400).json({ error: passwordValidation.message });
+            }
+
             // Hash new password
             const saltRounds = 10;
             const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
@@ -228,6 +235,12 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
         // Validate required fields
         if (!name || !username || !password || !role || !branch_id) {
             return res.status(400).json({ error: "Name, username, password, role, and branch are required" });
+        }
+
+        // Validate password strength
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({ error: passwordValidation.message });
         }
 
         // Validate role
@@ -390,6 +403,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
 
         // Hash password if provided
         if (password) {
+            // Validate password strength
+            const passwordValidation = validatePassword(password);
+            if (!passwordValidation.isValid) {
+                return res.status(400).json({ error: passwordValidation.message });
+            }
+
             const saltRounds = 10;
             updateData.password = await bcrypt.hash(password, saltRounds);
         }
