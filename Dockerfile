@@ -3,6 +3,8 @@
 # -----------------------------------------------------------------------------
 FROM node:lts-alpine AS base
 WORKDIR /app
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 RUN npm install -g pnpm
 
 # Copy workspace configs (the structure fixed)
@@ -15,7 +17,8 @@ COPY server/package.json ./server/
 # -----------------------------------------------------------------------------
 FROM base AS dependencies
 # Install all dependencies (including devDependencies) for building
-RUN pnpm install --frozen-lockfile
+RUN pnpm config set store-dir /pnpm/store
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # -----------------------------------------------------------------------------
 # 3. DEVELOPMENT: Server
