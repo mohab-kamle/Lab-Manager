@@ -18,3 +18,7 @@
 **Learning:** Floating action buttons that disappear visually must also be removed from the tab order. Using `tabIndex={-1}` and `pointerEvents: 'none'` ensures keyboard users don't focus on invisible controls.
 **Action:** When animating opacity to 0, always couple it with accessibility state updates.
 
+
+## 2026-10-25 - Table Row Selection Accessibility
+**Learning:** Table row selection checkboxes often lack labels, making them inaccessible to screen readers. They need dynamic `aria-label` attributes based on row content (e.g., "Select [Item Name]") rather than generic "Select row" to be truly useful.
+**Action:** When adding checkboxes to tables, always derive a meaningful `aria-label` from the row data.

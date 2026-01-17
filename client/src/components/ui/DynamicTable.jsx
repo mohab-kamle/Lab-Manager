@@ -91,6 +91,7 @@ const DynamicTable = ({
               <th>
                 <Form.Check
                   type="checkbox"
+                  aria-label="Select all rows"
                   checked={allSelected}
                   ref={input => {
                     if (input) input.indeterminate = someSelected;
@@ -114,6 +115,7 @@ const DynamicTable = ({
                 <td>
                   <Form.Check
                     type="checkbox"
+                    aria-label={`Select ${item.name || item.title || item.id || `row ${rowIndex + 1}`}`}
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
                   />
