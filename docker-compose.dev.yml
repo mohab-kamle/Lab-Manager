@@ -98,8 +98,7 @@ services:
       - ./client:/app/client      # CHANGED: Mount source to /app/client
       - /app/node_modules         # CHANGED: Preserve root node_modules
       - /app/client/node_modules  # CHANGED: Preserve client node_modules
-    depends_on:
-      - backend
+
     networks:
       - labmanager-network
     # CHANGED: Added 'prefix' to run command in the client workspace
