@@ -24,6 +24,10 @@ const router = express.Router();
 // =========================
 // CORS Configuration
 // =========================
+// Securely check for subdomains using regex to prevent partial matches like evil-labdoctors-laboratories.com
+// Matches https://labdoctors-laboratories.com and any subdomains (e.g. https://api.labdoctors-laboratories.com)
+const allowedDomainPattern = /^https:\/\/([a-zA-Z0-9-]+\.)*labdoctors-laboratories\.com$/;
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -43,7 +47,7 @@ const corsOptions = {
     ];
     
     // In production, also allow any subdomain of labdoctors-laboratories.com
-    if (process.env.NODE_ENV === 'production' && origin.includes('labdoctors-laboratories.com')) {
+    if (process.env.NODE_ENV === 'production' && allowedDomainPattern.test(origin)) {
       console.log('CORS: Allowing labdoctors-laboratories.com subdomain:', origin);
       return callback(null, true);
     }
