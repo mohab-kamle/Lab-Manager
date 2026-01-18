@@ -219,7 +219,6 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
   (req, res, next) => {
     res.set({
       'Cache-Control': 'public, max-age=300', // 5 minutes
-      'ETag': `"patients-${req.tenant.lab_id}-${Date.now()}"`
     });
     next();
   },
@@ -235,7 +234,9 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 {
                     model: phone,
                     as: 'phones',
-                    attributes: ['phone_number', 'type']
+                    attributes: ['phone_number', 'type'],
+                    // Optimize: Use separate query to avoid Cartesian product on JOIN
+                    separate: true
                 },
                 {
                     model: sequelize.models.diseases,
