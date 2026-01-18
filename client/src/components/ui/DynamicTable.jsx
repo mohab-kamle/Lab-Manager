@@ -96,6 +96,7 @@ const DynamicTable = ({
                     if (input) input.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
+                  aria-label="Select all rows"
                 />
               </th>
             )}
@@ -109,13 +110,17 @@ const DynamicTable = ({
         </thead>
         <tbody>
           {data.map((item, rowIndex) => (
-            <tr key={`row-${rowIndex}-${item.id || rowIndex}`}>
+            <tr
+              key={`row-${rowIndex}-${item.id || rowIndex}`}
+              className={showCheckboxes && selectedItems.includes(item.id) ? 'table-active' : ''}
+            >
               {showCheckboxes && (
                 <td>
                   <Form.Check
                     type="checkbox"
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
+                    aria-label={`Select ${item.name || item.title || 'row ' + (rowIndex + 1)}`}
                   />
                 </td>
               )}

@@ -18,3 +18,6 @@
 **Learning:** Floating action buttons that disappear visually must also be removed from the tab order. Using `tabIndex={-1}` and `pointerEvents: 'none'` ensures keyboard users don't focus on invisible controls.
 **Action:** When animating opacity to 0, always couple it with accessibility state updates.
 
+## 2026-05-23 - Verifying Isolated UI Components
+**Learning:** When core UI components (like tables) are deeply embedded in protected routes, creating a temporary public "harness" page allows for robust accessibility and visual verification with Playwright without needing complex authentication flows.
+**Action:** Create temporary routes/pages to isolate and test specific UI components when backend dependencies block full integration testing.
