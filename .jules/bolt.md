@@ -5,3 +5,7 @@
 ## 2024-05-24 - [Invoice Caching]
 **Learning:** The `GET /invoices` route was executing a heavy database query every time, causing slow load times for the invoice list.
 **Action:** Implemented Redis caching for the invoice list using `cacheInvoicesList` middleware. The cache is automatically invalidated when invoices are created, updated, or deleted. This significantly reduces database load for frequent reads.
+
+## 2026-01-19 - [Medical Reports N+1 Optimization]
+**Learning:** The `GET /medical-reports` route was performing 3 sequential queries: one to get all IDs, one to get counts for all those IDs (using `IN` clause), and one to fetch the data. This is inefficient for large datasets.
+**Action:** Combined these into a single query using `sequelize.literal` subquery in `attributes.include`. This removes the need to transfer IDs and performs the count directly in the database.

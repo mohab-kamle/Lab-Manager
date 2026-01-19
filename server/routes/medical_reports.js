@@ -135,48 +135,23 @@ router.get(
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
-      // Get medical_report_ids for the current lab
-      const medicalReportIds = await db.medical_report
-        .findAll({
-          attributes: ["id"],
-          where: {
-            lab_id: req.tenant.lab_id,
-          },
-          raw: true,
-        })
-        .then((reports) => reports.map((report) => report.id));
-
-      // First, get the count of test groups for each medical report
-      const testGroupCounts = await db.medical_report_has_tg.findAll({
-        attributes: [
-          "medical_report_id",
-          [
-            db.sequelize.fn("COUNT", db.sequelize.col("test_group_id")),
-            "count",
-          ],
-        ],
-        where: {
-          medical_report_id: {
-            [Op.in]: medicalReportIds,
-          },
-        },
-        group: ["medical_report_id"],
-        raw: true,
-      });
-
-      // Create a map of medical_report_id -> test group count
-      const testGroupCountMap = {};
-      testGroupCounts.forEach((item) => {
-        testGroupCountMap[item.medical_report_id] = parseInt(item.count, 10);
-      });
-
-      // Note: Test and culture counts are now calculated from the actual associations
-      // instead of separate count queries for better accuracy and performance
-
-      // Then get all medical reports with their associations
+      // Get all medical reports with their associations
+      // Optimized to include test group count in the main query using a subquery
       const reports = await db.medical_report.findAll({
         where: {
           lab_id: req.tenant.lab_id,
+        },
+        attributes: {
+          include: [
+            [
+              db.sequelize.literal(`(
+                SELECT COUNT(*)
+                FROM medical_report_has_tg AS tg
+                WHERE tg.medical_report_id = medical_report.id
+              )`),
+              "test_groups_count",
+            ],
+          ],
         },
         include: [
           {
@@ -251,7 +226,7 @@ router.get(
           cultures: reportData.cultures || [],
           tests_count: (reportData.tests || []).length,
           cultures_count: (reportData.cultures || []).length,
-          test_groups_count: testGroupCountMap[reportData.id] || 0,
+          test_groups_count: reportData.test_groups_count || 0,
           invoice_id: reportData.bill?.id || null,
         };
       });
