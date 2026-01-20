@@ -19,3 +19,8 @@
 **Vulnerability:** The server was configured to blindly reflect the `Origin` header in the `Access-Control-Allow-Origin` response header for any origin that wasn't explicitly allowed, effectively disabling CORS protection. This was done via a `callback(null, true)` in the `else` block of `corsOptions` and a redundant manual middleware.
 **Learning:** Debugging code left in production ("Temporarily allowing blocked origin for debugging") is a major security risk. Also, using multiple layers of CORS configuration (package + manual middleware) can lead to conflicting or overriding behaviors that weaken security.
 **Prevention:** Strictly enforce `callback(new Error('Not allowed by CORS'))` for unknown origins. Avoid manual CORS header manipulation when using a dedicated middleware library like `cors`. Ensure debugging code is stripped or strictly conditional on `NODE_ENV=development` (and even then, be careful).
+
+## 2024-05-24 - IDOR and Cache Poisoning in Results Data
+**Vulnerability:** The `GET /:id/results-data` endpoint fetched medical reports using `findByPk(id)` which ignored the tenant context (`lab_id`), allowing access to any report by ID. Additionally, the caching middleware used only `reportId` as the cache key, meaning a cached report from one tenant could be served to another if they requested the same ID.
+**Learning:** In multi-tenant systems, caching layers must include the tenant identifier in the cache key. Fixing the database query alone is insufficient if the cache can serve stale or cross-tenant data.
+**Prevention:** Always include `tenant_id` (or `lab_id`) in cache keys for tenant-specific resources. Use `findOne` with explicit `where: { lab_id }` checks instead of `findByPk` for resources that must be isolated.
