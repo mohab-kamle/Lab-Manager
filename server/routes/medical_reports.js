@@ -135,31 +135,24 @@ router.get(
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
-      // Get medical_report_ids for the current lab
-      const medicalReportIds = await db.medical_report
-        .findAll({
-          attributes: ["id"],
-          where: {
-            lab_id: req.tenant.lab_id,
-          },
-          raw: true,
-        })
-        .then((reports) => reports.map((report) => report.id));
-
       // First, get the count of test groups for each medical report
+      // Optimized to avoid fetching all report IDs first which causes performance issues with large datasets
       const testGroupCounts = await db.medical_report_has_tg.findAll({
         attributes: [
           "medical_report_id",
           [
-            db.sequelize.fn("COUNT", db.sequelize.col("test_group_id")),
+            db.sequelize.fn("COUNT", db.sequelize.col("medical_report_has_tg.test_group_id")),
             "count",
           ],
         ],
-        where: {
-          medical_report_id: {
-            [Op.in]: medicalReportIds,
-          },
-        },
+        include: [{
+          model: db.medical_report,
+          as: "medical_report",
+          attributes: [],
+          where: {
+            lab_id: req.tenant.lab_id
+          }
+        }],
         group: ["medical_report_id"],
         raw: true,
       });
