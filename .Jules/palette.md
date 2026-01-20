@@ -18,3 +18,6 @@
 **Learning:** Floating action buttons that disappear visually must also be removed from the tab order. Using `tabIndex={-1}` and `pointerEvents: 'none'` ensures keyboard users don't focus on invisible controls.
 **Action:** When animating opacity to 0, always couple it with accessibility state updates.
 
+## 2026-01-20 - Context for Generic List Components
+**Learning:** Generic components like `DynamicTable` often lack the specific data context needed for accessible row selection (e.g., "Select John Doe" vs "Select Item").
+**Action:** Implement helper props (like `getItemLabel`) in generic components to allow parent components to inject meaningful, accessible labels for repetitive actions.
