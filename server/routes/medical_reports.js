@@ -1666,7 +1666,8 @@ router.get(
 
       // Fetch test-level junction (result/status) and component-level results
       const [report, testJunctionRows, componentResults] = await Promise.all([
-        db.medical_report.findByPk(reportId, {
+        db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
         attributes: [
           "id",
           "lab_id",
