@@ -24,6 +24,16 @@ const router = express.Router();
 // =========================
 // CORS Configuration
 // =========================
+
+// Configure the main domain - fallback to hardcoded default if not in env
+const MAIN_DOMAIN = process.env.DOMAIN_NAME || 'labdoctors-laboratories.com';
+
+// Securely check for subdomains using regex to prevent partial matches
+// Matches https://MAIN_DOMAIN and any subdomains (e.g. https://api.MAIN_DOMAIN)
+// The regex is constructed dynamically to allow configuration via environment variables
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const allowedDomainPattern = new RegExp(`^https:\/\/([a-zA-Z0-9-]+\\.)*${escapeRegExp(MAIN_DOMAIN)}$`);
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -42,9 +52,9 @@ const corsOptions = {
       'http://127.0.0.1:3000'
     ];
     
-    // In production, also allow any subdomain of labdoctors-laboratories.com
-    if (process.env.NODE_ENV === 'production' && origin.includes('labdoctors-laboratories.com')) {
-      console.log('CORS: Allowing labdoctors-laboratories.com subdomain:', origin);
+    // In production, also allow any subdomain of the main domain
+    if (process.env.NODE_ENV === 'production' && allowedDomainPattern.test(origin)) {
+      console.log(`CORS: Allowing ${MAIN_DOMAIN} subdomain:`, origin);
       return callback(null, true);
     }
     
@@ -168,19 +178,11 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => 
   res.sendFile(filePath);
 });
 
-// Legacy support for existing comment-images (maintain backward compatibility)
-app.use('/uploads/comment-images', express.static(commentImagesPath, {
-  maxAge: '1h',
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif') || filePath.endsWith('.webp')) {
-      res.setHeader('Content-Type', 'image/' + filePath.split('.').pop());
-    }
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  }
-}));
+// 🔒 SECURITY FIX: Legacy support removed to prevent authorization bypass.
+// All access to comment images must go through the authorized route above.
+// Legacy support for existing comment-images REMOVED for security
+// app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
+// Access is now strictly controlled via authenticated route above
 
 console.log('📁 Secure file serving configured:');
 console.log('  - Public files: /uploads/public (no auth required)');
