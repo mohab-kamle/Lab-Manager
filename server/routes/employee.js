@@ -10,6 +10,7 @@ const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext } = require('../middleware/tenantContext');
+const { validatePassword } = require('../utils/passwordValidator');
 
 // Employee login
 router.post("/login", loginLimiter, async (req, res) => {
@@ -91,6 +92,12 @@ router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantC
             // Return passwords mismatch 
             return res.status(400).json({ error: "Wrong old password!" });
         } else {
+            // Validate new password strength
+            const passwordValidation = validatePassword(newPassword);
+            if (!passwordValidation.isValid) {
+                return res.status(400).json({ error: passwordValidation.error });
+            }
+
             // Hash new password
             const saltRounds = 10;
             const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
@@ -250,6 +257,12 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
             }
         }
 
+        // Validate password strength
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({ error: passwordValidation.error });
+        }
+
         // Hash password
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -390,6 +403,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
 
         // Hash password if provided
         if (password) {
+            // Validate password strength
+            const passwordValidation = validatePassword(password);
+            if (!passwordValidation.isValid) {
+                return res.status(400).json({ error: passwordValidation.error });
+            }
+
             const saltRounds = 10;
             updateData.password = await bcrypt.hash(password, saltRounds);
         }
