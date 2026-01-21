@@ -244,12 +244,12 @@ const cacheMedicalReportTestGroups = createCacheMiddleware(
  * TTL: 30 minutes (balances performance with data freshness)
  */
 const cacheMedicalReportNewResultsData = createCacheMiddleware(
-  (req) => `newresults-data:${req.params.id}`,
+  (req) => `newresults-data:${req.params.id}:${req.tenant?.lab_id}`,
   async (cacheKey, req) => {
-    return await cacheService.getMedicalReportNewResultsData(req.params.id);
+    return await cacheService.getMedicalReportNewResultsData(req.params.id, req.tenant?.lab_id);
   },
   async (cacheKey, data, req) => {
-    return await cacheService.setMedicalReportNewResultsData(req.params.id, data);
+    return await cacheService.setMedicalReportNewResultsData(req.params.id, req.tenant?.lab_id, data);
   },
   1800 // 30 minutes TTL
 );
