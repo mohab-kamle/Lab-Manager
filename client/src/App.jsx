@@ -6,9 +6,9 @@ import { LabProvider } from './context/LabContext';
 import PrivateRoute from './components/auth/PrivateRoute';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import VersionBadge from './components/ui/VersionBadge';
 import PageTransition from './components/layout/PageTransition';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import SkipToContent from './components/ui/SkipToContent';
 
 // Pages - Lazy Loaded
 const HomePage = React.lazy(() => import('./pages/home/HomePage'));
@@ -60,6 +60,7 @@ function AppContent() {
 
   return (
     <div className="App">
+      <SkipToContent />
       <ToastContainer
         position="top-right"
         autoClose={5000}
