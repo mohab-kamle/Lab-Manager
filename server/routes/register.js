@@ -8,6 +8,7 @@ const { lab, employee, admin, lab_settings, subscription, lab_payment, Sequelize
 const { Op } = Sequelize;
 const nodemailer = require('nodemailer');
 const { registrationLimiter } = require('../middleware/rateLimiters');
+const { validatePassword } = require('../utils/passwordValidator');
 
 // Configure email transporter
 var transporter = nodemailer.createTransport({
@@ -140,6 +141,13 @@ router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) 
     // Generate unique subdomain
     const subdomain = generateSubdomain(labData.name);
     
+    // Validate password strength
+    const passwordValidation = validatePassword(adminData.password);
+    if (!passwordValidation.isValid) {
+      await transaction.rollback();
+      return res.status(400).json({ error: passwordValidation.error });
+    }
+
     // Hash admin password (only for new registrations)
     const hashedPassword = await bcrypt.hash(adminData.password, 10);
     
