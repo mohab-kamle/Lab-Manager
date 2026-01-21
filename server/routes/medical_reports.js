@@ -44,8 +44,19 @@ const imageStorage = multer.diskStorage({
   filename: function (req, file, cb) {
     // Generate secure filename with report ID for authorization
     // Format: reportId_commentType_timestamp_originalName
-    const reportId = req.params.id || req.body.reportId || 'unknown';
-    const commentType = req.body.commentType || 'general';
+
+    // Sanitize input to prevent path traversal
+    const sanitizeFilenamePart = (part) => {
+      if (!part) return '';
+      return String(part).replace(/[^a-zA-Z0-9_-]/g, '');
+    };
+
+    const rawReportId = req.params.id || req.body.reportId || 'unknown';
+    const rawCommentType = req.body.commentType || 'general';
+
+    const reportId = sanitizeFilenamePart(rawReportId);
+    const commentType = sanitizeFilenamePart(rawCommentType);
+
     const timestamp = Date.now();
     const randomSuffix = Math.round(Math.random() * 1E9);
     const sanitizedOriginalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -265,6 +276,7 @@ router.get(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee" , "patient"),
+  tenantContext,
   async (req, res) => {
     try {
       // Check if this is a PDF generation request for optimized loading
@@ -272,7 +284,11 @@ router.get(
       
       // Optimized query for PDF generation - loads only essential data
       if (isPdfRequest) {
-        const report = await db.medical_report.findByPk(req.params.id, {
+        const report = await db.medical_report.findOne({
+          where: {
+            id: req.params.id,
+            lab_id: req.tenant.lab_id
+          },
           attributes: [
             "id",
             "lab_id",
@@ -409,6 +425,11 @@ router.get(
           return res.status(404).json({ error: "Medical report not found" });
         }
 
+        // Security check for patients
+        if (req.user.role === 'patient' && report.patient_id !== req.user.id) {
+           return res.status(403).json({ error: "Access denied" });
+        }
+
         // Simplified response for PDF generation
         const reportData = report.get({ plain: true });
         const enrichedReport = {
@@ -421,7 +442,11 @@ router.get(
       }
       
       // Full query for regular requests (non-PDF)
-      const report = await db.medical_report.findByPk(req.params.id, {
+      const report = await db.medical_report.findOne({
+        where: {
+          id: req.params.id,
+          lab_id: req.tenant.lab_id
+        },
         attributes: [
           "id",
           "lab_id",
@@ -624,6 +649,11 @@ router.get(
       });
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
+      }
+
+      // Security check for patients
+      if (req.user.role === 'patient' && report.patient_id !== req.user.id) {
+         return res.status(403).json({ error: "Access denied" });
       }
 
       // Get test group results for processing
@@ -908,6 +938,7 @@ router.put(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  tenantContext,
   invalidateMedicalReportCache, // Invalidate cache when medical report is updated
   invalidateListCache, // Invalidate list cache when medical report is updated
   async (req, res) => {
@@ -929,7 +960,12 @@ router.put(
         reported_at,
       } = req.body;
 
-      const report = await db.medical_report.findByPk(req.params.id);
+      const report = await db.medical_report.findOne({
+        where: {
+          id: req.params.id,
+          lab_id: req.tenant.lab_id
+        }
+      });
 
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
@@ -1103,10 +1139,16 @@ router.delete(
   "/:id",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  tenantContext,
   invalidateListCache, // Invalidate list cache when medical report is deleted
   async (req, res) => {
     try {
-      const report = await db.medical_report.findByPk(req.params.id);
+      const report = await db.medical_report.findOne({
+        where: {
+          id: req.params.id,
+          lab_id: req.tenant.lab_id
+        }
+      });
 
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
@@ -1631,7 +1673,8 @@ router.get(
 
       // Fetch test-level junction (result/status) and component-level results
       const [report, testJunctionRows, componentResults] = await Promise.all([
-        db.medical_report.findByPk(reportId, {
+        db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
         attributes: [
           "id",
           "lab_id",
