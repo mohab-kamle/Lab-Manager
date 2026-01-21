@@ -73,7 +73,7 @@ To run the application in development mode:
 1. Make sure you have Docker and Docker Compose installed
 2. Use the development environment file:
    ```
-   cp .env.development .env
+   cp .env.development 
    ```
 3. Start the development environment:
    ```
