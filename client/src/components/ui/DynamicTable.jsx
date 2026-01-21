@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, Form } from 'react-bootstrap';
 import { formatDate } from '../../utils/dateFormatter';
+import PropTypes from 'prop-types';
 
 const DynamicTable = ({ 
   data, 
@@ -11,7 +12,8 @@ const DynamicTable = ({
   selectedItems = [],
   onSelectAll = null,
   onSelectItem = null,
-  customHeaders = {}
+  customHeaders = {},
+  getItemLabel = null
 }) => {
   const defaultFormatCellData = (value, header) => {
     // Handle null/undefined values
@@ -79,6 +81,12 @@ const DynamicTable = ({
       .join(' ');
   };
 
+  const getRowLabel = (item, index) => {
+    if (getItemLabel) return getItemLabel(item);
+    // Smart fallback
+    return item.name || item.title || item.patient_name || item.test_name || `Item ${index + 1}`;
+  };
+
   const allSelected = data.length > 0 && selectedItems.length === data.length;
   const someSelected = selectedItems.length > 0 && selectedItems.length < data.length;
 
@@ -91,6 +99,7 @@ const DynamicTable = ({
               <th>
                 <Form.Check
                   type="checkbox"
+                  aria-label="Select all items"
                   checked={allSelected}
                   ref={input => {
                     if (input) input.indeterminate = someSelected;
@@ -118,6 +127,7 @@ const DynamicTable = ({
                 <td>
                   <Form.Check
                     type="checkbox"
+                    aria-label={`Select ${getRowLabel(item, rowIndex)}`}
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
                     aria-label={`Select ${item.name || item.title || 'row ' + (rowIndex + 1)}`}
@@ -140,6 +150,19 @@ const DynamicTable = ({
       </Table>
     </div>
   );
+};
+
+DynamicTable.propTypes = {
+  data: PropTypes.array.isRequired,
+  columns: PropTypes.array.isRequired,
+  formatCellData: PropTypes.func,
+  ActionComponent: PropTypes.elementType,
+  showCheckboxes: PropTypes.bool,
+  selectedItems: PropTypes.array,
+  onSelectAll: PropTypes.func,
+  onSelectItem: PropTypes.func,
+  customHeaders: PropTypes.object,
+  getItemLabel: PropTypes.func
 };
 
 export default DynamicTable;
