@@ -18,3 +18,6 @@
 **Learning:** Floating action buttons that disappear visually must also be removed from the tab order. Using `tabIndex={-1}` and `pointerEvents: 'none'` ensures keyboard users don't focus on invisible controls.
 **Action:** When animating opacity to 0, always couple it with accessibility state updates.
 
+## 2026-01-26 - Smart Labels for Dynamic Tables
+**Learning:** In generic table components, rows often lack inherent "names" for checkbox labels. Creating a helper like `getItemLabel` that prioritizes common identification fields (name, title, id) allows for descriptive `aria-label`s without requiring prop drilling for every table instance.
+**Action:** Use smart label derivation in generic list components to ensure screen readers announce specific items (e.g., "Select Alice") instead of generic "Select row".

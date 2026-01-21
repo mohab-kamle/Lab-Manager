@@ -79,6 +79,17 @@ const DynamicTable = ({
       .join(' ');
   };
 
+  const getItemLabel = (item, index) => {
+    if (!item) return `Row ${index + 1}`;
+    // Try to find a meaningful label from common properties
+    return item.name ||
+           item.title ||
+           item.patient_name ||
+           item.test_name ||
+           item.group_name ||
+           (item.id ? `Item ${item.id}` : `Row ${index + 1}`);
+  };
+
   const allSelected = data.length > 0 && selectedItems.length === data.length;
   const someSelected = selectedItems.length > 0 && selectedItems.length < data.length;
 
@@ -96,6 +107,7 @@ const DynamicTable = ({
                     if (input) input.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
+                  aria-label="Select all rows"
                 />
               </th>
             )}
@@ -116,6 +128,7 @@ const DynamicTable = ({
                     type="checkbox"
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
+                    aria-label={`Select ${getItemLabel(item, rowIndex)}`}
                   />
                 </td>
               )}
