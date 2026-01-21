@@ -178,6 +178,8 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => 
   res.sendFile(filePath);
 });
 
+// 🔒 SECURITY FIX: Legacy support removed to prevent authorization bypass.
+// All access to comment images must go through the authorized route above.
 // Legacy support for existing comment-images REMOVED for security
 // app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
 // Access is now strictly controlled via authenticated route above
