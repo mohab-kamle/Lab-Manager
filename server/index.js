@@ -19,6 +19,8 @@ const cacheService = require('./services/cacheService');
 
 // Initialize Express app
 const app = express();
+// Trust first proxy (Cloudflare/Nginx) for correct IP rate limiting
+app.set('trust proxy', 1);
 const router = express.Router();
 
 // =========================

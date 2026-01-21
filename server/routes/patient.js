@@ -7,6 +7,7 @@ const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const multer = require("multer");
 const { readExcelBuffer, validateExcelBuffer } = require('../services/excelService');
+const { loginLimiter } = require('../middleware/rateLimiters');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { sequelize } = require("../models");
@@ -40,7 +41,7 @@ const generatePatientCode = async (labId) => {
   return patientCode;
 };
 
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
   const { patientcode} = req.body;
 
   try {
