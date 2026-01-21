@@ -24,9 +24,15 @@ const router = express.Router();
 // =========================
 // CORS Configuration
 // =========================
-// Securely check for subdomains using regex to prevent partial matches like evil-labdoctors-laboratories.com
-// Matches https://labdoctors-laboratories.com and any subdomains (e.g. https://api.labdoctors-laboratories.com)
-const allowedDomainPattern = /^https:\/\/([a-zA-Z0-9-]+\.)*labdoctors-laboratories\.com$/;
+
+// Configure the main domain - fallback to hardcoded default if not in env
+const MAIN_DOMAIN = process.env.DOMAIN_NAME || 'labdoctors-laboratories.com';
+
+// Securely check for subdomains using regex to prevent partial matches
+// Matches https://MAIN_DOMAIN and any subdomains (e.g. https://api.MAIN_DOMAIN)
+// The regex is constructed dynamically to allow configuration via environment variables
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const allowedDomainPattern = new RegExp(`^https:\/\/([a-zA-Z0-9-]+\\.)*${escapeRegExp(MAIN_DOMAIN)}$`);
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -46,9 +52,9 @@ const corsOptions = {
       'http://127.0.0.1:3000'
     ];
     
-    // In production, also allow any subdomain of labdoctors-laboratories.com
+    // In production, also allow any subdomain of the main domain
     if (process.env.NODE_ENV === 'production' && allowedDomainPattern.test(origin)) {
-      console.log('CORS: Allowing labdoctors-laboratories.com subdomain:', origin);
+      console.log(`CORS: Allowing ${MAIN_DOMAIN} subdomain:`, origin);
       return callback(null, true);
     }
     
