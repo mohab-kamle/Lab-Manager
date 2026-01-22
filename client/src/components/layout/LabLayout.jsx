@@ -5,6 +5,7 @@ import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
 import MainNavBar from './MainNavBar';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import FloatingBackToTopButton from '../../components/ui/FloatingBackToTopButton';
 
 const LabLayout = () => {
   const { 
@@ -93,6 +94,7 @@ const LabLayout = () => {
           </p>
         </Container>
       </footer>
+      <FloatingBackToTopButton />
     </div>
   );
 };
