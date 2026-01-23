@@ -1,6 +1,13 @@
 // Load environment variables
 require("dotenv").config();
 
+// 🔒 SECURITY CHECK: Ensure SECRET_KEY is defined
+if (!process.env.SECRET_KEY) {
+  console.error("FATAL ERROR: SECRET_KEY is not defined in environment variables.");
+  console.error("Please set SECRET_KEY in your .env file to secure JWT tokens.");
+  process.exit(1);
+}
+
 // Core dependencies
 const express = require("express");
 const cors = require("cors");
