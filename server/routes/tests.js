@@ -425,7 +425,8 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
   try {
     const tests = await db.test.findAll({
       include: [
-        {          model: db.test_component,          as: 'components',        },
+        // Use separate: true to perform a separate query for components, avoiding a massive Cartesian product join
+        {          model: db.test_component,          as: 'components', separate: true        },
         {
           model: db.categories_test_and_culture,
           as: 'category',
