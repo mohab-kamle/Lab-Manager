@@ -44,6 +44,11 @@ const generatePatientCode = async (labId) => {
 router.post("/login", loginLimiter, async (req, res) => {
   const { patientcode} = req.body;
 
+  // Validate patientcode to prevent object injection
+  if (!patientcode || typeof patientcode === 'object') {
+    return res.status(400).json({ error: "Invalid patient code format" });
+  }
+
   try {
     const Patient = await patient.findOne({ 
       where: { 
