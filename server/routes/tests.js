@@ -425,7 +425,11 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
   try {
     const tests = await db.test.findAll({
       include: [
-        {          model: db.test_component,          as: 'components',        },
+        {
+          model: db.test_component,
+          as: 'components',
+          separate: true
+        },
         {
           model: db.categories_test_and_culture,
           as: 'category',
