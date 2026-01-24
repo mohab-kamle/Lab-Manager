@@ -105,7 +105,6 @@ const DynamicTable = ({
                     if (input) input.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
-                  aria-label="Select all rows"
                 />
               </th>
             )}
@@ -130,7 +129,6 @@ const DynamicTable = ({
                     aria-label={`Select ${getRowLabel(item, rowIndex)}`}
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
-                    aria-label={`Select ${item.name || item.title || 'row ' + (rowIndex + 1)}`}
                   />
                 </td>
               )}
