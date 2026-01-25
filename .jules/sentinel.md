@@ -28,3 +28,11 @@
 **Vulnerability:** The `GET /:id/results-data` endpoint fetched medical reports using `findByPk(id)` which ignored the tenant context (`lab_id`), allowing access to any report by ID. Additionally, the caching middleware used only `reportId` as the cache key, meaning a cached report from one tenant could be served to another if they requested the same ID.
 **Learning:** In multi-tenant systems, caching layers must include the tenant identifier in the cache key. Fixing the database query alone is insufficient if the cache can serve stale or cross-tenant data.
 **Prevention:** Always include `tenant_id` (or `lab_id`) in cache keys for tenant-specific resources. Use `findOne` with explicit `where: { lab_id }` checks instead of `findByPk` for resources that must be isolated.
+
+## 2026-05-24 - IDOR and Information Leakage in Patient Management
+**Vulnerability:** The patient management routes (`PUT /:id`, `DELETE /:id`, `import`, `bulk`) were missing `tenantContext` middleware and used `findByPk(id)` without validating `lab_id`. This allowed cross-tenant modification of patient data. Furthermore, the patient import feature checked for phone number uniqueness globally across all labs, leaking information about patient existence in other tenants.
+**Learning:** `findByPk` is inherently risky in multi-tenant applications as it bypasses tenant scoping. Uniqueness checks (like email or phone) must also be scoped to the tenant, otherwise they become an oracle for probing data in other tenants.
+**Prevention:**
+1. Audit all routes for missing `tenantContext`.
+2. Replace `findByPk(id)` with `findOne({ where: { id, lab_id } })`.
+3. Scope all "exists" checks (uniqueness validation) to the current tenant using `where` clauses or associations.
