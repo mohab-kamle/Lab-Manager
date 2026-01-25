@@ -142,17 +142,6 @@ router.get(
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
-      // Get medical_report_ids for the current lab
-      const medicalReportIds = await db.medical_report
-        .findAll({
-          attributes: ["id"],
-          where: {
-            lab_id: req.tenant.lab_id,
-          },
-          raw: true,
-        })
-        .then((reports) => reports.map((report) => report.id));
-
       // First, get the count of test groups for each medical report
       const testGroupCounts = await db.medical_report_has_tg.findAll({
         attributes: [
@@ -162,11 +151,17 @@ router.get(
             "count",
           ],
         ],
-        where: {
-          medical_report_id: {
-            [Op.in]: medicalReportIds,
+        include: [
+          {
+            model: db.medical_report,
+            as: "medical_report",
+            attributes: [],
+            where: {
+              lab_id: req.tenant.lab_id,
+            },
+            required: true,
           },
-        },
+        ],
         group: ["medical_report_id"],
         raw: true,
       });
