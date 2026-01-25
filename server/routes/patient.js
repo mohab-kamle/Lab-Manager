@@ -409,7 +409,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
 });
 
 // Update patient
-router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const patientId = req.params.id;
         const { 
@@ -431,8 +431,14 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
             diseases = [] // Array of disease IDs
         } = req.body;
 
-        // Check if patient exists
-        const existingPatient = await patient.findByPk(patientId);
+        // Check if patient exists and belongs to the current lab
+        const existingPatient = await patient.findOne({
+            where: {
+                id: patientId,
+                lab_id: req.tenant.lab_id
+            }
+        });
+
         if (!existingPatient) {
             return res.status(404).json({ error: "Patient not found" });
         }
@@ -546,12 +552,18 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
 });
 
 // Delete patient
-router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const patientId = req.params.id;
 
-        // Check if patient exists
-        const existingPatient = await patient.findByPk(patientId);
+        // Check if patient exists and belongs to the current lab
+        const existingPatient = await patient.findOne({
+            where: {
+                id: patientId,
+                lab_id: req.tenant.lab_id
+            }
+        });
+
         if (!existingPatient) {
             return res.status(404).json({ error: "Patient not found" });
         }
@@ -609,7 +621,7 @@ router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist"
 });
 
 // Import patients from Excel/CSV
-router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist"), upload.single('file'), async (req, res) => {
+router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
@@ -641,11 +653,16 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                     continue;
                 }
 
-                // Check if patient already exists by phone number
+                // Check if patient already exists by phone number in the current lab
                 const existingPhone = await phone.findOne({ 
                     where: { 
                         phone_number: row['Primary Phone'].toString()
-                    } 
+                    },
+                    include: [{
+                        model: patient,
+                        where: { lab_id: req.tenant.lab_id },
+                        required: true
+                    }]
                 });
                 
                 if (existingPhone) {
@@ -750,7 +767,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
 });
 
 // Bulk delete patients
-router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const { patientIds } = req.body;
 
@@ -763,8 +780,14 @@ router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist")
 
         for (const patientId of patientIds) {
             try {
-                // Check if patient exists
-                const existingPatient = await patient.findByPk(patientId);
+                // Check if patient exists and belongs to the current lab
+                const existingPatient = await patient.findOne({
+                    where: {
+                        id: patientId,
+                        lab_id: req.tenant.lab_id
+                    }
+                });
+
                 if (!existingPatient) {
                     errors.push(`Patient ID ${patientId}: Patient not found`);
                     continue;
@@ -810,7 +833,7 @@ router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist")
 });
 
 // Bulk update patients
-router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const { patientIds, updateData } = req.body;
 
@@ -827,8 +850,14 @@ router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), a
 
         for (const patientId of patientIds) {
             try {
-                // Check if patient exists
-                const existingPatient = await patient.findByPk(patientId);
+                // Check if patient exists and belongs to the current lab
+                const existingPatient = await patient.findOne({
+                    where: {
+                        id: patientId,
+                        lab_id: req.tenant.lab_id
+                    }
+                });
+
                 if (!existingPatient) {
                     errors.push(`Patient ID ${patientId}: Patient not found`);
                     continue;
@@ -925,7 +954,7 @@ router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (r
 });
 
 // Get patient count
-router.get('/count', authenticateUser, authorizeRoles('admin'),
+router.get('/count', authenticateUser, authorizeRoles('admin'), tenantContext,
   // Add cache headers for 1 minute
   (req, res, next) => {
     res.set({
@@ -935,7 +964,11 @@ router.get('/count', authenticateUser, authorizeRoles('admin'),
   },
   async (req, res) => {
   try {
-    const count = await patient.count();
+    const count = await patient.count({
+      where: {
+        lab_id: req.tenant.lab_id
+      }
+    });
     res.json({ count });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get patient count' });
@@ -943,7 +976,7 @@ router.get('/count', authenticateUser, authorizeRoles('admin'),
 });
 
 // Get recent patients
-router.get('/recent', authenticateUser, authorizeRoles('admin'),
+router.get('/recent', authenticateUser, authorizeRoles('admin'), tenantContext,
   // Add cache headers for 2 minutes
   (req, res, next) => {
     res.set({
@@ -954,6 +987,9 @@ router.get('/recent', authenticateUser, authorizeRoles('admin'),
   async (req, res) => {
   try {
     const patients = await patient.findAll({
+      where: {
+        lab_id: req.tenant.lab_id
+      },
       order: [['id', 'DESC']],
       limit: 5,
       attributes: ['id', 'name', 'birth_date']
