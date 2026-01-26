@@ -45,6 +45,11 @@ router.post("/login", loginLimiter, async (req, res) => {
   const { patientcode} = req.body;
 
   try {
+    // 🛡️ Sentinel: Validate input to prevent Object Injection
+    if (!patientcode || (typeof patientcode !== 'string' && typeof patientcode !== 'number')) {
+      return res.status(400).json({ error: "Invalid patient code format" });
+    }
+
     const Patient = await patient.findOne({ 
       where: { 
         patientcode

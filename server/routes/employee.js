@@ -17,6 +17,15 @@ router.post("/login", loginLimiter, async (req, res) => {
     const { username, password, lab_id } = req.body;
   
     try {
+      // 🛡️ Sentinel: Validate input to prevent Object Injection
+      if (!username || typeof username !== 'string') {
+        return res.status(400).json({ error: "Invalid username format" });
+      }
+
+      if (lab_id !== undefined && lab_id !== null && typeof lab_id !== 'string' && typeof lab_id !== 'number') {
+        return res.status(400).json({ error: "Invalid lab ID format" });
+      }
+
       // For login, we need to check if the employee exists in the specified lab
       // or find them across all labs if lab_id is not provided
       let emp;
