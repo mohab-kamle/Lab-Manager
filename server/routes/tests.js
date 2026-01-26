@@ -425,7 +425,11 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
   try {
     const tests = await db.test.findAll({
       include: [
-        {          model: db.test_component,          as: 'components',        },
+        {
+          model: db.test_component,
+          as: 'components',
+          separate: true,
+        },
         {
           model: db.categories_test_and_culture,
           as: 'category',
@@ -442,7 +446,8 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
           through: { attributes: [] },
           attributes: ['id', 'text', 'category'],
           where: { is_active: true },
-          required: false
+          required: false,
+          separate: true,
         }
       ]
     });
