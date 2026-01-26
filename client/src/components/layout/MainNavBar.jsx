@@ -283,8 +283,9 @@ const MainNavBar = () => {
                   to={prefix ? `${prefix}/admin/dashboard` : "#"}
                   onClick={() => setExpanded(false)}
                   disabled={!prefix || labLoading}
+                  aria-label="Admin Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? "Admin Dashboard" : "Loading..."} */}
                 </Nav.Link>
               ) : user?.role === "receptionist" ? (
@@ -293,8 +294,9 @@ const MainNavBar = () => {
                   to={prefix ? `${prefix}/receptionist/dashboard` : "#"}
                   onClick={() => setExpanded(false)}
                   disabled={!prefix || labLoading}
+                  aria-label="Receptionist Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? "Receptionist Dashboard" : "Loading..."} */}
                 </Nav.Link>
               ) : user?.role === "chemist" ? (
@@ -303,8 +305,9 @@ const MainNavBar = () => {
                   to={prefix ? `${prefix}/chemist/dashboard` : "#"}
                   onClick={() => setExpanded(false)}
                   disabled={!prefix || labLoading}
+                  aria-label="Chemist Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Chemist Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "doctor" ? (
@@ -313,8 +316,9 @@ const MainNavBar = () => {
                   to={prefix ? `${prefix}/doctor/dashboard` : "#"}
                   onClick={() => setExpanded(false)}
                   disabled={!prefix || labLoading}
+                  aria-label="Doctor Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Doctor Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "employee" ? (
@@ -323,8 +327,9 @@ const MainNavBar = () => {
                   to={prefix ? `${prefix}/employee/dashboard` : "#"}
                   onClick={() => setExpanded(false)}
                   disabled={!prefix || labLoading}
+                  aria-label="Employee Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Employee Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "patient" ? (
@@ -333,8 +338,9 @@ const MainNavBar = () => {
                   to={prefix ? `${prefix}/patient/dashboard` : "#"}
                   onClick={() => setExpanded(false)}
                   disabled={!prefix || labLoading}
+                  aria-label="Patient Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : null}
@@ -829,9 +835,10 @@ const MainNavBar = () => {
                     to="/"
                     onClick={handleLogout}
                     className="logout-link"
+                    aria-label="Logout"
                   >
-                    <DoorClosed className="door-icon door-closed" size={30} />
-                    <DoorOpen className="door-icon door-open" size={30} />
+                    <DoorClosed className="door-icon door-closed" size={30} aria-hidden="true" />
+                    <DoorOpen className="door-icon door-open" size={30} aria-hidden="true" />
                     <span className="ms-2 fw-medium d-none d-lg-inline">Logout</span>
                   </Nav.Link>
                 </>
