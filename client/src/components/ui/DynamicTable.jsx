@@ -3,6 +3,55 @@ import { Table, Form } from 'react-bootstrap';
 import { formatDate } from '../../utils/dateFormatter';
 import PropTypes from 'prop-types';
 
+const defaultFormatCellData = (value, header) => {
+  // Handle null/undefined values
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+
+  // Handle date fields
+  if (header.toLowerCase().includes('date') && value) {
+    try {
+      const date = new Date(value);
+      return date instanceof Date && !isNaN(date)
+        ? formatDate(date)
+        : '-';
+    } catch {
+      return '-';
+    }
+  }
+
+  // Handle arrays
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '-';
+    return value.map(item => {
+      if (item === null || item === undefined) return '-';
+      if (typeof item === 'object') {
+        return item.name || item.title || JSON.stringify(item);
+      }
+      return String(item);
+    }).filter(Boolean).join(', ') || '-';
+  }
+
+  // Handle objects
+  if (typeof value === 'object' && value !== null) {
+    return value.name || value.title || JSON.stringify(value);
+  }
+
+  // Handle numbers
+  if (typeof value === 'number') {
+    return isNaN(value) ? '-' : String(value);
+  }
+
+  // Handle boolean values
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No';
+  }
+
+  // Default string conversion
+  return String(value) || '-';
+};
+
 const DynamicTable = ({ 
   data, 
   columns, 
@@ -15,55 +64,6 @@ const DynamicTable = ({
   customHeaders = {},
   getItemLabel = null
 }) => {
-  const defaultFormatCellData = (value, header) => {
-    // Handle null/undefined values
-    if (value === null || value === undefined || value === '') {
-      return '-';
-    }
-
-    // Handle date fields
-    if (header.toLowerCase().includes('date') && value) {
-      try {
-        const date = new Date(value);
-        return date instanceof Date && !isNaN(date) 
-          ? formatDate(date)
-          : '-';
-      } catch {
-        return '-';
-      }
-    }
-
-    // Handle arrays
-    if (Array.isArray(value)) {
-      if (value.length === 0) return '-';
-      return value.map(item => {
-        if (item === null || item === undefined) return '-';
-        if (typeof item === 'object') {
-          return item.name || item.title || JSON.stringify(item);
-        }
-        return String(item);
-      }).filter(Boolean).join(', ') || '-';
-    }
-
-    // Handle objects
-    if (typeof value === 'object' && value !== null) {
-      return value.name || value.title || JSON.stringify(value);
-    }
-
-    // Handle numbers
-    if (typeof value === 'number') {
-      return isNaN(value) ? '-' : String(value);
-    }
-
-    // Handle boolean values
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
-
-    // Default string conversion
-    return String(value) || '-';
-  };
-
   const formatter = formatCellData || defaultFormatCellData;
 
   const formatColumnHeader = (column) => {
@@ -105,7 +105,6 @@ const DynamicTable = ({
                     if (input) input.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
-                  aria-label="Select all rows"
                 />
               </th>
             )}
@@ -130,7 +129,6 @@ const DynamicTable = ({
                     aria-label={`Select ${getRowLabel(item, rowIndex)}`}
                     checked={selectedItems.includes(item.id)}
                     onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
-                    aria-label={`Select ${item.name || item.title || 'row ' + (rowIndex + 1)}`}
                   />
                 </td>
               )}
@@ -165,4 +163,4 @@ DynamicTable.propTypes = {
   getItemLabel: PropTypes.func
 };
 
-export default DynamicTable;
+export default React.memo(DynamicTable);
