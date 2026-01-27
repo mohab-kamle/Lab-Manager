@@ -45,9 +45,14 @@ router.post("/login", loginLimiter, async (req, res) => {
   const { patientcode} = req.body;
 
   try {
+    // 🔒 SECURITY FIX: Validate input type to prevent Sequelize Object Injection
+    if (!patientcode || (typeof patientcode !== 'string' && typeof patientcode !== 'number')) {
+      return res.status(400).json({ error: "Invalid patient code format" });
+    }
+
     const Patient = await patient.findOne({ 
       where: { 
-        patientcode
+        patientcode: String(patientcode) // Explicitly cast to string/value to prevent object injection
       } 
     });
 
