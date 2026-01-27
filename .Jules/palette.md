@@ -24,3 +24,7 @@
 ## 2026-01-20 - Context for Generic List Components
 **Learning:** Generic components like `DynamicTable` often lack the specific data context needed for accessible row selection (e.g., "Select John Doe" vs "Select Item").
 **Action:** Implement helper props (like `getItemLabel`) in generic components to allow parent components to inject meaningful, accessible labels for repetitive actions.
+
+## 2026-05-24 - Empty States and Duplicate Props
+**Learning:** Tables often result in confusing "blank" screens when data is missing. Adding a dedicated empty state row drastically improves usability. Also, watch out for duplicate `aria-label` props in existing code; React only renders the last one, which can accidentally hide the intended dynamic label if the static one comes second.
+**Action:** Always verify that lists/tables handle the `length === 0` case explicitly, and lint/scan for duplicate props that might obscure accessibility logic.
