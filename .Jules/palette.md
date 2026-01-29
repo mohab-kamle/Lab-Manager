@@ -24,3 +24,7 @@
 ## 2026-01-20 - Context for Generic List Components
 **Learning:** Generic components like `DynamicTable` often lack the specific data context needed for accessible row selection (e.g., "Select John Doe" vs "Select Item").
 **Action:** Implement helper props (like `getItemLabel`) in generic components to allow parent components to inject meaningful, accessible labels for repetitive actions.
+
+## 2026-02-03 - Framework Conflicts & Accessibility
+**Learning:** Components using Tailwind CSS in a Bootstrap-only project were rendering unstyled and inaccessible. Refactoring to Bootstrap required careful attention to keyboard accessibility features (like `focus-ring`) that Tailwind utilities provided implicitly or explicitly.
+**Action:** When refactoring from legacy frameworks, explicitly verify and restore focus states using the target framework's utilities (e.g., `focus-ring` in Bootstrap 5.3) to prevent a11y regressions.

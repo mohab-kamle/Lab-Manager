@@ -113,16 +113,8 @@ const ImageUpload = ({
     }
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`d-flex flex-column gap-3 ${className}`}>
       {/* Upload Area */}
       <div
         role="button"
@@ -136,11 +128,12 @@ const ImageUpload = ({
           }
         }}
         className={`
-          relative border-2 border-dashed rounded-lg p-6 text-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2
-          ${dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300'}
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-gray-400'}
-          ${images.length >= maxImages ? 'opacity-50 cursor-not-allowed' : ''}
+          position-relative border border-2 rounded p-4 text-center focus-ring
+          ${dragActive ? 'border-primary bg-primary-subtle' : 'border-secondary-subtle'}
+          ${disabled ? 'opacity-50' : 'cursor-pointer'}
+          ${images.length >= maxImages ? 'opacity-50' : ''}
         `}
+        style={{ borderStyle: 'dashed' }}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -153,20 +146,20 @@ const ImageUpload = ({
           multiple
           accept="image/*"
           onChange={handleFileInput}
-          className="hidden"
+          className="d-none"
           disabled={disabled || images.length >= maxImages}
         />
         
-        <div className="space-y-2">
-          <Upload className="mx-auto h-8 w-8 text-gray-400" />
-          <div className="text-sm text-gray-600">
+        <div className="d-flex flex-column gap-2">
+          <Upload className="mx-auto text-secondary" size={32} />
+          <div className="small text-muted">
             {images.length >= maxImages ? (
-              <span className="text-orange-600">Maximum {maxImages} images reached</span>
+              <span className="text-warning">Maximum {maxImages} images reached</span>
             ) : (
               <>
-                <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+                <span className="fw-medium text-primary">Click to upload</span> or drag and drop
                 <br />
-                <span className="text-xs text-gray-500">
+                <span className="small text-muted">
                   PNG, JPG, GIF up to 5MB ({images.length}/{maxImages} images)
                 </span>
               </>
@@ -177,68 +170,68 @@ const ImageUpload = ({
 
       {/* Error Message */}
       {error && (
-        <div className="flex items-center space-x-2 text-red-600 text-sm bg-red-50 p-3 rounded-md">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+        <div className="d-flex align-items-center gap-2 text-danger small bg-danger-subtle p-3 rounded">
+          <AlertCircle size={16} className="flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Image Previews */}
-{images.length > 0 && (
-  <div className="space-y-3">
-    <h4 className="text-sm font-semibold text-gray-800">Selected Images</h4>
-    <div className="d-flex flex-wrap gap-2">
-      {images.map((image, index) => (
-        <div
-          key={index}
-          className="bg-grey-100 border border-gray-200 rounded-lg relative group overflow-hidden d-flex flex-column align-items-center justify-content-center "
-          style={{ width: '120px'}}
-        >
-          {/* Image Thumbnail */}
-          <img
-            src={image.preview || image.url || image.image_path}
-            alt={image.name || `Image ${index + 1}`}
-            loading="lazy"
-            style={{ width: '80px', height: '80px', objectFit: 'cover' }}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              e.currentTarget.nextSibling.style.display = "flex";
-            }}
-          />
+      {images.length > 0 && (
+        <div className="d-flex flex-column gap-2">
+          <h4 className="h6 fw-bold text-dark mb-0">Selected Images</h4>
+          <div className="d-flex flex-wrap gap-2">
+            {images.map((image, index) => (
+              <div
+                key={index}
+                className="position-relative bg-light border border-secondary-subtle rounded d-flex flex-column align-items-center justify-content-center overflow-hidden"
+                style={{ width: '120px', height: '120px' }}
+              >
+                {/* Image Thumbnail */}
+                <img
+                  src={image.preview || image.url || image.image_path}
+                  alt={image.name || `Image ${index + 1}`}
+                  loading="lazy"
+                  className="w-100 h-100 object-fit-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextSibling.style.display = "flex";
+                  }}
+                />
 
-          {/* Broken Image Fallback */}
-          {!image.preview && (
-            <div className="hidden w-full h-full items-center justify-center bg-gray-100">
-              <ImageIcon size={80} />
-            </div>
-          )}
+                {/* Broken Image Fallback */}
+                {!image.preview && (
+                  <div className="d-none w-100 h-100 align-items-center justify-content-center bg-light">
+                    <ImageIcon size={40} className="text-secondary" />
+                  </div>
+                )}
 
-          {/* Remove Button */}
-          {!disabled && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeImage(index);
-              }}
-              className=" d-flex items-center justify-center bg-danger text-white absolute top-1 right-1 border-0 rounded-3 group-hover:opacity-100 transition-opacity"
-              title="Remove image"
-              aria-label={`Remove image ${image.name || index + 1}`}
-            >
-              <X size={16} />
-            </button>
-          )}
+                {/* Remove Button */}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeImage(index);
+                    }}
+                    className="btn btn-danger btn-sm p-0 d-flex align-items-center justify-content-center position-absolute top-0 end-0 m-1 rounded-circle"
+                    style={{ width: '24px', height: '24px' }}
+                    title="Remove image"
+                    aria-label={`Remove image ${image.name || index + 1}`}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
 
-          {/* Image Name Tooltip */}
-          <div className="absolute bottom-0 left-0 right-0  px-1 py-0.5  group-hover:opacity-100 transition truncate">
-            {image.name || image.image_name || `Image ${index + 1}`}
+                {/* Image Name Tooltip */}
+                <div className="position-absolute bottom-0 w-100 bg-white bg-opacity-75 px-1 py-1 text-truncate small text-center" style={{ fontSize: '10px' }}>
+                  {image.name || image.image_name || `Image ${index + 1}`}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
-    </div>
-  </div>
-)}
-
+      )}
     </div>
   );
 };
