@@ -52,8 +52,14 @@ const authenticateUser = async (req, res, next) => {
           userRecord = await employee.findByPk(decoded.id);
       }
       
+      // Check if user exists in database
+      if (!userRecord) {
+        if (!isProd) console.log('Authentication failed: User not found in database');
+        return res.status(401).json({ error: "Access denied. User not found." });
+      }
+
       // Add lab_id to user context if available
-      if (userRecord && userRecord.lab_id) {
+      if (userRecord.lab_id) {
         req.user = { ...decoded, lab_id: userRecord.lab_id };
       } else {
         req.user = decoded;
