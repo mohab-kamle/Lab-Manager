@@ -52,8 +52,15 @@ const authenticateUser = async (req, res, next) => {
           userRecord = await employee.findByPk(decoded.id);
       }
       
+      // 🔒 SECURITY FIX: Explicitly check if user exists in database
+      // This prevents deleted users from accessing the system with valid tokens
+      if (!userRecord) {
+        if (!isProd) console.log(`Authentication failed: User ${decoded.id} with role ${decoded.role} not found in database`);
+        return res.status(401).json({ error: "User account not found or access denied." });
+      }
+
       // Add lab_id to user context if available
-      if (userRecord && userRecord.lab_id) {
+      if (userRecord.lab_id) {
         req.user = { ...decoded, lab_id: userRecord.lab_id };
       } else {
         req.user = decoded;
