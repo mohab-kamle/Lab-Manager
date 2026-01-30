@@ -29,6 +29,7 @@ import {
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
 import useLabPrefix from "../../hooks/useLabPrefix";
+import { getSubdomain } from "../../utils/subdomain"; // Add this import properly
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
 import VersionBadge from "../ui/VersionBadge";
@@ -84,7 +85,7 @@ export const resetNavbarActiveState = () => {
  */
 const MainNavBar = () => {
   const { user, loading: authLoading, refreshUser, logout } = useAuth();
-  const { terminateLabInfo, loading: labLoading } = useLab();
+  const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
   const prefix = useLabPrefix();
   const navigate = useNavigate();
   const location = useLocation();
@@ -136,18 +137,6 @@ const MainNavBar = () => {
       localStorage.setItem("active-dropdown-item", activeItem);
     }
   }, [activeItem]);
-
-  // Handle prefix-based navigation once
-  useEffect(() => {
-    if (!user) return;
-    if (prefix && !isInitialized) {
-      setIsInitialized(true);
-      if (location.pathname.includes("null/")) {
-        const correctedPath = location.pathname.replace("null/", `${prefix}/`);
-        navigate(correctedPath, { replace: true });
-      }
-    }
-  }, [prefix, isInitialized, location.pathname, navigate, user]);
 
   // Handle user refresh and token expiration
   useEffect(() => {
@@ -251,7 +240,12 @@ const MainNavBar = () => {
         }}
       >
         <Container fluid>
-          <Navbar.Brand as={Link} to="/" onClick={() => setExpanded(false)}>
+          <Navbar.Brand 
+            as={getSubdomain() ? "a" : Link} 
+            to={getSubdomain() ? undefined : "/"} 
+            href={getSubdomain() ? `${window.location.protocol}//${window.location.host.replace(getSubdomain() + '.', '')}` : undefined}
+            onClick={() => setExpanded(false)}
+          >
             <img
               src={labIcon}
               alt=""
@@ -275,14 +269,14 @@ const MainNavBar = () => {
           <Navbar.Collapse className="justify-content-end">
             <Nav className="Down-on-main me-auto">
               {/* Dashboard Home Link */}
-              {!prefix || labLoading ? (
+              {!labInfo || labLoading ? (
                 user && <Nav.Link disabled>Loading...</Nav.Link>
               ) : user?.role === "admin" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/admin/dashboard` : "#"}
+                  to={`/admin/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                 >
                   <House size={23} />
                   {/* {prefix ? "Admin Dashboard" : "Loading..."} */}
@@ -290,9 +284,9 @@ const MainNavBar = () => {
               ) : user?.role === "receptionist" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/receptionist/dashboard` : "#"}
+                  to={`/receptionist/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                 >
                   <House size={23} />
                   {/* {prefix ? "Receptionist Dashboard" : "Loading..."} */}
@@ -300,9 +294,9 @@ const MainNavBar = () => {
               ) : user?.role === "chemist" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/chemist/dashboard` : "#"}
+                  to={`/chemist/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                 >
                   <House size={23} />
                   {/* {prefix ? 'Chemist Dashboard' : 'Loading...'} */}
@@ -310,9 +304,9 @@ const MainNavBar = () => {
               ) : user?.role === "doctor" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/doctor/dashboard` : "#"}
+                  to={`/doctor/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                 >
                   <House size={23} />
                   {/* {prefix ? 'Doctor Dashboard' : 'Loading...'} */}
@@ -320,9 +314,9 @@ const MainNavBar = () => {
               ) : user?.role === "employee" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/employee/dashboard` : "#"}
+                  to={`/employee/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                 >
                   <House size={23} />
                   {/* {prefix ? 'Employee Dashboard' : 'Loading...'} */}
@@ -330,9 +324,9 @@ const MainNavBar = () => {
               ) : user?.role === "patient" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/patient/dashboard` : "#"}
+                  to={`/patient/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                 >
                   <House size={23} />
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
@@ -359,7 +353,7 @@ const MainNavBar = () => {
                   <Dropdown.Menu>
                     <Dropdown.Item
                       as={Link}
-                      to={`${prefix}/${user?.role}/test-groups`}
+                      to={`/${user?.role}/test-groups`}
                       data-dropdown-key="testGroups"
                       data-title="Test Groups"
                       data-id="test-groups"
@@ -369,7 +363,7 @@ const MainNavBar = () => {
                     </Dropdown.Item>
                     <Dropdown.Item
                       as={Link}
-                      to={`${prefix}/${user?.role}/test-group-categories`}
+                      to={`/${user?.role}/test-group-categories`}
                       data-dropdown-key="testGroups"
                       data-title="Categories"
                       data-id="categories"
@@ -379,7 +373,7 @@ const MainNavBar = () => {
                     </Dropdown.Item>
                     <Dropdown.Item
                       as={Link}
-                      to={`${prefix}/${user?.role}/test-group-components`}
+                      to={`/${user?.role}/test-group-components`}
                       data-dropdown-key="testGroups"
                       data-title="Components"
                       data-id="components"
@@ -428,7 +422,7 @@ const MainNavBar = () => {
                           <>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/categories`}
+                              to={`/${user?.role}/categories`}
                               data-dropdown-key="tests_C"
                               data-title="categories"
                               data-id="categories-tests"
@@ -438,7 +432,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/tests`}
+                              to={`/${user?.role}/tests`}
                               data-dropdown-key="tests_C"
                               data-title="tests"
                               data-id="tests-tests"
@@ -448,7 +442,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/sample-types`}
+                              to={`/${user?.role}/sample-types`}
                               data-dropdown-key="tests_C"
                               data-title="sample types"
                               data-id="sample-types-tests"
@@ -458,7 +452,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/culture-options`}
+                              to={`/${user?.role}/culture-options`}
                               data-dropdown-key="tests_C"
                               data-title="culture options"
                               data-id="culture-options-tests"
@@ -468,7 +462,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/antibiotics`}
+                              to={`/${user?.role}/antibiotics`}
                               data-dropdown-key="tests_C"
                               data-title="antibiotics"
                               data-id="antibiotics-tests"
@@ -478,7 +472,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/packages-offers`}
+                              to={`/${user?.role}/packages-and-offers`}
                               data-dropdown-key="tests_C"
                               data-title="packages & offers"
                               data-id="packages-offers" // 👈 Add this
@@ -493,7 +487,7 @@ const MainNavBar = () => {
                           <>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/categories`}
+                              to={`/${user?.role}/categories`}
                               data-dropdown-key="tests_C"
                               data-title="categories"
                               data-id="categories-tests"
@@ -503,7 +497,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/tests`}
+                              to={`/${user?.role}/tests`}
                               data-dropdown-key="tests_C"
                               data-title="tests"
                               data-id="tests-tests"
@@ -513,7 +507,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/sample-types`}
+                              to={`/${user?.role}/sample-types`}
                               data-dropdown-key="tests_C"
                               data-title="sample types"
                               data-id="sample-types-tests"
@@ -523,7 +517,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/culture-options`}
+                              to={`/${user?.role}/culture-options`}
                               data-dropdown-key="tests_C"
                               data-title="culture options"
                               data-id="culture-options-tests"
@@ -533,7 +527,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/antibiotics`}
+                              to={`/${user?.role}/antibiotics`}
                               data-dropdown-key="tests_C"
                               data-title="antibiotics"
                               data-id="antibiotics-tests"
@@ -543,7 +537,7 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/packages-offers`}
+                              to={`/${user?.role}/packages-and-offers`}
                               data-dropdown-key="tests_C"
                               data-title="packages & offers"
                             >
@@ -553,7 +547,7 @@ const MainNavBar = () => {
                         )}
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/cultures`}
+                          to={`/${user?.role}/cultures`}
                           data-dropdown-key="tests_C"
                           data-title="culture"
                           data-id="culture-tests"
@@ -563,7 +557,7 @@ const MainNavBar = () => {
                         </Dropdown.Item>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/diseases`}
+                          to={`/${user?.role}/diseases`}
                           data-dropdown-key="tests_C"
                           data-title="diseases"
                           data-id="diseases-tests"
@@ -600,7 +594,7 @@ const MainNavBar = () => {
                         {user?.role === "admin" && (
                           <Dropdown.Item
                             as={Link}
-                            to={`${prefix}/${user?.role}/vault`}
+                            to={`/${user?.role}/vault`}
                             data-dropdown-key="Rec"
                             data-title="Vault(under construction)"
                             data-id="vault"
@@ -611,7 +605,7 @@ const MainNavBar = () => {
                         )}
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/invoices`}
+                          to={`/${user?.role}/invoices`}
                           data-dropdown-key="Rec"
                           data-title="Invoices"
                           data-id="invoices"
@@ -621,7 +615,7 @@ const MainNavBar = () => {
                         </Dropdown.Item>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/patients`}
+                          to={`/${user?.role}/patients`}
                           data-dropdown-key="Rec"
                           data-title="Patients"
                           data-id="patients"
@@ -633,7 +627,7 @@ const MainNavBar = () => {
                           <>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/patients/analytics`}
+                              to={`/${user?.role}/patients-analytics`}
                               data-dropdown-key="Rec"
                               data-title="Patients Analytics"
                               data-id="patients-analytics"
@@ -670,7 +664,7 @@ const MainNavBar = () => {
                       <Dropdown.Menu>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/medical-reports`}
+                          to={`/${user?.role}/medical-reports`}
                           data-dropdown-key="MedicalReports"
                           data-title="All Medical Reports"
                           data-id="all-medical-reports"
@@ -696,19 +690,19 @@ const MainNavBar = () => {
                       <Dropdown.Menu>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/admin/invoices`}
+                          to={`/admin/invoices`}
                         >
                           Invoices
                         </Dropdown.Item>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/payment-methods`}
+                          to={`/${user?.role}/payment-methods`}
                         >
                           Payment Methods
                         </Dropdown.Item>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/test-groups`}
+                          to={`/${user?.role}/test-groups`}
                         >
                           Test Groups
                         </Dropdown.Item>
@@ -734,7 +728,7 @@ const MainNavBar = () => {
                       <Dropdown.Menu>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/payment-methods`}
+                          to={`/${user?.role}/payment-methods`}
                           data-dropdown-key="Accounting"
                           data-title="Payment Methods"
                           data-id="payment-methods"
@@ -765,7 +759,7 @@ const MainNavBar = () => {
                       <Dropdown.Menu>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/branches`}
+                          to={`/${user?.role}/branches`}
                           data-dropdown-key="Manage_B"
                           data-title="Branches"
                           data-id="branches"
@@ -775,7 +769,7 @@ const MainNavBar = () => {
                         </Dropdown.Item>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/employees`}
+                          to={`/${user?.role}/employees`}
                           data-dropdown-key="Manage_B"
                           data-title="Employee Management"
                           data-id="employees"
@@ -785,7 +779,7 @@ const MainNavBar = () => {
                         </Dropdown.Item>
                         <Dropdown.Item
                           as={Link}
-                          to={`${prefix}/${user?.role}/lab-management`}
+                          to={`/${user?.role}/lab-management`}
                           data-dropdown-key="Manage_B"
                           data-title="Lab Ops Center"
                           data-id="lab-management"
