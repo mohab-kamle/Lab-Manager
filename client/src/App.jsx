@@ -20,8 +20,17 @@ import ChangePassword from './pages/auth/ChangePassword';
 import PaymentCallback from './pages/payment/PaymentCallback';
 import KnowUs from './pages/info/KnowUs';
 
+import { useAuth } from './context/AuthContext';
+
 function App() {
   const subdomain = getSubdomain();
+  const { user, loading } = useAuth();
+  
+  // Show loading spinner while auth and lab context is initializing
+  // This prevents the login screen from flashing for authenticated users
+  if (loading) {
+     return <LoadingSpinner />;
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -30,15 +39,13 @@ function App() {
        localStorage.setItem('token', token);
        // Clean URL
        window.history.replaceState({}, document.title, window.location.pathname);
-       // Force context reload if necessary
+       // Force reload to ensure all contexts pick up the new token cleanly
        window.location.reload(); 
     }
   }, []);
 
   return (
     <Router>
-      <AuthProvider>
-        <LabProvider>
           <ToastContainer
             position="top-right"
             autoClose={5000}
@@ -57,7 +64,7 @@ function App() {
              {!subdomain ? (
                <Routes>
                  <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
-                 <Route path="/login" element={<PageTransition><UnifiedLogin /></PageTransition>} />
+                 <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <PageTransition><UnifiedLogin /></PageTransition>} />
                  <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
                  <Route path="/change-password" element={<PageTransition><ChangePassword /></PageTransition>} />
                  <Route path="/payment-callback" element={<PageTransition><PaymentCallback /></PageTransition>} />
@@ -66,14 +73,12 @@ function App() {
                </Routes>
              ) : (
                <Routes>
-                 <Route path="/" element={<Navigate to="/login" replace />} />
-                 <Route path="/login" element={<UnifiedLogin />} />
+                 <Route path="/" element={<Navigate to={user ? `/${user.role}/dashboard` : "/login"} replace />} />
+                 <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <UnifiedLogin />} />
                  <Route path="/*" element={<LabRoutes />} />
                </Routes>
              )}
            </Suspense>
-        </LabProvider>
-      </AuthProvider>
     </Router>
   );
 }

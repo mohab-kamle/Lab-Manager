@@ -25,8 +25,24 @@ const UnifiedLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Check if user is already logged in
+  React.useEffect(() => {
+    if (!authLoading && user) {
+      const currentSubdomain = getSubdomain();
+      
+      // If user has a lab (is not a patient without lab context, though patients usually have lab associations)
+      // And we are on a subdomain
+      if (currentSubdomain) {
+         // Optionally, we could verify if currentSubdomain matches user.lab?.subdomain
+         // But for now, if they are logged in on a subdomain, assume it's valid and redirect
+         // The router/API will handle access denied if it's the wrong lab
+         navigate(`/${user.role}/dashboard`);
+      }
+    }
+  }, [user, authLoading, navigate]);
 
   const userTypes = [
     {

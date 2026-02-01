@@ -12,6 +12,9 @@ const tenantContext = async (req, res, next) => {
     const hostname = host.split(':')[0];
     const subdomain = hostname.split('.')[0];
 
+    // Debug log
+    // console.log(`🔍 Tenant Context: host=${host}, subdomain=${subdomain}`);
+
     // 2. Attach Context (Initialize early)
     req.tenantId = subdomain;
     req.tenant = {
