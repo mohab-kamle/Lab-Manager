@@ -925,7 +925,7 @@ router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (r
 });
 
 // Get patient count
-router.get('/count', authenticateUser, authorizeRoles('admin'),
+router.get('/count', authenticateUser, authorizeRoles('admin'), tenantContext,
     // Add cache headers for 1 minute
     (req, res, next) => {
         res.set({
@@ -935,7 +935,11 @@ router.get('/count', authenticateUser, authorizeRoles('admin'),
     },
     async (req, res) => {
         try {
-            const count = await patient.count();
+            const count = await patient.count({
+                where: {
+                    lab_id: req.tenant.lab_id
+                }
+            });
             res.json({ count });
         } catch (error) {
             res.status(500).json({ error: 'Failed to get patient count' });
@@ -943,7 +947,7 @@ router.get('/count', authenticateUser, authorizeRoles('admin'),
     });
 
 // Get recent patients
-router.get('/recent', authenticateUser, authorizeRoles('admin'),
+router.get('/recent', authenticateUser, authorizeRoles('admin'), tenantContext,
     // Add cache headers for 2 minutes
     (req, res, next) => {
         res.set({
@@ -954,6 +958,9 @@ router.get('/recent', authenticateUser, authorizeRoles('admin'),
     async (req, res) => {
         try {
             const patients = await patient.findAll({
+                where: {
+                    lab_id: req.tenant.lab_id
+                },
                 order: [['id', 'DESC']],
                 limit: 5,
                 attributes: ['id', 'name', 'birth_date']
