@@ -25,9 +25,7 @@ import {
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
-import useLabPrefix from "../../hooks/useLabPrefix";
 const PatientProfile = () => {
-  const prefix = useLabPrefix();
   const { user } = useAuth();
   
   if (!user) {
@@ -105,7 +103,7 @@ const PatientProfile = () => {
                   variant="success"
                   className="me-2"
                   as={Link}
-                  to={`/${prefix}/patient/reports`}
+                  to={`/patient/dashboard/reports`}
                 >
                   <FileMedical className="me-1" />
                   View Medical Reports
@@ -113,7 +111,7 @@ const PatientProfile = () => {
                 <Button
                   variant="outline-primary"
                   as={Link}
-                  to={`/${prefix}/patient/profile/update`}
+                  to={`/patient/dashboard/profile/update`}
                 >
                   Update Profile
                 </Button>
