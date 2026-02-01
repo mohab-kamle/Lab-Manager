@@ -6,14 +6,13 @@ import { useNavigate } from "react-router-dom";
 import { Formik, Field, ErrorMessage, Form as FormikForm } from "formik";
 import * as Yup from "yup";
 import { formatDateForInput } from "../../utils/dateFormatter";
-import useLabPrefix from "../../hooks/useLabPrefix";
 
 const PatientUpdateProfile = () => {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const apiUrl = import.meta.env.VITE_API_URL;
-  const prefix = useLabPrefix();
+
   useEffect(() => {
     // Set API URL with fallback
     const serverUrl = import.meta.env.VITE_API_URL;
@@ -92,7 +91,7 @@ const PatientUpdateProfile = () => {
         console.log("Updated user data from backend:", response.data.updatedUser);
         // Use the new updateUser function from context
         setUser(response.data.updatedUser);
-        navigate(`/${prefix}/patient/profile`, { replace: true });
+        navigate(`/patient/dashboard/profile`, { replace: true });
       } else {
         setError(response.data.message || "Failed to update profile");
       }
