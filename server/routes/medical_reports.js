@@ -16,7 +16,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype ===
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
       file.mimetype === "application/vnd.ms-excel" ||
       file.mimetype === "text/csv"
     ) {
@@ -33,7 +33,7 @@ const imageStorage = multer.diskStorage({
     // Use secure comment-images directory
     const baseUploadPath = process.env.UPLOAD_BASE_PATH || path.join(__dirname, '../uploads');
     const uploadPath = path.join(baseUploadPath, 'comment-images');
-    
+
     // Create directory if it doesn't exist
     const fs = require('fs');
     if (!fs.existsSync(uploadPath)) {
@@ -60,7 +60,7 @@ const imageStorage = multer.diskStorage({
     const timestamp = Date.now();
     const randomSuffix = Math.round(Math.random() * 1E9);
     const sanitizedOriginalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    
+
     const secureFilename = `${reportId}_${commentType}_${timestamp}_${randomSuffix}_${sanitizedOriginalName}`;
     cb(null, secureFilename);
   }
@@ -142,6 +142,14 @@ router.get(
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
+      // Safety check for tenant context
+      if (!req.tenant) {
+        console.error('❌ Critical Error: req.tenant is undefined in medical_reports route');
+        console.log('Headers:', req.headers);
+        console.log('User:', req.user);
+        return res.status(500).json({ error: "Internal Server Error: Tenant context missing" });
+      }
+
       // Get medical_report_ids for the current lab
       const medicalReportIds = await db.medical_report
         .findAll({
@@ -275,13 +283,13 @@ router.get(
 router.get(
   "/:id",
   authenticateUser,
-  authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee" , "patient"),
+  authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee", "patient"),
   tenantContext,
   async (req, res) => {
     try {
       // Check if this is a PDF generation request for optimized loading
       const isPdfRequest = req.query.pdf === 'true';
-      
+
       // Optimized query for PDF generation - loads only essential data
       if (isPdfRequest) {
         const report = await db.medical_report.findOne({
@@ -420,14 +428,14 @@ router.get(
             },
           ],
         });
-        
+
         if (!report) {
           return res.status(404).json({ error: "Medical report not found" });
         }
 
         // Security check for patients
         if (req.user.role === 'patient' && report.patient_id !== req.user.id) {
-           return res.status(403).json({ error: "Access denied" });
+          return res.status(403).json({ error: "Access denied" });
         }
 
         // Simplified response for PDF generation
@@ -440,7 +448,7 @@ router.get(
 
         return res.json(enrichedReport);
       }
-      
+
       // Full query for regular requests (non-PDF)
       const report = await db.medical_report.findOne({
         where: {
@@ -653,7 +661,7 @@ router.get(
 
       // Security check for patients
       if (req.user.role === 'patient' && report.patient_id !== req.user.id) {
-         return res.status(403).json({ error: "Access denied" });
+        return res.status(403).json({ error: "Access denied" });
       }
 
       // Get test group results for processing
@@ -1674,44 +1682,44 @@ router.get(
       // Fetch test-level junction (result/status) and component-level results
       const [report, testJunctionRows, componentResults] = await Promise.all([
         db.medical_report.findOne({
-        where: { id: reportId, lab_id: req.tenant.lab_id },
-        attributes: [
-          "id",
-          "lab_id",
-          "branch_id",
-          "date",
-          "registered_at",
-          "collected_at",
-          "received_at",
-          "reported_at",
-          "done",
-          "pending",
-          "comment",
-          "signatory_id",
-          "signatory_admin_id",
-          "signatory_name",
-        ],
-        include: [
-          {
-            model: db.patient,
-            as: "patient",
-            attributes: ["id", "name", "birth_date", "gender", "patientcode"],
-            include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
-              },
-            ],
-          },
-        ],
-      }),
+          where: { id: reportId, lab_id: req.tenant.lab_id },
+          attributes: [
+            "id",
+            "lab_id",
+            "branch_id",
+            "date",
+            "registered_at",
+            "collected_at",
+            "received_at",
+            "reported_at",
+            "done",
+            "pending",
+            "comment",
+            "signatory_id",
+            "signatory_admin_id",
+            "signatory_name",
+          ],
+          include: [
+            {
+              model: db.patient,
+              as: "patient",
+              attributes: ["id", "name", "birth_date", "gender", "patientcode"],
+              include: [
+                {
+                  model: db.referral,
+                  as: "referral",
+                  attributes: [
+                    "id",
+                    "doctor_name",
+                    "specialization",
+                    "phone",
+                    "email",
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
         db.medical_report_has_test.findAll({
           where: { medical_report_id: reportId },
           attributes: ["test_id", "result", "status"],
@@ -1754,31 +1762,31 @@ router.get(
       /** -----------------------------
        * 2. Fetch related cultures and test group results
        * ----------------------------- */
-      const [tests , cultures, testGroupResults] = await Promise.all([
+      const [tests, cultures, testGroupResults] = await Promise.all([
         testIds.length > 0 ? await db.test.findAll({
-        where: { id: testIds },
-        include: [
-          {
-            separate: true,
-            model: db.test_component,
-            as: "components",
-            attributes: [
-              "id",
-              "name",
-              "unit",
-              "normal_from",
-              "normal_to",
-              "c_low",
-              "c_high",
-              "gender",
-              "age_start",
-              "age_end",
-              "reference_range",
-              "result_type",
-            ],
-          },
-        ],
-      }) : [],db.medical_report_has_culture.findAll({
+          where: { id: testIds },
+          include: [
+            {
+              separate: true,
+              model: db.test_component,
+              as: "components",
+              attributes: [
+                "id",
+                "name",
+                "unit",
+                "normal_from",
+                "normal_to",
+                "c_low",
+                "c_high",
+                "gender",
+                "age_start",
+                "age_end",
+                "reference_range",
+                "result_type",
+              ],
+            },
+          ],
+        }) : [], db.medical_report_has_culture.findAll({
           where: { medical_report_id: reportId },
           include: [
             {
@@ -1859,7 +1867,7 @@ router.get(
           plain.components = plain.components.map((c) => ({
             ...c,
             // This mirrors the old structure from "/:id" so the client can prefill seamlessly
-            results: resultByCompId[c.id] ? [ { id: undefined, result: resultByCompId[c.id].result, status: resultByCompId[c.id].status } ] : [],
+            results: resultByCompId[c.id] ? [{ id: undefined, result: resultByCompId[c.id].result, status: resultByCompId[c.id].status }] : [],
           }));
         }
         return plain;
@@ -2554,7 +2562,7 @@ router.post(
 
       // Calculate status based on result and test normal range
       let calculatedStatus = status || "pending";
-      
+
       if (result !== null && result !== undefined && result !== "") {
         const numericResult = Number(result);
         if (!isNaN(numericResult)) {
@@ -2563,7 +2571,7 @@ router.post(
             attributes: ['normal_from', 'normal_to', 'c_low', 'c_high'],
             transaction: t,
           });
-          
+
           if (testDetails && testDetails.normal_from !== null && testDetails.normal_to !== null) {
             if (numericResult < testDetails.normal_from) {
               calculatedStatus = testDetails.c_low !== null && numericResult < testDetails.c_low
@@ -2751,8 +2759,7 @@ router.post(
             try {
               const componentResult = component_results[i];
               console.log(
-                `Processing component result ${i + 1}/${
-                  component_results.length
+                `Processing component result ${i + 1}/${component_results.length
                 } for test ${testId}:`,
                 componentResult
               );
@@ -2806,13 +2813,13 @@ router.post(
                     if (numericResult < component.normal_from) {
                       calculatedStatus =
                         component.c_low !== null &&
-                        numericResult < component.c_low
+                          numericResult < component.c_low
                           ? "critical low"
                           : "low";
                     } else if (numericResult > component.normal_to) {
                       calculatedStatus =
                         component.c_high !== null &&
-                        numericResult > component.c_high
+                          numericResult > component.c_high
                           ? "critical high"
                           : "high";
                     } else {
@@ -2884,8 +2891,7 @@ router.post(
               );
             } catch (componentError) {
               console.error(
-                `Error processing component result ${
-                  i + 1
+                `Error processing component result ${i + 1
                 } for test ${testId}:`,
                 componentError
               );
@@ -3536,24 +3542,24 @@ router.post(
       // Helper function to calculate test status based on result and normal range
       const calculateTestStatus = (result, component) => {
         if (!result || result.toString().trim() === '') return 'pending';
-        
+
         // If no normal range is available, set to 'done'
         if (!component || component.normal_from === null || component.normal_to === null) {
           return 'done';
         }
-        
+
         const numericResult = parseFloat(result);
         if (isNaN(numericResult)) return 'done'; // For text results, just mark as done
-        
+
         const min = parseFloat(component.normal_from);
         const max = parseFloat(component.normal_to);
-        
+
         if (isNaN(min) || isNaN(max)) return 'done';
-        
+
         // Use critical thresholds if available, otherwise calculate as 50% below/above normal range
         const criticalLowThreshold = component.c_low !== null ? component.c_low : min * 0.5;
         const criticalHighThreshold = component.c_high !== null ? component.c_high : max * 1.5;
-        
+
         if (numericResult < criticalLowThreshold) {
           return 'critical low';
         } else if (numericResult < min) {
@@ -3574,7 +3580,7 @@ router.post(
             hasAnyResults = true;
             // For tests without components, status is 'done' if result exists, 'pending' if empty
             const status = result.result && result.result.toString().trim() !== '' ? 'done' : 'pending';
-            
+
             await db.medical_report_has_test.update(
               {
                 result: result.result,
@@ -3604,7 +3610,7 @@ router.post(
             attributes: ['id', 'normal_from', 'normal_to', 'c_low', 'c_high'],
             transaction: t
           });
-          
+
           const componentResultsToSave = [];
 
           for (const [componentId, componentData] of Object.entries(
@@ -3615,11 +3621,11 @@ router.post(
               componentData.result.toString().trim() !== ""
             ) {
               hasAnyResults = true;
-              
+
               // Find the component to get its normal range
               const component = testComponents.find(tc => tc.id === parseInt(componentId, 10));
               const calculatedStatus = calculateTestStatus(componentData.result, component);
-              
+
               componentResultsToSave.push({
                 medical_report_id: reportId,
                 test_id: parseInt(testId, 10),
@@ -3656,7 +3662,7 @@ router.post(
         for (const result of culture_results) {
           if (result.result && result.result.toString().trim() !== "") {
             hasAnyResults = true;
-            
+
             // First, find the medical_report_has_culture record
             const cultureRecord = await db.medical_report_has_culture.findOne({
               where: {
