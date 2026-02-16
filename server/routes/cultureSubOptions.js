@@ -7,10 +7,10 @@ const authorizeRoles = require("../middleware/authorizeRoles");
 const { Op } = require('sequelize');
 
 // GET all culture sub-options with optional filtering by culture_option_id
-router.get("/", authenticateUser, authorizeRoles("admin", "chemist", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "chemist", "employee", "doctor"), async (req, res) => {
   try {
     const { culture_option_id } = req.query;
-    
+
     const whereClause = {};
     if (culture_option_id) {
       whereClause.culture_option_id = culture_option_id;
@@ -35,14 +35,14 @@ router.get("/", authenticateUser, authorizeRoles("admin", "chemist", "employee")
 });
 
 // GET a single culture sub-option by ID
-router.get('/:id', authenticateUser, authorizeRoles('admin', 'chemist', 'employee'), async (req, res) => {
+router.get('/:id', authenticateUser, authorizeRoles('admin', 'chemist', 'employee', 'doctor'), async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const subOption = await culture_sub_option.findOne({
-      where: { 
+      where: {
         id,
-        deletedAt: null 
+        deletedAt: null
       },
       include: [{
         model: culture_option,
@@ -66,12 +66,12 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'chemist', 'employe
 router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { name, culture_option_id, is_active = true } = req.body;
-    
+
     // Validate input
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
     }
-    
+
     if (!culture_option_id) {
       return res.status(400).json({ error: 'Culture option ID is required' });
     }
@@ -83,17 +83,17 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
     }
 
     // Check if sub-option already exists for this culture option
-    const existingSubOption = await culture_sub_option.findOne({ 
-      where: { 
+    const existingSubOption = await culture_sub_option.findOne({
+      where: {
         name: name.trim(),
         culture_option_id,
         deletedAt: null
-      } 
+      }
     });
-    
+
     if (existingSubOption) {
-      return res.status(400).json({ 
-        error: 'A sub-option with this name already exists for the selected culture option' 
+      return res.status(400).json({
+        error: 'A sub-option with this name already exists for the selected culture option'
       });
     }
 
@@ -106,10 +106,10 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
     // Include the culture_option in the response
     const createdSubOption = await culture_sub_option.findByPk(newSubOption.id, {
       include: [{
-      model: culture_option,
-      as: 'option',
-      attributes: ['id', 'option']
-    }]
+        model: culture_option,
+        as: 'option',
+        attributes: ['id', 'option']
+      }]
     });
 
     res.status(201).json(createdSubOption);
@@ -155,8 +155,8 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
       });
 
       if (existingSubOption) {
-        return res.status(400).json({ 
-          error: 'A sub-option with this name already exists for the selected culture option' 
+        return res.status(400).json({
+          error: 'A sub-option with this name already exists for the selected culture option'
         });
       }
     }
@@ -197,7 +197,7 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
 
     // Soft delete by setting deletedAt timestamp
     await subOption.destroy();
-    
+
     res.json({ message: 'Culture sub-option deleted successfully' });
   } catch (error) {
     console.error('Error deleting culture sub-option:', error);

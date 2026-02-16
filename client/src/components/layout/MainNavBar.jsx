@@ -676,6 +676,19 @@ const MainNavBar = () => {
                     </Dropdown>
                   )}
 
+                  {/* Patients - Doctor only (standalone link, not in Reception dropdown) */}
+                  {user?.role === "doctor" && (
+                    <Nav.Link
+                      as={Link}
+                      to={`/doctor/patients`}
+                      onClick={() => setExpanded(false)}
+                      className={`nav-button mx-1 mb-1 ${activeItem === "patients" ? "active-dropdown" : ""}`}
+                    >
+                      <Users size={18} className="me-1 mb-1" />
+                      Patients
+                    </Nav.Link>
+                  )}
+
                   {/* Employee View Only Section */}
                   {user?.role === "employee" && (
                     <Dropdown className="mx-1 mb-1">

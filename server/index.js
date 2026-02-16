@@ -9,7 +9,7 @@ const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
-const { employee, patient, phone } = require("./models");
+const { employee, patient, phone, doctor } = require("./models");
 
 // Subscription scheduler service
 const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('./services/subscriptionScheduler');
@@ -61,7 +61,7 @@ const corsOptions = {
     }
 
     // In development, allow dynamic localhost subdomains (e.g. test.localhost:5173)
-    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)?localhost(:[0-9]+)?$/.test(origin)) {
+    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)*localhost(:[0-9]+)?$/.test(origin)) {
       console.log('CORS: Allowing localhost subdomain:', origin);
       return callback(null, true);
     }
@@ -309,6 +309,7 @@ app.get('/health', async (req, res) => {
 app.use("/me", router);
 app.use("/patient", require("./routes/patient"));
 app.use("/emp", require("./routes/employee"));
+app.use("/doctor", require("./routes/doctor"));
 app.use("/categories", require("./routes/categories"));
 app.use("/tests", require("./routes/tests"));
 app.use("/samples", require("./routes/samples"));
@@ -381,6 +382,15 @@ router.get("/", authenticateUser, async (req, res) => {
         const phones = await phone.findAll({ where: { patient_id: req.user.id } });
         user = { ...user.get(), role: "patient", phones };
       }
+    } else if (req.user.role === "doctor") {
+      user = await doctor.findByPk(req.user.id, {
+        attributes: ["id", "name", "username", "email"]
+      });
+      // If role is not in db column yet (it is not in schema i think, usually derived), append it
+      if (user) {
+        user = user.toJSON();
+        user.role = 'doctor';
+      }
     } else {
       user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role"] });
     }
@@ -450,12 +460,11 @@ async function syncDatabase() {
       return false;
     }
 
-    // Check if we should force sync (only in development)
+    // Force sync in dev only if explicitly set
     const forceSync = process.env.FORCE_SYNC === 'true' && !isProduction;
-    const alterSync = !forceSync; // Use alter by default, force only if explicitly set
-
-    const syncOptions = alterSync ? { alter: false } : { force: true };
-
+    // Alter in both dev and prod by default (safe)
+    const alterSync = true; // always true so migrations run automatically
+    const syncOptions = forceSync ? { force: true } : { alter: true };
     console.log(`🔄 Database synchronization mode: ${alterSync ? 'ALTER (safe)' : 'FORCE (destructive)'}`);
     console.log(`📋 Sync options:`, syncOptions);
 

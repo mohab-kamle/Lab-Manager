@@ -137,26 +137,46 @@ async function updateMedicalReportDates(
 router.get(
   "/",
   authenticateUser,
-  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee", "doctor"),
   tenantContext,
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
       // Safety check for tenant context
-      if (!req.tenant) {
+      // For doctors, tenant context might not have lab_id, which is expected
+      if (!req.tenant && req.user.role !== 'doctor') {
         console.error('❌ Critical Error: req.tenant is undefined in medical_reports route');
         console.log('Headers:', req.headers);
         console.log('User:', req.user);
         return res.status(500).json({ error: "Internal Server Error: Tenant context missing" });
       }
 
-      // Get medical_report_ids for the current lab
+      let whereClause = {};
+
+      if (req.user.role === 'doctor') {
+        // Fetch all labs associated with this doctor
+        const contracts = await db.lab_contracts_doctor.findAll({
+          where: { doctor_id: req.user.id },
+          attributes: ['lab_id']
+        });
+        const labIds = contracts.map(c => c.lab_id);
+
+        if (labIds.length === 0) {
+          return res.json([]); // No contracts, no reports
+        }
+        whereClause.lab_id = { [Op.in]: labIds };
+      } else {
+        if (!req.tenant.lab_id) {
+          return res.status(500).json({ error: "Tenant context missing lab_id" });
+        }
+        whereClause.lab_id = req.tenant.lab_id;
+      }
+
+      // Get medical_report_ids for the filtered labs
       const medicalReportIds = await db.medical_report
         .findAll({
           attributes: ["id"],
-          where: {
-            lab_id: req.tenant.lab_id,
-          },
+          where: whereClause,
           raw: true,
         })
         .then((reports) => reports.map((report) => report.id));
@@ -190,9 +210,7 @@ router.get(
 
       // Then get all medical reports with their associations
       const reports = await db.medical_report.findAll({
-        where: {
-          lab_id: req.tenant.lab_id,
-        },
+        where: whereClause,
         include: [
           {
             model: db.patient,
@@ -292,11 +310,21 @@ router.get(
 
       // Optimized query for PDF generation - loads only essential data
       if (isPdfRequest) {
+        let whereClause = { id: req.params.id };
+
+        if (req.user.role === 'doctor') {
+          const contracts = await db.lab_contracts_doctor.findAll({
+            where: { doctor_id: req.user.id },
+            attributes: ['lab_id']
+          });
+          const labIds = contracts.map(c => c.lab_id);
+          whereClause.lab_id = { [Op.in]: labIds };
+        } else {
+          whereClause.lab_id = req.tenant.lab_id;
+        }
+
         const report = await db.medical_report.findOne({
-          where: {
-            id: req.params.id,
-            lab_id: req.tenant.lab_id
-          },
+          where: whereClause,
           attributes: [
             "id",
             "lab_id",
@@ -450,11 +478,21 @@ router.get(
       }
 
       // Full query for regular requests (non-PDF)
+      let whereClause = { id: req.params.id };
+
+      if (req.user.role === 'doctor') {
+        const contracts = await db.lab_contracts_doctor.findAll({
+          where: { doctor_id: req.user.id },
+          attributes: ['lab_id']
+        });
+        const labIds = contracts.map(c => c.lab_id);
+        whereClause.lab_id = { [Op.in]: labIds };
+      } else {
+        whereClause.lab_id = req.tenant.lab_id;
+      }
+
       const report = await db.medical_report.findOne({
-        where: {
-          id: req.params.id,
-          lab_id: req.tenant.lab_id
-        },
+        where: whereClause,
         attributes: [
           "id",
           "lab_id",
