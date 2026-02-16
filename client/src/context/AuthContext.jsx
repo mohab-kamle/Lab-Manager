@@ -99,6 +99,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (token) => {
     try {
       const userData = await fetchUserData(token);
+      if (!userData) {
+        throw new Error("User data fetch failed");
+      }
       return userData;
     } catch (error) {
       console.error("Login failed:", error);

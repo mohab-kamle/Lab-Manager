@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX } from "lucide-react";
+import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
@@ -94,6 +94,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [statusDetectionError, setStatusDetectionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [modalSuccessMessage, setModalSuccessMessage] = useState("");
+
+  // Limit warning modal support
+  const [limitWarningModal, setLimitWarningModal] = useState(false);
+  const [limitWarningData, setLimitWarningData] = useState(null);
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -584,8 +588,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     return updateInvoiceCalculations(updatedInvoice);
   };
 
-  const handleAddInvoice = async (e) => {
-    e.preventDefault();
+  const handleAddInvoice = async (e, bypass = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       setStatusDetectionError("");
       const token = localStorage.getItem("token");
@@ -605,13 +609,13 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       }
       setShowFormErrorAlert(false);
 
-      // Filter out invalid IDs before sending
+      // Filter out invalid numbers
       const filteredTests = (invoice.tests || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredCultures = (invoice.cultures || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredPackages = (invoice.packages || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredTestGroups = (invoice.test_groups || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       
-      // Determine automatic status if not manually set
+      // Determine automatic status
       let finalStatusId = invoice.status_id;
       if (!finalStatusId) {
         const { due } = calculateTotals(invoice);
@@ -635,7 +639,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         due: invoice.due,
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
-        branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined
+        branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined,
+        bypass_due_limit: bypass
       };
 
       // Only add receptionist_id if it's a valid number
@@ -675,13 +680,19 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
       setShowAddModal(false);
       resetForm();
-      // Refresh patient data to show updated financial information
       await refreshPatientData();
-      // Show success message as a toast
       const action = editingInvoice ? "updated" : "created";
       toast.success(`Invoice ${action} successfully! Patient financial information has been updated.`, { autoClose: 5000 });
     } catch (error) {
       console.error("Error saving invoice:", error);
+      
+      // Handle Patient Due Limit Logic
+      if (error.response?.status === 403 && error.response?.data?.requires_bypass) {
+        setLimitWarningData(error.response.data);
+        setLimitWarningModal(true);
+        return;
+      }
+
       if (error.response?.data?.error && error.response.data.error.toLowerCase().includes('status')) {
         setStatusDetectionError("Invoice could not be saved due to a status error. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
       } else {
@@ -2813,6 +2824,80 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               </Button>
             </Modal.Footer>
           </Modal>
+
+          {/* Due Limit Warning Modal */}
+          <Modal
+            show={limitWarningModal}
+            onHide={() => {
+              setLimitWarningModal(false);
+              setLimitWarningData(null);
+            }}
+            backdrop="static"
+            keyboard={false}
+            centered
+          >
+            <Modal.Header className="border-0 pb-0 bg-white justify-content-center">
+              <Modal.Title className="d-flex align-items-center text-danger">
+                <AlertTriangle size={24} className="me-2" />
+                Limit Exceeded
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="pt-0 px-4 pb-4">
+              {limitWarningData && (
+                <div className="text-center">
+                  <p className="text-muted mb-4">
+                    This action will increase the patient's due balance beyond the allowed limit.
+                  </p>
+                  
+                  <div className="bg-light rounded-3 p-3 mb-4">
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Current Due</span>
+                      <span className="fw-medium">{limitWarningData.current_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">+ New Invoice</span>
+                      <span className="fw-medium text-danger">+{limitWarningData.invoice_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2 border-top pt-2">
+                      <span className="fw-bold">Total New Due</span>
+                      <span className="fw-bold fs-5">{limitWarningData.new_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-dashed">
+                      <span className="text-muted small">Allowed Limit</span>
+                      <Badge bg="secondary" className="px-3 py-2 fw-normal" style={{ fontSize: '0.9em' }}>
+                        {limitWarningData.limit?.toFixed(2)}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <p className="small text-muted mb-0">
+                    You can bypass this check if necessary. This event will be logged.
+                  </p>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  setLimitWarningModal(false);
+                  setLimitWarningData(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="danger" 
+                onClick={() => {
+                  setLimitWarningModal(false);
+                  handleAddInvoice(null, true); 
+                }}
+              >
+                Bypass & Create Invoice
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
         </>
       )}
     </Container>

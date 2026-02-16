@@ -6,7 +6,7 @@ const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 
 // Get all referrals
-router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist'), async (req, res) => {
+router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'doctor'), async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', sortBy = 'doctor_name', sortOrder = 'ASC' } = req.query;
     const offset = (page - 1) * limit;
@@ -52,7 +52,7 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist'), async
 });
 
 // Get a single referral by ID
-router.get('/:id', authenticateUser, authorizeRoles('admin', 'receptionist'), async (req, res) => {
+router.get('/:id', authenticateUser, authorizeRoles('admin', 'receptionist', 'doctor'), async (req, res) => {
   try {
     const referral = await db.referral.findByPk(req.params.id, {
       include: [
@@ -104,7 +104,7 @@ router.post('/', authenticateUser, authorizeRoles('admin', 'receptionist'), asyn
 router.put('/:id', authenticateUser, authorizeRoles('admin', 'receptionist'), async (req, res) => {
   try {
     const { doctor_name, specialization, phone, email, address, is_active } = req.body;
-    
+
     const referral = await db.referral.findByPk(req.params.id);
     if (!referral) {
       return res.status(404).json({ error: 'Referral not found' });

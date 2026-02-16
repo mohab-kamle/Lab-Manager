@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, medical_report_culture_result, pao_has_test, pao_has_culture, bill_has_tg, medical_report_has_tg, test_group, branch } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, medical_report_culture_result, pao_has_test, pao_has_culture, bill_has_tg, medical_report_has_tg, test_group, branch, lab, lab_settings } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -204,11 +204,44 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             const currentPaid = parseFloat(currentPatient.paid || 0);
             const currentDue = parseFloat(currentPatient.due || 0);
 
-            // Add new invoice amounts to patient totals
+            // Calculate new values
             const newTotal = currentTotal + parseFloat(total);
             const newPaid = currentPaid + parseFloat(paid);
             const newDue = currentDue + parseFloat(due);
 
+            // Check for patient due limit
+            // First fetch the lab settings
+            const limitSetting = await lab_settings.findOne({
+                where: {
+                    lab_id: req.user.lab_id || patientExists.lab_id,
+                    setting_key: 'patient_due_limit'
+                },
+                transaction
+            });
+
+            if (limitSetting && limitSetting.setting_value) {
+                const limit = parseFloat(limitSetting.setting_value);
+                // Check if the NEW due amount exceeds the limit AND valid limit (> 0)
+                // Only block if the new due amount is GREATER than the limit
+                // AND the specific invoice is adding MORE debt (due > 0)
+                if (limit > 0 && newDue > limit && due > 0) {
+                    // Check for bypass flag
+                    if (!req.body.bypass_due_limit) {
+                        await transaction.rollback();
+                        return res.status(403).json({
+                            error: 'Patient due limit exceeded',
+                            requires_bypass: true,
+                            current_due: currentDue,
+                            new_due: newDue,
+                            limit: limit,
+                            invoice_due: due
+                        });
+                    }
+                    console.log(`[INVOICE] Bypassing due limit for patient ${patient_id}. New Due: ${newDue}, Limit: ${limit}`);
+                }
+            }
+
+            // Add new invoice amounts to patient totals
             await currentPatient.update({
                 total: newTotal,
                 paid: newPaid,
@@ -337,7 +370,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                             is_main_branch: true
                         }
                     });
-                    
+
                     if (mainBranch) {
                         medicalReportBranchId = mainBranch.id;
                     } else {
@@ -350,19 +383,19 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                         medicalReportBranchId = anyBranch ? anyBranch.id : null;
                     }
                 }
-                
+
                 console.log('Medical report branch_id logic:', {
                     requestBranchId: branch_id,
                     patientBranchId: patientExists.branch_id,
                     patientLabId: patientExists.lab_id,
                     finalBranchId: medicalReportBranchId
                 });
-                
+
                 // Final check: if branch_id is still null, throw a descriptive error
                 if (medicalReportBranchId === null) {
                     throw new Error(`Cannot create medical report: No branch found for lab ${patientExists.lab_id}. Please ensure at least one branch exists for this lab.`);
                 }
-                
+
                 const newMedicalReport = await medical_report.create({
                     date: new Date(),
                     lab_id: req.user.lab_id || patientExists.lab_id,
@@ -450,7 +483,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                         const testGroupVerification = await Promise.all(
                             uniqueTestGroups.map(async (tgId) => {
                                 const tgIdNum = parseInt(tgId);
-                                const tg = await test_group.findByPk(tgIdNum, { 
+                                const tg = await test_group.findByPk(tgIdNum, {
                                     transaction,
                                     raw: true
                                 });
@@ -473,7 +506,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                         // Step 3: Create all associations using bulkCreate with individualHooks
                         console.log('\nStep 3: Creating test group associations...');
                         console.log(`Attempting to create ${testGroupAssociations.length} associations...`);
-                        
+
                         let createdAssociations = [];
                         try {
                             // First, try to create all associations at once
@@ -489,7 +522,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                             console.log(`✅ Successfully created ${createdAssociations.length} test group associations`);
                         } catch (bulkError) {
                             console.warn('Bulk create failed, falling back to individual creates:', bulkError.message);
-                            
+
                             // If bulk create fails, try creating them one by one
                             createdAssociations = [];
                             for (const association of testGroupAssociations) {
@@ -506,7 +539,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                                         },
                                         transaction
                                     });
-                                    
+
                                     if (created) {
                                         console.log(`✅ Created association for test group ${association.test_group_id}`);
                                     } else {
@@ -520,7 +553,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                                 }
                             }
                         }
-                        
+
                         console.log(`✅ Successfully created ${createdAssociations.length} test group associations`);
 
                         // Step 4: Verify the associations were created
@@ -530,7 +563,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                             transaction,
                             raw: true
                         });
-                        
+
                         console.log(`Found ${verifyAssociations.length} associations in database:`);
                         verifyAssociations.forEach((assoc, idx) => {
                             console.log(`  ${idx + 1}. Medical Report ID: ${assoc.medical_report_id}, Test Group ID: ${assoc.test_group_id}`);
@@ -544,12 +577,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                             const missingIds = uniqueTestGroups
                                 .map(Number)
                                 .filter(id => !createdIds.has(id));
-                                
+
                             console.warn('⚠️ Some test group associations were not created:');
                             console.warn(`- Expected: ${uniqueTestGroups.length} associations`);
                             console.warn(`- Created: ${verifyAssociations.length} associations`);
                             console.warn(`- Missing test group IDs: ${missingIds.join(', ')}`);
-                            
+
                             // Don't throw an error, just log a warning
                             // The transaction will continue with the associations that were created successfully
                         }
@@ -976,15 +1009,15 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
 
                 // Identify tests to add
                 const testsToAdd = tests.filter(test_id => !existingTestIds.has(parseInt(test_id)))
-                                        .map(test_id => ({
-                                            medical_report_id: medicalReport.id,
-                                            test_id: parseInt(test_id),
-                                            status: 'pending' // Default status
-                                        }));
+                    .map(test_id => ({
+                        medical_report_id: medicalReport.id,
+                        test_id: parseInt(test_id),
+                        status: 'pending' // Default status
+                    }));
 
                 // Identify tests to remove
                 const testsToRemoveIds = existingMedicalReportTests.filter(existingTest => !tests.includes(existingTest.test_id.toString()))
-                                                                .map(t => t.id);
+                    .map(t => t.id);
 
                 // Perform deletions and additions
                 if (testsToRemoveIds.length > 0) {
@@ -1003,11 +1036,11 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
 
                 // Identify cultures to add
                 const culturesToAdd = cultures.filter(culture_id => !existingCultureIds.has(parseInt(culture_id)))
-                                            .map(culture_id => ({
-                                                medical_report_id: medicalReport.id,
-                                                culture_id: parseInt(culture_id),
-                                                status: 'pending' // Default status
-                                            }));
+                    .map(culture_id => ({
+                        medical_report_id: medicalReport.id,
+                        culture_id: parseInt(culture_id),
+                        status: 'pending' // Default status
+                    }));
 
                 // Identify cultures to remove
                 const culturesToRemove = existingMedicalReportCultures.filter(existingCulture => !cultures.includes(existingCulture.culture_id.toString()));
@@ -1035,15 +1068,15 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
 
                 // Identify test groups to add
                 const tgsToAdd = test_groups.filter(tg_id => !existingTGIds.has(parseInt(tg_id)))
-                                            .map(tg_id => ({
-                                                medical_report_id: medicalReport.id,
-                                                test_group_id: parseInt(tg_id),
-                                                value: null // Default value
-                                            }));
+                    .map(tg_id => ({
+                        medical_report_id: medicalReport.id,
+                        test_group_id: parseInt(tg_id),
+                        value: null // Default value
+                    }));
 
                 // Identify test groups to remove
                 const tgsToRemoveIds = existingMedicalReportTGs.filter(existingTG => !test_groups.includes(existingTG.test_group_id.toString()))
-                                                                .map(tg => tg.id);
+                    .map(tg => tg.id);
 
                 // Perform deletions and additions
                 if (tgsToRemoveIds.length > 0) {

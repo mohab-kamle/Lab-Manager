@@ -7,7 +7,7 @@ const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 
 // GET all culture options
-router.get("/", authenticateUser, authorizeRoles("admin", "chemist", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "chemist", "employee", "doctor"), async (req, res) => {
   try {
     const cultureOptionsList = await culture_option.findAll({
       order: [['option', 'ASC']]
@@ -98,7 +98,7 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
 });
 
 // GET all culture options with their sub-options
-router.get("/with-suboptions", authenticateUser, authorizeRoles("admin", "chemist", "employee"), async (req, res) => {
+router.get("/with-suboptions", authenticateUser, authorizeRoles("admin", "chemist", "employee", "doctor"), async (req, res) => {
   try {
     const cultureOptions = await culture_option.findAll({
       include: [{
