@@ -26,12 +26,6 @@ function App() {
   const subdomain = getSubdomain();
   const { user, loading } = useAuth();
   
-  // Show loading spinner while auth and lab context is initializing
-  // This prevents the login screen from flashing for authenticated users
-  if (loading) {
-     return <LoadingSpinner />;
-  }
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('auth_token');
@@ -43,6 +37,12 @@ function App() {
        window.location.reload(); 
     }
   }, []);
+
+  // Show loading spinner while auth and lab context is initializing
+  // This prevents the login screen from flashing for authenticated users
+  if (loading) {
+     return <LoadingSpinner />;
+  }
 
   return (
     <Router>

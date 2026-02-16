@@ -20,6 +20,16 @@ const UnifiedLogin = () => {
     password: ""
   });
   const [patientCode, setPatientCode] = useState("");
+  const [isSignup, setIsSignup] = useState(false);
+  const [signupData, setSignupData] = useState({
+    name: "",
+    username: "",
+    password: "",
+    email: "",
+    phone: "",
+    national_id: "",
+    gender: "male"
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -106,6 +116,15 @@ const UnifiedLogin = () => {
         response = await axios.post(`${apiUrl}/patient/login`, {
           patientcode: patientCode
         });
+      } else if (userType === "doctor") {
+        if (isSignup) {
+            response = await axios.post(`${apiUrl}/doctor/signup`, signupData);
+        } else {
+            response = await axios.post(`${apiUrl}/doctor/login`, {
+                username: credentials.username,
+                password: credentials.password
+            });
+        }
       } else {
         response = await axios.post(`${apiUrl}/emp/login`, {
           username: credentials.username,
@@ -114,7 +133,46 @@ const UnifiedLogin = () => {
       }
 
       const { token, user, isFirstTimeLogin } = response.data;
+
+      // DOCTOR HANDLING
+      if (userType === 'doctor') {
+           const currentSubdomain = getSubdomain();
+           const doctorSubdomain = 'doctor'; // configured subdomain for doctors
+
+           if (currentSubdomain === doctorSubdomain) {
+                // Correct Workspace
+                localStorage.setItem("token", token);
+                await login(token);
+                // No lab info fetch needed for doctor dashboard generally, 
+                // but if context needs it, we might need a dummy one or update context.
+                // navigate to dashboard
+                navigate('/doctor/dashboard');
+           } else {
+                // Redirect to doctor subdomain
+                const protocol = window.location.protocol;
+                const hostname = window.location.hostname; // e.g. doctorslab.localhost or doctorslab.example.com
+                const port = window.location.port; // e.g. 5173
+                
+                // Extract the base domain by stripping all subdomains:
+                // For localhost: "doctorslab.localhost" -> "localhost"
+                // For production: "doctorslab.example.com" -> "example.com"
+                let baseDomain;
+                const parts = hostname.split('.');
+                if (parts[parts.length - 1] === 'localhost') {
+                    // Development: anything.localhost -> localhost
+                    baseDomain = 'localhost';
+                } else {
+                    // Production: strip subdomains, keep last two parts (e.g. example.com)
+                    baseDomain = parts.slice(-2).join('.');
+                }
+                
+                const portSuffix = port ? `:${port}` : '';
+                window.location.href = `${protocol}//${doctorSubdomain}.${baseDomain}${portSuffix}/doctor/dashboard?auth_token=${token}`;
+           }
+           return;
+      }
       
+      // EMPLOYEES / PATIENTS HANDLING
       // 1. Fetch Lab Info if missing (needed for subdomain check)
       let labInfo = user.lab;
       if (!labInfo && user.lab_id) {
@@ -182,6 +240,7 @@ const UnifiedLogin = () => {
     setError(null);
     setCredentials({ username: "", password: "" });
     setPatientCode("");
+    setIsSignup(false);
   };
 
   const selectedUserType = userTypes.find(t => t.value === userType);
@@ -310,6 +369,76 @@ const UnifiedLogin = () => {
                         Enter the patient code provided by your healthcare provider
                       </Form.Text>
                     </Form.Group>
+                  ) : (userType === 'doctor' && isSignup) ? (
+                    /* Doctor Signup Form */
+                    <>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Full Name</Form.Label>
+                            <Form.Control 
+                                type="text" 
+                                required 
+                                value={signupData.name}
+                                onChange={e => setSignupData({...signupData, name: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control 
+                                type="email" 
+                                required 
+                                value={signupData.email}
+                                onChange={e => setSignupData({...signupData, email: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Username</Form.Label>
+                             <Form.Control 
+                                type="text" 
+                                required 
+                                value={signupData.username}
+                                onChange={e => setSignupData({...signupData, username: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Password</Form.Label>
+                             <Form.Control 
+                                type="password" 
+                                required 
+                                value={signupData.password}
+                                onChange={e => setSignupData({...signupData, password: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>National ID</Form.Label>
+                             <Form.Control 
+                                type="text" 
+                                value={signupData.national_id}
+                                onChange={e => setSignupData({...signupData, national_id: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Gender</Form.Label>
+                            <Form.Select
+                                value={signupData.gender}
+                                onChange={e => setSignupData({...signupData, gender: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            >
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </Form.Select>
+                         </Form.Group>
+                    </>
                   ) : (
                     /* Employee Login Form */
                     <>
@@ -368,6 +497,14 @@ const UnifiedLogin = () => {
                         </div>
                       </Form.Group>
                     </>
+                  )}
+                  
+                  {userType === 'doctor' && (
+                      <div className="mb-3 text-end">
+                          <Button variant="link" onClick={() => setIsSignup(!isSignup)}>
+                              {isSignup ? "Already have an account? Login" : "Don't have an account? Sign up"}
+                          </Button>
+                      </div>
                   )}
                   
                   <Button
