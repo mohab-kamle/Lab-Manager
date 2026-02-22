@@ -307,16 +307,29 @@ class CacheService {
   /**
    * Get cached new results data for medical report
    */
-  async getMedicalReportNewResultsData(reportId) {
-    const key = this.generateKey('report:newresults-data', reportId);
+  async getMedicalReportNewResultsData(reportId, labId) {
+    const key = this.generateKey('report:newresults-data', reportId, labId);
     return await this.get(key);
   }
 
   /**
    * Set cached new results data for medical report
    */
-  async setMedicalReportNewResultsData(reportId, data, ttl = 1800) {
-    const key = this.generateKey('report:newresults-data', reportId);
+  async setMedicalReportNewResultsData(reportId, labId, data, ttl = 1800) {
+    const key = this.generateKey('report:newresults-data', reportId, labId);
+    return await this.set(key, data, ttl);
+  }
+
+  /**
+   * Cache invoices list
+   */
+  async getInvoicesList(labId, filters = {}) {
+    const key = this.generateKey('invoices:list', labId, JSON.stringify(filters));
+    return await this.get(key);
+  }
+
+  async setInvoicesList(labId, filters = {}, data, ttl = 300) {
+    const key = this.generateKey('invoices:list', labId, JSON.stringify(filters));
     return await this.set(key, data, ttl);
   }
 
@@ -334,6 +347,19 @@ class CacheService {
       `labmanager:report:newresults-data:*${reportId}*`,
       `labmanager:reports:list:*`, // Invalidate all lists as they might contain this report
       `labmanager:reports:summary:*`, // Invalidate summary as counts might change
+    ];
+
+    for (const pattern of patterns) {
+      await this.delPattern(pattern);
+    }
+  }
+
+  /**
+   * Invalidate invoices cache for a specific lab
+   */
+  async invalidateInvoicesCache(labId) {
+    const patterns = [
+      `labmanager:invoices:list:*${labId}*`,
     ];
 
     for (const pattern of patterns) {

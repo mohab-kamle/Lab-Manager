@@ -16,36 +16,7 @@ import {
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
-import useLabPrefix from "../../hooks/useLabPrefix";
-import { motion } from "framer-motion";
-import Lottie from "lottie-react";
-import labLogoAnimation from "../../assets/LabLogoLoading.json";
-import "../../styles/PatientProfile.css";
-
-const InfoBubble = ({ icon: Icon, label, value, delay }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.3, delay }}
-    className="info-bubble"
-  >
-    <div className="bubble-icon">
-      <Icon size={20} />
-    </div>
-    <div>
-      <small
-        className="text-muted d-block text-uppercase fw-bold"
-        style={{ fontSize: "0.7rem", letterSpacing: "1px" }}
-      >
-        {label}
-      </small>
-      <span className="fw-medium text-dark">{value || "Not provided"}</span>
-    </div>
-  </motion.div>
-);
-
 const PatientProfile = () => {
-  const prefix = useLabPrefix();
   const { user } = useAuth();
 
   if (!user) {
@@ -220,6 +191,29 @@ const PatientProfile = () => {
         </Row>
       </Container>
     </div>
+              <div className="text-center mt-4">
+                <Button
+                  variant="success"
+                  className="me-2"
+                  as={Link}
+                  to={`/patient/dashboard/reports`}
+                >
+                  <FileMedical className="me-1" />
+                  View Medical Reports
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  as={Link}
+                  to={`/patient/dashboard/profile/update`}
+                >
+                  Update Profile
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
 };
 

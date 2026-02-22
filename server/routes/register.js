@@ -7,6 +7,8 @@ const db = require('../models');
 const { lab, employee, admin, lab_settings, subscription, lab_payment, Sequelize } = db;
 const { Op } = Sequelize;
 const nodemailer = require('nodemailer');
+const { registrationLimiter } = require('../middleware/rateLimiters');
+const { validatePassword } = require('../utils/passwordValidator');
 
 // Configure email transporter
 var transporter = nodemailer.createTransport({
@@ -14,13 +16,13 @@ var transporter = nodemailer.createTransport({
   port: 465,
   secure: true, // use SSL
   auth: {
-      user: process.env.EMAIL_USER || 'myzoho@zoho.com',
-      pass: process.env.EMAIL_PASS || 'myPassword'
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
   }
 });
 
 // Complete lab registration after successful payment
-router.post('/complete/:merchantOrderId', async (req, res) => {
+router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) => {
   let transaction;
   
   try {
@@ -104,7 +106,7 @@ router.post('/complete/:merchantOrderId', async (req, res) => {
             role: adminEmployee.role,
             lab_id: existingLab.id,
           },
-          process.env.JWT_SECRET || 'your-secret-key',
+          process.env.SECRET_KEY,
           { expiresIn: '6h' }
         );
         
@@ -139,6 +141,13 @@ router.post('/complete/:merchantOrderId', async (req, res) => {
     // Generate unique subdomain
     const subdomain = generateSubdomain(labData.name);
     
+    // Validate password strength
+    const passwordValidation = validatePassword(adminData.password);
+    if (!passwordValidation.isValid) {
+      await transaction.rollback();
+      return res.status(400).json({ error: passwordValidation.error });
+    }
+
     // Hash admin password (only for new registrations)
     const hashedPassword = await bcrypt.hash(adminData.password, 10);
     
@@ -259,7 +268,7 @@ router.post('/complete/:merchantOrderId', async (req, res) => {
         role: adminEmployee.role,
         lab_id: newLab.id,
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.SECRET_KEY,
       { expiresIn: '6h' }
     );
     
@@ -303,7 +312,7 @@ router.post('/complete/:merchantOrderId', async (req, res) => {
 });
 
 // Upgrade existing lab subscription - Step 1: Create payment intention only
-router.post('/upgrade', async (req, res) => {
+router.post('/upgrade', registrationLimiter, async (req, res) => {
   try {
     const { lab: labData, admin: adminData, subscription: subscriptionData } = req.body;
 
@@ -373,7 +382,7 @@ router.post('/upgrade', async (req, res) => {
 });
 
 // Register new lab with payment - Step 1: Create payment intention only
-router.post('/', async (req, res) => {
+router.post('/', registrationLimiter, async (req, res) => {
   try {
     const { lab: labData, admin: adminData, subscription: subscriptionData } = req.body;
 
