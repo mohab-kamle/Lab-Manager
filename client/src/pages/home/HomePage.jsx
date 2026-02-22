@@ -8,7 +8,6 @@ import {
   Form,
   Alert,
 } from "react-bootstrap";
-import useLabPrefix from '../../hooks/useLabPrefix';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
@@ -63,6 +62,21 @@ const staggerContainer = {
   }
 };
 
+const LazyLottie = ({ src, style, ...props }) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "200px" });
+  
+  return (
+    <div ref={ref} style={style}>
+      {isInView && (
+        <React.Suspense fallback={<div style={style} />}>
+          <DotLottieReact src={src} style={style} {...props} />
+        </React.Suspense>
+      )}
+    </div>
+  );
+};
+
 const HomePage = () => {
   // --- Existing Logic Preserved ---
   const [showDemoModal, setShowDemoModal] = useState(false);
@@ -76,7 +90,7 @@ const HomePage = () => {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const prefix = useLabPrefix();
+
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
@@ -180,13 +194,15 @@ const HomePage = () => {
                 className="hero-image-wrapper mb-2"
                 initial={{ opacity: 0, scale: 0.8, rotateX: 10 }}
                 animate={{ opacity: 1, scale: 1, rotateX: 0 }}
-                transition={{ duration: 1, delay: 0.2 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
               >
                 <div className="glass-panel-glow" />
                 <motion.img 
                   src={heroImage} 
                   alt="LabManager Dashboard" 
                   className="img-fluid rounded-4 shadow-3d border border-white-translucent"
+                  fetchPriority="high"
+                  loading="eager"
                   animate={{ y: [0, -15, 0] }} 
                   transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
                 />
@@ -250,14 +266,12 @@ const HomePage = () => {
               <div className="p-4 h-100 d-flex flex-column">
                 <div className="mb-auto">
                   <div className="icon-box text-primary mb-3  rounded-5" style={{ border: '3px solid var(--border)' }}>
-                    <React.Suspense fallback={<div style={{ width: '100px', height: '100px' }} />}>
-                      <DotLottieReact
-                        src="/Gears Lottie Animation.lottie"
-                        autoplay
-                        loop
-                        style={{ width: '100px', height: '100px' }}
-                      />
-                    </React.Suspense>
+                    <LazyLottie
+                      src="/Gears Lottie Animation.lottie"
+                      autoplay
+                      loop
+                      style={{ width: '100px', height: '100px' }}
+                    />
                   </div>
                   <h3>Complete Operations</h3>
                   <p className="text-muted">Manage cultures, antibiotics, inventory, and patient history from a single command center.</p>
@@ -306,14 +320,12 @@ const HomePage = () => {
               <div className="p-4 d-flex align-items-center gap-4">
                  <div className="flex-grow-1">
                     <div className="icon-box text-success mb-3">
-                      <React.Suspense fallback={<div style={{ width: '60px', height: '50px' }} />}>
-                        <DotLottieReact
-                          src="/Electricity charging.lottie"
-                          autoplay
-                          loop
-                          style={{ width: '60px', height: '50px' }}
-                        />
-                      </React.Suspense>
+                      <LazyLottie
+                        src="/Electricity charging.lottie"
+                        autoplay
+                        loop
+                        style={{ width: '60px', height: '50px' }}
+                      />
                     </div>
                     <h4>Lightning Fast Performance</h4>
                     <p className="text-muted mb-0">Built on modern tech stacks for instant search and loading.</p>
