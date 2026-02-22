@@ -52,7 +52,7 @@ const LabLayout = () => {
   }
 
   return (
-    <div className="lab-layout" style={{ '--lab-primary-color': primaryColor }}>
+    <div className="lab-layout" style={{ '--lab-primary-color': primaryColor, paddingTop: '20px' }}>
       {/* Trial status warnings */}
       {isInTrial() && (
         <Alert 

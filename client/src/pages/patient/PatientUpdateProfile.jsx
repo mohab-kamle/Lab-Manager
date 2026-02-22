@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { Formik, Field, ErrorMessage, Form as FormikForm } from "formik";
 import * as Yup from "yup";
 import { formatDateForInput } from "../../utils/dateFormatter";
-import useLabPrefix from "../../hooks/useLabPrefix";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import { Save, ArrowLeft } from "lucide-react";
@@ -16,7 +15,13 @@ const PatientUpdateProfile = () => {
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
-  const prefix = useLabPrefix();
+
+  useEffect(() => {
+    // Set API URL with fallback
+    const serverUrl = import.meta.env.VITE_API_URL;
+    console.log("Server URL from env:", serverUrl);
+    // setApiUrl(serverUrl || "http://localhost:3001"); // This line is removed as per the edit hint
+  }, []);
 
   const initialValues = {
     name: user?.name || "",
@@ -93,7 +98,7 @@ const PatientUpdateProfile = () => {
       if (response.data.success) {
         setUser(response.data.updatedUser);
         toast.success("Profile updated successfully!");
-        navigate(`/${prefix}/patient/profile`, { replace: true });
+        navigate(`/patient/dashboard/profile`, { replace: true });
       } else {
         toast.error(response.data.message || "Failed to update profile");
       }

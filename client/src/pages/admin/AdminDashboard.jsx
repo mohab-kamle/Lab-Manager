@@ -64,35 +64,35 @@ const AdminDashboard = () => {
 
   const prefix = useLabPrefix();
   const actions = [
-    {
-      icon: <UserPlus size={20} />,
-      label: "Add Patient",
-      onClick: () => navigate(`/${prefix}/admin/patients`),
-      variant: "outline-primary",
+    { 
+      icon: <UserPlus size={20} />, 
+      label: 'Add Patient', 
+      onClick: () => navigate(`/admin/patients`),
+      variant: 'outline-primary'
     },
-    {
-      icon: <Plus size={20} />,
-      label: "Add Test",
-      onClick: () => navigate(`/${prefix}/admin/tests`),
-      variant: "outline-success",
+    { 
+      icon: <Plus size={20} />, 
+      label: 'Add Test', 
+      onClick: () => navigate(`/admin/tests`),
+      variant: 'outline-success'
     },
-    {
-      icon: <ClipboardList size={20} />,
-      label: "View Reports",
-      onClick: () => navigate(`/${prefix}/admin/medical-reports`),
-      variant: "outline-secondary",
+    { 
+      icon: <ClipboardList size={20} />, 
+      label: 'View Reports', 
+      onClick: () => navigate(`/admin/medical-reports`),
+      variant: 'outline-secondary'
     },
-    {
-      icon: <Settings size={20} />,
-      label: "Lab Management",
-      onClick: () => navigate(`/${prefix}/admin/lab-management`),
-      variant: "outline-info",
+    { 
+      icon: <Settings size={20} />, 
+      label: 'Lab Management', 
+      onClick: () => navigate(`/admin/lab-management`),
+      variant: 'outline-info'
     },
-    {
-      icon: <User size={20} />,
-      label: "My Profile",
-      onClick: () => navigate(`/${prefix}/admin/dashboard/profile`),
-      variant: "outline-primary",
+    { 
+      icon: <User size={20} />, 
+      label: 'My Profile', 
+      onClick: () => navigate(`/admin/profile`), 
+      variant: 'outline-primary'
     },
     {
       icon: <Activity size={20} />,
