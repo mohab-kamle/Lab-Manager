@@ -1,220 +1,81 @@
-import React from "react";
-import { Container, Row, Col, Button } from "react-bootstrap";
-import { useAuth } from "../../context/AuthContext";
-import {
-  Calendar,
-  GenderAmbiguous,
-  Telephone,
-  Envelope,
-  House,
-  FileMedical,
-  Globe,
-  FileEarmarkPerson,
-  CardHeading,
-  PencilSquare,
-} from "react-bootstrap-icons";
-import { Link } from "react-router-dom";
-import { formatDate } from "../../utils/dateFormatter";
-import LoadingSpinner from "../../components/ui/LoadingSpinner";
-const PatientProfile = () => {
-  const { user } = useAuth();
+import React, { useState, useEffect } from 'react';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import { Button, Alert } from 'react-bootstrap';
+import * as Yup from 'yup';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext'; // ✅ Import AuthContext
 
-  if (!user) {
-    return <LoadingSpinner message="Getting things ready..." />;
-  }
+function getPatientCodeFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('patientcode') || '';
+}
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
+const PatientPage = () => {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    const [apiError, setApiError] = useState(null);
+    const navigate = useNavigate();
+    const { setUser } = useAuth(); // ✅ Use AuthContext to update global user state
 
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-    },
-  };
+    const [initialValues, setInitialValues] = useState({ patientcode: '' });
 
-  return (
-    <div className="cheerful-container py-5">
-      <Container>
-        {/* Header Section */}
-        <motion.div
-          className="text-center cheerful-header"
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, type: "spring" }}
-        >
-          <div className="profile-avatar-container">
-            {/* Increased size via CSS, ensuring lottie fills it appropriately */}
-            <Lottie
-              animationData={labLogoAnimation}
-              loop={true}
-              style={{ width: "100%", height: "100%" }}
-            />
-          </div>
-          <h1 className="welcome-text display-4">
-            Hello, {user.name.split(" ")[0]}!
-          </h1>
-          <p className="lead text-muted">
-            Here's a look at your personal dashboard.
-          </p>
-        </motion.div>
+    const validationSchema = Yup.object({
+        patientcode: Yup.string()
+            .matches(/^\d+$/, "Patient code must be numeric")
+            .required('Patient code is required')
+    });
 
-        <Row className="justify-content-center">
-          <Col lg={10}>
-            {/* Action Bar */}
-            <motion.div
-              className="d-flex justify-content-center gap-3 mb-5 w-100"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
+    const onSubmit = async (values, { setSubmitting, setErrors }) => {
+        setApiError(null);
+        try {
+            const response = await axios.post(`${apiUrl}/patient/login`, values);
+            localStorage.setItem('token', response.data.token);
+            setUser(response.data.user); 
+            navigate('/patient/dashboard');
+        } catch (error) {
+            setApiError("Failed to log in. Please check your patient code.");
+            setErrors({ patientcode: "Invalid patient code" });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    useEffect(() => {
+        const code = getPatientCodeFromUrl();
+        if (code) {
+            setInitialValues({ patientcode: code });
+        }
+    }, []);
+
+    return (
+        <div className="d-flex justify-content-center mt-5 flex-column width-50 border border-primary p-3 rounded-3 w-75 mx-auto">
+            {apiError && <Alert variant="danger">{apiError}</Alert>}
+            <Formik
+                initialValues={initialValues}
+                validationSchema={validationSchema}
+                onSubmit={onSubmit}
+                enableReinitialize={true}
             >
-              {/* CSS flex:1 will make these equal width given the d-flex container */}
-              <Button
-                as={Link}
-                to={`/${prefix}/patient/reports`}
-                className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2"
-              >
-                <FileMedical size={20} />
-                My Reports
-              </Button>
-              <Button
-                as={Link}
-                to={`/${prefix}/patient/profile/update`}
-                className="cheerful-btn cheerful-btn-outline d-flex align-items-center gap-2"
-              >
-                <PencilSquare size={20} />
-                Update Profile
-              </Button>
-            </motion.div>
-
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="profile-grid"
-            >
-              {/* Personal Info Card */}
-              <motion.div
-                variants={itemVariants}
-                className="patient-profile-card p-4"
-              >
-                <h5 className="mb-4 fw-bold text-secondary">
-                  Personal Details
-                </h5>
-                <InfoBubble
-                  icon={Calendar}
-                  label="Date of Birth"
-                  value={formatDate(user.birth_date)}
-                  delay={0.1}
-                />
-                <InfoBubble
-                  icon={GenderAmbiguous}
-                  label="Gender"
-                  value={
-                    user.gender === "Male" || user.gender === "m"
-                      ? "Male"
-                      : "Female"
-                  }
-                  delay={0.2}
-                />
-                <InfoBubble
-                  icon={Globe}
-                  label="Nationality"
-                  value={user.nationality}
-                  delay={0.3}
-                />
-              </motion.div>
-
-              {/* Contact Info Card */}
-              <motion.div
-                variants={itemVariants}
-                className="patient-profile-card p-4"
-              >
-                <h5 className="mb-4 fw-bold text-secondary">Contact Info</h5>
-                <InfoBubble
-                  icon={Telephone}
-                  label="Mobile Number"
-                  value={user.phones?.[0]?.phone_number}
-                  delay={0.4}
-                />
-                <InfoBubble
-                  icon={Envelope}
-                  label="Email Address"
-                  value={user.email}
-                  delay={0.5}
-                />
-                <InfoBubble
-                  icon={House}
-                  label="Home Address"
-                  value={user.address}
-                  delay={0.6}
-                />
-              </motion.div>
-
-              {/* Official IDs Card */}
-              <motion.div
-                variants={itemVariants}
-                className="patient-profile-card p-4"
-              >
-                <h5 className="mb-4 fw-bold text-secondary">
-                  Official Documents
-                </h5>
-                <InfoBubble
-                  icon={CardHeading}
-                  label="National ID"
-                  value={user.national_id}
-                  delay={0.7}
-                />
-                <InfoBubble
-                  icon={FileEarmarkPerson}
-                  label="Passport Number"
-                  value={user.passport_no}
-                  delay={0.8}
-                />
-                <InfoBubble
-                  icon={FileMedical}
-                  label="Patient Code"
-                  value={user.patientcode}
-                  delay={0.9}
-                />
-              </motion.div>
-            </motion.div>
-          </Col>
-        </Row>
-      </Container>
-    </div>
-              <div className="text-center mt-4">
-                <Button
-                  variant="success"
-                  className="me-2"
-                  as={Link}
-                  to={`/patient/dashboard/reports`}
-                >
-                  <FileMedical className="me-1" />
-                  View Medical Reports
-                </Button>
-                <Button
-                  variant="outline-primary"
-                  as={Link}
-                  to={`/patient/dashboard/profile/update`}
-                >
-                  Update Profile
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
-  );
+                {({ isSubmitting }) => (
+                    <Form>
+                        <div className="mb-3">
+                            <label htmlFor="patientcode" className="form-label">Patient Code</label>
+                            <Field
+                                type="text"
+                                id="patientcode"
+                                name="patientcode"
+                                className="form-control"
+                            />
+                            <ErrorMessage name="patientcode" component="div" className="text-danger" />
+                        </div>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? "Submitting..." : "Submit"}
+                        </Button>
+                    </Form>
+                )}
+            </Formik>
+        </div>
+    );
 };
 
-export default PatientProfile;
+export default PatientPage;
