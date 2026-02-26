@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
-import useLabPrefix from "../../hooks/useLabPrefix";
 import { getSubdomain } from "../../utils/subdomain"; // Add this import properly
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
@@ -86,7 +85,6 @@ export const resetNavbarActiveState = () => {
 const MainNavBar = () => {
   const { user, loading: authLoading, refreshUser, logout } = useAuth();
   const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
-  const prefix = useLabPrefix();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -792,7 +790,7 @@ const MainNavBar = () => {
                 <>
                   <Nav.Link
                     as={Link}
-                    to={`patient/profile`}
+                    to={`/patient/profile`}
                     className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
                   >
                     <User size={18} className="mb-1" /> Profile
