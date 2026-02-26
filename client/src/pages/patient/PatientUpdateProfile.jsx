@@ -98,7 +98,7 @@ const PatientUpdateProfile = () => {
       if (response.data.success) {
         setUser(response.data.updatedUser);
         toast.success("Profile updated successfully!");
-        navigate(`/patient/dashboard/profile`, { replace: true });
+        navigate(`/patient/profile`, { replace: true });
       } else {
         toast.error(response.data.message || "Failed to update profile");
       }
@@ -112,8 +112,8 @@ const PatientUpdateProfile = () => {
       } else {
         toast.error(
           error.response?.data?.message ||
-            error.message ||
-            "An error occurred while updating your profile"
+          error.message ||
+          "An error occurred while updating your profile"
         );
       }
     } finally {
