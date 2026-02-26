@@ -1,6 +1,8 @@
 import React from "react";
 import { Container, Row, Col, Button } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
+import { motion } from "framer-motion";
+import Lottie from "lottie-react";
 import {
   Calendar,
   GenderAmbiguous,
@@ -15,9 +17,34 @@ import {
 } from "react-bootstrap-icons";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/dateFormatter";
+import useLabPrefix from "../../hooks/useLabPrefix";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+
+// Try to import animation if missing. Assuming it's in assets/animations/
+// Using a simple fallback if the file isn't imported correctly.
+// A common path might be "../../assets/animations/lab-logo.json".
+// We will conditionally use a fallback if not found.
+import labLogoAnimation from "../../assets/LabLogoLoading.json";
+
+const InfoBubble = ({ icon: Icon, label, value, delay }) => (
+  <motion.div
+    className="d-flex align-items-center mb-3"
+    initial={{ x: -20, opacity: 0 }}
+    animate={{ x: 0, opacity: 1 }}
+    transition={{ delay }}
+  >
+    <div className="info-icon-wrapper me-3 text-primary">
+      <Icon size={24} />
+    </div>
+    <div>
+      <div className="text-muted small">{label}</div>
+      <div className="fw-bold">{value || "N/A"}</div>
+    </div>
+  </motion.div>
+);
 const PatientProfile = () => {
   const { user } = useAuth();
+  const prefix = useLabPrefix();
 
   if (!user) {
     return <LoadingSpinner message="Getting things ready..." />;
@@ -79,7 +106,7 @@ const PatientProfile = () => {
               {/* CSS flex:1 will make these equal width given the d-flex container */}
               <Button
                 as={Link}
-                to={`/${prefix}/patient/reports`}
+                to={`/patient/reports`}
                 className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2"
               >
                 <FileMedical size={20} />
@@ -87,7 +114,7 @@ const PatientProfile = () => {
               </Button>
               <Button
                 as={Link}
-                to={`/${prefix}/patient/profile/update`}
+                to={`/patient/profile/update`}
                 className="cheerful-btn cheerful-btn-outline d-flex align-items-center gap-2"
               >
                 <PencilSquare size={20} />
@@ -191,29 +218,7 @@ const PatientProfile = () => {
         </Row>
       </Container>
     </div>
-              <div className="text-center mt-4">
-                <Button
-                  variant="success"
-                  className="me-2"
-                  as={Link}
-                  to={`/patient/dashboard/reports`}
-                >
-                  <FileMedical className="me-1" />
-                  View Medical Reports
-                </Button>
-                <Button
-                  variant="outline-primary"
-                  as={Link}
-                  to={`/patient/dashboard/profile/update`}
-                >
-                  Update Profile
-                </Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+
   );
 };
 
