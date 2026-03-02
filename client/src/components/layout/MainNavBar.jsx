@@ -37,8 +37,7 @@ import VersionBadge from "../ui/VersionBadge";
 import "../../styles/MainNavBar.css";
 
 export const defaultTitles = {
-  testGroups: "Test Groups",
-  tests_C: "Tests & Cultures",
+  tests_C: "Tests Catalog",
   Rec: "Reception",
   MedicalReports: "Medical Reports",
   Accounting: "Accounting",
@@ -332,58 +331,7 @@ const MainNavBar = () => {
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : null}
-              {/* Test Groups Dropdown for admin, chemist, receptionist */}
-              {(user?.role === "admin" ||
-                user?.role === "chemist" ||
-                user?.role === "receptionist") && (
-                <Dropdown className="mx-1 mb-1">
-                  <Dropdown.Toggle
-                    id="dropdown-basic"
-                    className={`nav-button ${
-                      ["test-groups", "categories", "components"].includes(
-                        activeItem
-                      )
-                        ? "active-dropdown"
-                        : ""
-                    }`}
-                  >
-                    <FlaskConical size={18} className="me-1 mb-1" />
-                    {titles.testGroups}
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu>
-                    <Dropdown.Item
-                      as={Link}
-                      to={`/${user?.role}/test-groups`}
-                      data-dropdown-key="testGroups"
-                      data-title="Test Groups"
-                      data-id="test-groups"
-                      active={activeItem === "test-groups"}
-                    >
-                      Test Groups
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                      as={Link}
-                      to={`/${user?.role}/test-group-categories`}
-                      data-dropdown-key="testGroups"
-                      data-title="Categories"
-                      data-id="categories"
-                      active={activeItem === "categories"}
-                    >
-                      Categories
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                      as={Link}
-                      to={`/${user?.role}/test-group-components`}
-                      data-dropdown-key="testGroups"
-                      data-title="Components"
-                      data-id="components"
-                      active={activeItem === "components"}
-                    >
-                      Components
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
-              )}
+
               {/* Employee Links - Different access based on role */}
               {(user?.role === "admin" ||
                 user?.role === "receptionist" ||
@@ -403,10 +351,8 @@ const MainNavBar = () => {
                             "categories-tests",
                             "tests-tests",
                             "sample-types-tests",
-                            "culture-options-tests",
-                            "antibiotics-tests",
                             "packages-offers",
-                            "culture-tests",
+
                             "diseases-tests",
                           ].includes(activeItem)
                             ? "active-dropdown"
@@ -452,13 +398,13 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`/${user?.role}/culture-options`}
+                              to={`/${user?.role}/packages-and-offers`}
                               data-dropdown-key="tests_C"
-                              data-title="culture options"
-                              data-id="culture-options-tests"
-                              active={activeItem === "culture-options-tests"}
+                              data-title="packages & offers"
+                              data-id="packages-offers" // 👈 Add this
+                              active={activeItem === "packages-offers"} // 👈 Add this
                             >
-                              culture options
+                              packages & offers
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
@@ -469,16 +415,6 @@ const MainNavBar = () => {
                               active={activeItem === "antibiotics-tests"}
                             >
                               antibiotics
-                            </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`/${user?.role}/packages-and-offers`}
-                              data-dropdown-key="tests_C"
-                              data-title="packages & offers"
-                              data-id="packages-offers" // 👈 Add this
-                              active={activeItem === "packages-offers"} // 👈 Add this
-                            >
-                              packages & offers
                             </Dropdown.Item>
                           </>
                         )}
@@ -517,13 +453,11 @@ const MainNavBar = () => {
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`/${user?.role}/culture-options`}
+                              to={`/${user?.role}/packages-and-offers`}
                               data-dropdown-key="tests_C"
-                              data-title="culture options"
-                              data-id="culture-options-tests"
-                              active={activeItem === "culture-options-tests"}
+                              data-title="packages & offers"
                             >
-                              culture options
+                              packages & offers
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
@@ -535,26 +469,9 @@ const MainNavBar = () => {
                             >
                               antibiotics
                             </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`/${user?.role}/packages-and-offers`}
-                              data-dropdown-key="tests_C"
-                              data-title="packages & offers"
-                            >
-                              packages & offers
-                            </Dropdown.Item>
                           </>
                         )}
-                        <Dropdown.Item
-                          as={Link}
-                          to={`/${user?.role}/cultures`}
-                          data-dropdown-key="tests_C"
-                          data-title="culture"
-                          data-id="culture-tests"
-                          active={activeItem === "culture-tests"}
-                        >
-                          culture
-                        </Dropdown.Item>
+
                         <Dropdown.Item
                           as={Link}
                           to={`/${user?.role}/diseases`}
@@ -712,12 +629,6 @@ const MainNavBar = () => {
                           to={`/${user?.role}/payment-methods`}
                         >
                           Payment Methods
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`/${user?.role}/test-groups`}
-                        >
-                          Test Groups
                         </Dropdown.Item>
                       </Dropdown.Menu>
                     </Dropdown>

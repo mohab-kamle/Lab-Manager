@@ -64,7 +64,7 @@ class CacheService {
       this.client.on('error', (err) => {
         console.warn('⚠️ Redis cache error:', err.message);
         this.isConnected = false;
-        
+
         // Provide helpful error context
         if (err.code === 'ECONNREFUSED') {
           console.warn('💡 Redis: Connection refused - ensure Redis server is running');
@@ -90,16 +90,16 @@ class CacheService {
       });
 
       await Promise.race([connectPromise, timeoutPromise]);
-      
+
       // Test the connection
       await this.client.ping();
       console.log('🏓 Redis: Ping successful');
-      
+
     } catch (error) {
       console.warn('⚠️ Redis cache initialization failed:', error.message);
       console.log('📝 Continuing without cache - all requests will hit database');
       this.isConnected = false;
-      
+
       // Clean up client if it exists
       if (this.client) {
         try {
@@ -126,7 +126,7 @@ class CacheService {
    */
   async get(key) {
     if (!this.isConnected) return null;
-    
+
     try {
       const data = await this.client.get(key);
       if (data) {
@@ -144,7 +144,7 @@ class CacheService {
    */
   async set(key, data, ttl = this.defaultTTL) {
     if (!this.isConnected) return false;
-    
+
     try {
       await this.client.setEx(key, ttl, JSON.stringify(data));
       return true;
@@ -159,7 +159,7 @@ class CacheService {
    */
   async del(key) {
     if (!this.isConnected) return false;
-    
+
     try {
       await this.client.del(key);
       return true;
@@ -174,7 +174,7 @@ class CacheService {
    */
   async delPattern(pattern) {
     if (!this.isConnected) return false;
-    
+
     try {
       const keys = await this.client.keys(pattern);
       if (keys.length > 0) {
@@ -291,18 +291,7 @@ class CacheService {
     return await this.set(key, data, ttl); // 2 hours TTL for test components
   }
 
-  /**
-   * Cache test groups for a medical report
-   */
-  async getMedicalReportTestGroups(reportId) {
-    const key = this.generateKey('report:test-groups', reportId);
-    return await this.get(key);
-  }
 
-  async setMedicalReportTestGroups(reportId, data, ttl = 1800) {
-    const key = this.generateKey('report:test-groups', reportId);
-    return await this.set(key, data, ttl);
-  }
 
   /**
    * Get cached new results data for medical report
@@ -343,7 +332,6 @@ class CacheService {
       `labmanager:report:cultures:*${reportId}*`,
       `labmanager:report:test-components:*${reportId}*`,
       `labmanager:report:complete:*${reportId}*`,
-      `labmanager:report:test-groups:*${reportId}*`,
       `labmanager:report:newresults-data:*${reportId}*`,
       `labmanager:reports:list:*`, // Invalidate all lists as they might contain this report
       `labmanager:reports:summary:*`, // Invalidate summary as counts might change
@@ -422,11 +410,11 @@ class CacheService {
 
     try {
       console.log(`🔥 Warming up cache for lab ${labId}...`);
-      
+
       // Warm up summary data
       // This would typically be called from the actual API endpoints
       // when they fetch data for the first time
-      
+
       console.log(`✅ Cache warm-up completed for lab ${labId}`);
     } catch (error) {
       console.warn('Cache warm-up error:', error.message);
@@ -444,7 +432,7 @@ class CacheService {
     try {
       const info = await this.client.info('memory');
       const keys = await this.client.dbSize();
-      
+
       return {
         connected: true,
         keys,
@@ -461,7 +449,7 @@ class CacheService {
    */
   async clearAll() {
     if (!this.isConnected) return false;
-    
+
     try {
       await this.client.flushDb();
       console.log('🧹 All cache cleared');

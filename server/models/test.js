@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define('test', {
     id: {
       autoIncrement: true,
@@ -22,11 +22,11 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     cost: {
-      type: DataTypes.DECIMAL(10,2),
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: true
     },
     lab_to_lab_status: {
-      type: DataTypes.ENUM('IN','OUT'),
+      type: DataTypes.ENUM('IN', 'OUT'),
       allowNull: true
     },
     lab_name: {
@@ -68,6 +68,32 @@ module.exports = function(sequelize, DataTypes) {
         model: 'contract',
         key: 'id'
       }
+    },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
+    },
+    global_test_id: {
+      type: DataTypes.STRING(36),
+      allowNull: true
+      // FK constraint is managed via migration + init-models.js associations
+    },
+    structure_config: {
+      type: DataTypes.JSON,
+      allowNull: true
+    },
+    type: {
+      type: DataTypes.ENUM('single', 'panel', 'culture'),
+      allowNull: false,
+      defaultValue: 'single'
+    },
+    tat_hours: {
+      type: DataTypes.INTEGER,
+      allowNull: true
     }
   }, {
     sequelize,
@@ -117,6 +143,20 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "contract_id" },
+        ]
+      },
+      {
+        name: "fk_test_global_test_catalog_idx",
+        using: "BTREE",
+        fields: [
+          { name: "global_test_id" },
+        ]
+      },
+      {
+        name: "fk_test_lab_idx",
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" },
         ]
       },
     ]
