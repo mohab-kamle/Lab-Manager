@@ -911,22 +911,11 @@ router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (r
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
                     through: { attributes: [] },
-                    include: [
-                        { model: db.test_component, as: 'components', attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end', 'test_id'] }
-                    ]
-                },
-                {
-                    model: db.culture,
-                    as: 'culture_id_culture_medical_report_has_cultures',
-                    through: { attributes: [] }
+                    attributes: ['id', 'name', 'structure_config', 'type']
                 },
                 {
                     model: db.medical_report_has_test,
                     as: 'medical_report_has_tests'
-                },
-                {
-                    model: db.medical_report_has_culture,
-                    as: 'medical_report_has_cultures'
                 }
             ]
         });

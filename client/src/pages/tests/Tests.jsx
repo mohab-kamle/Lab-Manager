@@ -39,6 +39,7 @@ const Tests = () => {
     lab_to_lab: "",
     cost: "",
     lab_name: "",
+    type: "single",
     questions: [] // Array of question IDs
   });
   const [testComponents, setTestComponents] = useState([]);
@@ -271,6 +272,7 @@ const Tests = () => {
       lab_to_lab: "",
       cost: "",
       lab_name: "",
+      type: "single",
       questions: []
     });
     setTestComponents([]);
@@ -310,6 +312,7 @@ const Tests = () => {
       lab_to_lab: test.lab_to_lab_status || "", // Map lab_to_lab_status to lab_to_lab
       cost: test.cost || "",
       lab_name: test.lab_name || "",
+      type: test.type || "single",
       questions: test.questions ? test.questions.map(q => q.id) : []
     });
     
@@ -533,6 +536,7 @@ const Tests = () => {
         lab_to_lab: "",
         cost: "",
         lab_name: "",
+        type: "single",
         questions: []
       });
       setTestComponents([]);
@@ -687,6 +691,7 @@ const Tests = () => {
                   <p><strong>Shortcut:</strong> {selectedTest.shortcut || 'N/A'}</p>
                   <p><strong>Price:</strong> {selectedTest.price ? `EGP ${parseFloat(selectedTest.price).toFixed(2)}` : 'N/A'}</p>
                   <p><strong>Cost:</strong> {selectedTest.cost ? `EGP ${parseFloat(selectedTest.cost).toFixed(2)}` : 'N/A'}</p>
+                  <p><strong>Type:</strong> {selectedTest.type || 'single'}</p>
                   <p><strong>Lab to Lab:</strong> {selectedTest.lab_to_lab_status === 'IN' ? 'In' : selectedTest.lab_to_lab_status === 'OUT' ? 'Out' : selectedTest.lab_to_lab_status || 'N/A'}</p>
                   <p><strong>Lab Name:</strong> {selectedTest.lab_name || 'N/A'}</p>
                   <p><strong>Category:</strong> {selectedTest.category?.name || categories.find(cat => cat.id === selectedTest.category_id)?.name || 'N/A'}</p>
@@ -805,7 +810,21 @@ const Tests = () => {
               </Alert>
             )}
             <Row>
-              <Col md={6}>
+              <Col md={3}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Type *</Form.Label>
+                  <Form.Select
+                    value={formData.type}
+                    onChange={e => setFormData({ ...formData, type: e.target.value })}
+                    required
+                  >
+                    <option value="single">Single</option>
+                    <option value="panel">Panel</option>
+                    <option value="culture">Culture</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={5}>
                 <Form.Group className="mb-3">
                   <Form.Label>Name *</Form.Label>
                   <Form.Control 
@@ -1028,6 +1047,7 @@ const Tests = () => {
                         >
                           <option value="range">Range</option>
                           <option value="boolean">Boolean (Positive/Negative)</option>
+                          <option value="culture_panel">Culture Panel</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
@@ -1043,6 +1063,14 @@ const Tests = () => {
                             onChange={e => setNewComponent({ ...newComponent, reference_range: e.target.value })}
                           />
                         </Form.Group>
+                      </Col>
+                    </Row>
+                  ) : newComponent.result_type === 'culture_panel' ? (
+                    <Row className="g-2 mt-2">
+                      <Col md={12}>
+                        <Alert variant="info" className="py-2 mb-0">
+                          <strong>Note:</strong> Culture panels automatically generate inputs for Organism, Colony Count, and Antibiotics during result entry.
+                        </Alert>
                       </Col>
                     </Row>
                   ) : (
@@ -1160,7 +1188,7 @@ const Tests = () => {
                             <Card.Header className="d-flex justify-content-between align-items-center bg-light">
                               <div>
                                 <strong>{component.name || <span className="text-muted">Unnamed</span>}</strong>
-                                <span className="ms-2 badge bg-secondary">{component.result_type === 'boolean' ? 'Boolean' : 'Range'}</span>
+                                <span className="ms-2 badge bg-secondary">{component.result_type === 'boolean' ? 'Boolean' : component.result_type === 'culture_panel' ? 'Culture Panel' : 'Range'}</span>
                               </div>
                               <Button variant="outline-danger" size="sm" onClick={() => removeComponent(index)} title="Remove Component">
                                 <X size={16} />
@@ -1168,11 +1196,15 @@ const Tests = () => {
                             </Card.Header>
                             <Card.Body>
                               <div className="mb-2"><strong>Unit:</strong> {component.unit || <span className="text-muted">N/A</span>}</div>
-                              {component.result_type === 'boolean' ? (
-                                <>
-                                  <div className="mb-2"><strong>Reference Range:</strong> {component.reference_range || <span className="text-muted">N/A</span>}</div>
-                                </>
-                              ) : (
+                               {component.result_type === 'boolean' ? (
+                                 <>
+                                   <div className="mb-2"><strong>Reference Range:</strong> {component.reference_range || <span className="text-muted">N/A</span>}</div>
+                                 </>
+                               ) : component.result_type === 'culture_panel' ? (
+                                 <>
+                                   <div className="mb-2 text-info"><em>Dynamic Culture Inputs</em></div>
+                                 </>
+                               ) : (
                                 <>
                                   <div className="mb-2"><strong>Normal From:</strong> {component.normal_from || <span className="text-muted">N/A</span>}</div>
                                   <div className="mb-2"><strong>Normal To:</strong> {component.normal_to || <span className="text-muted">N/A</span>}</div>
