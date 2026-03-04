@@ -1,6 +1,6 @@
-## 2026-01-10 - Accessibility in Login Flow and Loading States
-**Learning:** Adding dynamic `aria-label` to password toggles and `aria-pressed` to role selection buttons significantly improves the login experience for screen reader users without visual changes. Similarly, ensuring loading spinners have `role="status"` and visually hidden text makes async operations perceptible to assistive technology.
-**Action:** Always check interactive elements (especially icon-only buttons and custom radio-like groups) for appropriate ARIA attributes. Verify loading states are announced.
+## 2024-05-24 - Floating Button Visibility Logic
+**Learning:** When implementing accessibility for floating buttons that appear/disappear (like "Back to Top"), simply animating opacity to 0 is insufficient because the element remains interactive and focusable.
+**Action:** Use `pointerEvents: 'none'` and `tabIndex={-1}` dynamically when the element is hidden to ensure it's removed from the interaction and focus order, as seen in `FloatingBackToTopButton`.
 
 ## 2026-01-14 - Accessibility State Verification with Playwright
 **Learning:** When verifying React components with Playwright, simply checking for an attribute update (e.g., `aria-label`) on an existing element handle can fail if the component re-renders. The element handle becomes stale.
@@ -28,3 +28,6 @@
 ## 2026-05-24 - Empty States and Duplicate Props
 **Learning:** Tables often result in confusing "blank" screens when data is missing. Adding a dedicated empty state row drastically improves usability. Also, watch out for duplicate `aria-label` props in existing code; React only renders the last one, which can accidentally hide the intended dynamic label if the static one comes second.
 **Action:** Always verify that lists/tables handle the `length === 0` case explicitly, and lint/scan for duplicate props that might obscure accessibility logic.
+## 2024-05-24 - Verification of Protected Components
+**Learning:** Verifying components deeply nested in protected layouts (like `LabLayout`) is difficult without full authentication context.
+**Action:** Create temporary public routes ('harness pages') in `App.jsx` that render the component (or the layout) in isolation to bypass complex backend dependencies and authentication flows during testing.
