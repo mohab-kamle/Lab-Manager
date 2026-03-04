@@ -23,7 +23,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "chemist", "employee")
 router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { name } = req.body;
-    
+
     if (!name || name.trim() === '') {
       return res.status(400).json({ error: 'Name is required' });
     }
@@ -61,11 +61,11 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
     }
 
     // Check if option already exists (excluding current option)
-    const existingOption = await culture_option.findOne({ 
-      where: { 
+    const existingOption = await culture_option.findOne({
+      where: {
         option: name.trim(),
         id: { [require('sequelize').Op.ne]: id }
-      } 
+      }
     });
     if (existingOption) {
       return res.status(400).json({ error: 'Culture option with this name already exists' });
@@ -113,7 +113,7 @@ router.get("/with-suboptions", authenticateUser, authorizeRoles("admin", "chemis
         [{ model: culture_sub_option, as: 'subOptions' }, 'name', 'ASC']
       ]
     });
-    console.log(cultureOptions);
+
     res.json(cultureOptions);
   } catch (error) {
     console.error('Error fetching culture options with sub-options:', error);
