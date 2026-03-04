@@ -5,6 +5,7 @@ import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
 import MainNavBar from './MainNavBar';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import FloatingBackToTopButton from '../../components/ui/FloatingBackToTopButton';
 
 const LabLayout = () => {
   const { 
@@ -52,7 +53,7 @@ const LabLayout = () => {
   }
 
   return (
-    <div className="lab-layout" style={{ '--lab-primary-color': primaryColor }}>
+    <div className="lab-layout" style={{ '--lab-primary-color': primaryColor, paddingTop: '20px' }}>
       {/* Trial status warnings */}
       {isInTrial() && (
         <Alert 
@@ -93,6 +94,7 @@ const LabLayout = () => {
           </p>
         </Container>
       </footer>
+      <FloatingBackToTopButton />
     </div>
   );
 };
