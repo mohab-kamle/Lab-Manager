@@ -229,10 +229,10 @@ const MainNavBar = () => {
         expanded={expanded}
         collapseOnSelect
         onClick={handleNavClick}
-        data-bs-theme="white"
-        className="text-white pt-3 px-3 d-flex align-items-center"
+        className="pt-3 px-3 d-flex align-items-center"
         style={{
-          background: "white",
+          background: "var(--bg)",
+          color: "var(--text)",
           border: "none",
           boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
           borderBottom: "1px solid var(--border)",
@@ -257,6 +257,7 @@ const MainNavBar = () => {
                 marginTop: "15px",
                 fontSize: "clamp(16px, 2.5vw, 20px)",
                 fontWeight: "bold",
+                color: "var(--text)",
               }}
             >
               Lab Manager
