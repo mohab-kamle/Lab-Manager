@@ -75,6 +75,7 @@
   --toast-text-muted: #374151;
   --toast-bg: #ffffff;
 }
+[data-bs-theme="dark"] body,
 body.dark {
   /* hsl (fallback color) */
   --bg-dark: hsl(244 100% 7%);
