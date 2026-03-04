@@ -21,13 +21,13 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
         // Get all tests and cultures for the packages/offers
         const packageAndOfferIds = packagesAndOffers.map(item => item.id);
         console.log('Package/Offer IDs:', packageAndOfferIds);
-        
+
         const [testAssociations, cultureAssociations] = await Promise.all([
             pao_has_test.findAll({
-                where: {  packages_and_offers_id: packageAndOfferIds , lab_id: req.tenant.lab_id }
+                where: { packages_and_offers_id: packageAndOfferIds }
             }),
             pao_has_culture.findAll({
-                where: {  packages_and_offers_id: packageAndOfferIds , lab_id: req.tenant.lab_id }
+                where: { packages_and_offers_id: packageAndOfferIds }
             })
         ]);
         console.log('Test associations:', testAssociations.length);
@@ -41,8 +41,8 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
 
         // Fetch all tests and cultures
         const [tests, cultures] = await Promise.all([
-            testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
-            cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
+            testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+            cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
         ]);
         console.log('Found tests:', tests.length);
         console.log('Found cultures:', cultures.length);
@@ -75,7 +75,7 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
         res.json(result);
     } catch (error) {
         console.error('Detailed error in packages and offers route:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Internal server error',
             message: error.message,
             stack: error.stack
@@ -87,9 +87,9 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
 router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         const packageAndOffer = await packages_and_offers.findOne({
-            where: {  id: req.params.id , lab_id: req.tenant.lab_id }
+            where: { id: req.params.id, lab_id: req.tenant.lab_id }
         });
-        
+
         if (!packageAndOffer) {
             return res.status(404).json({ error: 'Package/Offer not found' });
         }
@@ -97,10 +97,10 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
         // Get associated tests and cultures
         const [testAssociations, cultureAssociations] = await Promise.all([
             pao_has_test.findAll({
-                where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
+                where: { packages_and_offers_id: req.params.id }
             }),
             pao_has_culture.findAll({
-                where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
+                where: { packages_and_offers_id: req.params.id }
             })
         ]);
 
@@ -110,8 +110,8 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
 
         // Fetch tests and cultures
         const [tests, cultures] = await Promise.all([
-            testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
-            cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
+            testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+            cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
         ]);
 
         const result = {
@@ -150,7 +150,8 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
                 price,
                 start_date,
                 end_date,
-                type
+                type,
+                lab_id: req.tenant.lab_id
             }, { transaction });
             console.log('Created new package/offer:', newPackageAndOffer.toJSON());
 
@@ -174,15 +175,15 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
                 }
 
                 const existingTests = await test.findAll({
-                    where: {  id: testIds , lab_id: req.tenant.lab_id }
+                    where: { id: testIds }
                 });
-                
+
                 if (existingTests.length !== tests.length) {
                     await transaction.rollback();
                     return res.status(400).json({ error: 'One or more test IDs do not exist' });
                 }
 
-                await Promise.all(tests.map(testId => 
+                await Promise.all(tests.map(testId =>
                     pao_has_test.create({
                         packages_and_offers_id: newPackageAndOffer.id,
                         test_id: parseInt(testId)
@@ -200,15 +201,15 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
                 }
 
                 const existingCultures = await culture.findAll({
-                    where: {  id: cultureIds , lab_id: req.tenant.lab_id }
+                    where: { id: cultureIds }
                 });
-                
+
                 if (existingCultures.length !== cultures.length) {
                     await transaction.rollback();
                     return res.status(400).json({ error: 'One or more culture IDs do not exist' });
                 }
 
-                await Promise.all(cultures.map(cultureId => 
+                await Promise.all(cultures.map(cultureId =>
                     pao_has_culture.create({
                         packages_and_offers_id: newPackageAndOffer.id,
                         culture_id: parseInt(cultureId)
@@ -237,10 +238,10 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
             // Get the created item with its associations
             const [testAssociations, cultureAssociations] = await Promise.all([
                 pao_has_test.findAll({
-                    where: {  packages_and_offers_id: newPackageAndOffer.id , lab_id: req.tenant.lab_id }
+                    where: { packages_and_offers_id: newPackageAndOffer.id }
                 }),
                 pao_has_culture.findAll({
-                    where: {  packages_and_offers_id: newPackageAndOffer.id , lab_id: req.tenant.lab_id }
+                    where: { packages_and_offers_id: newPackageAndOffer.id }
                 })
             ]);
 
@@ -250,8 +251,8 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
 
             // Fetch tests and cultures
             const [createdTests, createdCultures] = await Promise.all([
-                testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
-                cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
+                testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+                cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
             ]);
 
             const result = {
@@ -283,7 +284,7 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
         try {
             // Verify that the package/offer exists
             const packageAndOffer = await packages_and_offers.findOne({
-                where: {  id: req.params.id , lab_id: req.tenant.lab_id }
+                where: { id: req.params.id, lab_id: req.tenant.lab_id }
             }, { transaction });
 
             if (!packageAndOffer) {
@@ -293,7 +294,7 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
 
             // Update the package/offer
             await packages_and_offers.update(
-                { 
+                {
                     name,
                     shortcut,
                     price,
@@ -301,20 +302,20 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                     end_date,
                     type
                 },
-                { 
+                {
                     where: { id: req.params.id },
-                    transaction 
+                    transaction
                 }
             );
 
             // Delete existing associations
-            await pao_has_test.destroy({ 
+            await pao_has_test.destroy({
                 where: { packages_and_offers_id: req.params.id },
-                transaction 
+                transaction
             });
-            await pao_has_culture.destroy({ 
+            await pao_has_culture.destroy({
                 where: { packages_and_offers_id: req.params.id },
-                transaction 
+                transaction
             });
 
             if (type === "package") {
@@ -328,15 +329,15 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                     }
 
                     const existingTests = await test.findAll({
-                        where: {  id: testIds , lab_id: req.tenant.lab_id }
+                        where: { id: testIds }
                     });
-                    
+
                     if (existingTests.length !== tests.length) {
                         await transaction.rollback();
                         return res.status(400).json({ error: 'One or more test IDs do not exist' });
                     }
 
-                    await Promise.all(tests.map(testId => 
+                    await Promise.all(tests.map(testId =>
                         pao_has_test.create({
                             packages_and_offers_id: req.params.id,
                             test_id: parseInt(testId)
@@ -346,7 +347,7 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
 
                 // Handle package cultures
                 if (cultures && cultures.length > 0) {
-                    await Promise.all(cultures.map(cultureId => 
+                    await Promise.all(cultures.map(cultureId =>
                         pao_has_culture.create({
                             packages_and_offers_id: req.params.id,
                             culture_id: parseInt(cultureId)
@@ -376,10 +377,10 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
             // Get the updated item with its associations
             const [testAssociations, cultureAssociations] = await Promise.all([
                 pao_has_test.findAll({
-                    where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
+                    where: { packages_and_offers_id: req.params.id }
                 }),
                 pao_has_culture.findAll({
-                    where: {  packages_and_offers_id: req.params.id , lab_id: req.tenant.lab_id }
+                    where: { packages_and_offers_id: req.params.id }
                 })
             ]);
 
@@ -389,8 +390,8 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
 
             // Fetch tests and cultures
             const [updatedTests, updatedCultures] = await Promise.all([
-                testIds.length > 0 ? test.findAll({ where: {  id: testIds , lab_id: req.tenant.lab_id } }) : [],
-                cultureIds.length > 0 ? culture.findAll({ where: {  id: cultureIds , lab_id: req.tenant.lab_id } }) : []
+                testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+                cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
             ]);
 
             const result = {
@@ -420,7 +421,7 @@ router.delete('/:id', authenticateUser, tenantContext, async (req, res) => {
         try {
             // Verify that the package/offer exists
             const packageAndOffer = await packages_and_offers.findOne({
-                where: {  id: req.params.id , lab_id: req.tenant.lab_id }
+                where: { id: req.params.id, lab_id: req.tenant.lab_id }
             }, { transaction });
 
             if (!packageAndOffer) {
@@ -429,27 +430,27 @@ router.delete('/:id', authenticateUser, tenantContext, async (req, res) => {
             }
 
             // Delete from admin_packages_and_offers first (due to foreign key constraints)
-            await admin_packages_and_offers.destroy({ 
+            await admin_packages_and_offers.destroy({
                 where: { package_and_offer_id: req.params.id },
-                transaction 
+                transaction
             });
 
             // Delete from pao_has_test
-            await pao_has_test.destroy({ 
+            await pao_has_test.destroy({
                 where: { packages_and_offers_id: req.params.id },
-                transaction 
+                transaction
             });
 
             // Delete from pao_has_culture
-            await pao_has_culture.destroy({ 
+            await pao_has_culture.destroy({
                 where: { packages_and_offers_id: req.params.id },
-                transaction 
+                transaction
             });
 
             // Finally delete the package/offer
-            await packages_and_offers.destroy({ 
+            await packages_and_offers.destroy({
                 where: { id: req.params.id },
-                transaction 
+                transaction
             });
 
             // Commit the transaction
