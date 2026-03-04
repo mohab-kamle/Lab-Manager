@@ -29,6 +29,9 @@
 ## 2024-10-24 - Empty States in Generic Tables
 **Learning:** Generic table components often map data directly, resulting in confusing empty headers when no data exists. Baking a configurable empty state message directly into the component ensures consistent feedback across the application.
 **Action:** Always verify how data-driven components behave when provided with empty arrays/null data.
+## 2026-05-24 - Empty States and Duplicate Props
+**Learning:** Tables often result in confusing "blank" screens when data is missing. Adding a dedicated empty state row drastically improves usability. Also, watch out for duplicate `aria-label` props in existing code; React only renders the last one, which can accidentally hide the intended dynamic label if the static one comes second.
+**Action:** Always verify that lists/tables handle the `length === 0` case explicitly, and lint/scan for duplicate props that might obscure accessibility logic.
 ## 2024-05-24 - Verification of Protected Components
 **Learning:** Verifying components deeply nested in protected layouts (like `LabLayout`) is difficult without full authentication context.
 **Action:** Create temporary public routes ('harness pages') in `App.jsx` that render the component (or the layout) in isolation to bypass complex backend dependencies and authentication flows during testing.
