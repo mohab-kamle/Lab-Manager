@@ -75,6 +75,7 @@ $dark-info: hsl(217, 100%, 70%);
    --info: #{$info};
 }
 
+[data-bs-theme="dark"] body,
 body.dark {
    --bg-dark: #{$dark-bg-dark};
    --bg: #{$dark-bg};
