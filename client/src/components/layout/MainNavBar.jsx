@@ -11,6 +11,8 @@ import {
 } from "react-bootstrap";
 import { toast } from "react-toastify";
 
+import ThemeToggle from "../ui/ThemeToggle";
+
 import {
   Moon,
   Sun,
@@ -806,6 +808,10 @@ const MainNavBar = () => {
               )}
             </Nav>
             <Nav className="d-flex align-items-center">
+              <div className="mx-3 d-flex align-items-center">
+                <ThemeToggle />
+              </div>
+
               {/* Logout Link */}
 
               {user ? (
