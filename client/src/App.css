@@ -42,8 +42,8 @@
 }
 
 .lab-footer {
-  background-color: #f8f9fa;
-  border-top: 1px solid #dee2e6;
+  background-color: var(--bg-light);
+  border-top: 1px solid var(--border-muted);
   margin-top: auto;
 }
 
@@ -79,15 +79,15 @@
 
 /* Trial warning styles */
 .lab-layout .alert-warning {
-  background-color: #fff3cd;
-  border-color: #ffeaa7;
+  background-color: var(--warning);
+  border-color: var(--warning);
   color: #856404;
 }
 
 .lab-layout .alert-danger {
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-  color: #721c24;
+  background-color: var(--danger);
+  border-color: var(--danger);
+  color: white;
 }
 
 /* Responsive adjustments */
@@ -103,7 +103,7 @@
 
 /* Navigation adjustments for lab context */
 .lab-layout .navbar {
-  background-color: white;
+  background-color: var(--bg-light);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
@@ -125,24 +125,24 @@
 
 /* Card styles with lab branding */
 .lab-layout .card {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-muted);
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
 }
 
 .lab-layout .card-header {
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #dee2e6;
+  background-color: var(--bg-light);
+  border-bottom: 1px solid var(--border-muted);
 }
 
 /* Table styles */
 .lab-layout .table {
-  border-color: #dee2e6;
+  border-color: var(--border-muted);
 }
 
 .lab-layout .table thead th {
-  background-color: #f8f9fa;
-  border-bottom: 2px solid #dee2e6;
-  color: #495057;
+  background-color: var(--bg-light);
+  border-bottom: 2px solid var(--border-muted);
+  color: var(--text-muted);
 }
 
 /* Pagination styles */
@@ -157,11 +157,11 @@
 
 /* Modal styles */
 .lab-layout .modal-header {
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid var(--border-muted);
 }
 
 .lab-layout .modal-footer {
-  border-top: 1px solid #dee2e6;
+  border-top: 1px solid var(--border-muted);
 }
 
 /* Badge styles */
