@@ -1,7 +1,7 @@
 /* KnowUs Page Styles */
 
 .know-us-container {
-    background-color: #ffffff;
+    background-color: var(--bg);
     min-height: 100vh;
 }
 

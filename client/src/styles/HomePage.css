@@ -5,13 +5,13 @@
 
 .homepage-root {
   font-family: 'Inter', 'Segoe UI', sans-serif;
-  background-color: #fff;
+  background-color: var(--bg);
   overflow-x: hidden;
 }
 
 /* --- Hero Section --- */
 .hero-modern {
-  background: radial-gradient(circle at top right, #e0f2fe 0%, #fff 40%);
+  background: radial-gradient(circle at top right, var(--bg-dark) 0%, var(--bg) 40%);
 }
 
 .badge-modern {
@@ -60,7 +60,7 @@
   max-height: 50%;
   font-size: clamp(0.5rem, 2vw, 1rem);
   position: absolute;
-  background: white;
+  background: var(--bg-light);
   padding: 15px;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
@@ -120,7 +120,7 @@
   justify-content: center;
   position: relative;
   z-index: 2;
-  background: white;
+  background: var(--bg-light);
 }
 
 .workflow-line {
