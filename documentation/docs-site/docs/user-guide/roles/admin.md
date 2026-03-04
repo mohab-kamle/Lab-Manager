@@ -10,7 +10,7 @@ As an **Administrator**, you have full access to configure and manage the LabMan
 ## Core Responsibilities
 
 ### Managing Users and Access
-*   **Employees:** Add, modify, or remove employees (Chemists, Doctors, Receptionists).
+*   **Employees:** Add, modify, or remove employees (Chemists, Doctors, Employees, Receptionists).
 *   **Role Assignments:** Assign the correct roles to ensure proper data access security. Password strength and email verification rules apply.
 
 ### System Configuration
