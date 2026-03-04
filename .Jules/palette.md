@@ -21,10 +21,14 @@
 ## 2026-05-23 - Verifying Isolated UI Components
 **Learning:** When core UI components (like tables) are deeply embedded in protected routes, creating a temporary public "harness" page allows for robust accessibility and visual verification with Playwright without needing complex authentication flows.
 **Action:** Create temporary routes/pages to isolate and test specific UI components when backend dependencies block full integration testing.
+
 ## 2026-01-20 - Context for Generic List Components
 **Learning:** Generic components like `DynamicTable` often lack the specific data context needed for accessible row selection (e.g., "Select John Doe" vs "Select Item").
 **Action:** Implement helper props (like `getItemLabel`) in generic components to allow parent components to inject meaningful, accessible labels for repetitive actions.
 
+## 2024-10-24 - Empty States in Generic Tables
+**Learning:** Generic table components often map data directly, resulting in confusing empty headers when no data exists. Baking a configurable empty state message directly into the component ensures consistent feedback across the application.
+**Action:** Always verify how data-driven components behave when provided with empty arrays/null data.
 ## 2026-05-24 - Empty States and Duplicate Props
 **Learning:** Tables often result in confusing "blank" screens when data is missing. Adding a dedicated empty state row drastically improves usability. Also, watch out for duplicate `aria-label` props in existing code; React only renders the last one, which can accidentally hide the intended dynamic label if the static one comes second.
 **Action:** Always verify that lists/tables handle the `length === 0` case explicitly, and lint/scan for duplicate props that might obscure accessibility logic.
