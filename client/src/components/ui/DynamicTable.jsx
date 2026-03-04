@@ -100,12 +100,12 @@ const DynamicTable = ({
               <th>
                 <Form.Check
                   type="checkbox"
-                  aria-label="Select all items"
                   checked={allSelected}
                   ref={input => {
                     if (input) input.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
+                  aria-label="Select all items"
                 />
               </th>
             )}
@@ -122,9 +122,11 @@ const DynamicTable = ({
             <tr>
               <td
                 colSpan={columns.length + (showCheckboxes ? 1 : 0) + (ActionComponent ? 1 : 0)}
-                className="text-center py-4 text-muted"
+                className="text-center p-5 text-muted"
               >
-                {emptyMessage}
+                <div className="d-flex flex-column align-items-center justify-content-center">
+                  <p className="mb-0 fs-5">{emptyMessage}</p>
+                </div>
               </td>
             </tr>
           ) : (
@@ -137,9 +139,9 @@ const DynamicTable = ({
                   <td>
                     <Form.Check
                       type="checkbox"
-                      aria-label={`Select ${getRowLabel(item, rowIndex)}`}
                       checked={selectedItems.includes(item.id)}
                       onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
+                      aria-label={`Select ${getRowLabel(item, rowIndex)}`}
                     />
                   </td>
                 )}
