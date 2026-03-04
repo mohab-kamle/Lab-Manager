@@ -131,3 +131,5 @@ body.dark {
   justify-content: center;
   border-radius: 4px;
 }
+.bg-theme-surface { background-color: var(--bg-light); }
+.text-theme { color: var(--text) !important; }

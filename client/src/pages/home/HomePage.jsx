@@ -176,7 +176,7 @@ const HomePage = () => {
                   <Button 
                     variant="outline-primary" 
                     size="md" 
-                    className="btn-pill"
+                    className="btn-pill text-theme"
                     onClick={() => navigate("/register")}
                   >
                     Register Now <ArrowRight size={18} className="ms-2" />
@@ -257,7 +257,7 @@ const HomePage = () => {
           <div className="bento-grid">
             {/* Large Card */}
             <motion.div 
-              className="bento-card span-2 bg-white"
+              className="bento-card span-2 bg-theme-surface"
               whileHover={{ y: -5 }}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -296,7 +296,7 @@ const HomePage = () => {
 
              {/* Medium Card */}
              <motion.div 
-              className="bento-card bg-white"
+              className="bento-card bg-theme-surface"
               whileHover={{ y: -5 }}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -311,7 +311,7 @@ const HomePage = () => {
 
             {/* Wide Card */}
             <motion.div 
-              className="bento-card span-2 bg-white"
+              className="bento-card span-2 bg-theme-surface"
               whileHover={{ y: -5 }}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -342,7 +342,7 @@ const HomePage = () => {
         </Container>
       </section>
       {/* 3. WORKFLOW (Connected Steps) */}
-      <section className="py-5 bg-white" id="workflow">
+      <section className="py-5 bg-theme-surface" id="workflow">
         <Container>
           <div className="text-center mb-5 mt-2">
             <h2 className="fw-bold display-6">How LabManager Works</h2>
@@ -370,7 +370,7 @@ const HomePage = () => {
                       
                     >
                        <motion.div 
-                         className="step-icon-circle shadow-sm bg-white text-primary mx-auto mb-3"
+                         className="step-icon-circle shadow-sm bg-theme-surface text-primary mx-auto mb-3"
                          whileHover={{ y: -3, borderColor: 'var(--border)' }}
                          style={{ border: '1px solid transparent' }}
                        >
@@ -403,7 +403,7 @@ const HomePage = () => {
                    <Button variant="light" size="md" className="text-primary fw-bold" onClick={() => setShowDemoModal(true)}>
                       Request Demo
                    </Button>
-                   <Button variant="outline-light" size="md" onClick={() => navigate("/register")}>
+                   <Button variant="outline-light" size="md" className="text-white border-white hover-white" onClick={() => navigate("/register")}>
                       Register Now
                    </Button>
                 </div>
