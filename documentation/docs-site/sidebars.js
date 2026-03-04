@@ -15,7 +15,6 @@
  @type {import('@docusaurus/plugin-content-docs').SidebarsConfig}
  */
 const sidebars = {
-  // By default, Docusaurus generates a sidebar from the docs folder structure
   tutorialSidebar: [
     {
       type: 'category',
@@ -27,7 +26,9 @@ const sidebars = {
           label: 'Roles',
           items: [
             'user-guide/roles/admin',
+            'user-guide/roles/chemist',
             'user-guide/roles/doctor',
+            'user-guide/roles/employee',
             'user-guide/roles/receptionist',
             'user-guide/roles/patient'
           ]
