@@ -38,6 +38,7 @@ import EmployeeManagement from './pages/branches/EmployeeManagement';
 import LabManagement from './pages/lab/LabManagement';
 import AdminProfile from './pages/admin/AdminProfile';
 import Vault from './pages/admin/Vault';
+import TurnaroundTime from './pages/admin/TurnaroundTime';
 
 import LabLayout from './components/layout/LabLayout';
 
@@ -107,6 +108,7 @@ const LabRoutes = () => (
       <Route path="/:role/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />
       <Route path="/admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
       <Route path="/:role/vault" element={<PrivateRoute element={<Vault />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/tat-analytics" element={<PrivateRoute element={<TurnaroundTime />} allowedRoles={["admin", "doctor", "chemist"]} />} />
     </Route>
   </Routes>
 );

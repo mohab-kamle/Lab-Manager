@@ -340,6 +340,7 @@ app.use("/demo", require("./routes/demo"));
 app.use("/register", require("./routes/register"));
 app.use("/payments", require("./routes/paymentsGateway"));
 app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
+app.use("/analytics", require("./routes/analytics"));
 
 // Global error handler
 app.use((error, req, res, next) => {
