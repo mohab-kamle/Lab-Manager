@@ -96,14 +96,8 @@ const AdminDashboard = () => {
     },
     {
       icon: <Activity size={20} />,
-      label: "System Health",
-      onClick: () => {
-        // For now, show a toast. In the future, this could navigate to a system health page
-        toast.info(
-          "System Health feature coming soon! This will show system status, performance metrics, and health indicators.",
-          { duration: 5000 }
-        );
-      },
+      label: "TAT Analytics",
+      onClick: () => navigate(`/admin/tat-analytics`),
       variant: "outline-danger",
     },
   ];
