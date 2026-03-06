@@ -11,6 +11,10 @@ const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
 const { employee, patient, phone } = require("./models");
 
+// Socket.io for Real-Time Events
+const http = require("http");
+const { Server } = require("socket.io");
+
 // Subscription scheduler service
 const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('./services/subscriptionScheduler');
 
@@ -19,6 +23,17 @@ const cacheService = require('./services/cacheService');
 
 // Initialize Express app
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Use stricter CORS in production
+    methods: ["GET", "POST"]
+  }
+});
+app.set("io", io); // Make it available to routes
+
 // Trust first proxy (Cloudflare/Nginx) for correct IP rate limiting
 app.set('trust proxy', 1);
 const router = express.Router();
@@ -755,7 +770,22 @@ async function startServer() {
     }
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
+  // Socket.io connection handling
+  io.on("connection", (socket) => {
+    console.log(`🔌 Client connected: ${socket.id}`);
+
+    // Client must explicitly join their lab room (e.g. after authentication on frontend)
+    socket.on("join_lab", (lab_id) => {
+      socket.join(`lab_${lab_id}`);
+      console.log(`🏠 Socket ${socket.id} joined lab_${lab_id}`);
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`🔌 Client disconnected: ${socket.id}`);
+    });
+  });
+
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌐 CORS enabled for production domains`);
     console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
