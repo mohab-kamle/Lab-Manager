@@ -332,6 +332,8 @@ app.use("/receptionists", require('./routes/receptionist'));
 app.use("/referrals", require('./routes/referrals'));
 app.use("/tgc-categories", require("./routes/tgc_categories"));
 app.use("/test-groups", require("./routes/test_groups"));
+app.use("/suppliers", require("./routes/suppliers"));
+app.use("/inventory", require("./routes/inventory"));
 app.use("/questions", require("./routes/questions"));
 app.use("/contracts", require("./routes/contracts"));
 app.use("/culture-antibiotics", require("./routes/culture_antibiotics"));
