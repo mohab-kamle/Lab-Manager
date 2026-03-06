@@ -25,6 +25,7 @@ import {
   Database,
   DollarSignIcon,
   Settings,
+  Boxes,
 } from "lucide-react";
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
@@ -42,6 +43,7 @@ export const defaultTitles = {
   MedicalReports: "Medical Reports",
   Accounting: "Accounting",
   Manage_B: "Manage Branches",
+  Inventory: "Inventory",
 };
 let navbarTitlesReset = null;
 let navbarActiveReset = null;
@@ -728,6 +730,55 @@ const MainNavBar = () => {
                             active={activeItem === "payment-methods"}
                           >
                             Payment Methods
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    )}
+
+                    {/* Inventory & Stock - Admin, Chemist */}
+                    {(user?.role === "admin" || user?.role === "chemist") && (
+                      <Dropdown className="mx-1 mb-1">
+                        <Dropdown.Toggle
+                          id="dropdown-basic"
+                          className={`nav-button ${["inventory-dashboard", "inventory-suppliers", "inventory-items"].includes(activeItem)
+                            ? "active-dropdown"
+                            : ""
+                            }`}
+                        >
+                          <Boxes size={18} className="me-1 mb-1" />
+                          {titles.Inventory}
+                        </Dropdown.Toggle>
+
+                        <Dropdown.Menu>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory`}
+                            data-dropdown-key="Inventory"
+                            data-title="Dashboard"
+                            data-id="inventory-dashboard"
+                            active={activeItem === "inventory-dashboard"}
+                          >
+                            Dashboard
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory/items`}
+                            data-dropdown-key="Inventory"
+                            data-title="Catalog & Stock"
+                            data-id="inventory-items"
+                            active={activeItem === "inventory-items"}
+                          >
+                            Catalog & Stock
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory/suppliers`}
+                            data-dropdown-key="Inventory"
+                            data-title="Suppliers"
+                            data-id="inventory-suppliers"
+                            active={activeItem === "inventory-suppliers"}
+                          >
+                            Suppliers
                           </Dropdown.Item>
                         </Dropdown.Menu>
                       </Dropdown>
