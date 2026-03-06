@@ -68,6 +68,7 @@ var _supplier = require("./supplier");
 var _inventory_item = require("./inventory_item");
 var _inventory_batch = require("./inventory_batch");
 var _inventory_transaction = require("./inventory_transaction");
+var _inventory_notification = require("./inventory_notification");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -148,6 +149,7 @@ function initModels(sequelize) {
   var inventory_item = _inventory_item(sequelize, DataTypes);
   var inventory_batch = _inventory_batch(sequelize, DataTypes);
   var inventory_transaction = _inventory_transaction(sequelize, DataTypes);
+  var inventory_notification = _inventory_notification(sequelize, DataTypes);
 
   // Add many-to-many association between test and question
   test.belongsToMany(question, {
@@ -794,6 +796,16 @@ lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
   inventory_transaction.belongsTo(employee, { as: "employee", foreignKey: "employee_id" });
   employee.hasMany(inventory_transaction, { as: "inventory_transactions", foreignKey: "employee_id" });
   
+  // Inventory Notifications
+  inventory_notification.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(inventory_notification, { as: "inventory_notifications", foreignKey: "lab_id" });
+
+  inventory_notification.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
+  inventory_item.hasMany(inventory_notification, { as: "notifications", foreignKey: "item_id" });
+
+  inventory_notification.belongsTo(inventory_batch, { as: "batch", foreignKey: "batch_id" });
+  inventory_batch.hasMany(inventory_notification, { as: "notifications", foreignKey: "batch_id" });
+
   // Lab Payment relationships
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });
@@ -992,6 +1004,7 @@ return {
   inventory_item,
   inventory_batch,
   inventory_transaction,
+  inventory_notification,
 };
 }
 module.exports = initModels;

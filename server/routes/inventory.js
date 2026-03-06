@@ -4,6 +4,7 @@ const db = require("../models/index");
 const { authenticateUser, authorizeRole } = require("../middleware/auth");
 const { tenantContext } = require("../middleware/tenant");
 const Sequelize = require("sequelize");
+const inventoryEvents = require("../services/inventoryEvents");
 
 router.use(authenticateUser);
 router.use(tenantContext);
@@ -157,7 +158,7 @@ router.post("/receive", async (req, res) => {
       current_quantity: quantity,
       received_date: received_date || new Date(),
       expiration_date: expiration_date || null,
-      cost_per_unit,
+      cost_per_unit: cost_per_unit || null,
       lab_id: req.tenant.lab_id,
     }, { transaction: t });
 
@@ -173,6 +174,10 @@ router.post("/receive", async (req, res) => {
 
     await t.commit();
     res.status(201).json(batch);
+
+    // Trigger StockUpdate Event
+    const io = req.app.get("io");
+    inventoryEvents.emit("StockUpdate", { item_id, lab_id: req.tenant.lab_id, io });
   } catch (error) {
     await t.rollback();
     console.error("Error receiving stock:", error);
@@ -254,6 +259,10 @@ router.post("/consume", async (req, res) => {
 
     await t.commit();
     res.json({ message: "Stock consumed successfully" });
+
+    // Trigger StockUpdate Event
+    const io = req.app.get("io");
+    inventoryEvents.emit("StockUpdate", { item_id, lab_id: req.tenant.lab_id, io });
   } catch (error) {
     await t.rollback();
     console.error("Error consuming stock:", error);
@@ -302,6 +311,10 @@ router.post("/adjust", async (req, res) => {
 
     await t.commit();
     res.json({ message: "Stock adjusted successfully", new_quantity: newQty });
+
+    // Trigger StockUpdate Event
+    const io = req.app.get("io");
+    inventoryEvents.emit("StockUpdate", { item_id, lab_id: req.tenant.lab_id, io });
   } catch (error) {
     await t.rollback();
     console.error("Error adjusting stock:", error);
@@ -397,4 +410,39 @@ router.get("/alerts/expiring", async (req, res) => {
 });
 
 
-module.exports = router;
+// --- NOTIFICATIONS ---
+
+// Get unread notifications
+router.get("/notifications", async (req, res) => {
+  try {
+    const notifications = await db.inventory_notification.findAll({
+      where: {
+        lab_id: req.tenant.lab_id,
+        status: 'UNREAD'
+      },
+      order: [["createdAt", "DESC"]]
+    });
+    res.json(notifications);
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Mark notification as read
+router.put("/notifications/:id/read", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const notification = await db.inventory_notification.findOne({
+      where: { id, lab_id: req.tenant.lab_id }
+    });
+
+    if (!notification) return res.status(404).json({ message: "Notification not found" });
+
+    await notification.update({ status: 'READ' });
+    res.json({ message: "Notification marked as read" });
+  } catch (error) {
+    console.error("Error updating notification:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
