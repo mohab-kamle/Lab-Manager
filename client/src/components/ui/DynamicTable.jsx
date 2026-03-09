@@ -13,7 +13,8 @@ const DynamicTable = ({
   onSelectAll = null,
   onSelectItem = null,
   customHeaders = {},
-  getItemLabel = null
+  getItemLabel = null,
+  emptyMessage = "No items found"
 }) => {
   const defaultFormatCellData = (value, header) => {
     // Handle null/undefined values
@@ -99,12 +100,12 @@ const DynamicTable = ({
               <th>
                 <Form.Check
                   type="checkbox"
-                  aria-label="Select all items"
                   checked={allSelected}
                   ref={input => {
                     if (input) input.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
+                  aria-label="Select all items"
                 />
               </th>
             )}
@@ -117,33 +118,46 @@ const DynamicTable = ({
           </tr>
         </thead>
         <tbody>
-          {data.map((item, rowIndex) => (
-            <tr
-              key={`row-${rowIndex}-${item.id || rowIndex}`}
-              className={showCheckboxes && selectedItems.includes(item.id) ? 'table-active' : ''}
-            >
-              {showCheckboxes && (
-                <td>
-                  <Form.Check
-                    type="checkbox"
-                    aria-label={`Select ${getRowLabel(item, rowIndex)}`}
-                    checked={selectedItems.includes(item.id)}
-                    onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
-                  />
-                </td>
-              )}
-              {columns.map((column, colIndex) => (
-                <td key={`cell-${rowIndex}-${colIndex}-${column}`}>
-                  {formatter(item[column], column, item)}
-                </td>
-              ))}
-              {ActionComponent && (
-                <td>
-                  <ActionComponent rowData={item} />
-                </td>
-              )}
+          {data.length === 0 ? (
+            <tr>
+              <td
+                colSpan={columns.length + (showCheckboxes ? 1 : 0) + (ActionComponent ? 1 : 0)}
+                className="text-center p-5 text-muted"
+              >
+                <div className="d-flex flex-column align-items-center justify-content-center">
+                  <p className="mb-0 fs-5">{emptyMessage}</p>
+                </div>
+              </td>
             </tr>
-          ))}
+          ) : (
+            data.map((item, rowIndex) => (
+              <tr
+                key={`row-${rowIndex}-${item.id || rowIndex}`}
+                className={showCheckboxes && selectedItems.includes(item.id) ? 'table-active' : ''}
+              >
+                {showCheckboxes && (
+                  <td>
+                    <Form.Check
+                      type="checkbox"
+                      checked={selectedItems.includes(item.id)}
+                      onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
+                      aria-label={`Select ${getRowLabel(item, rowIndex)}`}
+                    />
+                  </td>
+                )}
+                {columns.map((column, colIndex) => (
+                  <td key={`cell-${rowIndex}-${colIndex}-${column}`}>
+                    {formatter(item[column], column, item)}
+                  </td>
+                ))}
+                {ActionComponent && (
+                  <td>
+                    <ActionComponent rowData={item} />
+                  </td>
+                )}
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
     </div>
@@ -160,7 +174,8 @@ DynamicTable.propTypes = {
   onSelectAll: PropTypes.func,
   onSelectItem: PropTypes.func,
   customHeaders: PropTypes.object,
-  getItemLabel: PropTypes.func
+  getItemLabel: PropTypes.func,
+  emptyMessage: PropTypes.string
 };
 
 export default DynamicTable;
