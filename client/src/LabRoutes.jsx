@@ -37,71 +37,77 @@ import MedicalReports from './pages/reports/MedicalReports';
 import EmployeeManagement from './pages/branches/EmployeeManagement';
 import LabManagement from './pages/lab/LabManagement';
 import AdminProfile from './pages/admin/AdminProfile';
+import Vault from './pages/admin/Vault';
+
+import LabLayout from './components/layout/LabLayout';
 
 const LabRoutes = () => (
   <Routes>
-    {/* Patient routes */}
-    <Route
-      path="patient/dashboard"
-      element={<PrivateRoute element={<PatientDashboard />} allowedRoles={["patient"]} />}
-    />
-    <Route
-      path="patient/dashboard/reports"
-      element={<PrivateRoute element={<PatientReports />} allowedRoles={["patient"]} />}
-    />
-    <Route
-      path="patient/dashboard/profile"
-      element={<PrivateRoute element={<PatientProfile />} allowedRoles={["patient"]} />}
-    />
-    <Route
-      path="patient/dashboard/profile/update"
-      element={<PrivateRoute element={<PatientUpdateProfile />} allowedRoles={["patient"]} />}
-    />
+    <Route element={<LabLayout />}>
+      {/* Patient routes */}
+      <Route
+        path="/patient/dashboard"
+        element={<PrivateRoute element={<PatientDashboard />} allowedRoles={["patient"]} />}
+      />
+      <Route
+        path="/patient/reports"
+        element={<PrivateRoute element={<PatientReports />} allowedRoles={["patient"]} />}
+      />
+      <Route
+        path="/patient/profile"
+        element={<PrivateRoute element={<PatientProfile />} allowedRoles={["patient"]} />}
+      />
+      <Route
+        path="/patient/profile/update"
+        element={<PrivateRoute element={<PatientUpdateProfile />} allowedRoles={["patient"]} />}
+      />
 
-    {/* Role dashboards */}
-    <Route
-      path="admin/dashboard"
-      element={<PrivateRoute element={<AdminDashboard />} allowedRoles={["admin"]} />}
-    />
-    <Route
-      path="receptionist/dashboard"
-      element={<PrivateRoute element={<ReceptionistDashboard />} allowedRoles={["receptionist"]} />}
-    />
-    <Route
-      path="chemist/dashboard"
-      element={<PrivateRoute element={<ChemistDashboard />} allowedRoles={["chemist"]} />}
-    />
-    <Route
-      path="doctor/dashboard"
-      element={<PrivateRoute element={<DoctorDashboard />} allowedRoles={["doctor"]} />}
-    />
-    <Route
-      path="employee/dashboard"
-      element={<PrivateRoute element={<EmployeeDashboard />} allowedRoles={["employee"]} />}
-    />
+      {/* Role dashboards */}
+      <Route
+        path="/admin/dashboard"
+        element={<PrivateRoute element={<AdminDashboard />} allowedRoles={["admin"]} />}
+      />
+      <Route
+        path="/receptionist/dashboard"
+        element={<PrivateRoute element={<ReceptionistDashboard />} allowedRoles={["receptionist"]} />}
+      />
+      <Route
+        path="/chemist/dashboard"
+        element={<PrivateRoute element={<ChemistDashboard />} allowedRoles={["chemist"]} />}
+      />
+      <Route
+        path="/doctor/dashboard"
+        element={<PrivateRoute element={<DoctorDashboard />} allowedRoles={["doctor"]} />}
+      />
+      <Route
+        path="/employee/dashboard"
+        element={<PrivateRoute element={<EmployeeDashboard />} allowedRoles={["employee"]} />}
+      />
 
-    {/* Admin & shared routes (relative) */}
-    <Route path="admin/dashboard/categories" element={<PrivateRoute element={<Categories />} allowedRoles={["admin", "chemist", "employee"]} />} />
-    <Route path="admin/dashboard/tests" element={<PrivateRoute element={<Tests />} allowedRoles={["admin", "chemist", "employee"]} />} />
-    <Route path="admin/dashboard/sample-types" element={<PrivateRoute element={<SampleType />} allowedRoles={["admin", "chemist", "employee"]} />} />
-    <Route path="admin/dashboard/cultures" element={<PrivateRoute element={<Cultures />} allowedRoles={["admin", "receptionist", "chemist", "doctor", "employee"]} />} />
-    <Route path="admin/dashboard/culture-options" element={<PrivateRoute element={<CultureOptions />} allowedRoles={["admin", "chemist", "employee"]} />} />
-    <Route path="admin/dashboard/antibiotics" element={<PrivateRoute element={<Antibiotics />} allowedRoles={["admin", "chemist", "employee"]} />} />
-    <Route path="admin/dashboard/diseases" element={<PrivateRoute element={<Diseases />} allowedRoles={["admin", "chemist", "employee"]} />} />
-    <Route path="admin/dashboard/packages-and-offers" element={<PrivateRoute element={<PackagesAndOffers />} allowedRoles={["admin", "chemist", "employee"]} />} />
-    <Route path="admin/dashboard/invoices" element={<PrivateRoute element={<Invoices />} allowedRoles={["admin", "receptionist", "employee"]} />} />
-    <Route path="admin/dashboard/payment-methods" element={<PrivateRoute element={<PaymentMethods />} allowedRoles={["admin", "employee"]} />} />
-    <Route path="admin/dashboard/patients" element={<PrivateRoute element={<PatientsAdminView />} allowedRoles={["admin", "receptionist"]} />} />
-    <Route path="admin/dashboard/know-us" element={<PrivateRoute element={<KnowUs />} allowedRoles={["admin"]} />} />
-    <Route path="admin/dashboard/medical-reports" element={<PrivateRoute element={<MedicalReports />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
-    <Route path="admin/dashboard/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
-    <Route path="admin/dashboard/patients-analytics" element={<PrivateRoute element={<PatientsAnalytics />} allowedRoles={["admin"]} />} />
-    <Route path="admin/dashboard/test-groups" element={<PrivateRoute element={<TestGroups />} allowedRoles={["admin", "chemist", "receptionist", "employee"]} />} />
-    <Route path="admin/dashboard/test-group-categories" element={<PrivateRoute element={<TestGroupCategories />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
-    <Route path="admin/dashboard/test-group-components" element={<PrivateRoute element={<TestGroupComponents />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
-    <Route path="admin/dashboard/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
-    <Route path="admin/dashboard/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />
-    <Route path="admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
+      {/* Admin & shared routes (relative) */}
+      <Route path="/:role/categories" element={<PrivateRoute element={<Categories />} allowedRoles={["admin", "chemist", "employee"]} />} />
+      <Route path="/:role/tests" element={<PrivateRoute element={<Tests />} allowedRoles={["admin", "chemist", "employee"]} />} />
+      <Route path="/:role/sample-types" element={<PrivateRoute element={<SampleType />} allowedRoles={["admin", "chemist", "employee"]} />} />
+      <Route path="/:role/cultures" element={<PrivateRoute element={<Cultures />} allowedRoles={["admin", "receptionist", "chemist", "doctor", "employee"]} />} />
+      <Route path="/:role/culture-options" element={<PrivateRoute element={<CultureOptions />} allowedRoles={["admin", "chemist", "employee"]} />} />
+      <Route path="/:role/antibiotics" element={<PrivateRoute element={<Antibiotics />} allowedRoles={["admin", "chemist", "employee"]} />} />
+      <Route path="/:role/diseases" element={<PrivateRoute element={<Diseases />} allowedRoles={["admin", "chemist", "employee"]} />} />
+      <Route path="/:role/packages-and-offers" element={<PrivateRoute element={<PackagesAndOffers />} allowedRoles={["admin", "chemist", "employee"]} />} />
+      <Route path="/:role/invoices" element={<PrivateRoute element={<Invoices />} allowedRoles={["admin", "receptionist", "employee"]} />} />
+      <Route path="/:role/payment-methods" element={<PrivateRoute element={<PaymentMethods />} allowedRoles={["admin", "employee"]} />} />
+      <Route path="/:role/patients" element={<PrivateRoute element={<PatientsAdminView />} allowedRoles={["admin", "receptionist"]} />} />
+      <Route path="/:role/know-us" element={<PrivateRoute element={<KnowUs />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/medical-reports" element={<PrivateRoute element={<MedicalReports />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
+      <Route path="/:role/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/patients-analytics" element={<PrivateRoute element={<PatientsAnalytics />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/test-groups" element={<PrivateRoute element={<TestGroups />} allowedRoles={["admin", "chemist", "receptionist", "employee"]} />} />
+      <Route path="/:role/test-group-categories" element={<PrivateRoute element={<TestGroupCategories />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
+      <Route path="/:role/test-group-components" element={<PrivateRoute element={<TestGroupComponents />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
+      <Route path="/:role/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />
+      <Route path="/admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/vault" element={<PrivateRoute element={<Vault />} allowedRoles={["admin"]} />} />
+    </Route>
   </Routes>
 );
 
