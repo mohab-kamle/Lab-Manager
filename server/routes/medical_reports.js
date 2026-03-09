@@ -3608,13 +3608,13 @@ router.post(
 
       // 1. Save test results (for tests without components)
       if (test_results.length > 0) {
-        for (const result of test_results) {
+        const testPromises = test_results.map(async (result) => {
           if (result.result && result.result.toString().trim() !== "") {
             hasAnyResults = true;
             // For tests without components, status is 'done' if result exists, 'pending' if empty
             const status = result.result && result.result.toString().trim() !== '' ? 'done' : 'pending';
-
-            await db.medical_report_has_test.update(
+            
+            return db.medical_report_has_test.update(
               {
                 result: result.result,
                 status: status,
@@ -3629,14 +3629,13 @@ router.post(
               }
             );
           }
-        }
+        });
+        await Promise.all(testPromises);
       }
 
       // 2. Save test component results
       if (Object.keys(test_component_results).length > 0) {
-        for (const [testId, components] of Object.entries(
-          test_component_results
-        )) {
+        const componentPromises = Object.entries(test_component_results).map(async ([testId, components]) => {
           // Get test components to access normal ranges
           const testComponents = await db.test_component.findAll({
             where: { test_id: parseInt(testId, 10) },
@@ -3646,9 +3645,7 @@ router.post(
 
           const componentResultsToSave = [];
 
-          for (const [componentId, componentData] of Object.entries(
-            components
-          )) {
+          for (const [componentId, componentData] of Object.entries(components)) {
             if (
               componentData.result &&
               componentData.result.toString().trim() !== ""
@@ -3687,12 +3684,13 @@ router.post(
               { transaction: t }
             );
           }
-        }
+        });
+        await Promise.all(componentPromises);
       }
 
       // 3. Save culture results
       if (culture_results.length > 0) {
-        for (const result of culture_results) {
+        const culturePromises = culture_results.map(async (result) => {
           if (result.result && result.result.toString().trim() !== "") {
             hasAnyResults = true;
 
@@ -3717,7 +3715,7 @@ router.post(
 
               // Set status based on existence of actual culture results
               const status = actualCultureResults.length > 0 ? "done" : "pending";
-              await db.medical_report_has_culture.update(
+              return db.medical_report_has_culture.update(
                 {
                   result: result.result, // Keep this for backward compatibility
                   status: status,
@@ -3733,7 +3731,8 @@ router.post(
               );
             }
           }
-        }
+        });
+        await Promise.all(culturePromises);
       }
 
       // 4. Save test group values
