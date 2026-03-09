@@ -274,7 +274,7 @@ const MainNavBar = () => {
                   as={Link}
                   to={`/admin/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                   aria-label="Admin Dashboard"
                 >
                   <House size={23} aria-hidden="true" />
@@ -285,7 +285,7 @@ const MainNavBar = () => {
                   as={Link}
                   to={`/receptionist/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                   aria-label="Receptionist Dashboard"
                 >
                   <House size={23} aria-hidden="true" />
@@ -296,7 +296,7 @@ const MainNavBar = () => {
                   as={Link}
                   to={`/chemist/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                   aria-label="Chemist Dashboard"
                 >
                   <House size={23} aria-hidden="true" />
@@ -307,7 +307,7 @@ const MainNavBar = () => {
                   as={Link}
                   to={`/doctor/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                   aria-label="Doctor Dashboard"
                 >
                   <House size={23} aria-hidden="true" />
@@ -318,7 +318,7 @@ const MainNavBar = () => {
                   as={Link}
                   to={`/employee/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                   aria-label="Employee Dashboard"
                 >
                   <House size={23} aria-hidden="true" />
@@ -329,7 +329,7 @@ const MainNavBar = () => {
                   as={Link}
                   to={`/patient/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
                   aria-label="Patient Dashboard"
                 >
                   <House size={23} aria-hidden="true" />
