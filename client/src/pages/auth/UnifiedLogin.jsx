@@ -1,17 +1,20 @@
 import React, { useState } from "react";
-import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
+import { getSubdomain } from '../../utils/subdomain';
+import { Container, Form, Button, Alert, Card, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Eye, EyeOff, User, Lock, Shield, ArrowRight, HelpCircle } from "lucide-react";
 import axios from "axios";
-import useLabPrefix from "../../hooks/useLabPrefix";
 import { useLab } from "../../context/LabContext";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { motion } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 const UnifiedLogin = () => {
-  const { fetchLabInfo, labInfo } = useLab();
-  const [userType, setUserType] = useState("employee"); // Default to employee
+  const { fetchLabInfo } = useLab();
+  const [userType, setUserType] = useState(() => {
+    // Recover saved role or default to employee
+    return localStorage.getItem("lastUserRole") || "employee";
+  });
   const [credentials, setCredentials] = useState({
     username: "",
     password: ""
@@ -22,8 +25,24 @@ const UnifiedLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
+
+  // Check if user is already logged in
+  React.useEffect(() => {
+    if (!authLoading && user) {
+      const currentSubdomain = getSubdomain();
+      
+      // If user has a lab (is not a patient without lab context, though patients usually have lab associations)
+      // And we are on a subdomain
+      if (currentSubdomain) {
+         // Optionally, we could verify if currentSubdomain matches user.lab?.subdomain
+         // But for now, if they are logged in on a subdomain, assume it's valid and redirect
+         // The router/API will handle access denied if it's the wrong lab
+         navigate(`/${user.role}/dashboard`);
+      }
+    }
+  }, [user, authLoading, navigate]);
 
   const userTypes = [
     {
@@ -83,80 +102,75 @@ const UnifiedLogin = () => {
 
     try {
       let response;
-      
       if (userType === "patient") {
-        // Patient login with patient code
         response = await axios.post(`${apiUrl}/patient/login`, {
           patientcode: patientCode
         });
       } else {
-        // Employee login with username/password
         response = await axios.post(`${apiUrl}/emp/login`, {
           username: credentials.username,
           password: credentials.password
         });
       }
 
-      const { token, user , isFirstTimeLogin} = response.data;
+      const { token, user, isFirstTimeLogin } = response.data;
       
-      // Store token and user info
-      localStorage.setItem("token", token);
-      
-      // Call login function from auth context
-      await login(token);
-      
-      // Get lab info - either from the user object or fetch it
-      let labInfo = user.lab || null;
-      
+      // 1. Fetch Lab Info if missing (needed for subdomain check)
+      let labInfo = user.lab;
       if (!labInfo && user.lab_id) {
         try {
-          const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          labInfo = labResponse.data;
-          // Update the lab context with the fetched info
-          await fetchLabInfo();
-        } catch (e) {
-          console.error('Failed to fetch lab info:', e);
-          throw new Error('Failed to load lab information');
+           // We use the token to authorized this fetch
+           const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
+             headers: { 'Authorization': `Bearer ${token}` }
+           });
+           labInfo = labResponse.data;
+        } catch (err) {
+            console.error("Failed to fetch lab info for redirection check", err);
         }
       }
-      
+
       if (!labInfo) {
-        throw new Error('No lab information available');
+          throw new Error("Unable to identify your workspace (Lab Info missing).");
       }
-      
-      const role = user.role || userType;
-      const prefix = labInfo.name || labInfo.subdomain;
-      switch (role) {
-        case "admin":
-          if(isFirstTimeLogin){
-            navigate(`/change-password`);
-          }else{
-            navigate(`/${prefix}/admin/dashboard`);
-          }
-          break;
-        case "receptionist":
-          navigate(`/${prefix}/receptionist/dashboard`);
-          break;
-        case "chemist":
-          navigate(`/${prefix}/chemist/dashboard`);
-          break;
-        case "doctor":
-          navigate(`/${prefix}/doctor/dashboard`);
-          break;
-        case "employee":
-          navigate(`/${prefix}/employee/dashboard`);
-          break;
-        case "patient":
-          navigate(`/${prefix}/patient/dashboard`);
-          break;
-        default:
-          navigate(`/${prefix}/admin/dashboard`);
+
+      const userLabSubdomain = labInfo.subdomain;
+      const currentSubdomain = getSubdomain();
+
+      // SCENARIO 1: Login from Public/Main Site -> Redirect to Subdomain
+      if (!currentSubdomain) {
+        const protocol = window.location.protocol;
+        let mainDomain = window.location.host; 
+        if (mainDomain.startsWith('www.')) mainDomain = mainDomain.substring(4);
+        
+        // Redirect to tenant subdomain with token
+        window.location.href = `${protocol}//${userLabSubdomain}.${mainDomain}/${user.role}/dashboard?auth_token=${token}`;
+        return;
       }
+
+      // SCENARIO 2: Login from Subdomain -> Verify Workspace Match
+      if (currentSubdomain === userLabSubdomain) {
+        // Correct Workspace
+        localStorage.setItem("token", token);
+        await login(token);
+        
+        // Ensure context is updated
+        await fetchLabInfo();
+
+        // Navigate based on role
+        if (user.role === 'admin' && isFirstTimeLogin) {
+            navigate('/change-password');
+        } else {
+            // Navigate to role dashboard (no lab prefix needed now)
+            navigate(`/${user.role}/dashboard`);
+        }
+      } else {
+        // Wrong Workspace
+        setError(`This account belongs to the '${userLabSubdomain}' workspace, but you are currently on '${currentSubdomain}'.`);
+      }
+
     } catch (error) {
       console.error("Login error:", error);
-      setError(error.response?.data?.error || "Login failed. Please try again.");
+      setError(error.response?.data?.error || error.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -164,6 +178,7 @@ const UnifiedLogin = () => {
 
   const handleUserTypeChange = (type) => {
     setUserType(type);
+    localStorage.setItem("lastUserRole", type); // Save role preference
     setError(null);
     setCredentials({ username: "", password: "" });
     setPatientCode("");
@@ -219,6 +234,7 @@ const UnifiedLogin = () => {
                         variant={userType === type.value ? "primary" : "outline-primary"}
                         size="sm"
                         onClick={() => handleUserTypeChange(type.value)}
+                        aria-pressed={userType === type.value}
                         className="d-flex align-items-center gap-2 px-2 py-2 rounded-pill"
                         style={{
                           transition: 'all 0.3s ease',
@@ -260,7 +276,7 @@ const UnifiedLogin = () => {
                 
 
                 {error && (
-                  <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
+                  <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }} aria-live="assertive">
                     <div className="d-flex align-items-center">
                       <div className="me-2">⚠️</div>
                       <div>{error}</div>
@@ -343,6 +359,8 @@ const UnifiedLogin = () => {
                             size="sm"
                             className="position-absolute end-0 top-0 h-100 border-0 text-muted"
                             onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                            aria-pressed={showPassword}
                             style={{ padding: '0 15px' }}
                           >
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
