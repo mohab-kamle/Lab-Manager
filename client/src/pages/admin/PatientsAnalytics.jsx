@@ -24,7 +24,16 @@ const PatientsAnalytics = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({});
+  const [stats, setStats] = useState({
+    totalPatients: 0,
+    genderStats: [],
+    ageGroups: [],
+    topNationalities: [],
+    monthlyStats: [],
+    topDiseases: [],
+    patientsWithDiseases: 0,
+    patientsWithoutDiseases: 0
+  });
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -97,8 +106,9 @@ const PatientsAnalytics = () => {
     }
 
     patientsData.forEach(patient => {
-      if (patient.birth_date) {
-        const patientDate = new Date(patient.birth_date);
+      // Use createdAt for registration trend
+      if (patient.createdAt) {
+        const patientDate = new Date(patient.createdAt);
         const monthKey = patientDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
         if (monthlyStats.hasOwnProperty(monthKey)) {
           monthlyStats[monthKey]++;
@@ -109,9 +119,11 @@ const PatientsAnalytics = () => {
     // Disease distribution
     const diseaseStats = {};
     patientsData.forEach(patient => {
-      if (patient.diseases_id_diseases) {
+      if (patient.diseases_id_diseases && Array.isArray(patient.diseases_id_diseases)) {
         patient.diseases_id_diseases.forEach(disease => {
-          diseaseStats[disease.name] = (diseaseStats[disease.name] || 0) + 1;
+          if (disease && disease.name) {
+             diseaseStats[disease.name] = (diseaseStats[disease.name] || 0) + 1;
+          }
         });
       }
     });
@@ -121,12 +133,12 @@ const PatientsAnalytics = () => {
       .map(([name, value]) => ({ name, value }));
 
     setStats({
-      totalPatients,
+      totalPatients: totalPatients || 0,
       genderStats: Object.entries(genderStats).map(([name, value]) => ({ name, value })),
       ageGroups: Object.entries(ageGroups).map(([name, value]) => ({ name, value })),
-      topNationalities,
+      topNationalities: topNationalities || [],
       monthlyStats: Object.entries(monthlyStats).map(([name, value]) => ({ name, value })),
-      topDiseases,
+      topDiseases: topDiseases || [],
       patientsWithDiseases: patientsData.filter(p => p.diseases_id_diseases && p.diseases_id_diseases.length > 0).length,
       patientsWithoutDiseases: patientsData.filter(p => !p.diseases_id_diseases || p.diseases_id_diseases.length === 0).length
     });
