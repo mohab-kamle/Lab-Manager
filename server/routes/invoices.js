@@ -4,12 +4,13 @@ const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
+const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
 require("dotenv").config();
 
 /**
  * GET /invoices - Fetch all bills with associated tests, cultures, packages, and payment methods.
  */
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, cacheInvoicesList, async (req, res) => {
     try {
         console.log('Fetching invoices using optimized query...');
 
@@ -160,7 +161,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 /**
  * POST /invoices - Create a new bill with related tests, payment methods, cultures, and packages.
  */
-router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), invalidateInvoicesList, async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const { user } = req;
@@ -829,7 +830,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
 /**
  * PUT /bills/:id - Update an existing bill.
  */
-router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), async (req, res) => {
+router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), invalidateInvoicesList, async (req, res) => {
     const { id } = req.params;
     const {
         date,
@@ -1177,7 +1178,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), as
 /**
  * ✅ DELETE /bills/:id - Delete a bill and associated records.
  */
-router.delete("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+router.delete("/:id", authenticateUser, authorizeRoles("admin"), invalidateInvoicesList, async (req, res) => {
     const { id } = req.params;
     const transaction = await sequelize.transaction();
 

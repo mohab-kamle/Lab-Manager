@@ -3,28 +3,36 @@
 # -----------------------------------------------------------------------------
 FROM node:lts-alpine AS base
 WORKDIR /app
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 RUN npm install -g pnpm
 
 # Copy workspace configs (the structure fixed)
+FROM base AS configs
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY client/package.json ./client/
-COPY server/package.json ./server/
 
 # -----------------------------------------------------------------------------
-# 2. DEPENDENCIES: Install modules (Cached)
+# 2. DEPENDENCIES: Install modules (Cached & Parallel)
 # -----------------------------------------------------------------------------
-FROM base AS dependencies
-# Install all dependencies (including devDependencies) for building
-RUN pnpm install --frozen-lockfile
+# 2a. Server Dependencies
+FROM configs AS server-deps
+COPY server/package.json ./server/
+RUN pnpm config set store-dir /pnpm/store
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter server... --frozen-lockfile
+
+# 2b. Client Dependencies
+FROM configs AS client-deps
+COPY client/package.json ./client/
+RUN pnpm config set store-dir /pnpm/store
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter client... --frozen-lockfile
 
 # -----------------------------------------------------------------------------
 # 3. DEVELOPMENT: Server
 # -----------------------------------------------------------------------------
 FROM base AS server-dev
 # Copy modules from the dependencies stage
-COPY --from=dependencies /app/node_modules /app/node_modules
-COPY --from=dependencies /app/server/node_modules /app/server/node_modules
-COPY --from=dependencies /app/client/node_modules /app/client/node_modules
+COPY --from=server-deps /app/node_modules /app/node_modules
+COPY --from=server-deps /app/server/node_modules /app/server/node_modules
 
 # Copy source code
 COPY server/ ./server/
@@ -36,10 +44,8 @@ CMD ["npm", "run", "dev"]
 # 4. DEVELOPMENT: Client
 # -----------------------------------------------------------------------------
 FROM base AS client-dev
-COPY --from=dependencies /app/node_modules /app/node_modules
-COPY --from=dependencies /app/client/node_modules /app/client/node_modules
-# (Optional) Copy server modules if client relies on shared types in server
-COPY --from=dependencies /app/server/node_modules /app/server/node_modules
+COPY --from=client-deps /app/node_modules /app/node_modules
+COPY --from=client-deps /app/client/node_modules /app/client/node_modules
 
 COPY client/ ./client/
 
@@ -61,9 +67,10 @@ CMD ["nginx", "-g", "daemon off;"]
 # -----------------------------------------------------------------------------
 # 6. PRODUCTION: Server
 # -----------------------------------------------------------------------------
-FROM base AS server-prod
+FROM configs AS server-prod
+COPY server/package.json ./server/
 # Re-install only production dependencies to keep image small
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --filter server...
 
 COPY server/ ./server/
 WORKDIR /app/server
