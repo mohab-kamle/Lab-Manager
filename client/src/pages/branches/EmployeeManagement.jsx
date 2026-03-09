@@ -34,9 +34,10 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import "../../styles/EmployeeManagement.css";
-
+import { useToast } from "../../components/ui/ToastContext";
 const EmployeeManagement = () => {
   const { user } = useAuth();
+  const { toast, confirm } = useToast();
   const [employees, setEmployees] = useState([]);
   const [roles, setRoles] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
@@ -71,60 +72,8 @@ const EmployeeManagement = () => {
   });
   const [branches, setBranches] = useState([]);
   const [formErrors, setFormErrors] = useState({});
-
   const apiUrl = import.meta.env.VITE_API_URL;
-  const [toastData, setToastData] = useState({
-    show: false,
-    message: "",
-    type: "",
-    position: "right",
-    isHiding: false,
-  });
-  const [confirmData, setConfirmData] = useState({
-    show: false,
-    title: "",
-    message: "",
-    onConfirm: null,
-    type: "danger", // danger, warning, info
-  });
-  const showConfirm = (title, message, onConfirm, type = "danger") => {
-    setConfirmData({
-      show: true,
-      title,
-      message,
-      onConfirm,
-      type,
-    });
-  };
-  const hideConfirm = () => {
-    setConfirmData({
-      show: false,
-      title: "",
-      message: "",
-      onConfirm: null,
-      type: "danger",
-    });
-  };
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const showToast = (message, type, position = "right", duration = 3000) => {
-    setToastData({ show: true, message, type, position, isHiding: false });
-
-    setTimeout(() => {
-      // Trigger hide animation
-      setToastData((prev) => ({ ...prev, isHiding: true }));
-
-      // Actually hide after animation completes
-      setTimeout(() => {
-        setToastData({
-          show: false,
-          message: "",
-          type: "",
-          position: "right",
-          isHiding: false,
-        });
-      }, 300); // Match animation duration
-    }, duration);
-  };
   const [isDeleting, setIsDeleting] = useState(false);
   useEffect(() => {
     const fetchData = async () => {
@@ -163,11 +112,7 @@ const EmployeeManagement = () => {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
-        showToast(
-          "Failed to fetch data. Please try again later.",
-          "error",
-          "center"
-        );
+        toast.error("Failed to fetch data. Please try again later.");
         setLoading(false);
       }
     };
@@ -221,12 +166,10 @@ const EmployeeManagement = () => {
         setEmployees((prevEmployees) => [...prevEmployees, response.data]);
       }
       const savedName = editingEmployee ? editingEmployee.name : employee.name;
-      showToast(
+      toast.success(
         editingEmployee
           ? `"${savedName}" updated successfully!`
-          : `"${savedName}" added successfully!`,
-        "success",
-        "center"
+          : `"${savedName}" added successfully!`
       );
       setShowAddModal(false);
       handleResetForm();
@@ -234,11 +177,7 @@ const EmployeeManagement = () => {
       const errorMessage =
         error.response?.data?.error || "Failed to save employee";
       console.error("Error saving employee:", error);
-      showToast(
-        error.response?.data?.error || "Failed to save employee",
-        "error",
-        "right"
-      );
+      toast.error(error.response?.data?.error || "Failed to save employee");
       if (errorMessage.toLowerCase().includes("username")) {
         setFormErrors({
           ...formErrors,
@@ -263,12 +202,12 @@ const EmployeeManagement = () => {
       setEmployees((prevEmployees) =>
         prevEmployees.filter((emp) => emp.id !== id)
       );
-      showToast(`"${name}" deleted successfully!`, "success", "center");
+      toast.success(`"${name}" deleted successfully!`);
       setShowDeleteModal(false);
       setEmployeeToDelete(null);
     } catch (error) {
       console.error("Error deleting employee:", error);
-      showToast("Failed to delete employee.", "error", "right");
+      toast.error("Failed to delete employee.");
     } finally {
       setShowDeleteModal(false);
       setEmployeeToDelete(null);
@@ -290,7 +229,7 @@ const EmployeeManagement = () => {
       setShowPermissionsModal(true);
     } catch (error) {
       console.error("Error fetching permissions:", error);
-      showToast("Failed to fetch permissions", "error", "right");
+      toast.error("Failed to fetch permissions");
     }
   };
 
@@ -355,11 +294,8 @@ const EmployeeManagement = () => {
         variant="outline-danger"
         size="sm"
         onClick={() => {
-          showConfirm(
-            "Delete Employee?",
-            `Are you sure you want to delete "${rowData.name}"? This action cannot be undone.`,
-            () => handleDelete(rowData.id, rowData.name),
-            "danger"
+          confirm.delete(rowData.name, () =>
+            handleDelete(rowData.id, rowData.name)
           );
         }}
         disabled={rowData.id === user?.id} // Prevent deleting own account
@@ -396,13 +332,13 @@ const EmployeeManagement = () => {
   const formatCellData = (value, field, rowData) => {
     if (value === null || value === undefined) return "-";
     switch (field) {
-      case 'birth_date':
-        return value ? new Date(value).toLocaleDateString() : '-';
-      case 'gender':
-        if (value === 'm' || value === 'Male') {
-          return 'Male';
-        } else if (value === 'f' || value === 'Female') {
-          return 'Female';
+      case "birth_date":
+        return value ? new Date(value).toLocaleDateString() : "-";
+      case "gender":
+        if (value === "m" || value === "Male") {
+          return "Male";
+        } else if (value === "f" || value === "Female") {
+          return "Female";
         } else {
           return "-";
         }
@@ -848,123 +784,6 @@ const EmployeeManagement = () => {
             </Modal.Footer>
           </Modal>
         </>
-      )}
-      {/* Toast Notification */}
-      {toastData.show && (
-        <div
-          className={`
-      ${
-        toastData.position === "center"
-          ? "toast-container-center"
-          : "toast-container-right"
-      }
-      ${toastData.isHiding ? "hiding" : ""}
-    `}
-          onClick={() => {
-            if (toastData.position === "center") {
-              // Trigger hide animation first
-              setToastData({ ...toastData, isHiding: true });
-              setTimeout(() => {
-                setToastData({
-                  show: false,
-                  message: "",
-                  type: "",
-                  position: "right",
-                  isHiding: false,
-                });
-              }, 300); // Match animation duration
-            }
-          }}
-        >
-          <div className={`toast-card ${toastData.type}`}>
-            {/* Icon */}
-            <div className="icon-box">
-              {toastData.type === "success" ? (
-                <CheckCircle
-                  size={toastData.position === "center" ? 28 : 22}
-                  style={{ color: "var(--toast-success)" }}
-                />
-              ) : (
-                <AlertCircle
-                  size={toastData.position === "center" ? 28 : 22}
-                  style={{ color: "var(--toast-error)" }}
-                />
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="toast-content">
-              <h5 className="toast-title">
-                {toastData.type === "success" ? "Success!" : "Error!"}
-              </h5>
-              <p className="toast-message">{toastData.message}</p>
-            </div>
-
-            {/* Close Button - Only for Right Toast */}
-            {toastData.position !== "center" && (
-              <button
-                className="toast-close-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setToastData({ ...toastData, isHiding: true });
-                  setTimeout(() => {
-                    setToastData({
-                      show: false,
-                      message: "",
-                      type: "",
-                      position: "right",
-                      isHiding: false,
-                    });
-                  }, 300);
-                }}
-              >
-                <X size={18} />
-              </button>
-            )}
-
-            {/* Progress Bar */}
-            <div className="toast-progress"></div>
-          </div>
-        </div>
-      )}
-      {/* Confirmation Dialog */}
-      {confirmData.show && (
-        <div
-          className="confirm-overlay"
-          onClick={hideConfirm} // Click outside to close
-        >
-          <div
-            className={`confirm-card ${confirmData.type}`}
-            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking card
-          >
-            {/* Icon */}
-            <div className={`confirm-icon ${confirmData.type}`}>
-              {confirmData.type === "danger" && <AlertCircle size={40} />}
-              {confirmData.type === "warning" && <AlertTriangle size={40} />}
-              {confirmData.type === "info" && <Info size={40} />}
-            </div>
-
-            {/* Content */}
-            <h3 className="confirm-title">{confirmData.title}</h3>
-            <p className="confirm-message">{confirmData.message}</p>
-
-            {/* Buttons */}
-            <div className="confirm-buttons">
-              <button className="confirm-btn cancel" onClick={hideConfirm}>
-                Cancel
-              </button>
-              <button
-                className={`confirm-btn ${confirmData.type}`}
-                onClick={() => {
-                  confirmData.onConfirm();
-                  hideConfirm();
-                }}
-              >
-                {confirmData.type === "danger" ? "Yes, Delete" : "Confirm"}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </Container>
   );

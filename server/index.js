@@ -19,11 +19,23 @@ const cacheService = require('./services/cacheService');
 
 // Initialize Express app
 const app = express();
+// Trust first proxy (Cloudflare/Nginx) for correct IP rate limiting
+app.set('trust proxy', 1);
 const router = express.Router();
 
 // =========================
 // CORS Configuration
 // =========================
+
+// Configure the main domain - fallback to hardcoded default if not in env
+const MAIN_DOMAIN = process.env.DOMAIN_NAME || 'labdoctors-laboratories.com';
+
+// Securely check for subdomains using regex to prevent partial matches
+// Matches https://MAIN_DOMAIN and any subdomains (e.g. https://api.MAIN_DOMAIN)
+// The regex is constructed dynamically to allow configuration via environment variables
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const allowedDomainPattern = new RegExp(`^https:\/\/([a-zA-Z0-9-]+\\.)*${escapeRegExp(MAIN_DOMAIN)}$`);
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -31,7 +43,7 @@ const corsOptions = {
       console.log('CORS: No origin provided, allowing');
       return callback(null, true);
     }
-    
+
     const allowedOrigins = [
       'https://mlab-manager.vercel.app',
       'https://www.labdoctors-laboratories.com',
@@ -41,13 +53,19 @@ const corsOptions = {
       'http://127.0.0.1:5173',
       'http://127.0.0.1:3000'
     ];
-    
-    // In production, also allow any subdomain of labdoctors-laboratories.com
-    if (process.env.NODE_ENV === 'production' && origin.includes('labdoctors-laboratories.com')) {
-      console.log('CORS: Allowing labdoctors-laboratories.com subdomain:', origin);
+
+    // In production, also allow any subdomain of the main domain
+    if (process.env.NODE_ENV === 'production' && allowedDomainPattern.test(origin)) {
+      console.log(`CORS: Allowing ${MAIN_DOMAIN} subdomain:`, origin);
       return callback(null, true);
     }
-    
+
+    // In development, allow dynamic localhost subdomains (e.g. test.localhost:5173)
+    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)?localhost(:[0-9]+)?$/.test(origin)) {
+      console.log('CORS: Allowing localhost subdomain:', origin);
+      return callback(null, true);
+    }
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       console.log('CORS: Allowing origin:', origin);
       callback(null, true);
@@ -124,12 +142,12 @@ app.use('/uploads/public', express.static(publicUploadsPath, {
 app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(privateUploadsPath, filename);
-  
+
   // Check if file exists
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
+
   // Set appropriate headers
   const ext = path.extname(filename).toLowerCase();
   if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
@@ -137,11 +155,11 @@ app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
   } else if (ext === '.pdf') {
     res.setHeader('Content-Type', 'application/pdf');
   }
-  
+
   // Add security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-  
+
   res.sendFile(filePath);
 });
 
@@ -149,38 +167,30 @@ app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
 app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(commentImagesPath, filename);
-  
+
   // Check if file exists
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
+
   // Set appropriate headers for images
   const ext = path.extname(filename).toLowerCase();
   if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
     res.setHeader('Content-Type', `image/${ext.substring(1)}`);
   }
-  
+
   // Add security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-  
+
   res.sendFile(filePath);
 });
 
-// Legacy support for existing comment-images (maintain backward compatibility)
-app.use('/uploads/comment-images', express.static(commentImagesPath, {
-  maxAge: '1h',
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif') || filePath.endsWith('.webp')) {
-      res.setHeader('Content-Type', 'image/' + filePath.split('.').pop());
-    }
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  }
-}));
+// 🔒 SECURITY FIX: Legacy support removed to prevent authorization bypass.
+// All access to comment images must go through the authorized route above.
+// Legacy support for existing comment-images REMOVED for security
+// app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
+// Access is now strictly controlled via authenticated route above
 
 console.log('📁 Secure file serving configured:');
 console.log('  - Public files: /uploads/public (no auth required)');
@@ -197,7 +207,7 @@ app.use((req, res, next) => {
 // Add CORS debugging middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'No origin'} - User-Agent: ${req.headers['user-agent'] || 'No user-agent'}`);
-  
+
   // Log CORS headers for debugging
   if (req.method === 'OPTIONS') {
     console.log('CORS Preflight Request Headers:', {
@@ -206,7 +216,7 @@ app.use((req, res, next) => {
       'Origin': req.headers.origin
     });
   }
-  
+
   next();
 });
 
@@ -250,7 +260,7 @@ app.get('/health', async (req, res) => {
   try {
     // Test database connection
     await db.sequelize.authenticate();
-    
+
     // Test if key tables exist
     const tableChecks = await Promise.allSettled([
       db.test_group.count(),
@@ -259,7 +269,7 @@ app.get('/health', async (req, res) => {
       db.culture.count(),
       db.patient.count()
     ]);
-    
+
     const tableStatus = {
       test_group: tableChecks[0].status === 'fulfilled' ? 'OK' : 'ERROR',
       tgc_category: tableChecks[1].status === 'fulfilled' ? 'OK' : 'ERROR',
@@ -267,7 +277,7 @@ app.get('/health', async (req, res) => {
       culture: tableChecks[3].status === 'fulfilled' ? 'OK' : 'ERROR',
       patient: tableChecks[4].status === 'fulfilled' ? 'OK' : 'ERROR'
     };
-    
+
     res.json({
       status: 'OK',
       database: 'Connected',
@@ -334,7 +344,7 @@ app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 // Global error handler
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
-  
+
   if (error.message === 'Not allowed by CORS') {
     console.error('CORS Error Details:', {
       origin: req.headers.origin,
@@ -342,16 +352,16 @@ app.use((error, req, res, next) => {
       path: req.path,
       userAgent: req.headers['user-agent']
     });
-    return res.status(403).json({ 
-      error: 'CORS Error', 
+    return res.status(403).json({
+      error: 'CORS Error',
       message: 'Origin not allowed',
-      origin: req.headers.origin 
+      origin: req.headers.origin
     });
   }
-  
-  res.status(500).json({ 
+
+  res.status(500).json({
     error: 'Internal Server Error',
-    message: error.message 
+    message: error.message
   });
 });
 
@@ -408,7 +418,7 @@ console.log('- CORS Origins:', [
 async function connectDatabase() {
   const maxRetries = 5;
   const retryDelay = 5000; // 5 seconds
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔌 Database connection attempt ${attempt}/${maxRetries}...`);
@@ -417,13 +427,13 @@ async function connectDatabase() {
       return true;
     } catch (error) {
       console.error(`❌ Database connection attempt ${attempt} failed:`, error.message);
-      
+
       if (attempt === maxRetries) {
         console.error(`💥 All database connection attempts failed. Server will start without database sync.`);
         return false;
       }
-      
-      console.log(`⏳ Retrying in ${retryDelay/1000} seconds...`);
+
+      console.log(`⏳ Retrying in ${retryDelay / 1000} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
@@ -434,33 +444,33 @@ async function syncDatabase() {
   try {
     console.log(`🔌 Connecting to ${isProduction ? "Production" : "Development"} Database...`);
     const connected = await connectDatabase();
-    
+
     if (!connected) {
       console.log(`⚠️  Database connection failed, skipping sync`);
       return false;
     }
-    
+
     // Check if we should force sync (only in development)
     const forceSync = process.env.FORCE_SYNC === 'true' && !isProduction;
     const alterSync = !forceSync; // Use alter by default, force only if explicitly set
-    
+
     const syncOptions = alterSync ? { alter: false } : { force: true };
-    
+
     console.log(`🔄 Database synchronization mode: ${alterSync ? 'ALTER (safe)' : 'FORCE (destructive)'}`);
     console.log(`📋 Sync options:`, syncOptions);
-    
+
     if (forceSync) {
       console.log(`⚠️  WARNING: Force sync will drop all tables and recreate them!`);
       console.log(`⚠️  This will DELETE ALL DATA! Only use in development!`);
     }
-    
+
     // Try to sync, but handle various constraint issues gracefully
     try {
       await db.sequelize.sync(syncOptions);
       console.log(`✅ Database schema synchronized successfully`);
     } catch (syncError) {
       console.log(`🔧 Sync error detected: ${syncError.message}`);
-      
+
       if (syncError.message.includes('Multiple primary key defined') || syncError.code === 'ER_MULTIPLE_PRI_KEY') {
         console.log(`🔧 Primary key conflict detected, applying manual fix...`);
         await fixPrimaryKeyConflict();
@@ -470,11 +480,11 @@ async function syncDatabase() {
         console.log(`✅ Database schema synchronized successfully after fix`);
       } else if (syncError.name === 'SequelizeUnknownConstraintError' || syncError.message.includes('does not exist') || syncError.code === 'ER_TOO_MANY_KEYS') {
         console.log(`🔧 Constraint issue detected, attempting individual model sync...`);
-        
+
         // Try to sync models individually to handle constraint issues
         const models = Object.values(db.sequelize.models);
         let syncSuccess = true;
-        
+
         for (const model of models) {
           try {
             console.log(`  🔄 Syncing model: ${model.name}`);
@@ -482,7 +492,7 @@ async function syncDatabase() {
             console.log(`  ✅ Successfully synced: ${model.name}`);
           } catch (modelError) {
             console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
-            
+
             // If it's a constraint error, log it but continue
             if (modelError.name === 'SequelizeUnknownConstraintError' || modelError.code === 'ER_TOO_MANY_KEYS') {
               console.log(`  ⚠️  Constraint issue with ${model.name}, skipping...`);
@@ -491,7 +501,7 @@ async function syncDatabase() {
             }
           }
         }
-        
+
         if (syncSuccess) {
           console.log(`✅ Individual model sync completed successfully`);
         } else {
@@ -503,30 +513,30 @@ async function syncDatabase() {
         console.log(`⚠️  Continuing with server startup despite sync issues...`);
       }
     }
-    
+
     // Verify key tables exist
     const keyTables = ['patient', 'test', 'culture', 'medical_report', 'test_group'];
     const tableChecks = await Promise.allSettled(
       keyTables.map(table => db.sequelize.query(`SELECT 1 FROM ${table} LIMIT 1`))
     );
-    
+
     const tableStatus = {};
     keyTables.forEach((table, index) => {
       tableStatus[table] = tableChecks[index].status === 'fulfilled' ? '✅' : '❌';
     });
-    
+
     console.log(`📊 Table verification:`, tableStatus);
-    
+
     // Check for any failed table verifications
     const failedTables = keyTables.filter((table, index) => tableChecks[index].status === 'rejected');
     if (failedTables.length > 0) {
       console.warn(`⚠️  Warning: Some tables may not be accessible:`, failedTables);
     }
-    
+
     return true;
   } catch (error) {
     console.error("❌ Database synchronization failed:", error);
-    
+
     // Provide helpful error messages
     if (error.code === 'ECONNREFUSED') {
       console.error("💡 Tip: Make sure your database server is running");
@@ -537,7 +547,7 @@ async function syncDatabase() {
     } else if (error.message.includes('Multiple primary key defined')) {
       console.error("💡 Tip: Primary key conflict detected. This has been automatically fixed.");
     }
-    
+
     return false;
   }
 }
@@ -546,25 +556,25 @@ async function syncDatabase() {
 async function safeSyncWithConstraintHandling() {
   try {
     console.log(`🔧 Applying safe sync with constraint handling...`);
-    
+
     // Get all models
     const models = Object.values(db.sequelize.models);
-    
+
     for (const model of models) {
       try {
         console.log(`  🔄 Syncing model: ${model.name}`);
-        
+
         // Use alter: true to modify existing tables instead of dropping them
         await model.sync({ alter: true, force: false });
-        
+
         console.log(`  ✅ Successfully synced: ${model.name}`);
       } catch (modelError) {
         console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
-        
+
         // If it's a constraint error, try to handle it gracefully
         if (modelError.name === 'SequelizeUnknownConstraintError') {
           console.log(`  🔧 Attempting to fix constraint issue for ${model.name}...`);
-          
+
           try {
             // Try to sync without constraints first
             await model.sync({ alter: true, force: false });
@@ -575,9 +585,9 @@ async function safeSyncWithConstraintHandling() {
         }
       }
     }
-    
+
     console.log(`✅ Safe sync with constraint handling completed!`);
-    
+
   } catch (error) {
     console.error(`❌ Error during safe sync:`, error);
     throw error;
@@ -588,32 +598,32 @@ async function safeSyncWithConstraintHandling() {
 async function fixPrimaryKeyConflict() {
   try {
     console.log(`🔧 Applying direct primary key conflict fix...`);
-    
+
     // Step 1: Check if table exists
     const [tables] = await db.sequelize.query("SHOW TABLES LIKE 'medical_report_has_culture'");
     if (tables.length === 0) {
       console.log(`✅ Table doesn't exist, will be created by sync`);
       return;
     }
-    
+
     // Step 2: Check current structure
     const [columns] = await db.sequelize.query("SHOW COLUMNS FROM medical_report_has_culture");
     const hasPrimaryKey = columns.some(col => col.Key === 'PRI');
     const hasIdColumn = columns.some(col => col.Field === 'id');
-    
+
     console.log(`📊 Current structure: hasPrimaryKey=${hasPrimaryKey}, hasIdColumn=${hasIdColumn}`);
-    
+
     // Step 3: Handle sql_require_primary_key constraint by recreating table
     console.log(`🔄 Recreating table to handle sql_require_primary_key constraint...`);
-    
+
     // Create backup table
     await db.sequelize.query("CREATE TABLE medical_report_has_culture_backup AS SELECT * FROM medical_report_has_culture");
     console.log(`✅ Created backup table`);
-    
+
     // Drop original table
     await db.sequelize.query("DROP TABLE medical_report_has_culture");
     console.log(`✅ Dropped original table`);
-    
+
     // Recreate with correct structure
     await db.sequelize.query(`
       CREATE TABLE medical_report_has_culture (
@@ -629,7 +639,7 @@ async function fixPrimaryKeyConflict() {
       )
     `);
     console.log(`✅ Recreated table with correct structure`);
-    
+
     // Copy data back
     await db.sequelize.query(`
       INSERT INTO medical_report_has_culture (medical_report_id, culture_id, created_at, updated_at)
@@ -637,13 +647,13 @@ async function fixPrimaryKeyConflict() {
       FROM medical_report_has_culture_backup
     `);
     console.log(`✅ Copied data back from backup`);
-    
+
     // Drop backup table
     await db.sequelize.query("DROP TABLE medical_report_has_culture_backup");
     console.log(`✅ Dropped backup table`);
-    
+
     console.log(`✅ Primary key conflict fix completed`);
-    
+
   } catch (error) {
     console.error(`❌ Error in primary key conflict fix:`, error.message);
     throw error;
@@ -676,81 +686,81 @@ if (shouldSyncDatabase) {
 // Extract server startup logic into a separate function
 async function startServer() {
   const PORT = process.env.PORT || 3001;
-    
-    // Add connection pool monitoring (using a different approach)
-    if (db.sequelize.connectionManager) {
-      console.log('🔌 Database connection pool initialized');
-      console.log(`📊 Pool config: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
-    }
-    
-    // Initialize Redis cache service
-    try {
-      await cacheService.init();
-      console.log('🗄️ Redis cache service initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize Redis cache service:', error);
-    }
-    
-    // Initialize subscription scheduler after database is ready
-    let subscriptionScheduler;
-    try {
-      subscriptionScheduler = initializeSubscriptionScheduler();
-      console.log('⏰ Subscription scheduler initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize subscription scheduler:', error);
-    }
-    
-    // Add graceful shutdown handling
-    process.on('SIGTERM', async () => {
-      console.log('🛑 Received SIGTERM, shutting down gracefully...');
-      try {
-        // Stop subscription scheduler
-        if (subscriptionScheduler) {
-          stopSubscriptionScheduler(subscriptionScheduler);
-        }
-        
-        // Close Redis cache connection
-        await cacheService.close();
-        
-        // Close database connections
-        await db.sequelize.close();
-        console.log('✅ All connections closed successfully');
-        process.exit(0);
-      } catch (error) {
-        console.error('❌ Error during shutdown:', error);
-        process.exit(1);
-      }
-    });
-    
-    process.on('SIGINT', async () => {
-      console.log('🛑 Received SIGINT, shutting down gracefully...');
-      try {
-        // Stop subscription scheduler
-        if (subscriptionScheduler) {
-          stopSubscriptionScheduler(subscriptionScheduler);
-        }
-        
-        // Close Redis cache connection
-        await cacheService.close();
-        
-        // Close database connections
-        await db.sequelize.close();
-        console.log('✅ All connections closed successfully');
-        process.exit(0);
-      } catch (error) {
-        console.error('❌ Error during shutdown:', error);
-        process.exit(1);
-      }
-    });
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 CORS enabled for production domains`);
-      console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
-      console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
-      console.log(`📊 Database sync: ENABLED`);
-      console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
-      console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
-      console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
-    });
+
+  // Add connection pool monitoring (using a different approach)
+  if (db.sequelize.connectionManager) {
+    console.log('🔌 Database connection pool initialized');
+    console.log(`📊 Pool config: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
   }
+
+  // Initialize Redis cache service
+  try {
+    await cacheService.init();
+    console.log('🗄️ Redis cache service initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize Redis cache service:', error);
+  }
+
+  // Initialize subscription scheduler after database is ready
+  let subscriptionScheduler;
+  try {
+    subscriptionScheduler = initializeSubscriptionScheduler();
+    console.log('⏰ Subscription scheduler initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize subscription scheduler:', error);
+  }
+
+  // Add graceful shutdown handling
+  process.on('SIGTERM', async () => {
+    console.log('🛑 Received SIGTERM, shutting down gracefully...');
+    try {
+      // Stop subscription scheduler
+      if (subscriptionScheduler) {
+        stopSubscriptionScheduler(subscriptionScheduler);
+      }
+
+      // Close Redis cache connection
+      await cacheService.close();
+
+      // Close database connections
+      await db.sequelize.close();
+      console.log('✅ All connections closed successfully');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('🛑 Received SIGINT, shutting down gracefully...');
+    try {
+      // Stop subscription scheduler
+      if (subscriptionScheduler) {
+        stopSubscriptionScheduler(subscriptionScheduler);
+      }
+
+      // Close Redis cache connection
+      await cacheService.close();
+
+      // Close database connections
+      await db.sequelize.close();
+      console.log('✅ All connections closed successfully');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  });
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 CORS enabled for production domains`);
+    console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
+    console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
+    console.log(`📊 Database sync: ENABLED`);
+    console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
+    console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
+    console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
+  });
+}
