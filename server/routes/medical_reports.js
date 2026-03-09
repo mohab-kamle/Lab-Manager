@@ -173,63 +173,67 @@ router.get(
       // Optimized: Fetch tests and cultures separately to avoid N+M Cartesian product in the main query
       // This is "Application-Side Join" which is often faster for complex includes
 
-      const [reports, tests, cultures] = await Promise.all([
-        db.medical_report.findAll({
-          where: {
-            id: {
-              [Op.in]: medicalReportIds
-            }
-          },
-          include: [
-            {
-              model: db.patient,
-              as: "patient",
-              attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-              include: [
-                {
-                  model: db.referral,
-                  as: "referral",
-                  attributes: [
-                    "id",
-                    "doctor_name",
-                    "specialization",
-                    "phone",
-                    "email",
-                  ],
-                },
-              ],
-            },
-            {
-              model: db.bill,
-              as: "bill",
-              attributes: ["id", "date"],
-            },
-            {
-              model: db.admin,
-              as: "signatory_admin",
-              attributes: ["id"],
-              include: [
-                {
-                  model: db.employee,
-                  as: "id_employee",
-                  attributes: ["id", "name"],
+      // First fetch reports filtered by lab_id
+      const reports = await db.medical_report.findAll({
+        where: {
+          lab_id: req.tenant.lab_id
+        },
+        include: [
+          {
+            model: db.patient,
+            as: "patient",
+            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+            include: [
+              {
+                model: db.referral,
+                as: "referral",
+                attributes: [
+                  "id",
+                  "doctor_name",
+                  "specialization",
+                  "phone",
+                  "email",
+                ],
               },
             ],
-            },
-            {
-              model: db.chemist,
-              as: "signatory",
-              attributes: ["id"],
-              include: [
-                {
-                  model: db.employee,
-                  as: "id_employee",
-                  attributes: ["id", "name"],
-                },
-              ],
-            },
-          ],
-        }),
+          },
+          {
+            model: db.bill,
+            as: "bill",
+            attributes: ["id", "date"],
+          },
+          {
+            model: db.admin,
+            as: "signatory_admin",
+            attributes: ["id"],
+            include: [
+              {
+                model: db.employee,
+                as: "id_employee",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+          {
+            model: db.chemist,
+            as: "signatory",
+            attributes: ["id"],
+            include: [
+              {
+                model: db.employee,
+                as: "id_employee",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
+      });
+
+      // Collect report IDs for fetching related tests and cultures
+      const medicalReportIds = reports.map(r => r.id);
+
+      // Fetch tests and cultures in parallel using the collected report IDs
+      const [tests, cultures] = await Promise.all([
         // Fetch tests for these reports
         medicalReportIds.length > 0 ? db.medical_report_has_test.findAll({
           where: {
@@ -239,7 +243,7 @@ router.get(
           },
           include: [{
             model: db.test,
-            as: 'test', // Assuming default alias or standard naming, usually singular of table name if not aliased
+            as: 'test',
             attributes: ['id', 'name']
           }]
         }) : [],
@@ -3613,7 +3617,7 @@ router.post(
             hasAnyResults = true;
             // For tests without components, status is 'done' if result exists, 'pending' if empty
             const status = result.result && result.result.toString().trim() !== '' ? 'done' : 'pending';
-            
+
             return db.medical_report_has_test.update(
               {
                 result: result.result,
