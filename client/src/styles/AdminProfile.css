@@ -41,10 +41,9 @@
   margin: 10px;
 }
 
-/* Gradient Background */
 .role-badge.admin {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
-  color: var(--bg);
+  border: 1px solid var(--primary);
+  color: var(--primary);
   /* FIXED: Rounder, softer glow */
   box-shadow: 0 4px 20px 0px oklch(0.5 0.2 255 / 0.35),
     0 8px 40px 0px oklch(0.5 0.2 255 / 0.2);
@@ -138,11 +137,29 @@
 /* Outlined Style */
 .role-badge.outlined {
   background: transparent;
-  border: 2px solid var(--primary);
+  border: 1px solid var(--primary);
   color: var(--primary);
 }
 
 .role-badge.outlined:hover {
   background: var(--primary);
   color: var(--bg);
+}
+
+/* ================================
+   Refactored Inline Styles
+   ================================ */
+
+.info-card-label {
+  font-size: 0.75rem !important;
+}
+
+.profile-avatar-container {
+  width: 140px;
+  height: 140px;
+}
+
+.profile-animation {
+  width: 85% !important;
+  height: 85% !important;
 }
