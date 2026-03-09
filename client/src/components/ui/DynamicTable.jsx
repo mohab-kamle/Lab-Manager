@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, Form } from 'react-bootstrap';
 import { formatDate } from '../../utils/dateFormatter';
+import PropTypes from 'prop-types';
 
 const DynamicTable = ({ 
   data, 
@@ -11,7 +12,9 @@ const DynamicTable = ({
   selectedItems = [],
   onSelectAll = null,
   onSelectItem = null,
-  customHeaders = {}
+  customHeaders = {},
+  getItemLabel = null,
+  emptyMessage = "No items found"
 }) => {
   const defaultFormatCellData = (value, header) => {
     // Handle null/undefined values
@@ -79,6 +82,12 @@ const DynamicTable = ({
       .join(' ');
   };
 
+  const getRowLabel = (item, index) => {
+    if (getItemLabel) return getItemLabel(item);
+    // Smart fallback
+    return item.name || item.title || item.patient_name || item.test_name || `Item ${index + 1}`;
+  };
+
   const allSelected = data.length > 0 && selectedItems.length === data.length;
   const someSelected = selectedItems.length > 0 && selectedItems.length < data.length;
 
@@ -96,6 +105,7 @@ const DynamicTable = ({
                     if (input) input.indeterminate = someSelected;
                   }}
                   onChange={(e) => onSelectAll && onSelectAll(e.target.checked)}
+                  aria-label="Select all items"
                 />
               </th>
             )}
@@ -108,33 +118,64 @@ const DynamicTable = ({
           </tr>
         </thead>
         <tbody>
-          {data.map((item, rowIndex) => (
-            <tr key={`row-${rowIndex}-${item.id || rowIndex}`}>
-              {showCheckboxes && (
-                <td>
-                  <Form.Check
-                    type="checkbox"
-                    checked={selectedItems.includes(item.id)}
-                    onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
-                  />
-                </td>
-              )}
-              {columns.map((column, colIndex) => (
-                <td key={`cell-${rowIndex}-${colIndex}-${column}`}>
-                  {formatter(item[column], column, item)}
-                </td>
-              ))}
-              {ActionComponent && (
-                <td>
-                  <ActionComponent rowData={item} />
-                </td>
-              )}
+          {data.length === 0 ? (
+            <tr>
+              <td
+                colSpan={columns.length + (showCheckboxes ? 1 : 0) + (ActionComponent ? 1 : 0)}
+                className="text-center p-5 text-muted"
+              >
+                <div className="d-flex flex-column align-items-center justify-content-center">
+                  <p className="mb-0 fs-5">{emptyMessage}</p>
+                </div>
+              </td>
             </tr>
-          ))}
+          ) : (
+            data.map((item, rowIndex) => (
+              <tr
+                key={`row-${rowIndex}-${item.id || rowIndex}`}
+                className={showCheckboxes && selectedItems.includes(item.id) ? 'table-active' : ''}
+              >
+                {showCheckboxes && (
+                  <td>
+                    <Form.Check
+                      type="checkbox"
+                      checked={selectedItems.includes(item.id)}
+                      onChange={(e) => onSelectItem && onSelectItem(item.id, e.target.checked)}
+                      aria-label={`Select ${getRowLabel(item, rowIndex)}`}
+                    />
+                  </td>
+                )}
+                {columns.map((column, colIndex) => (
+                  <td key={`cell-${rowIndex}-${colIndex}-${column}`}>
+                    {formatter(item[column], column, item)}
+                  </td>
+                ))}
+                {ActionComponent && (
+                  <td>
+                    <ActionComponent rowData={item} />
+                  </td>
+                )}
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
     </div>
   );
+};
+
+DynamicTable.propTypes = {
+  data: PropTypes.array.isRequired,
+  columns: PropTypes.array.isRequired,
+  formatCellData: PropTypes.func,
+  ActionComponent: PropTypes.elementType,
+  showCheckboxes: PropTypes.bool,
+  selectedItems: PropTypes.array,
+  onSelectAll: PropTypes.func,
+  onSelectItem: PropTypes.func,
+  customHeaders: PropTypes.object,
+  getItemLabel: PropTypes.func,
+  emptyMessage: PropTypes.string
 };
 
 export default DynamicTable;
