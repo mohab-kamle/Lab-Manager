@@ -1,137 +1,156 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, medical_report_culture_result, pao_has_test, pao_has_culture, bill_has_tg, medical_report_has_tg, test_group, branch, status } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, medical_report_culture_result, pao_has_test, pao_has_culture, bill_has_tg, medical_report_has_tg, test_group, branch, status, sequelize } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
 require("dotenv").config();
-const { sequelize } = require("../models");
 
 /**
  * GET /invoices - Fetch all bills with associated tests, cultures, packages, and payment methods.
  */
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, cacheInvoicesList, async (req, res) => {
     try {
-        console.log('Fetching invoices...');
+        console.log('Fetching invoices using optimized query...');
 
-        // Optimized query using Sequelize findAll with separate: true for associations
-        // This prevents Cartesian products and massive data transfer
         const bills = await bill.findAll({
-            where: { lab_id: req.tenant.lab_id },
-            order: [['id', 'DESC']],
+            where: {
+                lab_id: req.tenant.lab_id
+            },
+            attributes: [
+                'id', 'date', 'paid', 'due', 'subtotal', 'total', 'discount', 'tax',
+                'status_id', 'branch_id', 'patient_id'
+            ],
             include: [
                 {
                     model: patient,
-                    as: 'patient',
+                    as: "patient",
                     attributes: ['id', 'name', 'patientcode']
                 },
                 {
                     model: status,
-                    as: 'status',
+                    as: "status",
                     attributes: ['state']
                 },
                 {
                     model: branch,
-                    as: 'branch',
+                    as: "branch",
                     attributes: ['name']
                 },
-                // Use separate queries for hasMany associations (via join tables)
+                // Use separate queries for hasMany relations to avoid Cartesian products
                 {
                     model: bill_has_test,
-                    as: 'bill_has_tests',
+                    as: "bill_has_tests",
                     separate: true,
-                    attributes: ['price'],
-                    include: [{ model: test, as: 'test', attributes: ['id', 'name'] }]
+                    include: [{
+                        model: test,
+                        as: "test",
+                        attributes: ['id', 'name']
+                    }]
                 },
                 {
                     model: bill_has_culture,
-                    as: 'bill_has_cultures',
+                    as: "bill_has_cultures",
                     separate: true,
-                    attributes: ['price'],
-                    include: [{ model: culture, as: 'culture', attributes: ['id', 'name'] }]
+                    include: [{
+                        model: culture,
+                        as: "culture",
+                        attributes: ['id', 'name']
+                    }]
                 },
                 {
                     model: bill_has_package,
-                    as: 'bill_has_packages',
+                    as: "bill_has_packages",
                     separate: true,
-                    attributes: ['price'],
-                    include: [{ model: packages_and_offers, as: 'package', attributes: ['id', 'name', 'type'] }]
+                    include: [{
+                        model: packages_and_offers,
+                        as: "package",
+                        attributes: ['id', 'name', 'type']
+                    }]
                 },
                 {
                     model: bill_has_payment_method,
-                    as: 'bill_has_payment_methods',
+                    as: "bill_has_payment_methods",
                     separate: true,
-                    attributes: ['paid_amount'],
-                    include: [{ model: payment_method, as: 'payment_method', attributes: ['id', 'name'] }]
+                    include: [{
+                        model: payment_method,
+                        as: "payment_method",
+                        attributes: ['id', 'name']
+                    }]
                 },
-                // test_group is belongsToMany (bill.hasMany(bill_has_tg) is missing), so it joins
-                // But since other large collections are separated, performance impact is minimal
+                // Use join for test_groups as bill.hasMany(bill_has_tg) is not defined
                 {
                     model: test_group,
-                    as: 'tg_id_test_groups',
+                    as: "tg_id_test_groups",
                     attributes: ['id', 'name'],
                     through: { attributes: ['price'] }
                 }
-            ]
+            ],
+            order: [['id', 'DESC']]
         });
 
         console.log(`Found ${bills.length} invoices`);
 
-        const groupedBills = bills.map(bill => ({
-            id: bill.id,
-            date: bill.date,
-            paid: bill.paid,
-            due: bill.due,
-            subtotal: bill.subtotal,
-            total: bill.total,
-            discount: bill.discount,
-            tax: bill.tax,
-            discount_percent: bill.discount && bill.subtotal ? ((bill.discount / bill.subtotal) * 100) : 0,
-            status_id: bill.status_id,
-            status: bill.status ? bill.status.state : null,
-            patient_id: bill.patient_id,
-            patient_name: bill.patient ? bill.patient.name : null,
-            patientcode: bill.patient ? bill.patient.patientcode : null,
-            branch_id: bill.branch_id,
-            branch_name: bill.branch ? bill.branch.name : null,
+        // Transform the results to match the expected frontend format
+        const formattedBills = bills.map(b => {
+            const billData = b.toJSON();
 
-            // Map from join table associations
-            tests: bill.bill_has_tests ? bill.bill_has_tests.map(bht => ({
-                id: bht.test.id,
-                name: bht.test.name,
-                price: bht.price
-            })) : [],
+            return {
+                id: billData.id,
+                date: billData.date,
+                paid: billData.paid,
+                due: billData.due,
+                subtotal: billData.subtotal,
+                total: billData.total,
+                discount: billData.discount,
+                tax: billData.tax,
+                discount_percent: billData.discount && billData.subtotal ? ((billData.discount / billData.subtotal) * 100) : 0,
+                status_id: billData.status_id,
+                status: billData.status?.state,
+                patient_id: billData.patient_id,
+                patient_name: billData.patient?.name,
+                patientcode: billData.patient?.patientcode,
+                branch_id: billData.branch_id,
+                branch_name: billData.branch?.name,
 
-            cultures: bill.bill_has_cultures ? bill.bill_has_cultures.map(bhc => ({
-                id: bhc.culture.id,
-                name: bhc.culture.name,
-                price: bhc.price
-            })) : [],
+                // Map separate includes
+                tests: (billData.bill_has_tests || []).map(bht => ({
+                    id: bht.test?.id,
+                    name: bht.test?.name,
+                    price: bht.price
+                })),
 
-            packages: bill.bill_has_packages ? bill.bill_has_packages.map(bhp => ({
-                id: bhp.package.id,
-                name: bhp.package.name,
-                price: bhp.price,
-                type: bhp.package.type
-            })) : [],
+                cultures: (billData.bill_has_cultures || []).map(bhc => ({
+                    id: bhc.culture?.id,
+                    name: bhc.culture?.name,
+                    price: bhc.price
+                })),
 
-            payments: bill.bill_has_payment_methods ? bill.bill_has_payment_methods.map(bhpm => ({
-                payment_method_id: bhpm.payment_method.id,
-                payment_method_name: bhpm.payment_method.name,
-                paid_amount: bhpm.paid_amount
-            })) : [],
+                packages: (billData.bill_has_packages || []).map(bhp => ({
+                    id: bhp.package?.id,
+                    name: bhp.package?.name,
+                    price: bhp.price,
+                    type: bhp.package?.type
+                })),
 
-            // Map from belongsToMany association
-            test_groups: bill.tg_id_test_groups ? bill.tg_id_test_groups.map(tg => ({
-                id: tg.id,
-                name: tg.name,
-                price: tg.bill_has_tg ? tg.bill_has_tg.price : 0 // Handle through model data
-            })) : []
-        }));
+                payments: (billData.bill_has_payment_methods || []).map(bhpm => ({
+                    payment_method_id: bhpm.payment_method?.id,
+                    payment_method_name: bhpm.payment_method?.name,
+                    paid_amount: bhpm.paid_amount
+                })),
 
-        console.log(`Successfully processed ${groupedBills.length} invoices`);
-        res.json(groupedBills || []);
+                // Map joined include (belongsToMany)
+                test_groups: (billData.tg_id_test_groups || []).map(tg => ({
+                    id: tg.id,
+                    name: tg.name,
+                    price: tg.bill_has_tg?.price
+                }))
+            };
+        });
+
+        console.log(`Successfully processed ${formattedBills.length} invoices`);
+        res.json(formattedBills);
     } catch (error) {
         console.error('Error in GET /invoices:', error);
         // Return empty array on error to prevent frontend crashes
