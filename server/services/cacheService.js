@@ -307,16 +307,16 @@ class CacheService {
   /**
    * Get cached new results data for medical report
    */
-  async getMedicalReportNewResultsData(reportId) {
-    const key = this.generateKey('report:newresults-data', reportId);
+  async getMedicalReportNewResultsData(reportId, labId) {
+    const key = this.generateKey('report:newresults-data', reportId, labId);
     return await this.get(key);
   }
 
   /**
    * Set cached new results data for medical report
    */
-  async setMedicalReportNewResultsData(reportId, data, ttl = 1800) {
-    const key = this.generateKey('report:newresults-data', reportId);
+  async setMedicalReportNewResultsData(reportId, labId, data, ttl = 1800) {
+    const key = this.generateKey('report:newresults-data', reportId, labId);
     return await this.set(key, data, ttl);
   }
 
