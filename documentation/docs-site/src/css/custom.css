@@ -1,0 +1,269 @@
+/**
+ * Custom CSS for LabManager documentation site.
+ * Theme colors are aligned with the main LabManager client application,
+ * which uses a deep blue primary palette with orange accents.
+ *
+ * Client reference:
+ *   Light primary: hsl(212 100% 27%) / #284889
+ *   Dark primary:  hsl(213 100% 73%) / #75b0ff
+ */
+
+/* ========================================
+   Import Google Font — matches client app
+   ======================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ========================================
+   Light-mode Infima overrides
+   ======================================== */
+:root {
+  /* --- Primary palette (deep navy blue) --- */
+  --ifm-color-primary: #284889;
+  --ifm-color-primary-dark: #24417b;
+  --ifm-color-primary-darker: #223d74;
+  --ifm-color-primary-darkest: #1c325f;
+  --ifm-color-primary-light: #2c4f97;
+  --ifm-color-primary-lighter: #2e539e;
+  --ifm-color-primary-lightest: #3d65b3;
+
+  /* --- Typography --- */
+  --ifm-font-family-base: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+  --ifm-heading-font-family: 'Inter', system-ui, -apple-system, 'Segoe UI',
+    Roboto, sans-serif;
+  --ifm-font-size-base: 16px;
+  --ifm-code-font-size: 93%;
+
+  /* --- Layout & Spacing --- */
+  --ifm-global-radius: 8px;
+  --ifm-navbar-height: 64px;
+
+  /* --- Misc --- */
+  --docusaurus-highlighted-code-line-bg: rgba(40, 72, 137, 0.1);
+
+  /* --- Custom accent (orange, matching client secondary) --- */
+  --lab-accent: #e08a3c;
+  --lab-accent-light: #f0a860;
+}
+
+/* ========================================
+   Dark-mode Infima overrides
+   ======================================== */
+[data-theme='dark'] {
+  /* --- Primary palette (bright blue for contrast) --- */
+  --ifm-color-primary: #75b0ff;
+  --ifm-color-primary-dark: #5ea0ff;
+  --ifm-color-primary-darker: #5299ff;
+  --ifm-color-primary-darkest: #2d7aff;
+  --ifm-color-primary-light: #8cbfff;
+  --ifm-color-primary-lighter: #97c6ff;
+  --ifm-color-primary-lightest: #bbdaff;
+
+  /* --- Backgrounds (match client's dark palette) --- */
+  --ifm-background-color: #111827;
+  --ifm-background-surface-color: #1a2332;
+
+  /* --- Code highlights --- */
+  --docusaurus-highlighted-code-line-bg: rgba(117, 176, 255, 0.15);
+
+  /* --- Custom accent --- */
+  --lab-accent: #f0a860;
+  --lab-accent-light: #f5c28a;
+}
+
+/* ========================================
+   Global body tweaks
+   ======================================== */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================
+   Navbar
+   ======================================== */
+.navbar {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.navbar__title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.navbar__link {
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.navbar__link:hover {
+  color: var(--ifm-color-primary);
+}
+
+/* ========================================
+   Sidebar
+   ======================================== */
+
+/* Active sidebar link gets a subtle left-border accent */
+.menu__link--active:not(.menu__link--sublist) {
+  border-left: 3px solid var(--ifm-color-primary);
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) - 3px);
+  background: rgba(40, 72, 137, 0.06);
+  font-weight: 600;
+}
+
+[data-theme='dark'] .menu__link--active:not(.menu__link--sublist) {
+  background: rgba(117, 176, 255, 0.08);
+}
+
+.menu__link {
+  border-radius: var(--ifm-global-radius);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.menu__link:hover {
+  background: rgba(40, 72, 137, 0.04);
+}
+
+[data-theme='dark'] .menu__link:hover {
+  background: rgba(117, 176, 255, 0.06);
+}
+
+/* ========================================
+   Content typography
+   ======================================== */
+.markdown h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.markdown h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  padding-bottom: 0.4rem;
+  margin-top: 2rem;
+}
+
+.markdown h3 {
+  font-weight: 600;
+}
+
+/* ========================================
+   Table of Contents (right sidebar)
+   ======================================== */
+.table-of-contents__link--active {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+/* ========================================
+   Code blocks
+   ======================================== */
+.prism-code {
+  border-radius: var(--ifm-global-radius);
+}
+
+/* ========================================
+   Admonitions (notes, tips, warnings…)
+   ======================================== */
+.admonition {
+  border-radius: var(--ifm-global-radius);
+  border-left-width: 4px;
+}
+
+/* ========================================
+   Footer
+   ======================================== */
+.footer--dark {
+  background-color: #131c2e;
+}
+
+[data-theme='dark'] .footer--dark {
+  background-color: #0b1120;
+}
+
+.footer__title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.footer__link-item {
+  transition: color 0.2s ease;
+}
+
+.footer__link-item:hover {
+  color: var(--lab-accent-light);
+}
+
+/* ========================================
+   Scrollbar (match client styles)
+   ======================================== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #284889 transparent;
+}
+
+[data-theme='dark'] * {
+  scrollbar-color: #3d65b3 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #284889;
+  border-radius: 8px;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #3d65b3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2c4f97;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: #5ea0ff;
+}
+
+/* ========================================
+   Misc polish
+   ======================================== */
+
+/* Smooth image rounding */
+.markdown img {
+  border-radius: var(--ifm-global-radius);
+}
+
+/* Pagination nav cards */
+.pagination-nav__link {
+  border-radius: var(--ifm-global-radius);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pagination-nav__link:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 2px 12px rgba(40, 72, 137, 0.1);
+}
+
+[data-theme='dark'] .pagination-nav__link:hover {
+  box-shadow: 0 2px 12px rgba(117, 176, 255, 0.1);
+}
+
+/* Search bar focus ring */
+.navbar__search-input:focus {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px rgba(40, 72, 137, 0.2);
+}
