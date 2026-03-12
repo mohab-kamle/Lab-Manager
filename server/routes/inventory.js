@@ -440,15 +440,30 @@ router.get("/alerts/expiring", async (req, res) => {
 
 // --- NOTIFICATIONS ---
 
-// Get unread notifications
+// Get notifications (supports optional ?status= filter, defaults to UNREAD)
 router.get("/notifications", async (req, res) => {
   try {
+    const { status } = req.query;
+
+    // Build where clause — 'ALL' returns everything, otherwise filter by status (default: UNREAD)
+    const whereClause = {
+      lab_id: req.tenant.lab_id
+    };
+    if (status && status !== 'ALL') {
+      whereClause.status = status;
+    } else if (!status) {
+      whereClause.status = 'UNREAD';
+    }
+    // When status === 'ALL', no status filter is applied
+
     const notifications = await db.inventory_notification.findAll({
-      where: {
-        lab_id: req.tenant.lab_id,
-        status: 'UNREAD'
-      },
-      order: [["createdAt", "DESC"]]
+      where: whereClause,
+      include: [
+        { model: db.inventory_item, as: "item", attributes: ["id", "name", "unit"] },
+        { model: db.inventory_batch, as: "batch", attributes: ["id", "batch_number", "expiration_date"] }
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: 50
     });
     res.json(notifications);
   } catch (error) {
@@ -457,7 +472,27 @@ router.get("/notifications", async (req, res) => {
   }
 });
 
-// Mark notification as read
+// Mark all notifications as read for the current lab
+// NOTE: This must come BEFORE the /:id/read route to avoid Express treating "read-all" as an :id
+router.put("/notifications/read-all", async (req, res) => {
+  try {
+    await db.inventory_notification.update(
+      { status: 'READ' },
+      {
+        where: {
+          lab_id: req.tenant.lab_id,
+          status: 'UNREAD'
+        }
+      }
+    );
+    res.json({ message: "All notifications marked as read" });
+  } catch (error) {
+    console.error("Error marking all notifications as read:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Mark a single notification as read
 router.put("/notifications/:id/read", async (req, res) => {
   try {
     const { id } = req.params;
