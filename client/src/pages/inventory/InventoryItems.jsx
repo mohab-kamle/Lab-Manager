@@ -4,7 +4,7 @@ import { Container, Button, Modal, Form } from "react-bootstrap";
 import { useNavigate, useParams } from "react-router-dom";
 import DynamicTable from "../../components/ui/DynamicTable";
 import api from "../../utils/api";
-import { ThemeContext } from "../../context/ThemeContext";
+// import { ThemeContext } from "../../context/ThemeContext";
 
 const InventoryItems = () => {
   const { role } = useParams();
@@ -12,7 +12,7 @@ const InventoryItems = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const { isDarkMode } = useContext(ThemeContext);
+  // const { isDarkMode } = useContext(ThemeContext);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -74,25 +74,27 @@ const InventoryItems = () => {
   };
 
   const ActionComponent = useMemo(() => {
-    const Component = ({ item }) => (
+    // DynamicTable passes row data as 'rowData' prop
+    const Component = ({ rowData }) => (
       <div className="d-flex gap-2">
-        <Button variant="success" size="sm" onClick={() => navigate(`/${role}/inventory/items/${item.id}/batches`)}>Stock/Batches</Button>
-        <Button variant="outline-primary" size="sm" onClick={() => handleShowModal(item)}>Edit</Button>
-        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item.id)}>Delete</Button>
+        <Button variant="success" size="sm" onClick={() => navigate(`/${role}/inventory/items/${rowData.id}/batches`)}>Stock/Batches</Button>
+        <Button variant="outline-primary" size="sm" onClick={() => handleShowModal(rowData)}>Edit</Button>
+        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData.id)}>Delete</Button>
       </div>
     );
     Component.displayName = "ItemActionComponent";
     Component.propTypes = {
-      item: PropTypes.shape({
+      rowData: PropTypes.shape({
         id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       }).isRequired,
     };
     return Component;
   }, [navigate, role]);
 
+  // DynamicTable formatCellData signature: (value, header, item)
   const formatCellData = useMemo(() => {
-    const formatter = (key, value, item) => {
-      if (key === 'total_stock') {
+    const formatter = (value, header, item) => {
+      if (header === 'total_stock') {
         const isLowStock = value <= item.min_stock_level;
         return <span className={isLowStock ? 'text-danger fw-bold' : ''}>{value} {item.unit}</span>;
       }
@@ -102,13 +104,15 @@ const InventoryItems = () => {
     return formatter;
   }, []);
 
-  const columns = [
-    { key: "name", label: "Item Name", sortable: true },
-    { key: "category", label: "Category", sortable: true },
-    { key: "total_stock", label: "Current Stock", sortable: true },
-    { key: "min_stock_level", label: "Min Level", sortable: true },
-    { key: "unit", label: "Unit", sortable: false },
-  ];
+  // DynamicTable expects columns as an array of strings (data keys)
+  const columns = ["name", "category", "total_stock", "min_stock_level", "unit"];
+
+  // Friendly column headers for DynamicTable
+  const customHeaders = {
+    name: "Item Name",
+    total_stock: "Current Stock",
+    min_stock_level: "Min Level",
+  };
 
   return (
     <Container fluid className="py-4">
@@ -120,14 +124,13 @@ const InventoryItems = () => {
       <DynamicTable
         data={items}
         columns={columns}
+        customHeaders={customHeaders}
         ActionComponent={ActionComponent}
         formatCellData={formatCellData}
-        loading={loading}
-        searchKeys={["name", "category"]}
         emptyMessage="No inventory items found."
       />
 
-      <Modal show={showModal} onHide={handleCloseModal} data-bs-theme={isDarkMode ? 'dark' : 'light'}>
+      <Modal show={showModal} onHide={handleCloseModal} /*data-bs-theme={isDarkMode ? 'dark' : 'light'}*/>
         <Form onSubmit={handleSubmit}>
           <Modal.Header closeButton className="bg-theme-surface">
             <Modal.Title className="text-theme">{editingItem ? "Edit Item" : "Add Item"}</Modal.Title>
