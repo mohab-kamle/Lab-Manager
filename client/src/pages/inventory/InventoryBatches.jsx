@@ -2,12 +2,12 @@ import React, { useState, useEffect, useContext } from "react";
 import { Container, Button, Modal, Form, Tabs, Tab, Table } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../utils/api";
-import { ThemeContext } from "../../context/ThemeContext";
+// import { ThemeContext } from "../../context/ThemeContext";
 
 const InventoryBatches = () => {
   const { role, itemId } = useParams();
   const navigate = useNavigate();
-  const { isDarkMode } = useContext(ThemeContext);
+  // const { isDarkMode } = useContext(ThemeContext);
 
   const [item, setItem] = useState(null);
   const [batches, setBatches] = useState([]);
@@ -72,7 +72,15 @@ const InventoryBatches = () => {
     }
   };
 
-  if (loading || !item) return <Container className="mt-5">Loading...</Container>;
+  // Bug 5 Fix: Distinguish between loading state and item not found
+  if (loading) return <Container className="mt-5">Loading...</Container>;
+  if (!item) return (
+    <Container className="mt-5">
+      <h4 className="text-danger">Item not found</h4>
+      <p className="text-muted">The requested inventory item could not be found. It may have been deleted.</p>
+      <Button variant="primary" onClick={() => navigate(`/${role}/inventory/items`)}>&larr; Back to Catalog</Button>
+    </Container>
+  );
 
   return (
     <Container fluid className="py-4">
@@ -91,7 +99,7 @@ const InventoryBatches = () => {
       <Tabs defaultActiveKey="batches" className="mb-4">
         <Tab eventKey="batches" title="Active Batches">
           <div className="table-responsive mt-3">
-            <Table striped bordered hover className={isDarkMode ? 'table-dark' : ''}>
+            <Table striped bordered hover /*className={isDarkMode ? 'table-dark' : ''}*/>
               <thead>
                 <tr>
                   <th>Batch Number</th>
@@ -125,7 +133,7 @@ const InventoryBatches = () => {
         </Tab>
         <Tab eventKey="transactions" title="Transaction History">
           <div className="table-responsive mt-3">
-            <Table striped bordered hover className={isDarkMode ? 'table-dark' : ''}>
+            <Table striped bordered hover /*className={isDarkMode ? 'table-dark' : ''}*/>
               <thead>
                 <tr>
                   <th>Date</th>
@@ -162,7 +170,7 @@ const InventoryBatches = () => {
       </Tabs>
 
       {/* Receive Modal */}
-      <Modal show={showReceiveModal} onHide={() => setShowReceiveModal(false)} data-bs-theme={isDarkMode ? 'dark' : 'light'}>
+      <Modal show={showReceiveModal} onHide={() => setShowReceiveModal(false)} /*data-bs-theme={isDarkMode ? 'dark' : 'light'}*/>
         <Form onSubmit={handleReceiveStock}>
           <Modal.Header closeButton className="bg-theme-surface">
             <Modal.Title className="text-theme">Receive Stock: {item.name}</Modal.Title>
@@ -194,6 +202,11 @@ const InventoryBatches = () => {
               <Form.Label className="text-theme">Notes</Form.Label>
               <Form.Control as="textarea" rows={2} value={receiveData.notes} onChange={e => setReceiveData({...receiveData, notes: e.target.value})} />
             </Form.Group>
+            {/* Bug 4 Fix: Added cost_per_unit input so users can enter cost data */}
+            <Form.Group className="mb-3">
+              <Form.Label className="text-theme">Cost Per Unit</Form.Label>
+              <Form.Control type="number" step="0.01" min="0" placeholder="Optional" value={receiveData.cost_per_unit} onChange={e => setReceiveData({...receiveData, cost_per_unit: e.target.value})} />
+            </Form.Group>
           </Modal.Body>
           <Modal.Footer className="bg-theme-surface border-top-0">
             <Button variant="secondary" onClick={() => setShowReceiveModal(false)}>Cancel</Button>
@@ -203,7 +216,7 @@ const InventoryBatches = () => {
       </Modal>
 
       {/* Consume Modal */}
-      <Modal show={showConsumeModal} onHide={() => setShowConsumeModal(false)} data-bs-theme={isDarkMode ? 'dark' : 'light'}>
+      <Modal show={showConsumeModal} onHide={() => setShowConsumeModal(false)} /*data-bs-theme={isDarkMode ? 'dark' : 'light'}*/>
         <Form onSubmit={handleConsumeStock}>
           <Modal.Header closeButton className="bg-theme-surface">
             <Modal.Title className="text-theme">Consume Stock: {item.name}</Modal.Title>

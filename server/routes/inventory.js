@@ -1,14 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../models/index");
-const { authenticateUser, authorizeRole } = require("../middleware/auth");
-const { tenantContext } = require("../middleware/tenant");
+const authenticateUser = require("../middleware/authenticateUser");
+const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 const Sequelize = require("sequelize");
 const inventoryEvents = require("../services/inventoryEvents");
 
 router.use(authenticateUser);
 router.use(tenantContext);
-router.use(authorizeRole(["admin", "manager", "chemist"]));
+router.use(authorizeRoles("admin", "manager", "chemist"));
 
 // --- ITEMS ---
 
@@ -96,7 +97,7 @@ router.put("/items/:id", async (req, res) => {
 });
 
 // Delete item
-router.delete("/items/:id", authorizeRole(["admin", "manager"]), async (req, res) => {
+router.delete("/items/:id", authorizeRoles("admin", "manager"), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -150,6 +151,28 @@ router.post("/receive", async (req, res) => {
       return res.status(400).json({ message: "Invalid receiving data" });
     }
 
+    // Bug 2 Fix: Verify item belongs to current tenant
+    const itemRecord = await db.inventory_item.findOne({
+      where: { id: item_id, lab_id: req.tenant.lab_id },
+      transaction: t
+    });
+    if (!itemRecord) {
+      await t.rollback();
+      return res.status(404).json({ message: "Inventory item not found in your lab" });
+    }
+
+    // Bug 2 Fix: Verify supplier belongs to current tenant (if provided)
+    if (supplier_id) {
+      const supplierRecord = await db.supplier.findOne({
+        where: { id: supplier_id, lab_id: req.tenant.lab_id },
+        transaction: t
+      });
+      if (!supplierRecord) {
+        await t.rollback();
+        return res.status(404).json({ message: "Supplier not found in your lab" });
+      }
+    }
+
     const batch = await db.inventory_batch.create({
       item_id,
       supplier_id: supplier_id || null,
@@ -200,8 +223,10 @@ router.post("/consume", async (req, res) => {
 
     if (batch_id) {
       // Consume from specific batch
+      // Bug 3 Fix: Lock the row to prevent concurrent reads from using stale data
       const batch = await db.inventory_batch.findOne({
         where: { id: batch_id, item_id, lab_id: req.tenant.lab_id },
+        lock: t.LOCK.UPDATE,
         transaction: t
       });
       if (!batch) throw new Error("Batch not found");
@@ -211,6 +236,7 @@ router.post("/consume", async (req, res) => {
       batchesToProcess.push({ batch, deductQty: qtyToDeduct });
     } else {
       // FIFO Logic
+      // Bug 3 Fix: Lock rows to prevent concurrent reads from using stale data
       const availableBatches = await db.inventory_batch.findAll({
         where: {
           item_id,
@@ -222,6 +248,7 @@ router.post("/consume", async (req, res) => {
           ['expiration_date', 'ASC'],
           ['received_date', 'ASC']
         ],
+        lock: t.LOCK.UPDATE,
         transaction: t
       });
 
@@ -242,8 +269,9 @@ router.post("/consume", async (req, res) => {
     }
 
     for (const process of batchesToProcess) {
+      // Bug 3 Fix: Use atomic SQL decrement instead of in-memory subtraction
       await process.batch.update({
-        current_quantity: Number(process.batch.current_quantity) - process.deductQty
+        current_quantity: db.sequelize.literal(`current_quantity - ${Number(process.deductQty)}`)
       }, { transaction: t });
 
       await db.inventory_transaction.create({
@@ -267,7 +295,7 @@ router.post("/consume", async (req, res) => {
     await t.rollback();
     console.error("Error consuming stock:", error);
     res.status(error.message.includes("Insufficient") || error.message.includes("not found") ? 400 : 500)
-       .json({ message: error.message || "Server error" });
+      .json({ message: error.message || "Server error" });
   }
 });
 
@@ -319,7 +347,7 @@ router.post("/adjust", async (req, res) => {
     await t.rollback();
     console.error("Error adjusting stock:", error);
     res.status(error.message.includes("not found") || error.message.includes("negative") ? 400 : 500)
-       .json({ message: error.message || "Server error" });
+      .json({ message: error.message || "Server error" });
   }
 });
 
@@ -446,3 +474,5 @@ router.put("/notifications/:id/read", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+module.exports = router;

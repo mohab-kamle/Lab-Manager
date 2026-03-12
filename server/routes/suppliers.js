@@ -1,12 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../models/index");
-const { authenticateUser, authorizeRole } = require("../middleware/auth");
-const { tenantContext } = require("../middleware/tenant");
+const authenticateUser = require("../middleware/authenticateUser");
+const authorizeRoles = require("../middleware/authorizeRoles");
+const { tenantContext } = require("../middleware/tenantContext");
 
 router.use(authenticateUser);
 router.use(tenantContext);
-router.use(authorizeRole(["admin", "manager", "chemist", "receptionist"]));
+router.use(authorizeRoles("admin", "manager", "chemist", "receptionist"));
 
 // Get all suppliers
 router.get("/", async (req, res) => {
@@ -23,7 +24,7 @@ router.get("/", async (req, res) => {
 });
 
 // Create supplier
-router.post("/", authorizeRole(["admin", "manager", "chemist"]), async (req, res) => {
+router.post("/", authorizeRoles("admin", "manager", "chemist"), async (req, res) => {
   try {
     const { name, contact_info, email, phone, address } = req.body;
 
@@ -48,7 +49,7 @@ router.post("/", authorizeRole(["admin", "manager", "chemist"]), async (req, res
 });
 
 // Update supplier
-router.put("/:id", authorizeRole(["admin", "manager", "chemist"]), async (req, res) => {
+router.put("/:id", authorizeRoles("admin", "manager", "chemist"), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, contact_info, email, phone, address } = req.body;
@@ -77,7 +78,7 @@ router.put("/:id", authorizeRole(["admin", "manager", "chemist"]), async (req, r
 });
 
 // Delete supplier
-router.delete("/:id", authorizeRole(["admin", "manager"]), async (req, res) => {
+router.delete("/:id", authorizeRoles("admin", "manager"), async (req, res) => {
   try {
     const { id } = req.params;
 
