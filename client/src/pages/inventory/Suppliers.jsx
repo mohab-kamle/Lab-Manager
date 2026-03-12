@@ -3,14 +3,14 @@ import PropTypes from "prop-types";
 import { Container, Button, Modal, Form } from "react-bootstrap";
 import DynamicTable from "../../components/ui/DynamicTable";
 import api from "../../utils/api";
-import { ThemeContext } from "../../context/ThemeContext";
+// import { ThemeContext } from "../../context/ThemeContext";
 
 const Suppliers = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
-  const { isDarkMode } = useContext(ThemeContext);
+  // const { isDarkMode } = useContext(ThemeContext);
 
   const [formData, setFormData] = useState({
     name: "", contact_info: "", email: "", phone: "", address: ""
@@ -71,27 +71,30 @@ const Suppliers = () => {
   };
 
   const ActionComponent = useMemo(() => {
-    const Component = ({ item }) => (
+    // DynamicTable passes row data as 'rowData' prop
+    const Component = ({ rowData }) => (
       <div className="d-flex gap-2">
-        <Button variant="outline-primary" size="sm" onClick={() => handleShowModal(item)}>Edit</Button>
-        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item.id)}>Delete</Button>
+        <Button variant="outline-primary" size="sm" onClick={() => handleShowModal(rowData)}>Edit</Button>
+        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData.id)}>Delete</Button>
       </div>
     );
     Component.displayName = "SupplierActionComponent";
     Component.propTypes = {
-      item: PropTypes.shape({
+      rowData: PropTypes.shape({
         id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       }).isRequired,
     };
     return Component;
   }, []);
 
-  const columns = [
-    { key: "name", label: "Supplier Name", sortable: true },
-    { key: "phone", label: "Phone", sortable: true },
-    { key: "email", label: "Email", sortable: true },
-    { key: "contact_info", label: "Contact Person", sortable: false },
-  ];
+  // DynamicTable expects columns as an array of strings (data keys)
+  const columns = ["name", "phone", "email", "contact_info"];
+
+  // Friendly column headers for DynamicTable
+  const customHeaders = {
+    name: "Supplier Name",
+    contact_info: "Contact Person",
+  };
 
   return (
     <Container fluid className="py-4">
@@ -103,13 +106,12 @@ const Suppliers = () => {
       <DynamicTable
         data={suppliers}
         columns={columns}
+        customHeaders={customHeaders}
         ActionComponent={ActionComponent}
-        loading={loading}
-        searchKeys={["name", "phone", "email"]}
         emptyMessage="No suppliers found."
       />
 
-      <Modal show={showModal} onHide={handleCloseModal} data-bs-theme={isDarkMode ? 'dark' : 'light'}>
+      <Modal show={showModal} onHide={handleCloseModal} /*data-bs-theme={isDarkMode ? 'dark' : 'light'}*/>
         <Form onSubmit={handleSubmit}>
           <Modal.Header closeButton className="bg-theme-surface">
             <Modal.Title className="text-theme">{editingSupplier ? "Edit Supplier" : "Add Supplier"}</Modal.Title>

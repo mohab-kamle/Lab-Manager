@@ -754,7 +754,7 @@ const MainNavBar = () => {
                             as={Link}
                             to={`/${user?.role}/inventory`}
                             data-dropdown-key="Inventory"
-                            data-title="Dashboard"
+                            data-title="Inventory"
                             data-id="inventory-dashboard"
                             active={activeItem === "inventory-dashboard"}
                           >
