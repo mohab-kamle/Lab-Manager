@@ -15,6 +15,15 @@ const { validatePassword } = require('../utils/passwordValidator');
 // Employee login
 router.post("/login", loginLimiter, async (req, res) => {
     const { username, password, lab_id } = req.body;
+
+    // Validate inputs to prevent object injection
+    if (!username || typeof username !== 'string') {
+        return res.status(400).json({ error: "Invalid username format" });
+    }
+
+    if (lab_id && typeof lab_id === 'object') {
+        return res.status(400).json({ error: "Invalid lab ID format" });
+    }
   
     try {
       // For login, we need to check if the employee exists in the specified lab
