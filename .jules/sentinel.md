@@ -1,3 +1,9 @@
+# Sentinel's Journal
+
+## 2024-05-23 - Missing Rate Limiting on Patient Login
+**Vulnerability:** The `/patient/login` endpoint lacked rate limiting, allowing unlimited login attempts.
+**Learning:** While `employee` login was protected, `patient` login was missed. Inconsistent security application across similar features is a common pattern.
+**Prevention:** Verify that security controls (like rate limiting) are applied to ALL authentication endpoints, not just the main administrative ones. Use a shared middleware configuration where possible to ensure consistency.
 ## 2024-05-23 - Broken Access Control in File Uploads
 **Vulnerability:** The `authorizeFileAccess` middleware was "failing open" - if a filename didn't match the expected format (regex mismatch), the code called `next()` instead of denying access. This allowed unauthorized users to bypass file access controls by uploading files with malformed names (e.g. via `multer` using non-numeric IDs). Additionally, a legacy `express.static` route allowed public access to `comment-images`, bypassing the auth middleware entirely.
 **Learning:** Middleware validation logic must "fail closed" (default deny). Regex matches must explicitly handle the "no match" case to deny access. Legacy backward-compatibility routes can silently negate new security controls if not removed.
