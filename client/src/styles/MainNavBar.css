@@ -285,3 +285,210 @@ body {
 .login-btn-glow:active {
   transform: translateY(0);
 }
+
+/* ===========================
+   NOTIFICATION BELL
+   =========================== */
+.notification-bell-container {
+  position: relative;
+  margin-right: 16px;
+}
+
+.notification-bell-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  color: var(--text, #333);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-bell-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  transform: scale(1.1);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #dc3545;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+  border: 2px solid white;
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Dropdown Panel */
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 0, 0, 0.08);
+  z-index: 2000;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  animation: dropdown-enter 0.2s ease-out;
+}
+
+@keyframes dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fafafa;
+}
+
+.notification-dropdown-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+}
+
+.notification-mark-all-btn {
+  background: none;
+  border: none;
+  color: #0d6efd;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.notification-mark-all-btn:hover {
+  background-color: rgba(13, 110, 253, 0.08);
+}
+
+/* Notification List */
+.notification-dropdown-body {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.notification-dropdown-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.notification-dropdown-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+}
+
+.notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #aaa;
+}
+
+.notification-empty p {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+/* Individual Notification Item */
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background-color: rgba(13, 110, 253, 0.04);
+}
+
+.notification-item-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.notification-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-item-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notification-item-message {
+  font-size: 0.82rem;
+  color: #333;
+  margin: 4px 0 6px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.notification-item-time {
+  font-size: 0.7rem;
+  color: #999;
+}
+
+/* Read notification styling — visually dimmed */
+.notification-item-read {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.notification-item-read:hover {
+  background-color: transparent;
+}
+/* Responsive: make dropdown full-width on small screens */
+@media (max-width: 576px) {
+  .notification-dropdown {
+    position: fixed;
+    top: 80px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+}
