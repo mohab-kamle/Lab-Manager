@@ -34,3 +34,8 @@
 **Vulnerability:** The `GET /:id/results-data` endpoint fetched medical reports using `findByPk(id)` which ignored the tenant context (`lab_id`), allowing access to any report by ID. Additionally, the caching middleware used only `reportId` as the cache key, meaning a cached report from one tenant could be served to another if they requested the same ID.
 **Learning:** In multi-tenant systems, caching layers must include the tenant identifier in the cache key. Fixing the database query alone is insufficient if the cache can serve stale or cross-tenant data.
 **Prevention:** Always include `tenant_id` (or `lab_id`) in cache keys for tenant-specific resources. Use `findOne` with explicit `where: { lab_id }` checks instead of `findByPk` for resources that must be isolated.
+
+## 2024-05-24 - Missing Environment Variable Validation
+**Vulnerability:** The application relied on `SECRET_KEY` for JWT signing but did not validate its presence at startup. This could lead to the application starting in an insecure state or failing unpredictably at runtime if the variable was missing or undefined.
+**Learning:** Critical security configuration must be validated at application startup. Failing to do so allows "silent failures" or default insecure behaviors that might go unnoticed until exploitation.
+**Prevention:** Implement a "Fail Fast" strategy. Validate all critical environment variables (secrets, DB URLs, API keys) during the bootstrap phase (e.g., `index.js`) and crash the application (`process.exit(1)`) if any are missing.
