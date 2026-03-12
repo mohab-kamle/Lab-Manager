@@ -25,10 +25,14 @@ import {
   Database,
   DollarSignIcon,
   Settings,
+  Boxes,
+  Bell,
 } from "lucide-react";
 
+import api from "../../utils/api";
+
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
-import useLabPrefix from "../../hooks/useLabPrefix";
+import { getSubdomain } from "../../utils/subdomain"; // Add this import properly
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
 import VersionBadge from "../ui/VersionBadge";
@@ -42,6 +46,7 @@ export const defaultTitles = {
   MedicalReports: "Medical Reports",
   Accounting: "Accounting",
   Manage_B: "Manage Branches",
+  Inventory: "Inventory",
 };
 let navbarTitlesReset = null;
 let navbarActiveReset = null;
@@ -84,8 +89,7 @@ export const resetNavbarActiveState = () => {
  */
 const MainNavBar = () => {
   const { user, loading: authLoading, refreshUser, logout } = useAuth();
-  const { terminateLabInfo, loading: labLoading } = useLab();
-  const prefix = useLabPrefix();
+  const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -120,6 +124,82 @@ const MainNavBar = () => {
   });
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // --- Notification Bell State ---
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
+
+  // Fetch all notifications (only for admin/chemist)
+  const fetchNotifications = async () => {
+    try {
+      // Fetch all statuses so read notifications remain visible
+      const res = await api.get("/inventory/notifications?status=ALL");
+      setNotifications(res.data);
+    } catch (error) {
+      // Silently fail — notifications are non-critical
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  // Compute unread count for the badge (only unread notifications)
+  const unreadCount = notifications.filter(n => n.status === 'UNREAD').length;
+
+  // Fetch on mount and listen for real-time updates from LabLayout
+  useEffect(() => {
+    if (user?.lab_id && (user.role === 'admin' || user.role === 'chemist')) {
+      fetchNotifications();
+
+      const handleNotificationUpdate = () => fetchNotifications();
+      window.addEventListener('inventory-notification-update', handleNotificationUpdate);
+      return () => window.removeEventListener('inventory-notification-update', handleNotificationUpdate);
+    }
+  }, [user]);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Mark a single notification as read (keep it in the list, just update status)
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await api.put(`/inventory/notifications/${notificationId}/read`);
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, status: 'READ' } : n)
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  // Mark all notifications as read (keep them in the list with READ status)
+  const handleMarkAllRead = async () => {
+    try {
+      await api.put("/inventory/notifications/read-all");
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, status: 'READ' }))
+      );
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
+  };
+
+  // Get alert type styling
+  const getAlertStyle = (alertType) => {
+    switch (alertType) {
+      case 'LOW_STOCK': return { color: '#dc3545', icon: '📉', label: 'Low Stock' };
+      case 'EXPIRING_SOON': return { color: '#ffc107', icon: '⏰', label: 'Expiring Soon' };
+      case 'EXPIRED': return { color: '#dc3545', icon: '❌', label: 'Expired' };
+      default: return { color: '#6c757d', icon: 'ℹ️', label: 'Alert' };
+    }
+  };
+
   // Keep reference for resetting titles externally
   useEffect(() => {
     navbarTitlesReset = setTitles;
@@ -136,18 +216,6 @@ const MainNavBar = () => {
       localStorage.setItem("active-dropdown-item", activeItem);
     }
   }, [activeItem]);
-
-  // Handle prefix-based navigation once
-  useEffect(() => {
-    if (!user) return;
-    if (prefix && !isInitialized) {
-      setIsInitialized(true);
-      if (location.pathname.includes("null/")) {
-        const correctedPath = location.pathname.replace("null/", `${prefix}/`);
-        navigate(correctedPath, { replace: true });
-      }
-    }
-  }, [prefix, isInitialized, location.pathname, navigate, user]);
 
   // Handle user refresh and token expiration
   useEffect(() => {
@@ -251,7 +319,12 @@ const MainNavBar = () => {
         }}
       >
         <Container fluid>
-          <Navbar.Brand as={Link} to="/" onClick={() => setExpanded(false)}>
+          <Navbar.Brand
+            as={getSubdomain() ? "a" : Link}
+            to={getSubdomain() ? undefined : "/"}
+            href={getSubdomain() ? `${window.location.protocol}//${window.location.host.replace(getSubdomain() + '.', '')}` : undefined}
+            onClick={() => setExpanded(false)}
+          >
             <img
               src={labIcon}
               alt=""
@@ -275,66 +348,72 @@ const MainNavBar = () => {
           <Navbar.Collapse className="justify-content-end">
             <Nav className="Down-on-main me-auto">
               {/* Dashboard Home Link */}
-              {!prefix || labLoading ? (
+              {!labInfo || labLoading ? (
                 user && <Nav.Link disabled>Loading...</Nav.Link>
               ) : user?.role === "admin" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/admin/dashboard` : "#"}
+                  to={`/admin/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
+                  aria-label="Admin Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? "Admin Dashboard" : "Loading..."} */}
                 </Nav.Link>
               ) : user?.role === "receptionist" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/receptionist/dashboard` : "#"}
+                  to={`/receptionist/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
+                  aria-label="Receptionist Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? "Receptionist Dashboard" : "Loading..."} */}
                 </Nav.Link>
               ) : user?.role === "chemist" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/chemist/dashboard` : "#"}
+                  to={`/chemist/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
+                  aria-label="Chemist Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Chemist Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "doctor" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/doctor/dashboard` : "#"}
+                  to={`/doctor/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
+                  aria-label="Doctor Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Doctor Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "employee" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/employee/dashboard` : "#"}
+                  to={`/employee/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
+                  aria-label="Employee Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Employee Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "patient" ? (
                 <Nav.Link
                   as={Link}
-                  to={prefix ? `${prefix}/patient/dashboard` : "#"}
+                  to={`/patient/dashboard`}
                   onClick={() => setExpanded(false)}
-                  disabled={!prefix || labLoading}
+                  disabled={!labInfo || labLoading}
+                  aria-label="Patient Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : null}
@@ -342,486 +421,595 @@ const MainNavBar = () => {
               {(user?.role === "admin" ||
                 user?.role === "chemist" ||
                 user?.role === "receptionist") && (
-                <Dropdown className="mx-1 mb-1">
-                  <Dropdown.Toggle
-                    id="dropdown-basic"
-                    className={`nav-button ${
-                      ["test-groups", "categories", "components"].includes(
+                  <Dropdown className="mx-1 mb-1">
+                    <Dropdown.Toggle
+                      id="dropdown-basic"
+                      className={`nav-button ${["test-groups", "categories", "components"].includes(
                         activeItem
                       )
                         ? "active-dropdown"
                         : ""
-                    }`}
-                  >
-                    <FlaskConical size={18} className="me-1 mb-1" />
-                    {titles.testGroups}
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu>
-                    <Dropdown.Item
-                      as={Link}
-                      to={`${prefix}/${user?.role}/test-groups`}
-                      data-dropdown-key="testGroups"
-                      data-title="Test Groups"
-                      data-id="test-groups"
-                      active={activeItem === "test-groups"}
+                        }`}
                     >
-                      Test Groups
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                      as={Link}
-                      to={`${prefix}/${user?.role}/test-group-categories`}
-                      data-dropdown-key="testGroups"
-                      data-title="Categories"
-                      data-id="categories"
-                      active={activeItem === "categories"}
-                    >
-                      Categories
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                      as={Link}
-                      to={`${prefix}/${user?.role}/test-group-components`}
-                      data-dropdown-key="testGroups"
-                      data-title="Components"
-                      data-id="components"
-                      active={activeItem === "components"}
-                    >
-                      Components
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
-              )}
+                      <FlaskConical size={18} className="me-1 mb-1" />
+                      {titles.testGroups}
+                    </Dropdown.Toggle>
+                    <Dropdown.Menu>
+                      <Dropdown.Item
+                        as={Link}
+                        to={`/${user?.role}/test-groups`}
+                        data-dropdown-key="testGroups"
+                        data-title="Test Groups"
+                        data-id="test-groups"
+                        active={activeItem === "test-groups"}
+                      >
+                        Test Groups
+                      </Dropdown.Item>
+                      <Dropdown.Item
+                        as={Link}
+                        to={`/${user?.role}/test-group-categories`}
+                        data-dropdown-key="testGroups"
+                        data-title="Categories"
+                        data-id="categories"
+                        active={activeItem === "categories"}
+                      >
+                        Categories
+                      </Dropdown.Item>
+                      <Dropdown.Item
+                        as={Link}
+                        to={`/${user?.role}/test-group-components`}
+                        data-dropdown-key="testGroups"
+                        data-title="Components"
+                        data-id="components"
+                        active={activeItem === "components"}
+                      >
+                        Components
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
+                )}
               {/* Employee Links - Different access based on role */}
               {(user?.role === "admin" ||
                 user?.role === "receptionist" ||
                 user?.role === "chemist" ||
                 user?.role === "doctor" ||
                 user?.role === "employee") && (
-                <>
-                  {/* Tests & Cultures - Admin, Chemist, Employee */}
-                  {(user?.role === "admin" ||
-                    user?.role === "chemist" ||
-                    user?.role === "employee") && (
-                    <Dropdown className="mx-1 mb-1">
-                      <Dropdown.Toggle
-                        id="dropdown-basic"
-                        className={`nav-button ${
-                          [
-                            "categories-tests",
-                            "tests-tests",
-                            "sample-types-tests",
-                            "culture-options-tests",
-                            "antibiotics-tests",
-                            "packages-offers",
-                            "culture-tests",
-                            "diseases-tests",
-                          ].includes(activeItem)
-                            ? "active-dropdown"
-                            : ""
-                        }`}
-                      >
-                        <Database size={18} className="me-1 mb-1" />
-                        {titles.tests_C}
-                      </Dropdown.Toggle>
+                  <>
+                    {/* Tests & Cultures - Admin, Chemist, Employee */}
+                    {(user?.role === "admin" ||
+                      user?.role === "chemist" ||
+                      user?.role === "employee") && (
+                        <Dropdown className="mx-1 mb-1">
+                          <Dropdown.Toggle
+                            id="dropdown-basic"
+                            className={`nav-button ${[
+                              "categories-tests",
+                              "tests-tests",
+                              "sample-types-tests",
+                              "culture-options-tests",
+                              "antibiotics-tests",
+                              "packages-offers",
+                              "culture-tests",
+                              "diseases-tests",
+                            ].includes(activeItem)
+                              ? "active-dropdown"
+                              : ""
+                              }`}
+                          >
+                            <Database size={18} className="me-1 mb-1" />
+                            {titles.tests_C}
+                          </Dropdown.Toggle>
 
-                      <Dropdown.Menu>
-                        {user?.role === "admin" && (
-                          <>
+                          <Dropdown.Menu>
+                            {user?.role === "admin" && (
+                              <>
+                                <Dropdown.Item
+                                  as={Link}
+                                  to={`/${user?.role}/categories`}
+                                  data-dropdown-key="tests_C"
+                                  data-title="categories"
+                                  data-id="categories-tests"
+                                  active={activeItem === "categories-tests"}
+                                >
+                                  categories
+                                </Dropdown.Item>
+                                <Dropdown.Item
+                                  as={Link}
+                                  to={`/${user?.role}/tests`}
+                                  data-dropdown-key="tests_C"
+                                  data-title="tests"
+                                  data-id="tests-tests"
+                                  active={activeItem === "tests-tests"}
+                                >
+                                  tests
+                                </Dropdown.Item>
+                                <Dropdown.Item
+                                  as={Link}
+                                  to={`/${user?.role}/sample-types`}
+                                  data-dropdown-key="tests_C"
+                                  data-title="sample types"
+                                  data-id="sample-types-tests"
+                                  active={activeItem === "sample-types-tests"}
+                                >
+                                  sample types
+                                </Dropdown.Item>
+                                <Dropdown.Item
+                                  as={Link}
+                                  to={`/${user?.role}/culture-options`}
+                                  data-dropdown-key="tests_C"
+                                  data-title="culture options"
+                                  data-id="culture-options-tests"
+                                  active={activeItem === "culture-options-tests"}
+                                >
+                                  culture options
+                                </Dropdown.Item>
+                                <Dropdown.Item
+                                  as={Link}
+                                  to={`/${user?.role}/antibiotics`}
+                                  data-dropdown-key="tests_C"
+                                  data-title="antibiotics"
+                                  data-id="antibiotics-tests"
+                                  active={activeItem === "antibiotics-tests"}
+                                >
+                                  antibiotics
+                                </Dropdown.Item>
+                                <Dropdown.Item
+                                  as={Link}
+                                  to={`/${user?.role}/packages-and-offers`}
+                                  data-dropdown-key="tests_C"
+                                  data-title="packages & offers"
+                                  data-id="packages-offers" // 👈 Add this
+                                  active={activeItem === "packages-offers"} // 👈 Add this
+                                >
+                                  packages & offers
+                                </Dropdown.Item>
+                              </>
+                            )}
+                            {(user?.role === "chemist" ||
+                              user?.role === "employee") && (
+                                <>
+                                  <Dropdown.Item
+                                    as={Link}
+                                    to={`/${user?.role}/categories`}
+                                    data-dropdown-key="tests_C"
+                                    data-title="categories"
+                                    data-id="categories-tests"
+                                    active={activeItem === "categories-tests"}
+                                  >
+                                    categories
+                                  </Dropdown.Item>
+                                  <Dropdown.Item
+                                    as={Link}
+                                    to={`/${user?.role}/tests`}
+                                    data-dropdown-key="tests_C"
+                                    data-title="tests"
+                                    data-id="tests-tests"
+                                    active={activeItem === "tests-tests"}
+                                  >
+                                    tests
+                                  </Dropdown.Item>
+                                  <Dropdown.Item
+                                    as={Link}
+                                    to={`/${user?.role}/sample-types`}
+                                    data-dropdown-key="tests_C"
+                                    data-title="sample types"
+                                    data-id="sample-types-tests"
+                                    active={activeItem === "sample-types-tests"}
+                                  >
+                                    sample types
+                                  </Dropdown.Item>
+                                  <Dropdown.Item
+                                    as={Link}
+                                    to={`/${user?.role}/culture-options`}
+                                    data-dropdown-key="tests_C"
+                                    data-title="culture options"
+                                    data-id="culture-options-tests"
+                                    active={activeItem === "culture-options-tests"}
+                                  >
+                                    culture options
+                                  </Dropdown.Item>
+                                  <Dropdown.Item
+                                    as={Link}
+                                    to={`/${user?.role}/antibiotics`}
+                                    data-dropdown-key="tests_C"
+                                    data-title="antibiotics"
+                                    data-id="antibiotics-tests"
+                                    active={activeItem === "antibiotics-tests"}
+                                  >
+                                    antibiotics
+                                  </Dropdown.Item>
+                                  <Dropdown.Item
+                                    as={Link}
+                                    to={`/${user?.role}/packages-and-offers`}
+                                    data-dropdown-key="tests_C"
+                                    data-title="packages & offers"
+                                  >
+                                    packages & offers
+                                  </Dropdown.Item>
+                                </>
+                              )}
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/categories`}
+                              to={`/${user?.role}/cultures`}
                               data-dropdown-key="tests_C"
-                              data-title="categories"
-                              data-id="categories-tests"
-                              active={activeItem === "categories-tests"}
+                              data-title="culture"
+                              data-id="culture-tests"
+                              active={activeItem === "culture-tests"}
                             >
-                              categories
+                              culture
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/tests`}
+                              to={`/${user?.role}/diseases`}
                               data-dropdown-key="tests_C"
-                              data-title="tests"
-                              data-id="tests-tests"
-                              active={activeItem === "tests-tests"}
+                              data-title="diseases"
+                              data-id="diseases-tests"
+                              active={activeItem === "diseases-tests"}
                             >
-                              tests
+                              diseases
+                            </Dropdown.Item>
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      )}
+
+                    {/* Reception - Admin, Receptionist */}
+                    {(user?.role === "admin" ||
+                      user?.role === "receptionist") && (
+                        <Dropdown className="mx-1 mb-1">
+                          <Dropdown.Toggle
+                            id="dropdown-basic"
+                            className={`nav-button ${[
+                              "vault",
+                              "invoices",
+                              "patients",
+                              "patients-analytics",
+                            ].includes(activeItem)
+                              ? "active-dropdown"
+                              : ""
+                              }`}
+                          >
+                            <Users size={18} className="me-1 mb-1" />
+                            {titles.Rec}
+                          </Dropdown.Toggle>
+
+                          <Dropdown.Menu>
+                            {user?.role === "admin" && (
+                              <Dropdown.Item
+                                as={Link}
+                                to={`/${user?.role}/vault`}
+                                data-dropdown-key="Rec"
+                                data-title="Vault(under construction)"
+                                data-id="vault"
+                                active={activeItem === "vault"}
+                              >
+                                Vault(under construction)
+                              </Dropdown.Item>
+                            )}
+                            <Dropdown.Item
+                              as={Link}
+                              to={`/${user?.role}/invoices`}
+                              data-dropdown-key="Rec"
+                              data-title="Invoices"
+                              data-id="invoices"
+                              active={activeItem === "invoices"}
+                            >
+                              Invoices
                             </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/sample-types`}
-                              data-dropdown-key="tests_C"
-                              data-title="sample types"
-                              data-id="sample-types-tests"
-                              active={activeItem === "sample-types-tests"}
+                              to={`/${user?.role}/patients`}
+                              data-dropdown-key="Rec"
+                              data-title="Patients"
+                              data-id="patients"
+                              active={activeItem === "patients"}
                             >
-                              sample types
+                              Patients
                             </Dropdown.Item>
+                            {user?.role === "admin" && (
+                              <>
+                                <Dropdown.Item
+                                  as={Link}
+                                  to={`/${user?.role}/patients-analytics`}
+                                  data-dropdown-key="Rec"
+                                  data-title="Patients Analytics"
+                                  data-id="patients-analytics"
+                                  active={activeItem === "patients-analytics"}
+                                >
+                                  Patients Analytics
+                                </Dropdown.Item>
+                              </>
+                            )}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      )}
+
+                    {/* Medical Reports - Admin, Chemist, Receptionist, Doctor, Employee */}
+                    {(user?.role === "admin" ||
+                      user?.role === "chemist" ||
+                      user?.role === "receptionist" ||
+                      user?.role === "doctor" ||
+                      user?.role === "employee") && (
+                        <Dropdown className="mx-1 mb-1">
+                          <Dropdown.Toggle
+                            variant="outline-light"
+                            id="dropdown-basic"
+                            className={`nav-button ${["all-medical-reports"].includes(activeItem)
+                              ? "active-dropdown"
+                              : ""
+                              }`}
+                          >
+                            <FileText size={18} className="me-1 mb-1" />
+                            {titles.MedicalReports}
+                          </Dropdown.Toggle>
+
+                          <Dropdown.Menu>
                             <Dropdown.Item
                               as={Link}
-                              to={`${prefix}/${user?.role}/culture-options`}
-                              data-dropdown-key="tests_C"
-                              data-title="culture options"
-                              data-id="culture-options-tests"
-                              active={activeItem === "culture-options-tests"}
+                              to={`/${user?.role}/medical-reports`}
+                              data-dropdown-key="MedicalReports"
+                              data-title="All Medical Reports"
+                              data-id="all-medical-reports"
+                              active={activeItem === "all-medical-reports"}
                             >
-                              culture options
+                              All Medical Reports
                             </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/antibiotics`}
-                              data-dropdown-key="tests_C"
-                              data-title="antibiotics"
-                              data-id="antibiotics-tests"
-                              active={activeItem === "antibiotics-tests"}
-                            >
-                              antibiotics
-                            </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/packages-offers`}
-                              data-dropdown-key="tests_C"
-                              data-title="packages & offers"
-                              data-id="packages-offers" // 👈 Add this
-                              active={activeItem === "packages-offers"} // 👈 Add this
-                            >
-                              packages & offers
-                            </Dropdown.Item>
-                          </>
-                        )}
-                        {(user?.role === "chemist" ||
-                          user?.role === "employee") && (
-                          <>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/categories`}
-                              data-dropdown-key="tests_C"
-                              data-title="categories"
-                              data-id="categories-tests"
-                              active={activeItem === "categories-tests"}
-                            >
-                              categories
-                            </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/tests`}
-                              data-dropdown-key="tests_C"
-                              data-title="tests"
-                              data-id="tests-tests"
-                              active={activeItem === "tests-tests"}
-                            >
-                              tests
-                            </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/sample-types`}
-                              data-dropdown-key="tests_C"
-                              data-title="sample types"
-                              data-id="sample-types-tests"
-                              active={activeItem === "sample-types-tests"}
-                            >
-                              sample types
-                            </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/culture-options`}
-                              data-dropdown-key="tests_C"
-                              data-title="culture options"
-                              data-id="culture-options-tests"
-                              active={activeItem === "culture-options-tests"}
-                            >
-                              culture options
-                            </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/antibiotics`}
-                              data-dropdown-key="tests_C"
-                              data-title="antibiotics"
-                              data-id="antibiotics-tests"
-                              active={activeItem === "antibiotics-tests"}
-                            >
-                              antibiotics
-                            </Dropdown.Item>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/packages-offers`}
-                              data-dropdown-key="tests_C"
-                              data-title="packages & offers"
-                            >
-                              packages & offers
-                            </Dropdown.Item>
-                          </>
-                        )}
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/cultures`}
-                          data-dropdown-key="tests_C"
-                          data-title="culture"
-                          data-id="culture-tests"
-                          active={activeItem === "culture-tests"}
+                          </Dropdown.Menu>
+                        </Dropdown>
+                      )}
+
+                    {/* Employee View Only Section */}
+                    {user?.role === "employee" && (
+                      <Dropdown className="mx-1 mb-1">
+                        <Dropdown.Toggle
+                          variant="outline-light"
+                          id="dropdown-employee-view"
+                          className={`nav-button`}
                         >
-                          culture
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/diseases`}
-                          data-dropdown-key="tests_C"
-                          data-title="diseases"
-                          data-id="diseases-tests"
-                          active={activeItem === "diseases-tests"}
-                        >
-                          diseases
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  )}
-
-                  {/* Reception - Admin, Receptionist */}
-                  {(user?.role === "admin" ||
-                    user?.role === "receptionist") && (
-                    <Dropdown className="mx-1 mb-1">
-                      <Dropdown.Toggle
-                        id="dropdown-basic"
-                        className={`nav-button ${
-                          [
-                            "vault",
-                            "invoices",
-                            "patients",
-                            "patients-analytics",
-                          ].includes(activeItem)
-                            ? "active-dropdown"
-                            : ""
-                        }`}
-                      >
-                        <Users size={18} className="me-1 mb-1" />
-                        {titles.Rec}
-                      </Dropdown.Toggle>
-
-                      <Dropdown.Menu>
-                        {user?.role === "admin" && (
+                          <Eye size={16} className="me-1" />
+                          View Only
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
                           <Dropdown.Item
                             as={Link}
-                            to={`${prefix}/${user?.role}/vault`}
-                            data-dropdown-key="Rec"
-                            data-title="Vault(under construction)"
-                            data-id="vault"
-                            active={activeItem === "vault"}
+                            to={`/admin/invoices`}
                           >
-                            Vault(under construction)
+                            Invoices
                           </Dropdown.Item>
-                        )}
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/invoices`}
-                          data-dropdown-key="Rec"
-                          data-title="Invoices"
-                          data-id="invoices"
-                          active={activeItem === "invoices"}
-                        >
-                          Invoices
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/patients`}
-                          data-dropdown-key="Rec"
-                          data-title="Patients"
-                          data-id="patients"
-                          active={activeItem === "patients"}
-                        >
-                          Patients
-                        </Dropdown.Item>
-                        {user?.role === "admin" && (
-                          <>
-                            <Dropdown.Item
-                              as={Link}
-                              to={`${prefix}/${user?.role}/patients/analytics`}
-                              data-dropdown-key="Rec"
-                              data-title="Patients Analytics"
-                              data-id="patients-analytics"
-                              active={activeItem === "patients-analytics"}
-                            >
-                              Patients Analytics
-                            </Dropdown.Item>
-                          </>
-                        )}
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  )}
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/payment-methods`}
+                          >
+                            Payment Methods
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/test-groups`}
+                          >
+                            Test Groups
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    )}
 
-                  {/* Medical Reports - Admin, Chemist, Receptionist, Doctor, Employee */}
-                  {(user?.role === "admin" ||
-                    user?.role === "chemist" ||
-                    user?.role === "receptionist" ||
-                    user?.role === "doctor" ||
-                    user?.role === "employee") && (
-                    <Dropdown className="mx-1 mb-1">
-                      <Dropdown.Toggle
-                        variant="outline-light"
-                        id="dropdown-basic"
-                        className={`nav-button ${
-                          ["all-medical-reports"].includes(activeItem)
+                    {/* Accounting - Admin only */}
+                    {user?.role === "admin" && (
+                      <Dropdown className="mx-1 mb-1">
+                        <Dropdown.Toggle
+                          id="dropdown-basic"
+                          className={`nav-button ${["payment-methods"].includes(activeItem)
                             ? "active-dropdown"
                             : ""
-                        }`}
-                      >
-                        <FileText size={18} className="me-1 mb-1" />
-                        {titles.MedicalReports}
-                      </Dropdown.Toggle>
+                            }`}
+                        >
+                          <DollarSignIcon size={18} className="me-1 mb-1" />
+                          {titles.Accounting}
+                        </Dropdown.Toggle>
 
-                      <Dropdown.Menu>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/medical-reports`}
-                          data-dropdown-key="MedicalReports"
-                          data-title="All Medical Reports"
-                          data-id="all-medical-reports"
-                          active={activeItem === "all-medical-reports"}
-                        >
-                          All Medical Reports
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  )}
+                        <Dropdown.Menu>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/payment-methods`}
+                            data-dropdown-key="Accounting"
+                            data-title="Payment Methods"
+                            data-id="payment-methods"
+                            active={activeItem === "payment-methods"}
+                          >
+                            Payment Methods
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    )}
 
-                  {/* Employee View Only Section */}
-                  {user?.role === "employee" && (
-                    <Dropdown className="mx-1 mb-1">
-                      <Dropdown.Toggle
-                        variant="outline-light"
-                        id="dropdown-employee-view"
-                        className={`nav-button`}
-                      >
-                        <Eye size={16} className="me-1" />
-                        View Only
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/admin/invoices`}
-                        >
-                          Invoices
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/payment-methods`}
-                        >
-                          Payment Methods
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/test-groups`}
-                        >
-                          Test Groups
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  )}
-
-                  {/* Accounting - Admin only */}
-                  {user?.role === "admin" && (
-                    <Dropdown className="mx-1 mb-1">
-                      <Dropdown.Toggle
-                        id="dropdown-basic"
-                        className={`nav-button ${
-                          ["payment-methods"].includes(activeItem)
+                    {/* Inventory & Stock - Admin, Chemist */}
+                    {(user?.role === "admin" || user?.role === "chemist") && (
+                      <Dropdown className="mx-1 mb-1">
+                        <Dropdown.Toggle
+                          id="dropdown-basic"
+                          className={`nav-button ${["inventory-dashboard", "inventory-suppliers", "inventory-items"].includes(activeItem)
                             ? "active-dropdown"
                             : ""
-                        }`}
-                      >
-                        <DollarSignIcon size={18} className="me-1 mb-1" />
-                        {titles.Accounting}
-                      </Dropdown.Toggle>
-
-                      <Dropdown.Menu>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/payment-methods`}
-                          data-dropdown-key="Accounting"
-                          data-title="Payment Methods"
-                          data-id="payment-methods"
-                          active={activeItem === "payment-methods"}
+                            }`}
                         >
-                          Payment Methods
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  )}
+                          <Boxes size={18} className="me-1 mb-1" />
+                          {titles.Inventory}
+                        </Dropdown.Toggle>
 
-                  {/* Admin-only links */}
-                  {user?.role === "admin" && (
-                    <Dropdown className="mx-1 mb-1">
-                      <Dropdown.Toggle
-                        id="dropdown-basic"
-                        className={`nav-button ${
-                          ["branches", "employees", "lab-management"].includes(
+                        <Dropdown.Menu>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory`}
+                            data-dropdown-key="Inventory"
+                            data-title="Inventory"
+                            data-id="inventory-dashboard"
+                            active={activeItem === "inventory-dashboard"}
+                          >
+                            Dashboard
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory/items`}
+                            data-dropdown-key="Inventory"
+                            data-title="Catalog & Stock"
+                            data-id="inventory-items"
+                            active={activeItem === "inventory-items"}
+                          >
+                            Catalog & Stock
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory/suppliers`}
+                            data-dropdown-key="Inventory"
+                            data-title="Suppliers"
+                            data-id="inventory-suppliers"
+                            active={activeItem === "inventory-suppliers"}
+                          >
+                            Suppliers
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    )}
+
+                    {/* Admin-only links */}
+                    {user?.role === "admin" && (
+                      <Dropdown className="mx-1 mb-1">
+                        <Dropdown.Toggle
+                          id="dropdown-basic"
+                          className={`nav-button ${["branches", "employees", "lab-management"].includes(
                             activeItem
                           )
                             ? "active-dropdown"
                             : ""
-                        }`}
-                      >
-                        <Settings size={18} className="me-1 mb-1" />
-                        {titles.Manage_B}
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/branches`}
-                          data-dropdown-key="Manage_B"
-                          data-title="Branches"
-                          data-id="branches"
-                          active={activeItem === "branches"}
+                            }`}
                         >
-                          Branches
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/employees`}
-                          data-dropdown-key="Manage_B"
-                          data-title="Employee Management"
-                          data-id="employees"
-                          active={activeItem === "employees"}
-                        >
-                          Employee Management
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          as={Link}
-                          to={`${prefix}/${user?.role}/lab-management`}
-                          data-dropdown-key="Manage_B"
-                          data-title="Lab Ops Center"
-                          data-id="lab-management"
-                          active={activeItem === "lab-management"}
-                        >
-                          Lab Ops Center
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                  )}
-                </>
-              )}
+                          <Settings size={18} className="me-1 mb-1" />
+                          {titles.Manage_B}
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/branches`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Branches"
+                            data-id="branches"
+                            active={activeItem === "branches"}
+                          >
+                            Branches
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/employees`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Employee Management"
+                            data-id="employees"
+                            active={activeItem === "employees"}
+                          >
+                            Employee Management
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/lab-management`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Lab Ops Center"
+                            data-id="lab-management"
+                            active={activeItem === "lab-management"}
+                          >
+                            Lab Ops Center
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    )}
+                  </>
+                )}
 
               {/* Patient Links */}
               {user?.role === "patient" && (
                 <>
                   <Nav.Link
                     as={Link}
-                    to={`${prefix}/patient/profile`}
+                    to={`/patient/profile`}
                     className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
                   >
                     <User size={18} className="mb-1" /> Profile
                   </Nav.Link>
                   <Nav.Link
                     as={Link}
-                    to={`${prefix}/patient/reports`}
+                    to={`/patient/reports`}
                     className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
                   >
                     <FlaskConical size={18} className="mb-1" /> Reports
                   </Nav.Link>
                 </>
-            )}
+              )}
             </Nav>
             <Nav className="d-flex align-items-center">
+              {/* Notification Bell — visible only for admin/chemist */}
+              {user && (user.role === 'admin' || user.role === 'chemist') && (
+                <div className="notification-bell-container" ref={notificationRef}>
+                  <button
+                    className="notification-bell-btn"
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    title="Inventory Notifications"
+                  >
+                    <Bell size={22} />
+                    {unreadCount > 0 && (
+                      <span className="notification-badge">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {showNotifications && (
+                    <div className="notification-dropdown">
+                      <div className="notification-dropdown-header">
+                        <span className="notification-dropdown-title">Notifications</span>
+                        {unreadCount > 0 && (
+                          <button
+                            className="notification-mark-all-btn"
+                            onClick={handleMarkAllRead}
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+                      <div className="notification-dropdown-body">
+                        {notifications.length === 0 ? (
+                          <div className="notification-empty">
+                            <Bell size={32} strokeWidth={1} />
+                            <p>No new notifications</p>
+                          </div>
+                        ) : (
+                          notifications.map(notification => {
+                            const style = getAlertStyle(notification.alert_type);
+                            return (
+                              <div
+                                key={notification.id}
+                                className={`notification-item ${notification.status === 'READ' ? 'notification-item-read' : ''}`}
+                                onClick={() => notification.status === 'UNREAD' ? handleMarkAsRead(notification.id) : null}
+                              >
+                                <div className="notification-item-icon" style={{ color: style.color }}>
+                                  {style.icon}
+                                </div>
+                                <div className="notification-item-content">
+                                  <span className="notification-item-label" style={{ color: style.color }}>
+                                    {style.label}
+                                  </span>
+                                  <p className="notification-item-message">{notification.message}</p>
+                                  <span className="notification-item-time">
+                                    {new Date(notification.createdAt).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Logout Link */}
-              
+
               {user ? (
                 <>
                   <Nav.Link
@@ -829,9 +1017,10 @@ const MainNavBar = () => {
                     to="/"
                     onClick={handleLogout}
                     className="logout-link"
+                    aria-label="Logout"
                   >
-                    <DoorClosed className="door-icon door-closed" size={30} />
-                    <DoorOpen className="door-icon door-open" size={30} />
+                    <DoorClosed className="door-icon door-closed" size={30} aria-hidden="true" />
+                    <DoorOpen className="door-icon door-open" size={30} aria-hidden="true" />
                     <span className="ms-2 fw-medium d-none d-lg-inline">Logout</span>
                   </Nav.Link>
                 </>
@@ -853,7 +1042,7 @@ const MainNavBar = () => {
               )}
             </Nav>
           </Navbar.Collapse>
-              </Container>
+        </Container>
       </Navbar>
       {user && (
         <div className={`welcome-label ${showWelcome ? "visible" : "hidden"}`}>
