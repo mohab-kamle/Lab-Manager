@@ -29,6 +29,12 @@ const LabLayout = () => {
       socket.connect();
       socket.emit("join_lab", user.lab_id);
 
+      // Helper: dispatch a custom event so the navbar bell can refresh its count
+      const notifyBell = () => {
+        window.dispatchEvent(new CustomEvent('inventory-notification-update'));
+      };
+
+      // --- LOW STOCK ---
       const handleLowStockAlert = (data) => {
         toast.error(
           <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
@@ -36,16 +42,51 @@ const LabLayout = () => {
             <br />
             {data.message}
             <br />
-            <span className="text-decoration-underline mt-1 d-inline-block">Click to reorder</span>
+            <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
           { autoClose: false, closeOnClick: true, draggable: true, theme: "colored" }
         );
+        notifyBell();
+      };
+
+      // --- EXPIRING SOON ---
+      const handleExpiringSoonAlert = (data) => {
+        toast.warning(
+          <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
+            <strong>Expiring Soon: {data.item_name}</strong>
+            <br />
+            {data.message}
+            <br />
+            <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
+          </div>,
+          { autoClose: 10000, closeOnClick: true, draggable: true, theme: "colored" }
+        );
+        notifyBell();
+      };
+
+      // --- EXPIRED ---
+      const handleExpiredAlert = (data) => {
+        toast.error(
+          <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
+            <strong>Expired: {data.item_name}</strong>
+            <br />
+            {data.message}
+            <br />
+            <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
+          </div>,
+          { autoClose: false, closeOnClick: true, draggable: true, theme: "colored" }
+        );
+        notifyBell();
       };
 
       socket.on("low_stock_alert", handleLowStockAlert);
+      socket.on("expiring_soon_alert", handleExpiringSoonAlert);
+      socket.on("expired_alert", handleExpiredAlert);
 
       return () => {
         socket.off("low_stock_alert", handleLowStockAlert);
+        socket.off("expiring_soon_alert", handleExpiringSoonAlert);
+        socket.off("expired_alert", handleExpiredAlert);
         socket.disconnect();
       };
     }
