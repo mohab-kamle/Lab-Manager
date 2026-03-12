@@ -42,7 +42,7 @@ const generatePatientCode = async (labId) => {
 };
 
 router.post("/login", loginLimiter, async (req, res) => {
-    const { patientcode } = req.body;
+  const { patientcode} = req.body;
 
     try {
         const Patient = await patient.findOne({
