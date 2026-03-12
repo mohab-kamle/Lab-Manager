@@ -11,14 +11,32 @@ const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
 const { employee, patient, phone } = require("./models");
 
+// Socket.io for Real-Time Events
+const http = require("http");
+const { Server } = require("socket.io");
+
 // Subscription scheduler service
 const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('./services/subscriptionScheduler');
 
 // Cache service
 const cacheService = require('./services/cacheService');
 
+// Inventory expiry checker
+const { checkExpiringBatches } = require('./services/inventoryEvents');
+
 // Initialize Express app
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Use stricter CORS in production
+    methods: ["GET", "POST"]
+  }
+});
+app.set("io", io); // Make it available to routes
+
 // Trust first proxy (Cloudflare/Nginx) for correct IP rate limiting
 app.set('trust proxy', 1);
 const router = express.Router();
@@ -332,6 +350,8 @@ app.use("/receptionists", require('./routes/receptionist'));
 app.use("/referrals", require('./routes/referrals'));
 app.use("/tgc-categories", require("./routes/tgc_categories"));
 app.use("/test-groups", require("./routes/test_groups"));
+app.use("/suppliers", require("./routes/suppliers"));
+app.use("/inventory", require("./routes/inventory"));
 app.use("/questions", require("./routes/questions"));
 app.use("/contracts", require("./routes/contracts"));
 app.use("/culture-antibiotics", require("./routes/culture_antibiotics"));
@@ -382,7 +402,7 @@ router.get("/", authenticateUser, async (req, res) => {
         user = { ...user.get(), role: "patient", phones };
       }
     } else {
-      user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role"] });
+      user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role", "lab_id"] });
     }
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
@@ -711,6 +731,9 @@ async function startServer() {
   }
 
   // Add graceful shutdown handling
+  // Reference for the expiry check interval (set up after Socket.io handler below)
+  let expiryCheckInterval = null;
+
   process.on('SIGTERM', async () => {
     console.log('🛑 Received SIGTERM, shutting down gracefully...');
     try {
@@ -718,6 +741,9 @@ async function startServer() {
       if (subscriptionScheduler) {
         stopSubscriptionScheduler(subscriptionScheduler);
       }
+
+      // Stop expiry check interval
+      if (expiryCheckInterval) clearInterval(expiryCheckInterval);
 
       // Close Redis cache connection
       await cacheService.close();
@@ -740,6 +766,9 @@ async function startServer() {
         stopSubscriptionScheduler(subscriptionScheduler);
       }
 
+      // Stop expiry check interval
+      if (expiryCheckInterval) clearInterval(expiryCheckInterval);
+
       // Close Redis cache connection
       await cacheService.close();
 
@@ -753,7 +782,38 @@ async function startServer() {
     }
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
+  // Socket.io connection handling
+  io.on("connection", (socket) => {
+    console.log(`🔌 Client connected: ${socket.id}`);
+
+    // Track which labs have already had their expiry check this cycle
+    socket.on("join_lab", (lab_id) => {
+      socket.join(`lab_${lab_id}`);
+      console.log(`🏠 Socket ${socket.id} joined lab_${lab_id}`);
+
+      // Run expiry check for this lab once per cycle (first client to connect triggers it)
+      if (!checkedLabs.has(lab_id)) {
+        checkedLabs.add(lab_id);
+        // Small delay to ensure the client has fully joined the room before we emit events
+        setTimeout(() => checkExpiringBatches(io), 2000);
+      }
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`🔌 Client disconnected: ${socket.id}`);
+    });
+  });
+
+  // Track which labs have been checked for expiring batches this cycle
+  // Resets every 24h so labs get re-checked daily
+  let checkedLabs = new Set();
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  expiryCheckInterval = setInterval(() => {
+    checkedLabs.clear(); // Reset so next client connection triggers a fresh check
+  }, TWENTY_FOUR_HOURS);
+  console.log('🔔 Inventory expiry checker: runs on first client join per lab, resets every 24 hours');
+
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌐 CORS enabled for production domains`);
     console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
