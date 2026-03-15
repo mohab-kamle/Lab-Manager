@@ -398,8 +398,7 @@ const ChangePassword = () => {
                             }
 
                             if (lab) {
-                              const prefix = lab.name || lab.subdomain;
-                              navigate(`/${prefix}/admin/dashboard`);
+                              navigate(`/admin/dashboard`);
                             } else {
                               // Fallback if lab info missing
                               navigate('/');
