@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Row,
@@ -28,6 +29,7 @@ import {
   Save,
   X,
   Check,
+  Lock,
 } from "lucide-react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import axios from "axios";
@@ -111,6 +113,7 @@ const InfoCard = ({
 const AdminProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -311,6 +314,17 @@ const AdminProfile = () => {
               <Shield size={14} className="badge-icon" />
               <span>{profile.role || "Admin"}</span>
             </motion.span>
+
+            {/* Change Password button */}
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              className="mt-3 d-flex align-items-center gap-2 rounded-pill px-3 mx-auto"
+              onClick={() => navigate('/change-password', { state: { type: 'Change' } })}
+            >
+              <Lock size={14} />
+              <span>Change Password</span>
+            </Button>
           </motion.div>
         </Col>
 

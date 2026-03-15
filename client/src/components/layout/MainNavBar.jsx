@@ -800,7 +800,7 @@ const MainNavBar = () => {
                     to={`/patient/reports`}
                     className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
                   >
-                    <FlaskConical size={18} className="mb-1" /> Reports
+                    <FileText size={18} className="mb-1" /> Reports
                   </Nav.Link>
                 </>
               )}

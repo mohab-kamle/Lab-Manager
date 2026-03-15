@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col } from "react-bootstrap";
 
-import { Shield, Lock, Eye, EyeOff, ArrowRight, CheckCircle, XCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Shield, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import axios from "axios";
 import { useLab } from "../../context/LabContext";
-import { toast } from "react-toastify";
+import { useToast } from "../../components/ui/ToastContext";
 
 /**
  * ChangePassword
@@ -18,8 +18,13 @@ const ChangePassword = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { labInfo, fetchLabInfo } = useLab();
+  const { toast } = useToast();
   const apiUrl = import.meta.env.VITE_API_URL;
+  const locat = useLocation();
+  const type = locat.state?.type || 'Change';
 
+  // Determine if this is a forgot-password flow (no auth required)
+  const isForgetFlow = type === 'Forget';
   // Local state for form inputs and UI
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -28,20 +33,17 @@ const ChangePassword = () => {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const toastShownRef = useRef(false);
 
+  // Only show security toast for regular password change (not forgot-password)
   useEffect(() => {
-    if (!toastShownRef.current) {
+    if (!isForgetFlow && !toastShownRef.current) {
       toast.info("For better security, please choose a password different from the one sent to your email.", {
-        position: "top-right",
-        autoClose: 10000,
-        theme: "colored",
+        duration: 10000,
       });
       toastShownRef.current = true;
     }
-  }, []);
+  }, [isForgetFlow, toast]);
 
   // Password strength rules (strong validations)
   const passwordRules = [
@@ -58,9 +60,10 @@ const ChangePassword = () => {
   const strengthVariant = ["danger", "danger", "warning", "info", "success"][Math.max(0, strengthScore - 1)];
 
   const validateForm = () => {
-    if (!oldPassword) return "Current password is required";
+    // Only require old password for regular change flow
+    if (!isForgetFlow && !oldPassword) return "Current password is required";
     if (!newPassword) return "New password is required";
-    if (newPassword === oldPassword) return "New password must be different from current password";
+    if (!isForgetFlow && newPassword === oldPassword) return "New password must be different from current password";
     // Check strength rules
     const failed = passwordRules.filter((r) => !r.test(newPassword));
     if (failed.length) return "New password does not meet strength requirements";
@@ -70,57 +73,86 @@ const ChangePassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+    if (isForgetFlow) {
+      // Validate new password strength and confirmation match
+      const validationError = validateForm();
+      if (validationError) {
+        toast.error(validationError);
+        return;
+      }
 
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+      // 🛑 API INTEGRATION POINT: RESET PASSWORD (Forgot Password)
+      // This endpoint should NOT require authentication (no Bearer token).
+      // It should accept the new password along with a reset token or verified
+      // email/OTP reference so the backend can authorize the password change.
+      //
+      // Example implementation:
+      // try {
+      //   setLoading(true);
+      //   const resetToken = localStorage.getItem("reset_token"); // saved after OTP verification
+      //   await axios.put(`${apiUrl}/auth/reset-password`, {
+      //     newPassword: newPassword.trim(),
+      //     resetToken,
+      //   });
+      //   toast.success("Password reset successfully!");
+      //   setTimeout(() => navigate('/login'), 1500);
+      // } catch (err) {
+      //   toast.error(err.response?.data?.error || "Failed to reset password. Please try again.");
+      // } finally {
+      //   setLoading(false);
+      // }
       return;
     }
-
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const id = user?.id;
-      if (!token || !id) {
-        throw new Error("Not authenticated");
+    else {
+      const validationError = validateForm();
+      if (validationError) {
+        toast.error(validationError);
+        return;
       }
 
-      await axios.put(
-        `${apiUrl}/emp/changePassword`,
-        { oldPassword, newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setSuccess("Password updated successfully");
-      setOldPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-
-      let lab = labInfo || user?.lab || null;
-      if (!lab && user?.lab_id) {
-        try {
-          const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          lab = labResponse.data;
-          await fetchLabInfo();
-        } catch (e) {
-          throw new Error("Failed to load lab information");
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("token");
+        const id = user?.id;
+        if (!token || !id) {
+          throw new Error("Not authenticated");
         }
-      }
 
-      if (lab) {
-        const prefix = lab.name || lab.subdomain;
-        navigate(`/${prefix}/admin/dashboard`);
-      } else {
-        throw new Error("No lab information available");
+        await axios.put(
+          `${apiUrl}/emp/changePassword`,
+          { oldPassword, newPassword },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        toast.success("Password updated successfully");
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+
+        let lab = labInfo || user?.lab || null;
+        if (!lab && user?.lab_id) {
+          try {
+            const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            lab = labResponse.data;
+            await fetchLabInfo();
+          } catch (e) {
+            throw new Error("Failed to load lab information");
+          }
+        }
+
+        if (lab) {
+          const prefix = lab.name || lab.subdomain;
+          navigate(`/admin/dashboard`);
+        } else {
+          throw new Error("No lab information available");
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.error || err.message || "Failed to update password. Please try again.");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || "Failed to update password. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -132,7 +164,7 @@ const ChangePassword = () => {
       <Container className="position-relative">
         <Row className="justify-content-center">
           <Col lg={8} md={10} sm={12}>
-            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' , border: '1px solid var(--border)' }}>
+            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)' }}>
               <div className="text-center pt-4" style={{
                 background: 'var(--bg)',
                 color: 'var(--text)'
@@ -151,67 +183,61 @@ const ChangePassword = () => {
                     <Shield size={40} />
                   </div>
                 </div>
-                <h2 className="mb-2 fw-bold">Change Your Password</h2>
-                <p className="mb-0 opacity-75">Keep your account secure with a strong password</p>
+                {isForgetFlow ? (
+                  <>
+                    <h2 className="mb-2 fw-bold">Reset Your Password</h2>
+                    <p className="mb-0 opacity-75">Keep your account secure by using a strong password that you can easily remember.</p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="mb-2 fw-bold">Change Your Password</h2>
+                    <p className="mb-0 opacity-75">Keep your account secure with a strong password</p>
+                  </>
+                )}
               </div>
 
               <Card.Body className="p-5">
 
-                {error && (
-                  <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
-                    <div className="d-flex align-items-center">
-                      <div className="me-2">⚠️</div>
-                      <div>{error}</div>
-                    </div>
-                  </Alert>
-                )}
-
-                {success && (
-                  <Alert variant="success" className="mb-4 border-0" style={{ borderRadius: '12px' }}>
-                    <div className="d-flex align-items-center">
-                      <CheckCircle size={18} className="me-2" />
-                      <div>{success}</div>
-                    </div>
-                  </Alert>
-                )}
-
                 {/* Change Password Form */}
                 <Form onSubmit={handleSubmit}>
                   {/* Current Password */}
-                  <Form.Group className="mb-4">
-                    <Form.Label className="fw-semibold text-dark">
-                      <Lock size={18} className="me-2" />
-                      Current Password
-                    </Form.Label>
-                    <div className="position-relative">
-                      <Form.Control
-                        type={showOld ? "text" : "password"}
-                        placeholder="Enter your current password"
-                        value={oldPassword}
-                        onChange={(e) => setOldPassword(e.target.value)}
-                        required
-                        className="py-3 px-4 border-0"
-                        style={{
-                          backgroundColor: '#f8f9fa',
-                          borderRadius: '12px',
-                          fontSize: '1.1em',
-                          paddingRight: '50px'
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        className="position-absolute end-0 top-0 h-100 border-0 text-muted"
-                        onClick={() => setShowOld(!showOld)}
-                        style={{ padding: "0 15px" }}
-                        aria-label={showOld ? "Hide current password" : "Show current password"}
-                      >
-                        {showOld ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </Button>
-                    </div>
-                  </Form.Group>
+                  {!isForgetFlow && (
+                    <Form.Group className="mb-4">
 
+
+                      <Form.Label className="fw-semibold text-dark">
+                        <Lock size={18} className="me-2" />Current Password
+                      </Form.Label>
+
+                      <div className="position-relative">
+                        <Form.Control
+                          type={showOld ? "text" : "password"}
+                          placeholder="Enter your current password"
+                          value={oldPassword}
+                          onChange={(e) => setOldPassword(e.target.value)}
+                          required
+                          className="py-3 px-4 border-0"
+                          style={{
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '12px',
+                            fontSize: '1.1em',
+                            paddingRight: '50px'
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="position-absolute end-0 top-0 h-100 border-0 text-muted"
+                          onClick={() => setShowOld(!showOld)}
+                          style={{ padding: "0 15px" }}
+                          aria-label={showOld ? "Hide current password" : "Show current password"}
+                        >
+                          {showOld ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </Button>
+                      </div>
+                    </Form.Group>
+                  )}
                   {/* New Password */}
                   <Form.Group className="mb-4">
                     <Form.Label className="fw-semibold text-dark">
@@ -314,72 +340,88 @@ const ChangePassword = () => {
                     {loading ? (
                       <>
                         <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                        Updating...
+                        {isForgetFlow ? "Resetting..." : "Updating..."}
                       </>
                     ) : (
                       <>
                         <Shield size={18} className="me-2" />
-                        Update Password
+                        {isForgetFlow ? "Reset Password" : "Update Password"}
                         <ArrowRight size={18} className="ms-2" />
                       </>
                     )}
                   </Button>
 
-                  {/* Back to Login */}
-                  <div className="text-center mt-3 d-flex flex-column gap-2">
-                    <Button 
-                      variant="link" 
-                      onClick={async () => {
-                        try {
-                          const token = localStorage.getItem("token");
-                          const id = user?.id;
-                          if (!token || !id) throw new Error("Not authenticated");
+                  {isForgetFlow ? (
+                    /* Forget flow: show a simple link back to login */
+                    <div className="text-center mt-3">
+                      <Button
+                        variant="link"
+                        onClick={() => navigate('/login')}
+                        className="text-secondary"
+                        style={{ textDecoration: 'none' }}
+                        onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                        onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                      >
+                        Back to Login
+                      </Button>
+                    </div>
+                  ) : (
+                    /* Change flow: show skip button (authenticated) */
+                    <div className="text-center mt-3 d-flex flex-column gap-2">
+                      <Button
+                        variant="link"
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem("token");
+                            const id = user?.id;
+                            if (!token || !id) throw new Error("Not authenticated");
 
-                          setLoading(true);
-                          await axios.put(
-                            `${apiUrl}/emp/skip-password-change`,
-                            {},
-                            { headers: { Authorization: `Bearer ${token}` } }
-                          );
+                            setLoading(true);
+                            await axios.put(
+                              `${apiUrl}/emp/skip-password-change`,
+                              {},
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
 
-                          // Redirect logic similar to success
-                          let lab = labInfo || user?.lab || null;
-                          if (!lab && user?.lab_id) {
-                            try {
-                              const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
-                                headers: { Authorization: `Bearer ${token}` },
-                              });
-                              lab = labResponse.data;
-                              await fetchLabInfo();
-                            } catch (e) {
-                              // Ignore lab fetch error on skip, try to proceed
+                            // Redirect logic similar to success
+                            let lab = labInfo || user?.lab || null;
+                            if (!lab && user?.lab_id) {
+                              try {
+                                const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
+                                  headers: { Authorization: `Bearer ${token}` },
+                                });
+                                lab = labResponse.data;
+                                await fetchLabInfo();
+                              } catch (e) {
+                                // Ignore lab fetch error on skip, try to proceed
+                              }
                             }
-                          }
 
-                          if (lab) {
-                            const prefix = lab.name || lab.subdomain;
-                            navigate(`/${prefix}/admin/dashboard`);
-                          } else {
-                            // Fallback if lab info missing
-                            navigate('/'); 
-                          }
+                            if (lab) {
+                              const prefix = lab.name || lab.subdomain;
+                              navigate(`/${prefix}/admin/dashboard`);
+                            } else {
+                              // Fallback if lab info missing
+                              navigate('/');
+                            }
 
-                        } catch (err) {
-                           console.error("Skip failed", err);
-                           setError("Failed to skip. Please try updating your password.");
-                        } finally {
-                          setLoading(false);
-                        }
-                      }} 
-                      className="text-secondary"
-                      style={{ textDecoration: 'none' }}
-                      onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-                      onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
-                      disabled={loading}
-                    >
-                      Skip for now
-                    </Button>
-                  </div>
+                          } catch (err) {
+                            console.error("Skip failed", err);
+                            toast.error("Failed to skip. Please try updating your password.");
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="text-secondary"
+                        style={{ textDecoration: 'none' }}
+                        onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                        onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                        disabled={loading}
+                      >
+                        Skip for now
+                      </Button>
+                    </div>
+                  )}
                 </Form>
               </Card.Body>
             </Card>
