@@ -32,14 +32,14 @@ const UnifiedLogin = () => {
   React.useEffect(() => {
     if (!authLoading && user) {
       const currentSubdomain = getSubdomain();
-      
+
       // If user has a lab (is not a patient without lab context, though patients usually have lab associations)
       // And we are on a subdomain
       if (currentSubdomain) {
-         // Optionally, we could verify if currentSubdomain matches user.lab?.subdomain
-         // But for now, if they are logged in on a subdomain, assume it's valid and redirect
-         // The router/API will handle access denied if it's the wrong lab
-         navigate(`/${user.role}/dashboard`);
+        // Optionally, we could verify if currentSubdomain matches user.lab?.subdomain
+        // But for now, if they are logged in on a subdomain, assume it's valid and redirect
+        // The router/API will handle access denied if it's the wrong lab
+        navigate(`/${user.role}/dashboard`);
       }
     }
   }, [user, authLoading, navigate]);
@@ -54,7 +54,7 @@ const UnifiedLogin = () => {
       bgColor: "rgba(220, 53, 69, 0.1)"
     },
     {
-      value: "receptionist", 
+      value: "receptionist",
       label: "Receptionist",
       description: "Patient management & invoices",
       color: "primary",
@@ -65,7 +65,7 @@ const UnifiedLogin = () => {
       value: "chemist",
       label: "Chemist",
       description: "Lab work & test results",
-      color: "success", 
+      color: "success",
       icon: "🧪",
       bgColor: "rgba(25, 135, 84, 0.1)"
     },
@@ -94,7 +94,7 @@ const UnifiedLogin = () => {
       bgColor: "rgba(255, 193, 7, 0.1)"
     }
   ];
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -114,23 +114,23 @@ const UnifiedLogin = () => {
       }
 
       const { token, user, isFirstTimeLogin } = response.data;
-      
+
       // 1. Fetch Lab Info if missing (needed for subdomain check)
       let labInfo = user.lab;
       if (!labInfo && user.lab_id) {
         try {
-           // We use the token to authorized this fetch
-           const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
-             headers: { 'Authorization': `Bearer ${token}` }
-           });
-           labInfo = labResponse.data;
+          // We use the token to authorized this fetch
+          const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          labInfo = labResponse.data;
         } catch (err) {
-            console.error("Failed to fetch lab info for redirection check", err);
+          console.error("Failed to fetch lab info for redirection check", err);
         }
       }
 
       if (!labInfo) {
-          throw new Error("Unable to identify your workspace (Lab Info missing).");
+        throw new Error("Unable to identify your workspace (Lab Info missing).");
       }
 
       const userLabSubdomain = labInfo.subdomain;
@@ -139,9 +139,9 @@ const UnifiedLogin = () => {
       // SCENARIO 1: Login from Public/Main Site -> Redirect to Subdomain
       if (!currentSubdomain) {
         const protocol = window.location.protocol;
-        let mainDomain = window.location.host; 
+        let mainDomain = window.location.host;
         if (mainDomain.startsWith('www.')) mainDomain = mainDomain.substring(4);
-        
+
         // Redirect to tenant subdomain with token
         window.location.href = `${protocol}//${userLabSubdomain}.${mainDomain}/${user.role}/dashboard?auth_token=${token}`;
         return;
@@ -152,16 +152,16 @@ const UnifiedLogin = () => {
         // Correct Workspace
         localStorage.setItem("token", token);
         await login(token);
-        
+
         // Ensure context is updated
         await fetchLabInfo();
 
         // Navigate based on role
         if (user.role === 'admin' && isFirstTimeLogin) {
-            navigate('/change-password');
+          navigate('/change-password');
         } else {
-            // Navigate to role dashboard (no lab prefix needed now)
-            navigate(`/${user.role}/dashboard`);
+          // Navigate to role dashboard (no lab prefix needed now)
+          navigate(`/${user.role}/dashboard`);
         }
       } else {
         // Wrong Workspace
@@ -194,7 +194,7 @@ const UnifiedLogin = () => {
       <Container>
         <Row className="justify-content-center">
           <Col lg={8} md={10} sm={12}>
-            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' , border: '1px solid var(--border)' }}>
+            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)' }}>
               {/* Header */}
               <div className="text-center pt-4" style={{
                 background: 'var(--bg)',
@@ -251,29 +251,29 @@ const UnifiedLogin = () => {
 
                 {/* Selected Role Info */}
                 <motion.div
-                key={selectedUserType?.label || "default-key"}
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
+                  key={selectedUserType?.label || "default-key"}
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{
                     duration: 1,
-                    scale: { type: "smooth", visualDuration: 0.7},
-                }}
+                    scale: { type: "smooth", visualDuration: 0.7 },
+                  }}
                 >
                   <Alert variant="light" className="mb-4 border-0" style={{
-                  backgroundColor: selectedUserType?.bgColor,
-                  borderLeft: `4px solid var(--bs-${selectedUserType?.color})`
-                }}>
-                  <div className="d-flex align-items-center">
-                    <span style={{ fontSize: '1.5em', marginRight: '12px' }}>{selectedUserType?.icon}</span>
-                    <div>
-                      <strong className="text-dark">{selectedUserType?.label}</strong>
-                      <br />
-                      <small className="text-muted">{selectedUserType?.description}</small>
+                    backgroundColor: selectedUserType?.bgColor,
+                    borderLeft: `4px solid var(--bs-${selectedUserType?.color})`
+                  }}>
+                    <div className="d-flex align-items-center">
+                      <span style={{ fontSize: '1.5em', marginRight: '12px' }}>{selectedUserType?.icon}</span>
+                      <div>
+                        <strong className="text-dark">{selectedUserType?.label}</strong>
+                        <br />
+                        <small className="text-muted">{selectedUserType?.description}</small>
+                      </div>
                     </div>
-                  </div>
-                </Alert>
+                  </Alert>
                 </motion.div>
-                
+
 
                 {error && (
                   <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }} aria-live="assertive">
@@ -366,10 +366,20 @@ const UnifiedLogin = () => {
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                           </Button>
                         </div>
+                        <div className="text-end mt-2">
+                          <Button
+                            variant="link"
+                            className="p-0 text-decoration-none"
+                            style={{ fontSize: '0.9em' }}
+                            onClick={() => navigate('/otp-verify')}
+                          >
+                            Forgot Password?
+                          </Button>
+                        </div>
                       </Form.Group>
                     </>
                   )}
-                  
+
                   <Button
                     type="submit"
                     variant={loading ? "outline-primary" : "primary"}
@@ -382,17 +392,17 @@ const UnifiedLogin = () => {
                       transition: 'all 0.3s ease'
                     }}
                   >{loading ? (
-                      <div className="d-flex align-items-center flex-row p-0 justify-content-center">
-                        <LoadingSpinner size={50} containerClassName="m-0 d-flex align-items-center justify-content-center" />
-                          <span className="ms-2">Signing In...</span>
-                        </div>
-                    ) : (
-                      <>
-                        <Shield size={18} className="me-2 mb-1" />
-                        Sign In
-                        <ArrowRight size={18} className="ms-2" />
-                      </>
-                    )}
+                    <div className="d-flex align-items-center flex-row p-0 justify-content-center">
+                      <LoadingSpinner size={50} containerClassName="m-0 d-flex align-items-center justify-content-center" />
+                      <span className="ms-2">Signing In...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Shield size={18} className="me-2 mb-1" />
+                      Sign In
+                      <ArrowRight size={18} className="ms-2" />
+                    </>
+                  )}
                   </Button>
                 </Form>
 
