@@ -47,7 +47,7 @@
   backdrop-filter: blur(10px);
   padding: 6px 10px;
   font-size: 0.8rem;
-  transition: 
+  transition:
     background-color 0.3s ease,
     box-shadow 0.3s ease,
     transform 0.3s ease;
@@ -93,7 +93,7 @@
   display: flex !important;
   justify-content: center;
   align-items: center;
-  flex-wrap: nowrap; 
+  flex-wrap: nowrap;
   gap: 8px;
   position: absolute;
   left: 0;
@@ -150,19 +150,19 @@
   border: 1px solid var(--border);
   white-space: nowrap;
 
-  box-shadow: 
+  box-shadow:
     0 4px 15px rgba(0, 0, 0, 0.1),
     0 0 20px var(--border-muted),
     0 0 40px rgba(0, 123, 255, 0.15);
 
-  transition: 
+  transition:
     opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.3s ease;
 }
 
 .welcome-label:hover {
-  box-shadow: 
+  box-shadow:
     0 6px 20px rgba(0, 0, 0, 0.15),
     0 0 30px var(--border-muted),
     0 0 50px rgba(0, 123, 255, 0.25);
@@ -270,11 +270,13 @@ body {
   padding-top: 0 !important;
   margin-top: 0 !important;
 }
+
 /*  */
 .navbar .container {
   max-width: 78%;
 
 }
+
 /* Login Button Glow Effect */
 .login-btn-glow:hover {
   transform: translateY(-2px);
@@ -284,4 +286,87 @@ body {
 
 .login-btn-glow:active {
   transform: translateY(0);
+}
+
+/* Chevron Menu Wrapper */
+.chevron-menu-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.chevron-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.chevron-toggle-btn:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Chevron Arrow Rotation */
+.chevron-arrow {
+  transition: transform 0.4s ease-in-out;
+  color: var(--text);
+}
+
+.chevron-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Panel */
+.chevron-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  min-width: 180px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  padding: 8px 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+  z-index: 1060;
+}
+
+.chevron-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Dropdown Items */
+.chevron-dropdown-item {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px !important;
+  font-size: 0.9rem;
+  color: var(--text) !important;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.chevron-dropdown-item:hover {
+  background-color: rgba(0, 123, 255, 0.06);
+}
+
+/* Close dropdown when clicking outside */
+@media (max-width: 991px) {
+  .chevron-dropdown {
+    right: auto;
+    left: 0;
+  }
 }
