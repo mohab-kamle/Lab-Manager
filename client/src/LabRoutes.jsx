@@ -43,6 +43,12 @@ import EmployeeProfile from './pages/employee/EmployeeProfile';
 import ReceptionistProfile from './pages/receptionist/ReceptionistProfile';
 import Vault from './pages/admin/Vault';
 
+// Inventory Pages
+import InventoryDashboard from "./pages/inventory/InventoryDashboard";
+import Suppliers from "./pages/inventory/Suppliers";
+import InventoryItems from "./pages/inventory/InventoryItems";
+import InventoryBatches from "./pages/inventory/InventoryBatches";
+
 import LabLayout from './components/layout/LabLayout';
 
 const LabRoutes = () => (
@@ -116,6 +122,12 @@ const LabRoutes = () => (
       <Route path="/receptionist/profile" element={<PrivateRoute element={<ReceptionistProfile />} allowedRoles={["receptionist"]} />} />
       <Route path="/admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
       <Route path="/:role/vault" element={<PrivateRoute element={<Vault />} allowedRoles={["admin"]} />} />
+
+      {/* Inventory Routes */}
+      <Route path="/:role/inventory" element={<PrivateRoute element={<InventoryDashboard />} allowedRoles={["admin", "chemist"]} />} />
+      <Route path="/:role/inventory/suppliers" element={<PrivateRoute element={<Suppliers />} allowedRoles={["admin", "chemist"]} />} />
+      <Route path="/:role/inventory/items" element={<PrivateRoute element={<InventoryItems />} allowedRoles={["admin", "chemist"]} />} />
+      <Route path="/:role/inventory/items/:itemId/batches" element={<PrivateRoute element={<InventoryBatches />} allowedRoles={["admin", "chemist"]} />} />
     </Route>
   </Routes>
 );

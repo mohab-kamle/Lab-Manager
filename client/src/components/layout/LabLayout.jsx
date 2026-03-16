@@ -1,12 +1,16 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { Container, Alert, Spinner } from 'react-bootstrap';
 import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
 import MainNavBar from './MainNavBar';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import FloatingBackToTopButton from '../../components/ui/FloatingBackToTopButton';
+import { socket } from '../../utils/socket';
+import { toast } from 'react-toastify';
 
 const LabLayout = () => {
+  const navigate = useNavigate();
   const { 
     labInfo, 
     loading, 
@@ -18,6 +22,75 @@ const LabLayout = () => {
     labName 
   } = useLab();
   const { user } = useAuth();
+
+  // Socket setup and real-time inventory alerts
+  useEffect(() => {
+    if (user?.lab_id && (user.role === 'admin' || user.role === 'chemist')) {
+      socket.connect();
+      socket.emit("join_lab", user.lab_id);
+
+      // Helper: dispatch a custom event so the navbar bell can refresh its count
+      const notifyBell = () => {
+        window.dispatchEvent(new CustomEvent('inventory-notification-update'));
+      };
+
+      // --- LOW STOCK ---
+      const handleLowStockAlert = (data) => {
+        toast.error(
+          <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
+            <strong>Low Stock Alert: {data.item_name}</strong>
+            <br />
+            {data.message}
+            <br />
+            <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
+          </div>,
+          { autoClose: false, closeOnClick: true, draggable: true, theme: "colored" }
+        );
+        notifyBell();
+      };
+
+      // --- EXPIRING SOON ---
+      const handleExpiringSoonAlert = (data) => {
+        toast.warning(
+          <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
+            <strong>Expiring Soon: {data.item_name}</strong>
+            <br />
+            {data.message}
+            <br />
+            <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
+          </div>,
+          { autoClose: 10000, closeOnClick: true, draggable: true, theme: "colored" }
+        );
+        notifyBell();
+      };
+
+      // --- EXPIRED ---
+      const handleExpiredAlert = (data) => {
+        toast.error(
+          <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
+            <strong>Expired: {data.item_name}</strong>
+            <br />
+            {data.message}
+            <br />
+            <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
+          </div>,
+          { autoClose: false, closeOnClick: true, draggable: true, theme: "colored" }
+        );
+        notifyBell();
+      };
+
+      socket.on("low_stock_alert", handleLowStockAlert);
+      socket.on("expiring_soon_alert", handleExpiringSoonAlert);
+      socket.on("expired_alert", handleExpiredAlert);
+
+      return () => {
+        socket.off("low_stock_alert", handleLowStockAlert);
+        socket.off("expiring_soon_alert", handleExpiringSoonAlert);
+        socket.off("expired_alert", handleExpiredAlert);
+        socket.disconnect();
+      };
+    }
+  }, [user, navigate]);
 
   // Show loading spinner while fetching lab info
   if (loading) {
@@ -93,6 +166,7 @@ const LabLayout = () => {
           </p>
         </Container>
       </footer>
+      <FloatingBackToTopButton />
     </div>
   );
 };

@@ -26,7 +26,11 @@ import {
   DollarSignIcon,
   Settings,
   ChevronDown,
+  Boxes,
+  Bell,
 } from "lucide-react";
+
+import api from "../../utils/api";
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
 import { getSubdomain } from "../../utils/subdomain"; // Add this import properly
@@ -43,6 +47,7 @@ export const defaultTitles = {
   MedicalReports: "Medical Reports",
   Accounting: "Accounting",
   Manage_B: "Manage Branches",
+  Inventory: "Inventory",
 };
 let navbarTitlesReset = null;
 let navbarActiveReset = null;
@@ -109,6 +114,82 @@ const MainNavBar = () => {
     return saved ? JSON.parse(saved) : false;
   });
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // --- Notification Bell State ---
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
+
+  // Fetch all notifications (only for admin/chemist)
+  const fetchNotifications = async () => {
+    try {
+      // Fetch all statuses so read notifications remain visible
+      const res = await api.get("/inventory/notifications?status=ALL");
+      setNotifications(res.data);
+    } catch (error) {
+      // Silently fail — notifications are non-critical
+      console.error("Error fetching notifications:", error);
+    }
+  };
+
+  // Compute unread count for the badge (only unread notifications)
+  const unreadCount = notifications.filter(n => n.status === 'UNREAD').length;
+
+  // Fetch on mount and listen for real-time updates from LabLayout
+  useEffect(() => {
+    if (user?.lab_id && (user.role === 'admin' || user.role === 'chemist')) {
+      fetchNotifications();
+
+      const handleNotificationUpdate = () => fetchNotifications();
+      window.addEventListener('inventory-notification-update', handleNotificationUpdate);
+      return () => window.removeEventListener('inventory-notification-update', handleNotificationUpdate);
+    }
+  }, [user]);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Mark a single notification as read (keep it in the list, just update status)
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await api.put(`/inventory/notifications/${notificationId}/read`);
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, status: 'READ' } : n)
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  // Mark all notifications as read (keep them in the list with READ status)
+  const handleMarkAllRead = async () => {
+    try {
+      await api.put("/inventory/notifications/read-all");
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, status: 'READ' }))
+      );
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
+  };
+
+  // Get alert type styling
+  const getAlertStyle = (alertType) => {
+    switch (alertType) {
+      case 'LOW_STOCK': return { color: '#dc3545', icon: '📉', label: 'Low Stock' };
+      case 'EXPIRING_SOON': return { color: '#ffc107', icon: '⏰', label: 'Expiring Soon' };
+      case 'EXPIRED': return { color: '#dc3545', icon: '❌', label: 'Expired' };
+      default: return { color: '#6c757d', icon: 'ℹ️', label: 'Alert' };
+    }
+  };
 
   // Keep reference for resetting titles externally
   useEffect(() => {
@@ -283,8 +364,9 @@ const MainNavBar = () => {
                   to={`/admin/dashboard`}
                   onClick={() => setExpanded(false)}
                   disabled={!labInfo || labLoading}
+                  aria-label="Admin Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? "Admin Dashboard" : "Loading..."} */}
                 </Nav.Link>
               ) : user?.role === "receptionist" ? (
@@ -293,8 +375,9 @@ const MainNavBar = () => {
                   to={`/receptionist/dashboard`}
                   onClick={() => setExpanded(false)}
                   disabled={!labInfo || labLoading}
+                  aria-label="Receptionist Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? "Receptionist Dashboard" : "Loading..."} */}
                 </Nav.Link>
               ) : user?.role === "chemist" ? (
@@ -303,8 +386,9 @@ const MainNavBar = () => {
                   to={`/chemist/dashboard`}
                   onClick={() => setExpanded(false)}
                   disabled={!labInfo || labLoading}
+                  aria-label="Chemist Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Chemist Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "doctor" ? (
@@ -313,8 +397,9 @@ const MainNavBar = () => {
                   to={`/doctor/dashboard`}
                   onClick={() => setExpanded(false)}
                   disabled={!labInfo || labLoading}
+                  aria-label="Doctor Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Doctor Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "employee" ? (
@@ -323,8 +408,9 @@ const MainNavBar = () => {
                   to={`/employee/dashboard`}
                   onClick={() => setExpanded(false)}
                   disabled={!labInfo || labLoading}
+                  aria-label="Employee Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Employee Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : user?.role === "patient" ? (
@@ -333,8 +419,9 @@ const MainNavBar = () => {
                   to={`/patient/dashboard`}
                   onClick={() => setExpanded(false)}
                   disabled={!labInfo || labLoading}
+                  aria-label="Patient Dashboard"
                 >
-                  <House size={23} />
+                  <House size={23} aria-hidden="true" />
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : null}
@@ -741,6 +828,55 @@ const MainNavBar = () => {
                       </Dropdown>
                     )}
 
+                    {/* Inventory & Stock - Admin, Chemist */}
+                    {(user?.role === "admin" || user?.role === "chemist") && (
+                      <Dropdown className="mx-1 mb-1">
+                        <Dropdown.Toggle
+                          id="dropdown-basic"
+                          className={`nav-button ${["inventory-dashboard", "inventory-suppliers", "inventory-items"].includes(activeItem)
+                            ? "active-dropdown"
+                            : ""
+                            }`}
+                        >
+                          <Boxes size={18} className="me-1 mb-1" />
+                          {titles.Inventory}
+                        </Dropdown.Toggle>
+
+                        <Dropdown.Menu>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory`}
+                            data-dropdown-key="Inventory"
+                            data-title="Inventory"
+                            data-id="inventory-dashboard"
+                            active={activeItem === "inventory-dashboard"}
+                          >
+                            Dashboard
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory/items`}
+                            data-dropdown-key="Inventory"
+                            data-title="Catalog & Stock"
+                            data-id="inventory-items"
+                            active={activeItem === "inventory-items"}
+                          >
+                            Catalog & Stock
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/inventory/suppliers`}
+                            data-dropdown-key="Inventory"
+                            data-title="Suppliers"
+                            data-id="inventory-suppliers"
+                            active={activeItem === "inventory-suppliers"}
+                          >
+                            Suppliers
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    )}
+
                     {/* Admin-only links */}
                     {user?.role === "admin" && (
                       <Dropdown className="mx-1 mb-1">
@@ -814,48 +950,133 @@ const MainNavBar = () => {
               )}
             </Nav>
             <Nav className="d-flex align-items-center">
-              {user ? (
-                <div className="chevron-menu-wrapper">
-                  <button
-                    className="chevron-toggle-btn"
-                    onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  >
-                    <ChevronDown
-                      size={24}
-                      className={`chevron-arrow ${isProfileOpen ? 'rotated' : ''}`}
-                    />
-                  </button>
+<Nav className="d-flex align-items-center">
+  {/* Notification Bell — visible only for admin/chemist */}
+  {user && (user.role === 'admin' || user.role === 'chemist') && (
+    <div className="notification-bell-container" ref={notificationRef}>
+      <button
+        className="notification-bell-btn"
+        onClick={() => setShowNotifications(!showNotifications)}
+        title="Inventory Notifications"
+      >
+        <Bell size={22} />
+        {unreadCount > 0 && (
+          <span className="notification-badge">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
 
-                  <div className={`chevron-dropdown ${isProfileOpen ? 'open' : ''}`}>
-                    {user?.role !== 'patient' && (
-                      <Nav.Link
-                        as={Link}
-                        to={`/${user?.role}/profile`}
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          setExpanded(false);
-                        }}
-                        className="chevron-dropdown-item"
-                      >
-                        <User size={18} className="me-1" />
-                        <span>Profile</span>
-                      </Nav.Link>
-                    )}
-                    <Nav.Link
-                      as={Link}
-                      to="/"
-                      onClick={(e) => {
-                        setIsProfileOpen(false);
-                        handleLogout(e);
-                      }}
-                      className="chevron-dropdown-item logout-link"
-                    >
-                      <DoorClosed className="door-icon door-closed" size={22} />
-                      <DoorOpen className="door-icon door-open" size={22} />
-                      <span>Logout</span>
-                    </Nav.Link>
+      {showNotifications && (
+        <div className="notification-dropdown">
+          <div className="notification-dropdown-header">
+            <span className="notification-dropdown-title">Notifications</span>
+            {unreadCount > 0 && (
+              <button
+                className="notification-mark-all-btn"
+                onClick={handleMarkAllRead}
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+          <div className="notification-dropdown-body">
+            {notifications.length === 0 ? (
+              <div className="notification-empty">
+                <Bell size={32} strokeWidth={1} />
+                <p>No new notifications</p>
+              </div>
+            ) : (
+              notifications.map(notification => {
+                const style = getAlertStyle(notification.alert_type);
+                return (
+                  <div
+                    key={notification.id}
+                    className={`notification-item ${notification.status === 'READ' ? 'notification-item-read' : ''}`}
+                    onClick={() => notification.status === 'UNREAD' ? handleMarkAsRead(notification.id) : null}
+                  >
+                    <div className="notification-item-icon" style={{ color: style.color }}>
+                      {style.icon}
+                    </div>
+                    <div className="notification-item-content">
+                      <span className="notification-item-label" style={{ color: style.color }}>
+                        {style.label}
+                      </span>
+                      <p className="notification-item-message">{notification.message}</p>
+                      <span className="notification-item-time">
+                        {new Date(notification.createdAt).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+
+  {/* Chevron Dropdown (Profile + Logout) */}
+  {user ? (
+    <div className="chevron-menu-wrapper">
+      <button
+        className="chevron-toggle-btn"
+        onClick={() => setIsProfileOpen(!isProfileOpen)}
+      >
+        <ChevronDown
+          size={24}
+          className={`chevron-arrow ${isProfileOpen ? 'rotated' : ''}`}
+        />
+      </button>
+
+      <div className={`chevron-dropdown ${isProfileOpen ? 'open' : ''}`}>
+        {user?.role !== 'patient' && (
+          <Nav.Link
+            as={Link}
+            to={`/${user?.role}/profile`}
+            onClick={() => {
+              setIsProfileOpen(false);
+              setExpanded(false);
+            }}
+            className="chevron-dropdown-item"
+          >
+            <User size={18} className="me-1" />
+            <span>Profile</span>
+          </Nav.Link>
+        )}
+        <Nav.Link
+          as={Link}
+          to="/"
+          onClick={(e) => {
+            setIsProfileOpen(false);
+            handleLogout(e);
+          }}
+          className="chevron-dropdown-item logout-link"
+        >
+          <DoorClosed className="door-icon door-closed" size={22} />
+          <DoorOpen className="door-icon door-open" size={22} />
+          <span>Logout</span>
+        </Nav.Link>
+      </div>
+    </div>
+  ) : (
+    <Button
+      as={Link}
+      to="/login"
+      variant="primary"
+      onClick={() => setExpanded(false)}
+      className="ms-2 px-4 fw-bold shadow-sm rounded-pill login-btn-glow"
+      style={{
+        border: "none",
+        letterSpacing: "0.5px",
+        transition: "all 0.3s ease",
+      }}
+    >
+      Login
+    </Button>
+  )}
+</Nav>
               ) : (
                 <Button
                   as={Link}
