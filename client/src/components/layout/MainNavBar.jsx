@@ -25,6 +25,7 @@ import {
   Database,
   DollarSignIcon,
   Settings,
+  ChevronDown,
 } from "lucide-react";
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
@@ -87,24 +88,14 @@ const MainNavBar = () => {
   const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
   const navigate = useNavigate();
   const location = useLocation();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const [titles, setTitles] = useState(() => {
     const saved = localStorage.getItem("navbar-titles");
     return saved ? JSON.parse(saved) : defaultTitles;
   });
   const [showWelcome, setShowWelcome] = useState(true);
-  // delete it when make sure the other down there is working fine. 
-  useEffect(() => {
-    if (user) {
-      setShowWelcome(true);
-      const timer = setTimeout(() => {
-        setShowWelcome(false);
-      }, 5000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [user]);
-  // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  // Logic merged into the useEffect below (line 200+)
   useEffect(() => {
     localStorage.setItem("navbar-titles", JSON.stringify(titles));
   }, [titles]);
@@ -165,7 +156,21 @@ const MainNavBar = () => {
     }
   }, [user, authLoading, refreshUser, logout, terminateLabInfo]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.chevron-menu-wrapper')) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   const handleNavClick = (e) => {
+    if (!e.target.closest('.chevron-menu-wrapper')) {
+      setIsProfileOpen(false);
+    }
+
     const dropdownItem = e.target.closest("[data-dropdown-key]");
     if (!dropdownItem) return;
 
@@ -198,6 +203,9 @@ const MainNavBar = () => {
 
   useEffect(() => {
     if (!user) return;
+
+    // Trigger welcome message
+    setShowWelcome(true);
 
     const timer = setTimeout(() => {
       setShowWelcome(false);
@@ -806,21 +814,48 @@ const MainNavBar = () => {
               )}
             </Nav>
             <Nav className="d-flex align-items-center">
-              {/* Logout Link */}
-
               {user ? (
-                <>
-                  <Nav.Link
-                    as={Link}
-                    to="/"
-                    onClick={handleLogout}
-                    className="logout-link"
+                <div className="chevron-menu-wrapper">
+                  <button
+                    className="chevron-toggle-btn"
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
                   >
-                    <DoorClosed className="door-icon door-closed" size={30} />
-                    <DoorOpen className="door-icon door-open" size={30} />
-                    <span className="ms-2 fw-medium d-none d-lg-inline">Logout</span>
-                  </Nav.Link>
-                </>
+                    <ChevronDown
+                      size={24}
+                      className={`chevron-arrow ${isProfileOpen ? 'rotated' : ''}`}
+                    />
+                  </button>
+
+                  <div className={`chevron-dropdown ${isProfileOpen ? 'open' : ''}`}>
+                    {user?.role !== 'patient' && (
+                      <Nav.Link
+                        as={Link}
+                        to={`/${user?.role}/profile`}
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          setExpanded(false);
+                        }}
+                        className="chevron-dropdown-item"
+                      >
+                        <User size={18} className="me-1" />
+                        <span>Profile</span>
+                      </Nav.Link>
+                    )}
+                    <Nav.Link
+                      as={Link}
+                      to="/"
+                      onClick={(e) => {
+                        setIsProfileOpen(false);
+                        handleLogout(e);
+                      }}
+                      className="chevron-dropdown-item logout-link"
+                    >
+                      <DoorClosed className="door-icon door-closed" size={22} />
+                      <DoorOpen className="door-icon door-open" size={22} />
+                      <span>Logout</span>
+                    </Nav.Link>
+                  </div>
+                </div>
               ) : (
                 <Button
                   as={Link}
@@ -831,7 +866,7 @@ const MainNavBar = () => {
                   style={{
                     border: "none",
                     letterSpacing: "0.5px",
-                    transition: "all 0.3s ease"
+                    transition: "all 0.3s ease",
                   }}
                 >
                   Login
