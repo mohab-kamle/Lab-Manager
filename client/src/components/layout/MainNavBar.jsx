@@ -25,6 +25,7 @@ import {
   Database,
   DollarSignIcon,
   Settings,
+  ChevronDown,
   Boxes,
   Bell,
 } from "lucide-react";
@@ -92,24 +93,14 @@ const MainNavBar = () => {
   const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
   const navigate = useNavigate();
   const location = useLocation();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const [titles, setTitles] = useState(() => {
     const saved = localStorage.getItem("navbar-titles");
     return saved ? JSON.parse(saved) : defaultTitles;
   });
   const [showWelcome, setShowWelcome] = useState(true);
-  // delete it when make sure the other down there is working fine. 
-  useEffect(() => {
-    if (user) {
-      setShowWelcome(true);
-      const timer = setTimeout(() => {
-        setShowWelcome(false);
-      }, 5000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [user]);
-  // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  // Logic merged into the useEffect below (line 200+)
   useEffect(() => {
     localStorage.setItem("navbar-titles", JSON.stringify(titles));
   }, [titles]);
@@ -246,7 +237,21 @@ const MainNavBar = () => {
     }
   }, [user, authLoading, refreshUser, logout, terminateLabInfo]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.chevron-menu-wrapper')) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   const handleNavClick = (e) => {
+    if (!e.target.closest('.chevron-menu-wrapper')) {
+      setIsProfileOpen(false);
+    }
+
     const dropdownItem = e.target.closest("[data-dropdown-key]");
     if (!dropdownItem) return;
 
@@ -279,6 +284,9 @@ const MainNavBar = () => {
 
   useEffect(() => {
     if (!user) return;
+
+    // Trigger welcome message
+    setShowWelcome(true);
 
     const timer = setTimeout(() => {
       setShowWelcome(false);
@@ -942,88 +950,133 @@ const MainNavBar = () => {
               )}
             </Nav>
             <Nav className="d-flex align-items-center">
-              {/* Notification Bell — visible only for admin/chemist */}
-              {user && (user.role === 'admin' || user.role === 'chemist') && (
-                <div className="notification-bell-container" ref={notificationRef}>
-                  <button
-                    className="notification-bell-btn"
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    title="Inventory Notifications"
-                  >
-                    <Bell size={22} />
-                    {unreadCount > 0 && (
-                      <span className="notification-badge">
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </span>
-                    )}
-                  </button>
+<Nav className="d-flex align-items-center">
+  {/* Notification Bell — visible only for admin/chemist */}
+  {user && (user.role === 'admin' || user.role === 'chemist') && (
+    <div className="notification-bell-container" ref={notificationRef}>
+      <button
+        className="notification-bell-btn"
+        onClick={() => setShowNotifications(!showNotifications)}
+        title="Inventory Notifications"
+      >
+        <Bell size={22} />
+        {unreadCount > 0 && (
+          <span className="notification-badge">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
 
-                  {showNotifications && (
-                    <div className="notification-dropdown">
-                      <div className="notification-dropdown-header">
-                        <span className="notification-dropdown-title">Notifications</span>
-                        {unreadCount > 0 && (
-                          <button
-                            className="notification-mark-all-btn"
-                            onClick={handleMarkAllRead}
-                          >
-                            Mark all read
-                          </button>
-                        )}
-                      </div>
-                      <div className="notification-dropdown-body">
-                        {notifications.length === 0 ? (
-                          <div className="notification-empty">
-                            <Bell size={32} strokeWidth={1} />
-                            <p>No new notifications</p>
-                          </div>
-                        ) : (
-                          notifications.map(notification => {
-                            const style = getAlertStyle(notification.alert_type);
-                            return (
-                              <div
-                                key={notification.id}
-                                className={`notification-item ${notification.status === 'READ' ? 'notification-item-read' : ''}`}
-                                onClick={() => notification.status === 'UNREAD' ? handleMarkAsRead(notification.id) : null}
-                              >
-                                <div className="notification-item-icon" style={{ color: style.color }}>
-                                  {style.icon}
-                                </div>
-                                <div className="notification-item-content">
-                                  <span className="notification-item-label" style={{ color: style.color }}>
-                                    {style.label}
-                                  </span>
-                                  <p className="notification-item-message">{notification.message}</p>
-                                  <span className="notification-item-time">
-                                    {new Date(notification.createdAt).toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
+      {showNotifications && (
+        <div className="notification-dropdown">
+          <div className="notification-dropdown-header">
+            <span className="notification-dropdown-title">Notifications</span>
+            {unreadCount > 0 && (
+              <button
+                className="notification-mark-all-btn"
+                onClick={handleMarkAllRead}
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+          <div className="notification-dropdown-body">
+            {notifications.length === 0 ? (
+              <div className="notification-empty">
+                <Bell size={32} strokeWidth={1} />
+                <p>No new notifications</p>
+              </div>
+            ) : (
+              notifications.map(notification => {
+                const style = getAlertStyle(notification.alert_type);
+                return (
+                  <div
+                    key={notification.id}
+                    className={`notification-item ${notification.status === 'READ' ? 'notification-item-read' : ''}`}
+                    onClick={() => notification.status === 'UNREAD' ? handleMarkAsRead(notification.id) : null}
+                  >
+                    <div className="notification-item-icon" style={{ color: style.color }}>
+                      {style.icon}
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="notification-item-content">
+                      <span className="notification-item-label" style={{ color: style.color }}>
+                        {style.label}
+                      </span>
+                      <p className="notification-item-message">{notification.message}</p>
+                      <span className="notification-item-time">
+                        {new Date(notification.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )}
 
-              {/* Logout Link */}
+  {/* Chevron Dropdown (Profile + Logout) */}
+  {user ? (
+    <div className="chevron-menu-wrapper">
+      <button
+        className="chevron-toggle-btn"
+        onClick={() => setIsProfileOpen(!isProfileOpen)}
+      >
+        <ChevronDown
+          size={24}
+          className={`chevron-arrow ${isProfileOpen ? 'rotated' : ''}`}
+        />
+      </button>
 
-              {user ? (
-                <>
-                  <Nav.Link
-                    as={Link}
-                    to="/"
-                    onClick={handleLogout}
-                    className="logout-link"
-                    aria-label="Logout"
-                  >
-                    <DoorClosed className="door-icon door-closed" size={30} aria-hidden="true" />
-                    <DoorOpen className="door-icon door-open" size={30} aria-hidden="true" />
-                    <span className="ms-2 fw-medium d-none d-lg-inline">Logout</span>
-                  </Nav.Link>
-                </>
+      <div className={`chevron-dropdown ${isProfileOpen ? 'open' : ''}`}>
+        {user?.role !== 'patient' && (
+          <Nav.Link
+            as={Link}
+            to={`/${user?.role}/profile`}
+            onClick={() => {
+              setIsProfileOpen(false);
+              setExpanded(false);
+            }}
+            className="chevron-dropdown-item"
+          >
+            <User size={18} className="me-1" />
+            <span>Profile</span>
+          </Nav.Link>
+        )}
+        <Nav.Link
+          as={Link}
+          to="/"
+          onClick={(e) => {
+            setIsProfileOpen(false);
+            handleLogout(e);
+          }}
+          className="chevron-dropdown-item logout-link"
+        >
+          <DoorClosed className="door-icon door-closed" size={22} />
+          <DoorOpen className="door-icon door-open" size={22} />
+          <span>Logout</span>
+        </Nav.Link>
+      </div>
+    </div>
+  ) : (
+    <Button
+      as={Link}
+      to="/login"
+      variant="primary"
+      onClick={() => setExpanded(false)}
+      className="ms-2 px-4 fw-bold shadow-sm rounded-pill login-btn-glow"
+      style={{
+        border: "none",
+        letterSpacing: "0.5px",
+        transition: "all 0.3s ease",
+      }}
+    >
+      Login
+    </Button>
+  )}
+</Nav>
               ) : (
                 <Button
                   as={Link}
@@ -1034,7 +1087,7 @@ const MainNavBar = () => {
                   style={{
                     border: "none",
                     letterSpacing: "0.5px",
-                    transition: "all 0.3s ease"
+                    transition: "all 0.3s ease",
                   }}
                 >
                   Login
