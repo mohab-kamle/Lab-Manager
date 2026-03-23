@@ -336,6 +336,7 @@ router.get(
           },
           attributes: [
             "id",
+            "patient_id",
             "lab_id",
             "branch_id",
             "date",
@@ -494,6 +495,7 @@ router.get(
         },
         attributes: [
           "id",
+          "patient_id",
           "lab_id",
           "branch_id",
           "registered_at",
