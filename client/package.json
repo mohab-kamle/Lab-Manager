@@ -15,7 +15,7 @@
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.17.8",
     "@react-pdf/renderer": "^4.3.0",
-    "axios": "^1.13.5",
+    "axios": "^1.15.0",
     "bootstrap": "^5.3.3",
     "buffer": "^6.0.3",
     "dompurify": "^3.3.2",
@@ -67,7 +67,7 @@
     "sass-embedded": "^1.83.4",
     "sharp": "^0.34.3",
     "terser": "^5.43.1",
-    "vite": "^6.3.5",
+    "vite": "^6.4.2",
     "vite-plugin-image-optimizer": "^2.0.2",
     "vite-plugin-remove-console": "^2.2.0"
   }
