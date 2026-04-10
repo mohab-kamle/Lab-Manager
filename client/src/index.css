@@ -1,4 +1,7 @@
-/* Global Scrollbar Styling */
+/* =======================================================================
+   GLOBAL SCROLLBAR STYLING
+   ======================================================================= */
+
 /* Firefox */
 * {
   scrollbar-width: thin;
@@ -24,45 +27,64 @@
   background: var(--scrollbar-thumb-hover);
 }
 
-:root {
-  /* hsl (fallback color) */
-  /* Scrollbar Variables */
-  --scrollbar-bg: transparent;
-  --scrollbar-thumb: hsl(212 100% 27%);
-  --scrollbar-thumb-hover: hsl(212 100% 37%);
-  --scrollbar-width: 10px;
+/* =======================================================================
+   COLOR SYSTEM — THE SINGLE SOURCE OF TRUTH (SSOT)
+   -----------------------------------------------------------------------
+   This file controls the dynamic Light & Dark mode colors across the app. 
+   If you want to change the visual theme, change the colors HERE. 
+   
+   ⚠️ Do NOT configure CSS variable colors in `custom.scss`. 
+   `custom.scss` is only for feeding static fallback colors to Bootstrap.
+   
+   Layered surface approach:
+     bg-base → bg-surface → bg-elevated (progressive lightness)
+     bg-inset is DARKER than base (for inputs, sunken areas)
 
-  /* hsl (fallback color) */
-  --bg-dark: hsl(214 100% 94%);
-  --bg: hsl(214 100% 99%);
-  --bg-light: hsl(214 100% 100%);
-  --text: hsl(257 100% 13%);
-  --text-muted: hsl(212 100% 27%);
-  --highlight: hsl(213 100% 100%);
-  --border: hsl(208 100% 46%);
-  --border-muted: hsl(212 100% 65%);
-  --primary: hsl(212 100% 27%);
-  --secondary: hsl(25 95% 55%);
-  --danger: hsl(4 99% 37%);
-  --warning: hsl(50 100% 50%);
-  --success: hsl(150 60% 45%);
-  --info: hsl(215 95% 42%);
-  /* oklch */
-  --bg-dark: oklch(0.92 0.1 255);
-  --bg: oklch(0.96 0.1 255);
-  --bg-light: oklch(1 0.1 255);
-  --text: oklch(0.15 0.2 255);
-  --text-muted: oklch(0.4 0.2 255);
-  --highlight: oklch(1 0.2 255);
-  --border: oklch(0.6 0.2 255);
-  --border-muted: oklch(0.7 0.2 255);
-  --primary: oklch(0.4 0.2 255);
-  --secondary: oklch(0.7 0.18 45);
-  --danger: oklch(0.5 0.2 30);
-  --warning: oklch(0.85 0.18 95);
-  --success: oklch(0.7 0.18 150);
-  --info: oklch(0.5 0.2 260);
-  /* Toast Specific Colors */
+   Accents use oklch for perceptual uniformity.
+   Chroma is intentionally low on neutrals for clean feel.
+   ======================================================================= */
+
+:root {
+  /* --- Backgrounds (Layered Surfaces) --- */
+  --bg-base: oklch(0.97 0.005 255);      /* Page body */
+  --bg-surface: oklch(0.995 0.002 255);  /* Cards, containers */
+  --bg-elevated: oklch(1.0 0 0);         /* Hover, dropdowns, modals */
+  --bg-inset: oklch(0.94 0.008 255);     /* Input fields, inset areas */
+
+  /* --- Borders --- */
+  --border-default: oklch(0.82 0.015 255);  /* Card borders, dividers */
+  --border-muted: oklch(0.88 0.01 255);     /* Subtle separators */
+  --border-emphasis: oklch(0.60 0.08 255);  /* Active/focus borders */
+
+  /* --- Text Hierarchy --- */
+  --text-primary: oklch(0.18 0.02 255);    /* Headings, important content */
+  --text-secondary: oklch(0.42 0.03 255);  /* Body text, labels */
+  --text-subtle: oklch(0.58 0.02 255);     /* Meta info, timestamps, hints */
+
+  /* --- Semantic / Accent Colors --- */
+  --color-primary: oklch(0.45 0.18 255);         /* Actions, links, buttons */
+  --color-primary-subtle: oklch(0.93 0.04 255);  /* Primary tinted backgrounds */
+  --color-secondary: oklch(0.70 0.16 45);        /* Secondary accent (orange) */
+  --color-success: oklch(0.60 0.16 150);         /* Success states */
+  --color-success-subtle: oklch(0.93 0.04 150);  /* Success tinted bg */
+  --color-warning: oklch(0.78 0.14 85);          /* Warning states */
+  --color-warning-subtle: oklch(0.95 0.04 85);   /* Warning tinted bg */
+  --color-danger: oklch(0.55 0.20 25);           /* Error / danger states */
+  --color-danger-subtle: oklch(0.95 0.04 25);    /* Danger tinted bg */
+  --color-info: oklch(0.52 0.15 255);            /* Info states */
+
+  /* --- Interaction States --- */
+  --hover-bg: oklch(0.96 0.005 255);
+  --active-bg: oklch(0.92 0.01 255);
+  --focus-ring: oklch(0.65 0.14 255 / 0.3);
+
+  /* --- Scrollbar --- */
+  --scrollbar-bg: transparent;
+  --scrollbar-thumb: var(--color-primary);
+  --scrollbar-thumb-hover: var(--color-primary-subtle);
+  --scrollbar-width: 5px;
+
+  /* --- Toast Colors --- */
   --toast-success: #10b981;
   --toast-success-bg: rgba(16, 185, 129, 0.1);
   --toast-error: #ef4444;
@@ -74,40 +96,75 @@
   --toast-text: #111827;
   --toast-text-muted: #374151;
   --toast-bg: #ffffff;
+
+  /* ===========================
+     LEGACY ALIASES
+     These map old variable names to new tokens so that
+     existing var(--bg), var(--text), etc. still resolve.
+     Safe to remove once all files are fully migrated.
+     =========================== */
+  --bg-dark: var(--bg-inset);
+  --bg: var(--bg-base);
+  --bg-light: var(--bg-surface);
+  --text: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --highlight: var(--bg-elevated);
+  --border: var(--border-default);
+  /* --border-muted: same name in old and new, no alias needed */
+  --primary: var(--color-primary);
+  --secondary: var(--color-secondary);
+  --danger: var(--color-danger);
+  --warning: var(--color-warning);
+  --success: var(--color-success);
+  --info: var(--color-info);
 }
+
+/* ===========================
+   DARK MODE
+
+   Activated via ThemeContext → body.dark + data-bs-theme="dark".
+   Surfaces use progressive lightness steps from a dark base.
+   Accent chroma is REDUCED vs light mode to avoid neon effect.
+   Text chroma is near-zero for neutral off-white readability.
+   =========================== */
+
 [data-bs-theme="dark"] body,
 body.dark {
-  /* hsl (fallback color) */
-  --bg-dark: hsl(244 100% 7%);
-  --bg: hsl(231 100% 9%);
-  --bg-light: hsl(219 100% 11%);
-  --text: hsl(214 100% 99%);
-  --text-muted: hsl(214 78% 73%);
-  --highlight: hsl(208 100% 34%);
-  --border: hsl(212 100% 27%);
-  --border-muted: hsl(222 100% 22%);
-  --primary: hsl(213 100% 73%);
-  --secondary: hsl(42 100% 34%);
-  --danger: hsl(7 100% 66%);
-  --warning: hsl(53 100% 21%);
-  --success: hsl(162 100% 22%);
-  --info: hsl(217 100% 70%);
-  /* oklch */
-  --bg-dark: oklch(0.1 0.1 255);
-  --bg: oklch(0.15 0.1 255);
-  --bg-light: oklch(0.2 0.1 255);
-  --text: oklch(0.96 0.1 255);
-  --text-muted: oklch(0.76 0.1 255);
-  --highlight: oklch(0.5 0.2 255);
-  --border: oklch(0.4 0.2 255);
-  --border-muted: oklch(0.3 0.2 255);
-  --primary: oklch(0.76 0.2 255);
-  --secondary: oklch(0.76 0.2 75);
-  --danger: oklch(0.7 0.2 30);
-  --warning: oklch(0.7 0.2 100);
-  --success: oklch(0.7 0.2 160);
-  --info: oklch(0.7 0.2 260);
-  /* Toast Specific Colors (Dark Mode) */
+  /* --- Unified Bridging from custom.scss --- */
+  --bg-base: var(--bg);
+  --bg-surface: var(--bg-light);
+  --bg-elevated: var(--highlight);
+  --bg-inset: var(--bg-dark);
+
+  /* --- Borders --- */
+  --border-default: var(--border);
+  --border-muted: var(--border-muted);
+  --border-emphasis: var(--color-primary); /* Use primary for emphasis borders */
+
+  /* --- Text --- */
+  --text-primary: var(--text);
+  --text-secondary: var(--text-muted);
+  --text-subtle: var(--text-muted);
+
+  /* --- Semantic Colors --- */
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  /* --- Interaction States --- */
+  --hover-bg: var(--highlight);
+  --active-bg: var(--bg-light);
+  --focus-ring: rgba(59, 130, 246, 0.4); /* Based on Blue 500 */
+
+  /* --- Scrollbar --- */
+  --scrollbar-thumb: var(--primary);
+  --scrollbar-thumb-hover: var(--text-muted);
+  --scrollbar-width: 5px;
+
+  /* --- Toast (Dark Mode) --- */
   --toast-success: #34d399;
   --toast-success-bg: rgba(52, 211, 153, 0.15);
   --toast-error: #f87171;
@@ -118,7 +175,7 @@ body.dark {
   --toast-info-bg: rgba(96, 165, 250, 0.15);
   --toast-text: #f9fafb;
   --toast-text-muted: #d1d5db;
-  --toast-bg: #1f2937;
+  --toast-bg: var(--bg-light);
 }
 
 /* Fixed size action buttons for tables */
@@ -131,5 +188,7 @@ body.dark {
   justify-content: center;
   border-radius: 4px;
 }
-.bg-theme-surface { background-color: var(--bg-light); }
-.text-theme { color: var(--text) !important; }
+
+/* Utility classes using new tokens */
+.bg-theme-surface { background-color: var(--bg-surface); }
+.text-theme { color: var(--text-primary) !important; }

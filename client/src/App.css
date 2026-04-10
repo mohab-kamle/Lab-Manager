@@ -3,7 +3,14 @@
   display: flex;
   flex-direction: column;
   justify-self: center;
-  overflow-x: hidden;
+  overflow-x: clip;
+  min-height: 100vh;
+}
+
+#main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .patient-reports-container {
@@ -42,7 +49,7 @@
 }
 
 .lab-footer {
-  background-color: var(--bg-light);
+  background-color: var(--bg-surface);
   border-top: 1px solid var(--border-muted);
   margin-top: auto;
 }
@@ -51,6 +58,14 @@
 :root {
   --lab-primary-color: #284889;
   --lab-secondary-color: #6c757d;
+}
+
+/* Dark mode auto-lightening for lab branding.
+   Labs can override --lab-primary-color in their dark mode settings.
+   If not provided, this auto-lightened value is used. */
+body.dark {
+  --lab-primary-color: #6b8fd4;
+  --lab-secondary-color: #9ca3af;
 }
 
 /* Apply lab colors to various components */
@@ -79,14 +94,14 @@
 
 /* Trial warning styles */
 .lab-layout .alert-warning {
-  background-color: var(--warning);
-  border-color: var(--warning);
+  background-color: var(--color-warning);
+  border-color: var(--color-warning);
   color: #856404;
 }
 
 .lab-layout .alert-danger {
-  background-color: var(--danger);
-  border-color: var(--danger);
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
   color: white;
 }
 
@@ -103,7 +118,7 @@
 
 /* Navigation adjustments for lab context */
 .lab-layout .navbar {
-  background-color: var(--bg-light);
+  background-color: var(--bg-surface);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
@@ -130,7 +145,7 @@
 }
 
 .lab-layout .card-header {
-  background-color: var(--bg-light);
+  background-color: var(--bg-surface);
   border-bottom: 1px solid var(--border-muted);
 }
 
@@ -140,9 +155,9 @@
 }
 
 .lab-layout .table thead th {
-  background-color: var(--bg-light);
+  background-color: var(--bg-surface);
   border-bottom: 2px solid var(--border-muted);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* Pagination styles */
@@ -241,7 +256,7 @@
 
 /* Modal Styles Override */
 .modal-header {
-  background-color: var(--primary) !important;
+  background-color: var(--color-primary) !important;
   color: white !important;
   border-bottom: none !important;
   display: flex;

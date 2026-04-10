@@ -260,14 +260,15 @@ const UnifiedLogin = () => {
                   }}
                 >
                   <Alert variant="light" className="mb-4 border-0" style={{
-                  backgroundColor: selectedUserType?.bgColor,
-                  borderLeft: `4px solid var(--bs-${selectedUserType?.color})`
-                }}>
-                  <div className="d-flex align-items-center">
-                    <span style={{ fontSize: '1.5em', marginRight: '12px' }}>{selectedUserType?.icon}</span>
-                    <div>
-                      <strong className="text-theme d-block">{selectedUserType?.label}</strong>
-                      <small className="text-muted">{selectedUserType?.description}</small>
+                    backgroundColor: selectedUserType?.bgColor,
+                    borderLeft: `4px solid var(--bs-${selectedUserType?.color})`
+                  }}>
+                    <div className="d-flex align-items-center">
+                      <span style={{ fontSize: '1.5em', marginRight: '12px' }}>{selectedUserType?.icon}</span>
+                      <div>
+                        <strong className="text-theme d-block">{selectedUserType?.label}</strong>
+                        <small className="text-muted">{selectedUserType?.description}</small>
+                      </div>
                     </div>
                   </Alert>
                 </motion.div>
@@ -311,7 +312,7 @@ const UnifiedLogin = () => {
                     /* Employee Login Form */
                     <>
                       <Form.Group className="mb-4">
-                      <Form.Label className="fw-semibold text-theme">
+                        <Form.Label className="fw-semibold text-theme">
                           <User size={18} className="me-2" />
                           Username
                         </Form.Label>
@@ -330,7 +331,7 @@ const UnifiedLogin = () => {
                       </Form.Group>
 
                       <Form.Group className="mb-4">
-                      <Form.Label className="fw-semibold text-theme">
+                        <Form.Label className="fw-semibold text-theme">
                           <Lock size={18} className="me-2" />
                           Password
                         </Form.Label>
