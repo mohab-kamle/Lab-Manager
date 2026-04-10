@@ -8,7 +8,6 @@ import {
   Form,
   Alert,
 } from "react-bootstrap";
-import useLabPrefix from '../../hooks/useLabPrefix';
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
@@ -91,7 +90,7 @@ const HomePage = () => {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const prefix = useLabPrefix();
+
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
