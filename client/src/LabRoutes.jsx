@@ -37,7 +37,17 @@ import MedicalReports from './pages/reports/MedicalReports';
 import EmployeeManagement from './pages/branches/EmployeeManagement';
 import LabManagement from './pages/lab/LabManagement';
 import AdminProfile from './pages/admin/AdminProfile';
+import DoctorProfile from './pages/doctor/DoctorProfile';
+import ChemistProfile from './pages/chemist/ChemistProfile';
+import EmployeeProfile from './pages/employee/EmployeeProfile';
+import ReceptionistProfile from './pages/receptionist/ReceptionistProfile';
 import Vault from './pages/admin/Vault';
+
+// Inventory Pages
+import InventoryDashboard from "./pages/inventory/InventoryDashboard";
+import Suppliers from "./pages/inventory/Suppliers";
+import InventoryItems from "./pages/inventory/InventoryItems";
+import InventoryBatches from "./pages/inventory/InventoryBatches";
 
 import LabLayout from './components/layout/LabLayout';
 
@@ -104,9 +114,20 @@ const LabRoutes = () => (
       <Route path="/:role/test-group-categories" element={<PrivateRoute element={<TestGroupCategories />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
       <Route path="/:role/test-group-components" element={<PrivateRoute element={<TestGroupComponents />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
       <Route path="/:role/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
-      <Route path="/:role/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />
+      {/* Profile routes — each role gets its own profile page backed by the shared StaffProfile component */}
+      <Route path="/admin/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />
+      <Route path="/doctor/profile" element={<PrivateRoute element={<DoctorProfile />} allowedRoles={["doctor"]} />} />
+      <Route path="/chemist/profile" element={<PrivateRoute element={<ChemistProfile />} allowedRoles={["chemist"]} />} />
+      <Route path="/employee/profile" element={<PrivateRoute element={<EmployeeProfile />} allowedRoles={["employee"]} />} />
+      <Route path="/receptionist/profile" element={<PrivateRoute element={<ReceptionistProfile />} allowedRoles={["receptionist"]} />} />
       <Route path="/admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
       <Route path="/:role/vault" element={<PrivateRoute element={<Vault />} allowedRoles={["admin"]} />} />
+
+      {/* Inventory Routes */}
+      <Route path="/:role/inventory" element={<PrivateRoute element={<InventoryDashboard />} allowedRoles={["admin", "chemist"]} />} />
+      <Route path="/:role/inventory/suppliers" element={<PrivateRoute element={<Suppliers />} allowedRoles={["admin", "chemist"]} />} />
+      <Route path="/:role/inventory/items" element={<PrivateRoute element={<InventoryItems />} allowedRoles={["admin", "chemist"]} />} />
+      <Route path="/:role/inventory/items/:itemId/batches" element={<PrivateRoute element={<InventoryBatches />} allowedRoles={["admin", "chemist"]} />} />
     </Route>
   </Routes>
 );
