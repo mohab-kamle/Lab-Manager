@@ -14,35 +14,40 @@ const { sequelize } = require("../models");
 const db = require('../models');
 
 // Configure multer for file uploads
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
 // Function to generate random patient code (fits within INTEGER range)
 const generatePatientCode = async (labId) => {
-  let patientCode;
-  let exists = true;
-  
-  while (exists) {
-    // Generate random 9-digit number (fits within INTEGER range: max 2147483647)
-    patientCode = Math.floor(100000000 + Math.random() * 900000000);
-    
-    // Check if it exists within the same lab
-    const existingPatient = await patient.findOne({ 
-      where: { 
-        patientcode: patientCode,
-        lab_id: labId 
-      } 
-    });
-    exists = !!existingPatient;
-  }
-  
-  return patientCode;
+    let patientCode;
+    let exists = true;
+
+    while (exists) {
+        // Generate random 9-digit number (fits within INTEGER range: max 2147483647)
+        patientCode = Math.floor(100000000 + Math.random() * 900000000);
+
+        // Check if it exists within the same lab
+        const existingPatient = await patient.findOne({
+            where: {
+                patientcode: patientCode,
+                lab_id: labId
+            }
+        });
+        exists = !!existingPatient;
+    }
+
+    return patientCode;
 };
 
 router.post("/login", loginLimiter, async (req, res) => {
   const { patientcode} = req.body;
+
+  // Validate patientcode to prevent object injection
+  if (!patientcode || typeof patientcode === 'object') {
+    return res.status(400).json({ error: "Invalid patient code format" });
+  }
 
   try {
     const Patient = await patient.findOne({ 
@@ -51,40 +56,40 @@ router.post("/login", loginLimiter, async (req, res) => {
       } 
     });
 
-    if (!Patient) {
-      return res.status(401).json({ error: "Invalid patient code or lab" });
-    }
+        if (!Patient) {
+            return res.status(401).json({ error: "Invalid patient code or lab" });
+        }
 
-    // ✅ Generate token with user details including lab_id
-    const token = sign({ 
-      id: Patient.id, 
-      role: "patient",
-      lab_id: Patient.lab_id 
-    }, SECRET_KEY, {
-      expiresIn: "6h",
-    });
-    phones = await phone.findAll({ where: { patient_id: Patient.id } });
-    user = { ...Patient.get(), role: "patient" , phones};
-    // ✅ Return patient details with token
-    res.json({
-      token,
-      user
-    });
-  } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).json({ error: "Server error, please try again later." });
-  }
+        // ✅ Generate token with user details including lab_id
+        const token = sign({
+            id: Patient.id,
+            role: "patient",
+            lab_id: Patient.lab_id
+        }, SECRET_KEY, {
+            expiresIn: "6h",
+        });
+        phones = await phone.findAll({ where: { patient_id: Patient.id } });
+        user = { ...Patient.get(), role: "patient", phones };
+        // ✅ Return patient details with token
+        res.json({
+            token,
+            user
+        });
+    } catch (error) {
+        console.error("Login Error:", error);
+        res.status(500).json({ error: "Server error, please try again later." });
+    }
 });
 
 router.get(
-  "/reports",
-  authenticateUser,
-  authorizeRoles("patient"),
-  tenantContext,
-  async (req, res) => {
-    const userId = req.user.id; // Assuming this comes from JWT
+    "/reports",
+    authenticateUser,
+    authorizeRoles("patient"),
+    tenantContext,
+    async (req, res) => {
+        const userId = req.user.id; // Assuming this comes from JWT
 
-    const query = `
+        const query = `
       SELECT
     mr.id AS id,
     mr.date AS date,
@@ -115,173 +120,173 @@ router.get(
     AND mr.lab_id = :labId;
     `;
 
-    try {
-      // Use `sequelize.query` with `SELECT` to ensure array of results
-      const results = await sequelize.query(query, {
-        replacements: { 
-          userId,
-          labId: req.tenant.lab_id 
-        },
-        type: sequelize.QueryTypes.SELECT, // Ensure the type is `SELECT`
-      });
-      // Process the query result to group by 'medical_report.id'
-      const groupedReports = results.reduce((acc, row) => {
-        // Find the medical report by ID (or create a new one if it doesn't exist)
-        let report = acc.find((r) => r.id === row.id);
+        try {
+            // Use `sequelize.query` with `SELECT` to ensure array of results
+            const results = await sequelize.query(query, {
+                replacements: {
+                    userId,
+                    labId: req.tenant.lab_id
+                },
+                type: sequelize.QueryTypes.SELECT, // Ensure the type is `SELECT`
+            });
+            // Process the query result to group by 'medical_report.id'
+            const groupedReports = results.reduce((acc, row) => {
+                // Find the medical report by ID (or create a new one if it doesn't exist)
+                let report = acc.find((r) => r.id === row.id);
 
-        if (!report) {
-          report = {
-            id: row.id,
-            date: row.date,
-            done: row.done,
-            pending: row.pending,
-            comment: row.comment,
-            doctor_name: row.doctor_name,
-            patient_name: row.patient_name,
-            patientcode: row.patientcode,
-            tests: [],
-          };
-          acc.push(report);
+                if (!report) {
+                    report = {
+                        id: row.id,
+                        date: row.date,
+                        done: row.done,
+                        pending: row.pending,
+                        comment: row.comment,
+                        doctor_name: row.doctor_name,
+                        patient_name: row.patient_name,
+                        patientcode: row.patientcode,
+                        tests: [],
+                    };
+                    acc.push(report);
+                }
+                // Push the test into the appropriate medical report's 'tests' array
+                report.tests.push({
+                    test_name: row.test_name,
+                    price: row.price,
+                    status: row.status,
+                    result: row.result,
+                    unit: row.unit,
+                    normal_from: row.normal_from,
+                    normal_to: row.normal_to,
+                });
+                return acc;
+            }, []);
+
+            // Send the grouped data as JSON to the front-end
+            res.json(groupedReports);
+        } catch (error) {
+            console.error("Error fetching reports:", error);
+            res.status(500).json({ error: "Internal server error" });
         }
-        // Push the test into the appropriate medical report's 'tests' array
-        report.tests.push({
-          test_name: row.test_name,
-          price: row.price,
-          status: row.status,
-          result: row.result,
-          unit: row.unit,
-          normal_from: row.normal_from,
-          normal_to: row.normal_to,
-        });
-        return acc;
-      }, []);
-
-      // Send the grouped data as JSON to the front-end
-      res.json(groupedReports);
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      res.status(500).json({ error: "Internal server error" });
     }
-  }
 );
 
 router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext, async (req, res) => {
-  const transaction = await db.sequelize.transaction();
-  try {
-    const { name, birth_date, gender, phones, email, address, nationality, passport_no, national_id } = req.body;
-    console.log("Received phones array:", phones);
-    const userId = req.user.id; // Assuming user ID is stored in the auth token
+    const transaction = await db.sequelize.transaction();
+    try {
+        const { name, birth_date, gender, phones, email, address, nationality, passport_no, national_id } = req.body;
+        console.log("Received phones array:", phones);
+        const userId = req.user.id; // Assuming user ID is stored in the auth token
 
-    // Update patient details
-    await patient.update(
-      { name, birth_date, gender, email, address, nationality, passport_no, national_id },
-      { 
-        where: { 
-          id: userId,
-          lab_id: req.tenant.lab_id 
-        }, 
-        transaction 
-      }
-    );
+        // Update patient details
+        await patient.update(
+            { name, birth_date, gender, email, address, nationality, passport_no, national_id },
+            {
+                where: {
+                    id: userId,
+                    lab_id: req.tenant.lab_id
+                },
+                transaction
+            }
+        );
 
-    // Handle phones
-    if (phones && phones.length > 0) {
-      console.log("Attempting to destroy existing phone numbers for patient:", userId);
-      await db.phone.destroy({ where: { patient_id: userId }, transaction });
-      console.log("Existing phone numbers destroyed for patient:", userId);
-      const phoneRecords = phones.map((p, index) => ({
-        patient_id: userId,
-        phone_number: p.phone_number,
-        type: index === 0 ? 'primary' : 'secondary' // Assuming the first phone is primary, second is secondary
-      }));
-      console.log("Attempting to bulk create new phone numbers:", phoneRecords);
-      await db.phone.bulkCreate(phoneRecords, { transaction });
-      console.log("New phone numbers bulk created for patient:", userId);
+        // Handle phones
+        if (phones && phones.length > 0) {
+            console.log("Attempting to destroy existing phone numbers for patient:", userId);
+            await db.phone.destroy({ where: { patient_id: userId }, transaction });
+            console.log("Existing phone numbers destroyed for patient:", userId);
+            const phoneRecords = phones.map((p, index) => ({
+                patient_id: userId,
+                phone_number: p.phone_number,
+                type: index === 0 ? 'primary' : 'secondary' // Assuming the first phone is primary, second is secondary
+            }));
+            console.log("Attempting to bulk create new phone numbers:", phoneRecords);
+            await db.phone.bulkCreate(phoneRecords, { transaction });
+            console.log("New phone numbers bulk created for patient:", userId);
+        }
+
+        // Fetch the updated patient with associated phones
+        const updatedPatient = await patient.findByPk(userId, {
+            include: [{ model: db.phone, as: 'phones' }],
+            transaction
+        });
+
+        await transaction.commit();
+        res.json({ success: true, updatedUser: updatedPatient });
+    } catch (error) {
+        await transaction.rollback();
+        console.error("Error updating patient profile:", error);
+        res.status(500).json({ success: false, message: "Error updating profile", error: error.message });
     }
-
-    // Fetch the updated patient with associated phones
-    const updatedPatient = await patient.findByPk(userId, {
-      include: [{ model: db.phone, as: 'phones' }],
-      transaction
-    });
-
-    await transaction.commit();
-    res.json({ success: true, updatedUser: updatedPatient });
-  } catch (error) {
-    await transaction.rollback();
-    console.error("Error updating patient profile:", error);
-    res.status(500).json({ success: false, message: "Error updating profile", error: error.message });
-  }
 });
 
 // Get all patients
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee"), tenantContext, 
-  // Add cache headers for 5 minutes
-  (req, res, next) => {
-    res.set({
-      'Cache-Control': 'public, max-age=300', // 5 minutes
-      'ETag': `"patients-${req.tenant.lab_id}-${Date.now()}"`
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee"), tenantContext,
+    // Add cache headers for 5 minutes
+    (req, res, next) => {
+        res.set({
+            'Cache-Control': 'public, max-age=300', // 5 minutes
+            'ETag': `"patients-${req.tenant.lab_id}-${Date.now()}"`
+        });
+        next();
+    },
+    async (req, res) => {
+        try {
+            console.log('Fetching patients...');
+            const patients = await patient.findAll({
+                where: {
+                    lab_id: req.tenant.lab_id
+                },
+                attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address', 'total', 'paid', 'due', 'contract_id', 'referral_id', 'createdAt'],
+                include: [
+                    {
+                        model: phone,
+                        as: 'phones',
+                        attributes: ['phone_number', 'type']
+                    },
+                    {
+                        model: sequelize.models.diseases,
+                        as: 'diseases_id_diseases',
+                        through: { attributes: [] },
+                        attributes: ['id', 'name', 'details']
+                    },
+                    {
+                        model: sequelize.models.contract,
+                        as: 'contract',
+                        attributes: ['id', 'name'],
+                        required: false
+                    },
+                    {
+                        model: sequelize.models.referral,
+                        as: 'referral',
+                        attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email'],
+                        required: false
+                    }
+                ],
+                order: [['name', 'ASC']]
+            });
+            console.log(`Found ${patients.length} patients`);
+            res.json(patients);
+        } catch (error) {
+            console.error('Error fetching patients:', error);
+            res.status(500).json({
+                error: "Internal server error",
+                message: error.message,
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
+        }
     });
-    next();
-  },
-  async (req, res) => {
-    try {
-        console.log('Fetching patients...');
-        const patients = await patient.findAll({
-            where: {
-                lab_id: req.tenant.lab_id
-            },
-            attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address', 'total', 'paid', 'due', 'contract_id', 'referral_id'],
-            include: [
-                {
-                    model: phone,
-                    as: 'phones',
-                    attributes: ['phone_number', 'type']
-                },
-                {
-                    model: sequelize.models.diseases,
-                    as: 'diseases_id_diseases',
-                    through: { attributes: [] },
-                    attributes: ['id', 'name', 'details']
-                },
-                {
-                    model: sequelize.models.contract,
-                    as: 'contract',
-                    attributes: ['id', 'name'],
-                    required: false
-                },
-                {
-                    model: sequelize.models.referral,
-                    as: 'referral',
-                    attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email'],
-                    required: false
-                }
-            ],
-            order: [['name', 'ASC']]
-        });
-        console.log(`Found ${patients.length} patients`);
-        res.json(patients);
-    } catch (error) {
-        console.error('Error fetching patients:', error);
-        res.status(500).json({ 
-            error: "Internal server error",
-            message: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-});
 
 // Create new patient
 router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
-        const { 
-            name, 
-            email, 
-            gender, 
-            birth_date, 
-            national_id, 
-            nationality, 
-            passport_no, 
+        const {
+            name,
+            email,
+            gender,
+            birth_date,
+            national_id,
+            nationality,
+            passport_no,
             address,
             primaryPhone,
             secondaryPhone,
@@ -304,11 +309,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
 
         // Check if national ID already exists (if provided) within the same lab
         if (cleanNationalId) {
-            const existingNationalId = await patient.findOne({ 
-                where: { 
+            const existingNationalId = await patient.findOne({
+                where: {
                     national_id: cleanNationalId,
-                    lab_id: req.tenant.lab_id 
-                } 
+                    lab_id: req.tenant.lab_id
+                }
             });
             if (existingNationalId) {
                 return res.status(400).json({ error: "National ID already exists" });
@@ -317,11 +322,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
 
         // Check if passport number already exists (if provided) within the same lab
         if (cleanPassportNo) {
-            const existingPassport = await patient.findOne({ 
-                where: { 
+            const existingPassport = await patient.findOne({
+                where: {
                     passport_no: cleanPassportNo,
-                    lab_id: req.tenant.lab_id 
-                } 
+                    lab_id: req.tenant.lab_id
+                }
             });
             if (existingPassport) {
                 return res.status(400).json({ error: "Passport number already exists" });
@@ -401,7 +406,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         res.status(201).json(createdPatient);
     } catch (error) {
         console.error('Error creating patient:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal server error",
             message: error.message
         });
@@ -412,14 +417,14 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
 router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const patientId = req.params.id;
-        const { 
-            name, 
-            email, 
-            gender, 
-            birth_date, 
-            national_id, 
-            nationality, 
-            passport_no, 
+        const {
+            name,
+            email,
+            gender,
+            birth_date,
+            national_id,
+            nationality,
+            passport_no,
             address,
             primaryPhone,
             secondaryPhone,
@@ -544,7 +549,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         res.json(updatedPatient);
     } catch (error) {
         console.error('Error updating patient:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal server error",
             message: error.message
         });
@@ -588,7 +593,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
         res.json({ message: "Patient deleted successfully" });
     } catch (error) {
         console.error('Error deleting patient:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal server error",
             message: error.message
         });
@@ -597,28 +602,28 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
 
 // Get all available diseases
 router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist"),
-  // Add cache headers for 1 hour - diseases rarely change
-  (req, res, next) => {
-    res.set({
-      'Cache-Control': 'public, max-age=3600', // 1 hour
+    // Add cache headers for 1 hour - diseases rarely change
+    (req, res, next) => {
+        res.set({
+            'Cache-Control': 'public, max-age=3600', // 1 hour
+        });
+        next();
+    },
+    async (req, res) => {
+        try {
+            const diseasesList = await sequelize.models.diseases.findAll({
+                attributes: ['id', 'name', 'details'],
+                order: [['name', 'ASC']]
+            });
+            res.json(diseasesList);
+        } catch (error) {
+            console.error('Error fetching diseases:', error);
+            res.status(500).json({
+                error: "Internal server error",
+                message: error.message
+            });
+        }
     });
-    next();
-  },
-  async (req, res) => {
-    try {
-        const diseasesList = await sequelize.models.diseases.findAll({
-            attributes: ['id', 'name', 'details'],
-            order: [['name', 'ASC']]
-        });
-        res.json(diseasesList);
-    } catch (error) {
-        console.error('Error fetching diseases:', error);
-        res.status(500).json({ 
-            error: "Internal server error",
-            message: error.message
-        });
-    }
-});
 
 // Import patients from Excel/CSV
 router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, upload.single('file'), async (req, res) => {
@@ -635,7 +640,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
 
         // Read Excel data
         const data = await readExcelBuffer(req.file.buffer);
-        
+
         if (!data || data.length === 0) {
             return res.status(400).json({ error: "No data found in the uploaded file" });
         }
@@ -646,7 +651,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
         for (let i = 0; i < data.length; i++) {
             try {
                 const row = data[i];
-                
+
                 // Validate required fields - only Name and Primary Phone are required
                 if (!row.Name || !row['Primary Phone']) {
                     errors.push(`Row ${i + 2}: Missing required fields (Name and Primary Phone are required)`);
@@ -664,7 +669,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                         required: true
                     }]
                 });
-                
+
                 if (existingPhone) {
                     errors.push(`Row ${i + 2}: Patient with phone number ${row['Primary Phone']} already exists`);
                     continue;
@@ -752,14 +757,14 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
             }
         }
 
-        res.json({ 
-            imported, 
+        res.json({
+            imported,
             errors: errors.length > 0 ? errors : undefined,
             message: `Successfully imported ${imported} patients${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
         });
     } catch (error) {
         console.error('Error importing patients:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal server error",
             message: error.message
         });
@@ -818,14 +823,14 @@ router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist")
             }
         }
 
-        res.json({ 
-            deleted, 
+        res.json({
+            deleted,
             errors: errors.length > 0 ? errors : undefined,
             message: `Successfully deleted ${deleted} patients${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
         });
     } catch (error) {
         console.error('Error bulk deleting patients:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal server error",
             message: error.message
         });
@@ -877,7 +882,7 @@ router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), t
                 // Update diseases if provided
                 if (updateData.diseases && Array.isArray(updateData.diseases)) {
                     await patient_has_diseases.destroy({ where: { patient_id: patientId } });
-                    
+
                     if (updateData.diseases.length > 0) {
                         const diseaseRecords = updateData.diseases.map(diseaseId => ({
                             patient_id: patientId,
@@ -893,14 +898,14 @@ router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), t
             }
         }
 
-        res.json({ 
-            updated, 
+        res.json({
+            updated,
             errors: errors.length > 0 ? errors : undefined,
             message: `Successfully updated ${updated} patients${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
         });
     } catch (error) {
         console.error('Error bulk updating patients:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Internal server error",
             message: error.message
         });
@@ -909,48 +914,48 @@ router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), t
 
 // GET /patient/reports/:id - get full report for authenticated patient
 router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (req, res) => {
-  try {
-    const reportId = req.params.id;
-    const patientId = req.user.id;
-    const report = await db.medical_report.findOne({
-      where: { id: reportId, patient_id: patientId },
-      include: [
-        {
-          model: db.patient,
-          as: 'patient',
-          attributes: ['id', 'name', 'birth_date', 'gender', 'patientcode']
-        },
-        {
-          model: db.test,
-          as: 'test_id_test_medical_report_has_tests',
-          through: { attributes: [] },
-          include: [
-            {              model: db.test_component,              as: 'components',              attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end', 'test_id']            }
-          ]
-        },
-        {
-          model: db.culture,
-          as: 'culture_id_culture_medical_report_has_cultures',
-          through: { attributes: [] }
-        },
-        {
-          model: db.medical_report_has_test,
-          as: 'medical_report_has_tests'
-        },
-        {
-          model: db.medical_report_has_culture,
-          as: 'medical_report_has_cultures'
+    try {
+        const reportId = req.params.id;
+        const patientId = req.user.id;
+        const report = await db.medical_report.findOne({
+            where: { id: reportId, patient_id: patientId },
+            include: [
+                {
+                    model: db.patient,
+                    as: 'patient',
+                    attributes: ['id', 'name', 'birth_date', 'gender', 'patientcode']
+                },
+                {
+                    model: db.test,
+                    as: 'test_id_test_medical_report_has_tests',
+                    through: { attributes: [] },
+                    include: [
+                        { model: db.test_component, as: 'components', attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end', 'test_id'] }
+                    ]
+                },
+                {
+                    model: db.culture,
+                    as: 'culture_id_culture_medical_report_has_cultures',
+                    through: { attributes: [] }
+                },
+                {
+                    model: db.medical_report_has_test,
+                    as: 'medical_report_has_tests'
+                },
+                {
+                    model: db.medical_report_has_culture,
+                    as: 'medical_report_has_cultures'
+                }
+            ]
+        });
+        if (!report) {
+            return res.status(404).json({ error: 'Report not found or access denied.' });
         }
-      ]
-    });
-    if (!report) {
-      return res.status(404).json({ error: 'Report not found or access denied.' });
+        res.json(report);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error.' });
     }
-    res.json(report);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error.' });
-  }
 });
 
 // Get patient count
@@ -994,10 +999,5 @@ router.get('/recent', authenticateUser, authorizeRoles('admin'), tenantContext,
       limit: 5,
       attributes: ['id', 'name', 'birth_date']
     });
-    res.json(patients);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get recent patients' });
-  }
-});
 
 module.exports = router;
