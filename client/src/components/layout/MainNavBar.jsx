@@ -35,7 +35,7 @@ import {
 import api from "../../utils/api";
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
-import { getSubdomain } from "../../utils/subdomain"; // Add this import properly
+import { getSubdomain } from "../../utils/subdomain";
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
 import VersionBadge from "../ui/VersionBadge";
@@ -314,18 +314,19 @@ const MainNavBar = () => {
       <Navbar
         expand="xl"
         sticky="top"
-        fixed="top"
         expanded={expanded}
         collapseOnSelect
         onClick={handleNavClick}
-        className="pt-3 px-3 d-flex align-items-center"
+        className="pt-2 px-3 d-flex align-items-center"
         style={{
-          background: "var(--bg)",
+          background: "transparent",
           color: "var(--text)",
           border: "none",
           boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
           borderBottom: "1px solid var(--border)",
           zIndex: 1050,
+          WebkitBackdropFilter: "blur(12px)",
+          backdropFilter: "blur(12px)",
         }}
       >
         <Container fluid>
@@ -958,149 +959,133 @@ const MainNavBar = () => {
               </div>
 
               {/* Logout Link */}
-<Nav className="d-flex align-items-center">
-  {/* Notification Bell — visible only for admin/chemist */}
-  {user && (user.role === 'admin' || user.role === 'chemist') && (
-    <div className="notification-bell-container" ref={notificationRef}>
-      <button
-        className="notification-bell-btn"
-        onClick={() => setShowNotifications(!showNotifications)}
-        title="Inventory Notifications"
-      >
-        <Bell size={22} />
-        {unreadCount > 0 && (
-          <span className="notification-badge">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
+              <Nav className="d-flex align-items-center">
+                {/* Notification Bell — visible only for admin/chemist */}
+                {user && (user.role === 'admin' || user.role === 'chemist') && (
+                  <div className="notification-bell-container" ref={notificationRef}>
+                    <button
+                      className="notification-bell-btn"
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      title="Inventory Notifications"
+                    >
+                      <Bell size={22} />
+                      {unreadCount > 0 && (
+                        <span className="notification-badge">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </button>
 
-      {showNotifications && (
-        <div className="notification-dropdown">
-          <div className="notification-dropdown-header">
-            <span className="notification-dropdown-title">Notifications</span>
-            {unreadCount > 0 && (
-              <button
-                className="notification-mark-all-btn"
-                onClick={handleMarkAllRead}
-              >
-                Mark all read
-              </button>
-            )}
-          </div>
-          <div className="notification-dropdown-body">
-            {notifications.length === 0 ? (
-              <div className="notification-empty">
-                <Bell size={32} strokeWidth={1} />
-                <p>No new notifications</p>
-              </div>
-            ) : (
-              notifications.map(notification => {
-                const style = getAlertStyle(notification.alert_type);
-                return (
-                  <div
-                    key={notification.id}
-                    className={`notification-item ${notification.status === 'READ' ? 'notification-item-read' : ''}`}
-                    onClick={() => notification.status === 'UNREAD' ? handleMarkAsRead(notification.id) : null}
-                  >
-                    <div className="notification-item-icon" style={{ color: style.color }}>
-                      {style.icon}
-                    </div>
-                    <div className="notification-item-content">
-                      <span className="notification-item-label" style={{ color: style.color }}>
-                        {style.label}
-                      </span>
-                      <p className="notification-item-message">{notification.message}</p>
-                      <span className="notification-item-time">
-                        {new Date(notification.createdAt).toLocaleString()}
-                      </span>
+                    {showNotifications && (
+                      <div className="notification-dropdown">
+                        <div className="notification-dropdown-header">
+                          <span className="notification-dropdown-title">Notifications</span>
+                          {unreadCount > 0 && (
+                            <button
+                              className="notification-mark-all-btn"
+                              onClick={handleMarkAllRead}
+                            >
+                              Mark all read
+                            </button>
+                          )}
+                        </div>
+                        <div className="notification-dropdown-body">
+                          {notifications.length === 0 ? (
+                            <div className="notification-empty">
+                              <Bell size={32} strokeWidth={1} />
+                              <p>No new notifications</p>
+                            </div>
+                          ) : (
+                            notifications.map(notification => {
+                              const style = getAlertStyle(notification.alert_type);
+                              return (
+                                <div
+                                  key={notification.id}
+                                  className={`notification-item ${notification.status === 'READ' ? 'notification-item-read' : ''}`}
+                                  onClick={() => notification.status === 'UNREAD' ? handleMarkAsRead(notification.id) : null}
+                                >
+                                  <div className="notification-item-icon" style={{ color: style.color }}>
+                                    {style.icon}
+                                  </div>
+                                  <div className="notification-item-content">
+                                    <span className="notification-item-label" style={{ color: style.color }}>
+                                      {style.label}
+                                    </span>
+                                    <p className="notification-item-message">{notification.message}</p>
+                                    <span className="notification-item-time">
+                                      {new Date(notification.createdAt).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Chevron Dropdown (Profile + Logout) */}
+                {user ? (
+                  <div className="chevron-menu-wrapper">
+                    <button
+                      className="chevron-toggle-btn"
+                      onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    >
+                      <ChevronDown
+                        size={24}
+                        className={`chevron-arrow ${isProfileOpen ? 'rotated' : ''}`}
+                      />
+                    </button>
+
+                    <div className={`chevron-dropdown ${isProfileOpen ? 'open' : ''}`}>
+                      {user?.role !== 'patient' && (
+                        <Nav.Link
+                          as={Link}
+                          to={`/${user?.role}/profile`}
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            setExpanded(false);
+                          }}
+                          className="chevron-dropdown-item"
+                        >
+                          <User size={18} className="me-1" />
+                          <span>Profile</span>
+                        </Nav.Link>
+                      )}
+                      <Nav.Link
+                        as={Link}
+                        to="/"
+                        onClick={(e) => {
+                          setIsProfileOpen(false);
+                          handleLogout(e);
+                        }}
+                        className="chevron-dropdown-item logout-link"
+                      >
+                        <DoorClosed className="door-icon door-closed" size={22} />
+                        <DoorOpen className="door-icon door-open" size={22} />
+                        <span>Logout</span>
+                      </Nav.Link>
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )}
-
-  {/* Chevron Dropdown (Profile + Logout) */}
-  {user ? (
-    <div className="chevron-menu-wrapper">
-      <button
-        className="chevron-toggle-btn"
-        onClick={() => setIsProfileOpen(!isProfileOpen)}
-      >
-        <ChevronDown
-          size={24}
-          className={`chevron-arrow ${isProfileOpen ? 'rotated' : ''}`}
-        />
-      </button>
-
-      <div className={`chevron-dropdown ${isProfileOpen ? 'open' : ''}`}>
-        {user?.role !== 'patient' && (
-          <Nav.Link
-            as={Link}
-            to={`/${user?.role}/profile`}
-            onClick={() => {
-              setIsProfileOpen(false);
-              setExpanded(false);
-            }}
-            className="chevron-dropdown-item"
-          >
-            <User size={18} className="me-1" />
-            <span>Profile</span>
-          </Nav.Link>
-        )}
-        <Nav.Link
-          as={Link}
-          to="/"
-          onClick={(e) => {
-            setIsProfileOpen(false);
-            handleLogout(e);
-          }}
-          className="chevron-dropdown-item logout-link"
-        >
-          <DoorClosed className="door-icon door-closed" size={22} />
-          <DoorOpen className="door-icon door-open" size={22} />
-          <span>Logout</span>
-        </Nav.Link>
-      </div>
-    </div>
-  ) : (
-    <Button
-      as={Link}
-      to="/login"
-      variant="primary"
-      onClick={() => setExpanded(false)}
-      className="ms-2 px-4 fw-bold shadow-sm rounded-pill login-btn-glow"
-      style={{
-        border: "none",
-        letterSpacing: "0.5px",
-        transition: "all 0.3s ease",
-      }}
-    >
-      Login
-    </Button>
-  )}
-</Nav>
-              ) : (
-                <Button
-                  as={Link}
-                  to="/login"
-                  variant="primary"
-                  onClick={() => setExpanded(false)}
-                  className="ms-2 px-4 fw-bold shadow-sm rounded-pill login-btn-glow"
-                  style={{
-                    border: "none",
-                    letterSpacing: "0.5px",
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  Login
-                </Button>
-              )}
+                ) : (
+                  <Button
+                    as={Link}
+                    to="/login"
+                    variant="primary"
+                    onClick={() => setExpanded(false)}
+                    className="ms-2 px-4 fw-bold shadow-sm rounded-pill login-btn-glow"
+                    style={{
+                      border: "none",
+                      letterSpacing: "0.5px",
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    Login
+                  </Button>
+                )}
+              </Nav>
             </Nav>
           </Navbar.Collapse>
         </Container>

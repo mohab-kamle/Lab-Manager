@@ -1,7 +1,7 @@
 .toolbar-container {
   width: 100%;
   padding: 1rem;
-  background: #ffffff;
+  background: var(--bg-surface);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   border-radius: 12px;
   margin-bottom: 1.5rem;
@@ -24,13 +24,13 @@
 .search-input {
   width: 100%;
   border-radius: 8px !important;
-  border: 2px solid #e0e0e0 !important;
+  border: 2px solid var(--border-default) !important;
   padding: 0.75rem 1rem !important;
   transition: all 0.3s ease !important;
 }
 
 .search-input:focus {
-  border-color: #0d6efd !important;
+  border-color: var(--color-primary) !important;
   box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15) !important;
   transform: translateY(-1px);
 }
@@ -40,14 +40,14 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: #f8f9fa;
+  background: var(--bg-surface);
   padding: 0.5rem 1rem;
   border-radius: 8px;
   transition: all 0.3s ease;
 }
 
 .items-per-page-wrapper:hover {
-  background: #e9ecef;
+  background: var(--bg-elevated);
 }
 
 .items-per-page-input {
@@ -60,13 +60,13 @@
 }
 
 .items-per-page-input:focus {
-  border-color: #0d6efd;
+  border-color: var(--color-primary);
   outline: none;
   box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
 }
 
 .items-per-page-label {
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   white-space: nowrap;
 }
@@ -76,21 +76,21 @@
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 8px;
-  background: #ffffff;
-  border: 2px solid #e0e0e0;
+  background: var(--bg-surface);
+  border: 2px solid var(--border-default);
   transition: all 0.3s ease;
   cursor: pointer;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .custom-select:hover {
-  border-color: #0d6efd;
+  border-color: var(--color-primary);
   transform: translateY(-1px);
 }
 
 .custom-select:focus {
   outline: none;
-  border-color: #0d6efd;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
 }
 
@@ -116,7 +116,7 @@
 }
 
 .date-input-group span {
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   white-space: nowrap;
 }
@@ -124,19 +124,19 @@
 .date-input {
   flex: 1;
   padding: 0.75rem 1rem;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-default);
   border-radius: 8px;
   transition: all 0.3s ease;
 }
 
 .date-input:hover {
-  border-color: #0d6efd;
+  border-color: var(--color-primary);
   transform: translateY(-1px);
 }
 
 .date-input:focus {
   outline: none;
-  border-color: #0d6efd;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
 }
 

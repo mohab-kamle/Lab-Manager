@@ -357,32 +357,32 @@
 /* Dark mode support */
 [data-bs-theme="dark"] .register-page,
 body.dark .register-page {
-  background: var(--bg);
+  background: var(--bg-base);
 }
 
 [data-bs-theme="dark"] .register-card,
 body.dark .register-card {
-  background: var(--bg-light);
-  color: var(--text);
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 [data-bs-theme="dark"] .form-control,
 body.dark .form-control {
-  background: var(--bg-dark);
-  color: var(--text);
+  background: var(--bg-inset);
+  color: var(--text-primary);
   border-color: var(--border-muted);
 }
 
 [data-bs-theme="dark"] .form-control:focus,
 body.dark .form-control:focus {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 [data-bs-theme="dark"] .plan-option,
 body.dark .plan-option {
-  background: var(--bg-dark);
-  color: var(--text);
+  background: var(--bg-inset);
+  color: var(--text-primary);
   border-color: var(--border-muted);
 }
 
@@ -390,19 +390,19 @@ body.dark .plan-option {
 [data-bs-theme="dark"] .plan-option li,
 body.dark .plan-option h4,
 body.dark .plan-option li {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 [data-bs-theme="dark"] .terms-section,
 body.dark .terms-section {
-  background: var(--bg-dark);
-  color: var(--text);
+  background: var(--bg-inset);
+  color: var(--text-primary);
 }
 
 [data-bs-theme="dark"] .order-summary,
 body.dark .order-summary {
-  background: var(--bg-dark);
-  color: var(--text);
+  background: var(--bg-inset);
+  color: var(--text-primary);
 }
 
 [data-bs-theme="dark"] .order-summary h4,
@@ -411,12 +411,12 @@ body.dark .order-summary {
 body.dark .order-summary h4,
 body.dark .summary-total,
 body.dark .summary-item {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 [data-bs-theme="dark"] .form-check-label,
 body.dark .form-check-label {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 /* Payment Modal Styles */
@@ -464,7 +464,7 @@ body.dark .form-check-label {
 
 /* Payment Modal Header */
 .modal-header {
-  background: var(--bg-dark);
+  background: var(--bg-inset);
   border-bottom: 1px solid var(--border-muted);
 }
 

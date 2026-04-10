@@ -1,6 +1,6 @@
 .theme-toggle-btn {
   background: transparent;
-  border: 1px solid var(--border-muted);
+  border: 1px solid var(--border-default);
   border-radius: 30px;
   width: 50px;
   height: 28px;
@@ -20,8 +20,8 @@
 }
 
 .theme-toggle-btn--dark {
-  background-color: #374151;
-  border-color: #4b5563;
+  background-color: var(--bg-base);
+  border-color: var(--border-default);
 }
 
 .theme-toggle-slider {
@@ -45,7 +45,7 @@
 
 .theme-toggle-btn--dark .theme-toggle-slider {
   transform: translateX(22px);
-  background-color: #1f2937;
+  background-color: var(--bg-elevated);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
@@ -66,7 +66,7 @@
 }
 
 .moon-icon {
-  color: #fbbf24;
+  color: var(--color-primary);
 }
 
 .theme-toggle-btn:hover {
@@ -74,6 +74,6 @@
 }
 
 .theme-toggle-btn:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
