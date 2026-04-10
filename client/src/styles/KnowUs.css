@@ -1,13 +1,13 @@
 /* KnowUs Page Styles */
 
 .know-us-container {
-    background-color: var(--bg);
+    background-color: var(--bg-base);
     min-height: 100vh;
 }
 
 /* Hero Section */
 .hero-section {
-    background: linear-gradient(135deg, var(--bg) 0%, var(--bg-dark) 100%);
+    background: linear-gradient(135deg, var(--bg-base) 0%, var(--bg-inset) 100%);
     position: relative;
     overflow: hidden;
 }
@@ -27,14 +27,14 @@
 .hero-title {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--text);
+    color: var(--text-primary);
     line-height: 1.2;
     margin-bottom: 1.5rem;
 }
 
 .hero-subtitle {
     font-size: 1.25rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: 2rem;
 }
@@ -137,7 +137,7 @@
 .badge-dot {
     width: 8px;
     height: 8px;
-    background-color: var(--success);
+    background-color: var(--color-success);
     border-radius: 50%;
     display: inline-block;
 }
@@ -146,7 +146,7 @@
 
 /* Stats Section */
 .stats-section {
-    background-color: var(--bg-light);
+    background-color: var(--bg-surface);
 }
 
 .stat-card {
@@ -154,7 +154,7 @@
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
-    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg) 100%);
+    background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%);
 }
 
 .stat-card:hover {
@@ -163,13 +163,13 @@
 }
 
 .stat-icon {
-    color: var(--primary);
+    color: var(--color-primary);
     display: flex;
     justify-content: center;
     align-items: center;
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary) 100%);
     border-radius: 50%;
     margin: 0 auto;
     color: white;
@@ -178,37 +178,37 @@
 .stat-number {
     font-size: 2.5rem;
     font-weight: 700;
-    color: var(--primary);
+    color: var(--color-primary);
     margin: 0;
 }
 
 .stat-label {
     font-size: 1rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
 /* About Section */
 .about-section {
-    background-color: var(--bg);
+    background-color: var(--bg-base);
 }
 
 .section-title {
     font-size: 2.5rem;
     font-weight: 700;
-    color: var(--text);
+    color: var(--text-primary);
     margin-bottom: 1rem;
 }
 
 .section-subtitle {
     font-size: 1.25rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     margin-bottom: 3rem;
 }
 
 .section-text {
     font-size: 1.1rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     line-height: 1.7;
 }
 
@@ -221,7 +221,7 @@
     align-items: center;
     margin-bottom: 1rem;
     font-size: 1rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
@@ -229,7 +229,7 @@
     border: none;
     border-radius: 16px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg) 100%);
+    background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%);
     transition: transform 0.3s ease;
 }
 
@@ -238,19 +238,19 @@
 }
 
 .card-title {
-    color: var(--primary);
+    color: var(--color-primary);
     font-weight: 600;
     font-size: 1.25rem;
 }
 
 .card-text {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     line-height: 1.6;
 }
 
 /* Values Section */
 .values-section {
-    background-color: var(--bg-light);
+    background-color: var(--bg-surface);
 }
 
 .value-card {
@@ -258,7 +258,7 @@
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
-    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg) 100%);
+    background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%);
 }
 
 .value-card:hover {
@@ -267,13 +267,13 @@
 }
 
 .value-icon {
-    color: var(--primary);
+    color: var(--color-primary);
     display: flex;
     justify-content: center;
     align-items: center;
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, var(--warning) 0%, var(--warning-light) 100%);
+    background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-subtle) 100%);
     border-radius: 50%;
     margin: 0 auto;
     transition: transform 0.3s ease;
@@ -284,19 +284,19 @@
 }
 
 .value-title {
-    color: var(--text);
+    color: var(--text-primary);
     font-weight: 600;
     font-size: 1.25rem;
 }
 
 .value-description {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     line-height: 1.6;
 }
 
 /* Services Section */
 .services-section {
-    background-color: var(--bg);
+    background-color: var(--bg-base);
 }
 
 .service-card {
@@ -304,7 +304,7 @@
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
-    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg) 100%);
+    background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-base) 100%);
 }
 
 .service-card:hover {
@@ -313,13 +313,13 @@
 }
 
 .service-icon {
-    color: var(--primary);
+    color: var(--color-primary);
     display: flex;
     justify-content: center;
     align-items: center;
     width: 70px;
     height: 70px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary) 100%);
     border-radius: 50%;
     margin: 0 auto;
     color: white;
@@ -331,29 +331,29 @@
 }
 
 .service-title {
-    color: var(--text);
+    color: var(--text-primary);
     font-weight: 600;
     font-size: 1.25rem;
 }
 
 .service-description {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     line-height: 1.6;
 }
 
 /* Contact Section */
 .contact-section {
-    background-color: var(--bg-light);
+    background-color: var(--bg-surface);
 }
 
 .contact-icon {
-    color: var(--primary);
+    color: var(--color-primary);
     display: flex;
     justify-content: center;
     align-items: center;
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, var(--warning) 0%, var(--warning-light) 100%);
+    background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-subtle) 100%);
     border-radius: 50%;
     margin: 0 auto;
     transition: transform 0.3s ease;
@@ -364,83 +364,97 @@
 }
 
 .contact-section h5 {
-    color: var(--text);
+    color: var(--text-primary);
     font-weight: 600;
     margin-bottom: 1rem;
 }
 
 .contact-section p {
-    color: var(--text-muted);
+    color: var(--text-secondary);
     line-height: 1.6;
 }
 
-/* Dark Mode Support */
-.dark-mode .know-us-container {
-    background-color: var(--bg-dark);
-    color: var(--text-light);
+/* Dark Mode Support — uses body.dark to match ThemeContext */
+body.dark .know-us-container {
+    background-color: var(--bg-base);
 }
 
-.dark-mode .hero-section {
-    background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg) 100%);
+body.dark .hero-section {
+    background: linear-gradient(135deg, var(--bg-base) 0%, var(--bg-inset) 100%);
 }
 
-.dark-mode .hero-title {
-    color: #f8f9fa;
+body.dark .hero-title {
+    color: var(--text-primary);
 }
 
-.dark-mode .hero-subtitle {
-    color: #adb5bd;
+body.dark .hero-subtitle {
+    color: var(--text-secondary);
 }
 
-.dark-mode .stat-card,
-.dark-mode .about-card,
-.dark-mode .value-card,
-.dark-mode .service-card {
-    background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
-    color: #f8f9fa;
+body.dark .stat-card,
+body.dark .about-card,
+body.dark .value-card,
+body.dark .service-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
 }
 
-.dark-mode .stat-number {
-    color: #ffd500;
+body.dark .stat-card:hover,
+body.dark .about-card:hover,
+body.dark .value-card:hover,
+body.dark .service-card:hover {
+    background: var(--bg-elevated);
+    border-color: var(--color-primary);
 }
 
-.dark-mode .stat-label,
-.dark-mode .value-description,
-.dark-mode .service-description,
-.dark-mode .card-text {
-    color: #adb5bd;
+body.dark .stat-number {
+    color: var(--color-primary);
 }
 
-.dark-mode .value-title,
-.dark-mode .service-title,
-.dark-mode .card-title {
-    color: #f8f9fa;
+body.dark .stat-label,
+body.dark .value-description,
+body.dark .service-description,
+body.dark .card-text {
+    color: var(--text-secondary);
 }
 
-.dark-mode .about-section,
-.dark-mode .services-section {
-    background-color: #343a40;
+body.dark .value-title,
+body.dark .service-title,
+body.dark .card-title {
+    color: var(--text-primary);
 }
 
-.dark-mode .section-title {
-    color: var(--text-light);
+body.dark .about-section,
+body.dark .services-section {
+    background-color: var(--bg-base);
 }
 
-.dark-mode .section-subtitle,
-.dark-mode .section-text {
-    color: #adb5bd;
+body.dark .stats-section,
+body.dark .values-section,
+body.dark .contact-section {
+    background-color: var(--bg-surface);
 }
 
-.dark-mode .feature-item {
-    color: #adb5bd;
+body.dark .section-title {
+    color: var(--text-primary);
 }
 
-.dark-mode .contact-section h5 {
-    color: #f8f9fa;
+body.dark .section-subtitle,
+body.dark .section-text {
+    color: var(--text-secondary);
 }
 
-.dark-mode .contact-section p {
-    color: #adb5bd;
+body.dark .feature-item {
+    color: var(--text-secondary);
+}
+
+body.dark .contact-section h5 {
+    color: var(--text-primary);
+}
+
+body.dark .contact-section p {
+    color: var(--text-secondary);
 }
 
 /* Responsive Design */

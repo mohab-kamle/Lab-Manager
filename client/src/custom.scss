@@ -1,3 +1,9 @@
+/* =========================================================================
+   BOOTSTRAP COMPILER SEED COLORS
+   -------------------------------------------------------------------------
+   This file configures Bootstrap's internal SCSS compiler.
+   ========================================================================= */
+
 /* -------------------------------
    1) Font setup
 --------------------------------- */
@@ -5,11 +11,10 @@ $font-family-sans-serif: "Space Grotesk", "Noto Sans Arabic", sans-serif;
 $font-family-base: $font-family-sans-serif;
 
 /* -------------------------------
-   2) Define color palettes
-   (matches :root variables)
+   2) Define SCSS fallback color palettes
 --------------------------------- */
 
-/* Light mode colors */
+/* Light mode colors (Unchanged to lock in preferred light mode style) */
 $logo-color: #0e0e21;
 $bg-dark: hsl(214, 100%, 94%);
 $bg: hsl(214, 100%, 99%);
@@ -26,57 +31,42 @@ $warning: hsl(50, 100%, 50%);
 $success: hsl(150, 60%, 45%);
 $info: hsl(215, 95%, 42%);
 
-/* Dark mode colors */
-$dark-bg-dark: hsl(244, 100%, 7%);
-$dark-bg: hsl(231, 100%, 9%);
-$dark-bg-light: hsl(219, 100%, 11%);
-$dark-text: hsl(214, 100%, 99%);
-$dark-text-muted: hsl(214, 78%, 73%);
-$dark-highlight: hsl(208, 100%, 34%);
-$dark-border: hsl(212, 100%, 27%);
-$dark-border-muted: hsl(222, 100%, 22%);
-$dark-primary: hsl(213, 100%, 73%);
-$dark-secondary: hsl(42, 100%, 34%);
-$dark-danger: hsl(7, 100%, 66%);
-$dark-warning: hsl(53, 100%, 21%);
-$dark-success: hsl(162, 100%, 22%);
-$dark-info: hsl(217, 100%, 70%);
+/* Dark mode colors (Modern SaaS Slate/Blue Palette) */
+$dark-bg-dark: #020617;     /* Slate 950 - Inset backgrounds */
+$dark-bg: #0f172a;          /* Slate 900 - Body background */
+$dark-bg-light: #1e293b;    /* Slate 800 - Cards & Modals */
+$dark-text: #f8fafc;        /* Slate 50 - Off-white headings */
+$dark-text-muted: #94a3b8;  /* Slate 400 - Secondary text */
+$dark-highlight: #334155;   /* Slate 700 - Hover states */
+$dark-border: #334155;      /* Slate 700 */
+$dark-border-muted: #1e293b; 
+$dark-primary: #3b82f6;     /* Blue 500 */
+$dark-secondary: #64748b;   /* Slate 500 */
+$dark-danger: #f87171;      /* Red 400 */
+$dark-warning: #facc15;     /* Yellow 400 */
+$dark-success: #4ade80;     /* Green 400 */
+$dark-info: #38bdf8;        /* Sky 400 */
 
 /* -------------------------------
    3) Apply to Bootstrap
 --------------------------------- */
-@use "bootstrap/scss/bootstrap" with ($font-family-sans-serif: $font-family-sans-serif,
+@use "bootstrap/scss/bootstrap" with (
+   $font-family-sans-serif: $font-family-sans-serif,
    $font-family-base: $font-family-base,
    $primary: $primary,
    $secondary: $secondary,
    $danger: $danger,
    $warning: $warning,
    $success: $success,
-   $info: $info);
+   $info: $info
+);
 
 /* -------------------------------
-   4) Push colors to :root for CSS use
+   4) Force CSS aliases on runtime
 --------------------------------- */
-:root {
-   --logo-color: #{$logo-color};
-   --bg-dark: #{$bg-dark};
-   --bg: #{$bg};
-   --bg-light: #{$bg-light};
-   --text: #{$text};
-   --text-muted: #{$text-muted};
-   --highlight: #{$highlight};
-   --border: #{$border};
-   --border-muted: #{$border-muted};
-   --primary: #{$primary};
-   --secondary: #{$secondary};
-   --danger: #{$danger};
-   --warning: #{$warning};
-   --success: #{$success};
-   --info: #{$info};
-}
-
 [data-bs-theme="dark"] body,
 body.dark {
+   /* Internal Aliases */
    --bg-dark: #{$dark-bg-dark};
    --bg: #{$dark-bg};
    --bg-light: #{$dark-bg-light};
@@ -91,4 +81,9 @@ body.dark {
    --warning: #{$dark-warning};
    --success: #{$dark-success};
    --info: #{$dark-info};
+
+   /* Bootstrap Overrides */
+   --bs-body-bg: #{$dark-bg};
+   --bs-body-color: #{$dark-text};
 }
+
