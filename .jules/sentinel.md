@@ -1,3 +1,9 @@
+# Sentinel's Journal
+
+## 2024-05-23 - Missing Rate Limiting on Patient Login
+**Vulnerability:** The `/patient/login` endpoint lacked rate limiting, allowing unlimited login attempts.
+**Learning:** While `employee` login was protected, `patient` login was missed. Inconsistent security application across similar features is a common pattern.
+**Prevention:** Verify that security controls (like rate limiting) are applied to ALL authentication endpoints, not just the main administrative ones. Use a shared middleware configuration where possible to ensure consistency.
 ## 2024-05-23 - Broken Access Control in File Uploads
 **Vulnerability:** The `authorizeFileAccess` middleware was "failing open" - if a filename didn't match the expected format (regex mismatch), the code called `next()` instead of denying access. This allowed unauthorized users to bypass file access controls by uploading files with malformed names (e.g. via `multer` using non-numeric IDs). Additionally, a legacy `express.static` route allowed public access to `comment-images`, bypassing the auth middleware entirely.
 **Learning:** Middleware validation logic must "fail closed" (default deny). Regex matches must explicitly handle the "no match" case to deny access. Legacy backward-compatibility routes can silently negate new security controls if not removed.
@@ -28,3 +34,15 @@
 **Vulnerability:** The `GET /:id/results-data` endpoint fetched medical reports using `findByPk(id)` which ignored the tenant context (`lab_id`), allowing access to any report by ID. Additionally, the caching middleware used only `reportId` as the cache key, meaning a cached report from one tenant could be served to another if they requested the same ID.
 **Learning:** In multi-tenant systems, caching layers must include the tenant identifier in the cache key. Fixing the database query alone is insufficient if the cache can serve stale or cross-tenant data.
 **Prevention:** Always include `tenant_id` (or `lab_id`) in cache keys for tenant-specific resources. Use `findOne` with explicit `where: { lab_id }` checks instead of `findByPk` for resources that must be isolated.
+
+## 2026-05-24 - IDOR and Information Leakage in Patient Management
+**Vulnerability:** The patient management routes (`PUT /:id`, `DELETE /:id`, `import`, `bulk`) were missing `tenantContext` middleware and used `findByPk(id)` without validating `lab_id`. This allowed cross-tenant modification of patient data. Furthermore, the patient import feature checked for phone number uniqueness globally across all labs, leaking information about patient existence in other tenants.
+**Learning:** `findByPk` is inherently risky in multi-tenant applications as it bypasses tenant scoping. Uniqueness checks (like email or phone) must also be scoped to the tenant, otherwise they become an oracle for probing data in other tenants.
+**Prevention:**
+1. Audit all routes for missing `tenantContext`.
+2. Replace `findByPk(id)` with `findOne({ where: { id, lab_id } })`.
+3. Scope all "exists" checks (uniqueness validation) to the current tenant using `where` clauses or associations.
+## 2024-05-24 - Missing Environment Variable Validation
+**Vulnerability:** The application relied on `SECRET_KEY` for JWT signing but did not validate its presence at startup. This could lead to the application starting in an insecure state or failing unpredictably at runtime if the variable was missing or undefined.
+**Learning:** Critical security configuration must be validated at application startup. Failing to do so allows "silent failures" or default insecure behaviors that might go unnoticed until exploitation.
+**Prevention:** Implement a "Fail Fast" strategy. Validate all critical environment variables (secrets, DB URLs, API keys) during the bootstrap phase (e.g., `index.js`) and crash the application (`process.exit(1)`) if any are missing.
