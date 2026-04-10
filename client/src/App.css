@@ -270,3 +270,47 @@
   transform: scale(1.1);
   opacity: 1;
 }
+
+/* Image Upload Component Styles */
+.image-preview-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.image-preview-item:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); /* Bootstrap focus style */
+  border-color: #86b7fe; /* Bootstrap focus border color */
+}
+
+.image-preview-remove-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 10;
+}
+
+.image-preview-item:hover .image-preview-remove-btn,
+.image-preview-item:focus .image-preview-remove-btn,
+.image-preview-item:focus-within .image-preview-remove-btn {
+  opacity: 1;
+}
+
+.image-preview-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 0.75rem;
+  padding: 4px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.image-preview-item:hover .image-preview-name,
+.image-preview-item:focus .image-preview-name,
+.image-preview-item:focus-within .image-preview-name {
+  opacity: 1;
+}
