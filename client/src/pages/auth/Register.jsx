@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Form, Button, Alert, Card, Row, Col, ProgressBar, Spinner } from 'react-bootstrap';
+import { Container, Form, Button, Alert, Card, Row, Col, ProgressBar, Spinner, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle, CreditCard, Building, User, Mail, Phone, MapPin, X } from 'lucide-react';
 import axios from 'axios';
@@ -561,14 +561,21 @@ const Register = () => {
                                 autoComplete="new-password"
                                 required
                               />
-                              <Button
-                                variant="outline-secondary"
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="password-toggle"
+                              <OverlayTrigger
+                                placement="top"
+                                overlay={<Tooltip id="password-tooltip">{showPassword ? "Hide password" : "Show password"}</Tooltip>}
                               >
-                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                              </Button>
+                                <Button
+                                  variant="outline-secondary"
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="password-toggle"
+                                  aria-label={showPassword ? "Hide password" : "Show password"}
+                                  aria-pressed={showPassword}
+                                >
+                                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </Button>
+                              </OverlayTrigger>
                             </div>
                           </Form.Group>
                         </Col>
@@ -585,14 +592,21 @@ const Register = () => {
                                 autoComplete="new-password"
                                 required
                               />
-                              <Button
-                                variant="outline-secondary"
-                                type="button"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="password-toggle"
+                              <OverlayTrigger
+                                placement="top"
+                                overlay={<Tooltip id="confirm-password-tooltip">{showConfirmPassword ? "Hide password" : "Show password"}</Tooltip>}
                               >
-                                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                              </Button>
+                                <Button
+                                  variant="outline-secondary"
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  className="password-toggle"
+                                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                  aria-pressed={showConfirmPassword}
+                                >
+                                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </Button>
+                              </OverlayTrigger>
                             </div>
                           </Form.Group>
                         </Col>

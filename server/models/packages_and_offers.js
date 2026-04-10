@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define('packages_and_offers', {
     id: {
       autoIncrement: true,
@@ -26,6 +26,14 @@ module.exports = function(sequelize, DataTypes) {
     end_date: {
       type: DataTypes.DATE,
       allowNull: false
+    },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
     },
     type: {
       type: DataTypes.ENUM('package', 'offer'),
