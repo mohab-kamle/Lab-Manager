@@ -1,6 +1,7 @@
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Container, Button, Modal, Form, Alert, Row, Col, Card } from "react-bootstrap";
+import PropTypes from 'prop-types';
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
@@ -73,7 +74,7 @@ const Tests = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   // Extracted fetch logic
-  const fetchTestsAndRelated = async () => {
+  const fetchTestsAndRelated = useCallback(async () => {
     const token = localStorage.getItem("token");
     setLoading(true);
     try {
@@ -100,12 +101,11 @@ const Tests = () => {
       setError("Failed to fetch data. Please try again later.");
     }
     setLoading(false);
-  };
+  }, [apiUrl]);
 
   useEffect(() => {
     fetchTestsAndRelated();
-     
-  }, [apiUrl]);
+  }, [fetchTestsAndRelated]);
 
   const filteredTests = tests.filter((test) => {
     const searchMatches = searchQuery
@@ -151,13 +151,13 @@ const Tests = () => {
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
 
-  const handleViewDetails = async (test) => {
+  const handleViewDetails = useCallback(async (test) => {
     setSelectedTest(test);
     setSelectedTestComponents(test.components || []);
     setShowDetailsModal(true);
-  };
+  }, []);
 
-  const formatCellData = (data, header) => {
+  const formatCellData = useCallback((data, header) => {
     if (header === 'Actions') {
       return null; // This will be handled by ActionComponent
     }
@@ -253,7 +253,7 @@ const Tests = () => {
       return sampleType ? sampleType.type : data;
     }
     return data ?? "N/A";
-  };
+  }, [categories, sampleTypes]);
 
   const handleAdd = () => {
     setEditingTest(null);
@@ -294,7 +294,7 @@ const Tests = () => {
     setShowModal(true);
   };
 
-  const handleEdit = async (test) => {
+  const handleEdit = useCallback(async (test) => {
     setEditingTest(test);
     setError(null); // Clear any previous errors
     setModalError(null); // Clear modal errors
@@ -337,12 +337,12 @@ const Tests = () => {
     setSampleTypeSearchTerm("");
     setQuestionSearchTerm("");
     setShowModal(true);
-  };
+  }, [apiUrl]);
 
-  const handleDelete = (test) => {
+  const handleDelete = useCallback((test) => {
     setTestToDelete(test);
     setShowDeleteModal(true);
-  };
+  }, []);
 
   const addComponent = () => {
     setComponentError("");
@@ -560,19 +560,26 @@ const Tests = () => {
     }
   };
 
-  const ActionComponent = ({ rowData }) => (
-    <div className="d-flex gap-2">
-      <Button variant="primary" size="sm" onClick={() => handleViewDetails(rowData)} title="View Details">
-        <i className="fas fa-info-circle"></i> More Info
-      </Button>
-      <Button variant="outline-primary" size="sm" onClick={() => handleEdit(rowData)} title="Edit Test">
-        <Pencil size={16} />
-      </Button>
-      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)} title="Delete Test">
-        <Trash2 size={16} />
-      </Button>
-    </div>
-  );
+  const ActionComponent = useMemo(() => {
+    const Component = ({ rowData }) => (
+      <div className="d-flex gap-2">
+        <Button variant="primary" size="sm" onClick={() => handleViewDetails(rowData)} title="View Details">
+          <i className="fas fa-info-circle"></i> More Info
+        </Button>
+        <Button variant="outline-primary" size="sm" onClick={() => handleEdit(rowData)} title="Edit Test">
+          <Pencil size={16} />
+        </Button>
+        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)} title="Delete Test">
+          <Trash2 size={16} />
+        </Button>
+      </div>
+    );
+    Component.displayName = "ActionComponent";
+    Component.propTypes = {
+      rowData: PropTypes.object.isRequired
+    };
+    return Component;
+  }, [handleViewDetails, handleEdit, handleDelete]);
 
   // XLSX Export Handler
   const handleExportXLSX = async () => {
