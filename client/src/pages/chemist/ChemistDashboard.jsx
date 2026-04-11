@@ -27,16 +27,14 @@ const ChemistDashboard = () => {
         const headers = { Authorization: `Bearer ${token}` };
         
         // Fetch chemist-specific stats
-        const [reportsResponse, testsResponse, culturesResponse] = await Promise.all([
+        const [reportsResponse, testsResponse] = await Promise.all([
           axios.get(`${apiUrl}/medical-reports`, { headers }),
-          axios.get(`${apiUrl}/tests`, { headers }),
-          axios.get(`${apiUrl}/cultures`, { headers })
+          axios.get(`${apiUrl}/tests`, { headers })
         ]);
 
         const stats = {
           totalReports: reportsResponse.data.length || 0,
           totalTests: testsResponse.data.length || 0,
-          totalCultures: culturesResponse.data.length || 0,
           recentReports: reportsResponse.data.slice(0, 5) || [],
           pendingReports: reportsResponse.data.filter(report => report.status === 'pending').length || 0
         };
@@ -66,13 +64,7 @@ const ChemistDashboard = () => {
       variant: 'success',
       action: () => navigate('/admin/dashboard/test-groups')
     },
-    {
-      title: 'Cultures',
-      description: 'Handle culture samples',
-      icon: <Beaker size={24} />,
-      variant: 'info',
-      action: () => navigate('/admin/dashboard/cultures')
-    },
+
     {
       title: 'Tests',
       description: 'View test catalog',
@@ -108,7 +100,7 @@ const ChemistDashboard = () => {
 
       {/* Stats Cards */}
       <Row className="mb-4">
-        <Col md={3}>
+        <Col md={4}>
           <Card className="text-center h-100">
             <Card.Body>
               <FileText size={32} className="text-primary mb-2" />
@@ -117,7 +109,7 @@ const ChemistDashboard = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
+        <Col md={4}>
           <Card className="text-center h-100">
             <Card.Body>
               <AlertTriangle size={32} className="text-warning mb-2" />
@@ -126,21 +118,12 @@ const ChemistDashboard = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={3}>
+        <Col md={4}>
           <Card className="text-center h-100">
             <Card.Body>
               <TestTube size={32} className="text-success mb-2" />
               <h4>{stats?.totalTests || 0}</h4>
               <p className="text-muted mb-0">Available Tests</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="text-center h-100">
-            <Card.Body>
-              <Beaker size={32} className="text-info mb-2" />
-              <h4>{stats?.totalCultures || 0}</h4>
-              <p className="text-muted mb-0">Culture Types</p>
             </Card.Body>
           </Card>
         </Col>
@@ -156,7 +139,7 @@ const ChemistDashboard = () => {
             <Card.Body>
               <Row>
                 {quickActions.map((action, index) => (
-                  <Col md={3} key={index} className="mb-3">
+                  <Col md={4} key={index} className="mb-3">
                     <Button
                       variant={action.variant}
                       className="w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3"
