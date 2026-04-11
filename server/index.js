@@ -16,7 +16,7 @@ const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
-const { employee, patient, phone } = require("./models");
+const { employee, patient, phone, doctor } = require("./models");
 
 // Socket.io for Real-Time Events
 const http = require("http");
@@ -86,7 +86,7 @@ const corsOptions = {
     }
 
     // In development, allow dynamic localhost subdomains (e.g. test.localhost:5173)
-    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)?localhost(:[0-9]+)?$/.test(origin)) {
+    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)*localhost(:[0-9]+)?$/.test(origin)) {
       console.log('CORS: Allowing localhost subdomain:', origin);
       return callback(null, true);
     }
@@ -288,19 +288,15 @@ app.get('/health', async (req, res) => {
 
     // Test if key tables exist
     const tableChecks = await Promise.allSettled([
-      db.test_group.count(),
-      db.tgc_category.count(),
       db.test.count(),
-      db.culture.count(),
+      db.medical_report.count(),
       db.patient.count()
     ]);
 
     const tableStatus = {
-      test_group: tableChecks[0].status === 'fulfilled' ? 'OK' : 'ERROR',
-      tgc_category: tableChecks[1].status === 'fulfilled' ? 'OK' : 'ERROR',
-      test: tableChecks[2].status === 'fulfilled' ? 'OK' : 'ERROR',
-      culture: tableChecks[3].status === 'fulfilled' ? 'OK' : 'ERROR',
-      patient: tableChecks[4].status === 'fulfilled' ? 'OK' : 'ERROR'
+      test: tableChecks[0].status === 'fulfilled' ? 'OK' : 'ERROR',
+      medical_report: tableChecks[1].status === 'fulfilled' ? 'OK' : 'ERROR',
+      patient: tableChecks[2].status === 'fulfilled' ? 'OK' : 'ERROR'
     };
 
     res.json({
@@ -334,13 +330,10 @@ app.get('/health', async (req, res) => {
 app.use("/me", router);
 app.use("/patient", require("./routes/patient"));
 app.use("/emp", require("./routes/employee"));
+app.use("/doctor", require("./routes/doctor"));
 app.use("/categories", require("./routes/categories"));
 app.use("/tests", require("./routes/tests"));
 app.use("/samples", require("./routes/samples"));
-app.use("/cultures", require("./routes/culture"));
-app.use("/culture-options", require("./routes/cultureOptions"));
-app.use("/culture-sub-options", require("./routes/cultureSubOptions"));
-app.use("/antibiotics", require("./routes/antibiotics"));
 app.use("/payment-methods", require("./routes/paymentMethods"));
 app.use("/subscriptions", require("./routes/subscriptions"));
 app.use("/invoices", require("./routes/invoices"));
@@ -349,6 +342,7 @@ app.use("/labs", require("./routes/labs"));
 app.use("/packages-and-offers", require("./routes/packages_and_offers"));
 app.use("/statuses", require("./routes/statuses"));
 app.use("/medical-reports", require('./routes/medical_reports'));
+app.use("/antibiotics", require('./routes/antibiotics'));
 app.use("/admin", require('./routes/admin'));
 app.use("/validate-admin-info", require("./routes/validateAdminInfo"));
 app.use("/bill", require('./routes/bill'));
@@ -361,8 +355,6 @@ app.use("/suppliers", require("./routes/suppliers"));
 app.use("/inventory", require("./routes/inventory"));
 app.use("/questions", require("./routes/questions"));
 app.use("/contracts", require("./routes/contracts"));
-app.use("/culture-antibiotics", require("./routes/culture_antibiotics"));
-app.use("/field-comp-options", require("./routes/field_comp_options"));
 app.use("/demo", require("./routes/demo"));
 app.use("/register", require("./routes/register"));
 app.use("/payments", require("./routes/paymentsGateway"));
@@ -407,6 +399,15 @@ router.get("/", authenticateUser, async (req, res) => {
       if (user) {
         const phones = await phone.findAll({ where: { patient_id: req.user.id } });
         user = { ...user.get(), role: "patient", phones };
+      }
+    } else if (req.user.role === "doctor") {
+      user = await doctor.findByPk(req.user.id, {
+        attributes: ["id", "name", "username", "email"]
+      });
+      // If role is not in db column yet (it is not in schema i think, usually derived), append it
+      if (user) {
+        user = user.toJSON();
+        user.role = 'doctor';
       }
     } else {
       user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role", "lab_id"] });
@@ -477,12 +478,11 @@ async function syncDatabase() {
       return false;
     }
 
-    // Check if we should force sync (only in development)
+    // Force sync in dev only if explicitly set
     const forceSync = process.env.FORCE_SYNC === 'true' && !isProduction;
-    const alterSync = !forceSync; // Use alter by default, force only if explicitly set
-
-    const syncOptions = alterSync ? { alter: false } : { force: true };
-
+    // Alter in both dev and prod by default (safe)
+    const alterSync = true; // always true so migrations run automatically
+    const syncOptions = forceSync ? { force: true } : { alter: true };
     console.log(`🔄 Database synchronization mode: ${alterSync ? 'ALTER (safe)' : 'FORCE (destructive)'}`);
     console.log(`📋 Sync options:`, syncOptions);
 
@@ -498,14 +498,7 @@ async function syncDatabase() {
     } catch (syncError) {
       console.log(`🔧 Sync error detected: ${syncError.message}`);
 
-      if (syncError.message.includes('Multiple primary key defined') || syncError.code === 'ER_MULTIPLE_PRI_KEY') {
-        console.log(`🔧 Primary key conflict detected, applying manual fix...`);
-        await fixPrimaryKeyConflict();
-        console.log(`✅ Primary key conflict resolved, continuing with sync...`);
-        // Try sync again after the fix
-        await db.sequelize.sync(syncOptions);
-        console.log(`✅ Database schema synchronized successfully after fix`);
-      } else if (syncError.name === 'SequelizeUnknownConstraintError' || syncError.message.includes('does not exist') || syncError.code === 'ER_TOO_MANY_KEYS') {
+      if (syncError.name === 'SequelizeUnknownConstraintError' || syncError.message.includes('does not exist') || syncError.code === 'ER_TOO_MANY_KEYS') {
         console.log(`🔧 Constraint issue detected, attempting individual model sync...`);
 
         // Try to sync models individually to handle constraint issues
@@ -542,7 +535,7 @@ async function syncDatabase() {
     }
 
     // Verify key tables exist
-    const keyTables = ['patient', 'test', 'culture', 'medical_report', 'test_group'];
+    const keyTables = ['patient', 'test', 'medical_report'];
     const tableChecks = await Promise.allSettled(
       keyTables.map(table => db.sequelize.query(`SELECT 1 FROM ${table} LIMIT 1`))
     );
@@ -571,8 +564,6 @@ async function syncDatabase() {
       console.error("💡 Tip: Check your database credentials in config/config.json");
     } else if (error.message.includes('Unknown column')) {
       console.error("💡 Tip: This might be a schema mismatch. Consider using FORCE_SYNC=true in development");
-    } else if (error.message.includes('Multiple primary key defined')) {
-      console.error("💡 Tip: Primary key conflict detected. This has been automatically fixed.");
     }
 
     return false;
@@ -621,73 +612,7 @@ async function safeSyncWithConstraintHandling() {
   }
 }
 
-// Direct fix for primary key conflict
-async function fixPrimaryKeyConflict() {
-  try {
-    console.log(`🔧 Applying direct primary key conflict fix...`);
-
-    // Step 1: Check if table exists
-    const [tables] = await db.sequelize.query("SHOW TABLES LIKE 'medical_report_has_culture'");
-    if (tables.length === 0) {
-      console.log(`✅ Table doesn't exist, will be created by sync`);
-      return;
-    }
-
-    // Step 2: Check current structure
-    const [columns] = await db.sequelize.query("SHOW COLUMNS FROM medical_report_has_culture");
-    const hasPrimaryKey = columns.some(col => col.Key === 'PRI');
-    const hasIdColumn = columns.some(col => col.Field === 'id');
-
-    console.log(`📊 Current structure: hasPrimaryKey=${hasPrimaryKey}, hasIdColumn=${hasIdColumn}`);
-
-    // Step 3: Handle sql_require_primary_key constraint by recreating table
-    console.log(`🔄 Recreating table to handle sql_require_primary_key constraint...`);
-
-    // Create backup table
-    await db.sequelize.query("CREATE TABLE medical_report_has_culture_backup AS SELECT * FROM medical_report_has_culture");
-    console.log(`✅ Created backup table`);
-
-    // Drop original table
-    await db.sequelize.query("DROP TABLE medical_report_has_culture");
-    console.log(`✅ Dropped original table`);
-
-    // Recreate with correct structure
-    await db.sequelize.query(`
-      CREATE TABLE medical_report_has_culture (
-        id int NOT NULL AUTO_INCREMENT,
-        medical_report_id int NOT NULL,
-        culture_id int NOT NULL,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        UNIQUE KEY unique_medical_report_culture (medical_report_id, culture_id),
-        KEY idx_medical_report_id (medical_report_id),
-        KEY idx_culture_id (culture_id)
-      )
-    `);
-    console.log(`✅ Recreated table with correct structure`);
-
-    // Copy data back
-    await db.sequelize.query(`
-      INSERT INTO medical_report_has_culture (medical_report_id, culture_id, created_at, updated_at)
-      SELECT medical_report_id, culture_id, created_at, updated_at 
-      FROM medical_report_has_culture_backup
-    `);
-    console.log(`✅ Copied data back from backup`);
-
-    // Drop backup table
-    await db.sequelize.query("DROP TABLE medical_report_has_culture_backup");
-    console.log(`✅ Dropped backup table`);
-
-    console.log(`✅ Primary key conflict fix completed`);
-
-  } catch (error) {
-    console.error(`❌ Error in primary key conflict fix:`, error.message);
-    throw error;
-  }
-}
-
-
+// End of safe sync function
 // Start server with enhanced database sync
 // Only sync database on master process in cluster mode to prevent race conditions
 const shouldSyncDatabase = !process.env.pm_id || process.env.pm_id === '0';

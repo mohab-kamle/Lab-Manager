@@ -19,13 +19,9 @@ import PatientUpdateProfile from './pages/patient/PatientUpdateProfile';
 import Categories from './pages/tests/Categories';
 import Tests from './pages/tests/Tests';
 import SampleType from './pages/tests/SampleType';
-import Cultures from './pages/tests/Cultures';
-import CultureOptions from './pages/tests/CultureOptions';
+
 import Antibiotics from './pages/tests/Antibiotics';
 import Diseases from './pages/tests/Diseases';
-import TestGroups from './pages/tests/TestGroups';
-import TestGroupCategories from './pages/tests/TestGroupCategories';
-import TestGroupComponents from './pages/tests/TestGroupComponents';
 import Invoices from './pages/invoices/Invoices';
 import PaymentMethods from './pages/invoices/PaymentMethods';
 import Branches from './pages/branches/Branches';

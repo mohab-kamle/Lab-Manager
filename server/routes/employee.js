@@ -16,7 +16,7 @@ const { validatePassword } = require('../utils/passwordValidator');
 router.post("/login", loginLimiter, async (req, res) => {
     const { username, password, lab_id } = req.body;
 
-    // Validate inputs to prevent object injection
+    // Validate inputs to prevent object injectiongit 
     if (!username || typeof username !== 'string') {
         return res.status(400).json({ error: "Invalid username format" });
     }
@@ -26,16 +26,31 @@ router.post("/login", loginLimiter, async (req, res) => {
     }
   
     try {
+      // 🛡️ Sentinel: Validate input to prevent Object Injection
+      if (!username || typeof username !== 'string') {
+        return res.status(400).json({ error: "Invalid username format" });
+      }
+
+      if (lab_id !== undefined && lab_id !== null && typeof lab_id !== 'string' && typeof lab_id !== 'number') {
+        return res.status(400).json({ error: "Invalid lab ID format" });
+      }
+
       // For login, we need to check if the employee exists in the specified lab
       // or find them across all labs if lab_id is not provided
       let emp;
       
       if (lab_id) {
         // If lab_id is provided, check in that specific lab
+        // Validate lab_id to prevent injection
+        const safeLabId = Number(lab_id);
+        if (isNaN(safeLabId)) {
+          return res.status(400).json({ error: "Invalid lab_id format" });
+        }
+
         emp = await employee.findOne({ 
           where: { 
             username: username,
-            lab_id: lab_id 
+            lab_id: safeLabId
           } 
         });
       } else {
