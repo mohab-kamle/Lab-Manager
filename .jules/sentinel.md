@@ -52,6 +52,12 @@
 ## 2024-05-24 - IDOR and Cache Poisoning in Results Data
 **Vulnerability:** The `GET /:id/results-data` endpoint fetched medical reports using `findByPk(id)` which ignored the tenant context (`lab_id`), allowing access to any report by ID. Additionally, the caching middleware used only `reportId` as the cache key, meaning a cached report from one tenant could be served to another if they requested the same ID.
 **Learning:** In multi-tenant systems, caching layers must include the tenant identifier in the cache key. Fixing the database query alone is insufficient if the cache can serve stale or cross-tenant data.
+**Prevention:** Always include `tenant_id` (or `lab_id`) in cache keys for tenant-specific resources. Use `findOne` with `where: { lab_id }` checks instead of `findByPk` for resources that must be isolated.
+
+## 2024-05-24 - Authentication Bypass for Deleted Users
+**Vulnerability:** The `authenticateUser` middleware parsed the JWT token and queried the database for the user record, but proceeded to call `next()` even if the user record was not found (e.g., deleted user). This allowed deleted users with valid tokens to continue accessing the system.
+**Learning:** Middleware validation logic must explicitly check the result of database lookups and return an error (401/403) if the expected resource (user) is missing, rather than implicitly assuming it exists or falling back to token data.
+**Prevention:** Always check `if (!userRecord)` immediately after DB lookup in auth middleware and deny access if null. Do not rely solely on JWT validity if user status (active/deleted) matters.
 **Prevention:** Always include `tenant_id` (or `lab_id`) in cache keys for tenant-specific resources. Use `findOne` with explicit `where: { lab_id }` checks instead of `findByPk` for resources that must be isolated.
 
 ## 2026-05-24 - IDOR and Information Leakage in Patient Management
