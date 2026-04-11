@@ -57,7 +57,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 
     const Patient = await patient.findOne({ 
       where: { 
-        patientcode
+        patientcode: String(patientcode) // Explicitly cast to string/value to prevent object injection
       } 
     });
 

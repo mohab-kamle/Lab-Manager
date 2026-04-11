@@ -41,10 +41,16 @@ router.post("/login", loginLimiter, async (req, res) => {
       
       if (lab_id) {
         // If lab_id is provided, check in that specific lab
+        // Validate lab_id to prevent injection
+        const safeLabId = Number(lab_id);
+        if (isNaN(safeLabId)) {
+          return res.status(400).json({ error: "Invalid lab_id format" });
+        }
+
         emp = await employee.findOne({ 
           where: { 
             username: username,
-            lab_id: lab_id 
+            lab_id: safeLabId
           } 
         });
       } else {
