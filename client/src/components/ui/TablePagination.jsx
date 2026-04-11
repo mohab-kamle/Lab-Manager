@@ -32,8 +32,9 @@ const TablePagination = ({ currentPage, pageCount, handlePageChange }) => {
   }
 
   return (
-    <Pagination className="m-3">
+    <Pagination className="m-3" aria-label="Table navigation">
       <Pagination.Prev
+        aria-label="Previous page"
         disabled={currentPage === 1}
         onClick={() => handlePageChange(currentPage - 1)}
       />
@@ -48,6 +49,7 @@ const TablePagination = ({ currentPage, pageCount, handlePageChange }) => {
         </Pagination.Item>
       ))}
       <Pagination.Next
+        aria-label="Next page"
         disabled={currentPage === validPageCount}
         onClick={() => handlePageChange(currentPage + 1)}
       />
