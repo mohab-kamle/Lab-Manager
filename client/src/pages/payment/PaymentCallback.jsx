@@ -4,10 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useLab } from '../../context/LabContext';
 import axios from 'axios';
-import useLabPrefix from '../../hooks/useLabPrefix';
 
-const PaymentCallback = () => {
-  const prefix = useLabPrefix();
+  const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { refreshAfterUpgrade } = useLab();
@@ -69,7 +67,7 @@ const PaymentCallback = () => {
                 
                 // Redirect to lab management after 3 seconds
                 setTimeout(() => {
-                  navigate(`${prefix}/lab-management`);
+                  navigate(`/admin/lab-management`);
                 }, 3000);
               } else {
                 setStatus('error');
