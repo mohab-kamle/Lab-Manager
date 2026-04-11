@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { packages_and_offers, pao_has_test, admin_packages_and_offers, test } = require('../models');
+const { packages_and_offers, pao_has_test, pao_has_culture, admin_packages_and_offers, test, culture } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext } = require('../middleware/tenantContext');
@@ -22,34 +22,52 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
         const packageAndOfferIds = packagesAndOffers.map(item => item.id);
         console.log('Package/Offer IDs:', packageAndOfferIds);
 
-        const testAssociations = await pao_has_test.findAll({
-            where: { packages_and_offers_id: packageAndOfferIds }
-        });
+        const [testAssociations, cultureAssociations] = await Promise.all([
+            pao_has_test.findAll({
+                where: { packages_and_offers_id: packageAndOfferIds }
+            }),
+            pao_has_culture.findAll({
+                where: { packages_and_offers_id: packageAndOfferIds }
+            })
+        ]);
         console.log('Test associations:', testAssociations.length);
+        console.log('Culture associations:', cultureAssociations.length);
 
         // Get all unique test and culture IDs
         const testIds = [...new Set(testAssociations.map(t => t.test_id))];
+        const cultureIds = [...new Set(cultureAssociations.map(c => c.culture_id))];
         console.log('Unique test IDs:', testIds);
+        console.log('Unique culture IDs:', cultureIds);
 
         // Fetch all tests and cultures
-        const tests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
+        const [tests, cultures] = await Promise.all([
+            testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+            cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+        ]);
         console.log('Found tests:', tests.length);
+        console.log('Found cultures:', cultures.length);
 
         // Create lookup maps for tests and cultures
         const testMap = new Map(tests.map(t => [t.id, t]));
+        const cultureMap = new Map(cultures.map(c => [c.id, c]));
 
         // Combine the data
         const result = packagesAndOffers.map(item => {
             const itemTests = testAssociations
                 .filter(t => t.packages_and_offers_id === item.id)
                 .map(t => testMap.get(t.test_id))
-                .filter(Boolean);
+                .filter(Boolean); // Remove any undefined values
+            const itemCultures = cultureAssociations
+                .filter(c => c.packages_and_offers_id === item.id)
+                .map(c => cultureMap.get(c.culture_id))
+                .filter(Boolean); // Remove any undefined values
 
-            console.log(`Package ${item.id} has ${itemTests.length} tests`);
+            console.log(`Package ${item.id} has ${itemTests.length} tests and ${itemCultures.length} cultures`);
 
             return {
                 ...item.toJSON(),
-                tests: itemTests
+                tests: itemTests,
+                cultures: itemCultures
             };
         });
 
@@ -77,16 +95,29 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
         }
 
         // Get associated tests and cultures
-        const testAssociations = await pao_has_test.findAll({
-            where: { packages_and_offers_id: req.params.id }
-        });
+        const [testAssociations, cultureAssociations] = await Promise.all([
+            pao_has_test.findAll({
+                where: { packages_and_offers_id: req.params.id }
+            }),
+            pao_has_culture.findAll({
+                where: { packages_and_offers_id: req.params.id }
+            })
+        ]);
 
+        // Get test and culture IDs
         const testIds = testAssociations.map(t => t.test_id);
-        const tests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
+        const cultureIds = cultureAssociations.map(c => c.culture_id);
+
+        // Fetch tests and cultures
+        const [tests, cultures] = await Promise.all([
+            testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+            cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+        ]);
 
         const result = {
             ...packageAndOffer.toJSON(),
-            tests: tests
+            tests: tests,
+            cultures: cultures
         };
 
         res.json(result);
@@ -98,78 +129,9 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
 
 // Create a new package/offer
 router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
-    const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
-    console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type });
-
-    // Validate required fields
-    if (!name || !price || !type) {
-        console.log('Missing required fields:', { name, price, type });
-        return res.status(400).json({ error: 'Name, price, and type are required fields' });
-    }
-
-    // Start a transaction to ensure data consistency
-    const transaction = await packages_and_offers.sequelize.transaction();
-    console.log('Transaction started');
-
     try {
-        const newPackageAndOffer = await packages_and_offers.create({
-            name,
-            shortcut,
-            price,
-            start_date,
-            end_date,
-            type,
-            lab_id: req.tenant.lab_id
-        }, { transaction });
-        console.log('Created new package/offer:', newPackageAndOffer.toJSON());
-
-        if (!newPackageAndOffer || !newPackageAndOffer.id) {
-            throw new Error('Failed to create package/offer - ID is null');
-        }
-
-        // Create admin association
-        await admin_packages_and_offers.create({
-            admin_id: req.user.id,
-            package_and_offer_id: newPackageAndOffer.id
-        }, { transaction });
-
-        // Handle tests
-        if (tests && tests.length > 0) {
-            // First verify that all test IDs exist and are valid numbers
-            const testIds = tests.map(id => parseInt(id));
-            if (testIds.some(isNaN)) {
-                await transaction.rollback();
-                return res.status(400).json({ error: 'Invalid test IDs provided' });
-            }
-
-            const existingTests = await test.findAll({
-                where: { id: testIds }
-            });
-
-            if (existingTests.length !== tests.length) {
-                await transaction.rollback();
-                return res.status(400).json({ error: 'One or more test IDs do not exist' });
-            }
-
-            await Promise.all(tests.map(testId =>
-                pao_has_test.create({
-                    packages_and_offers_id: newPackageAndOffer.id,
-                    test_id: parseInt(testId)
-                })));
-
-            res.json(result);
-        }
-    } catch (error) {
-        console.error('Error fetching package/offer:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Create a new package/offer
-router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
-    try {
-        const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
-        console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type });
+        const { name, shortcut, price, start_date, end_date, type, tests, cultures, item_id, item_type } = req.body;
+        console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, cultures, item_id, item_type });
 
         // Validate required fields
         if (!name || !price || !type) {
@@ -229,7 +191,31 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
                 ));
             }
 
+            // Handle cultures
+            if (cultures && cultures.length > 0) {
+                // First verify that all culture IDs exist and are valid numbers
+                const cultureIds = cultures.map(id => parseInt(id));
+                if (cultureIds.some(isNaN)) {
+                    await transaction.rollback();
+                    return res.status(400).json({ error: 'Invalid culture IDs provided' });
+                }
 
+                const existingCultures = await culture.findAll({
+                    where: { id: cultureIds }
+                });
+
+                if (existingCultures.length !== cultures.length) {
+                    await transaction.rollback();
+                    return res.status(400).json({ error: 'One or more culture IDs do not exist' });
+                }
+
+                await Promise.all(cultures.map(cultureId =>
+                    pao_has_culture.create({
+                        packages_and_offers_id: newPackageAndOffer.id,
+                        culture_id: parseInt(cultureId)
+                    }, { transaction })
+                ));
+            }
 
             // Handle offer item
             if (item_id && item_type) {
@@ -238,6 +224,11 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
                         packages_and_offers_id: newPackageAndOffer.id,
                         test_id: item_id
                     }, { transaction });
+                } else if (item_type === "culture") {
+                    await pao_has_culture.create({
+                        packages_and_offers_id: newPackageAndOffer.id,
+                        culture_id: item_id
+                    }, { transaction });
                 }
             }
 
@@ -245,16 +236,29 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
             await transaction.commit();
 
             // Get the created item with its associations
-            const testAssociations = await pao_has_test.findAll({
-                where: { packages_and_offers_id: newPackageAndOffer.id }
-            });
+            const [testAssociations, cultureAssociations] = await Promise.all([
+                pao_has_test.findAll({
+                    where: { packages_and_offers_id: newPackageAndOffer.id }
+                }),
+                pao_has_culture.findAll({
+                    where: { packages_and_offers_id: newPackageAndOffer.id }
+                })
+            ]);
 
+            // Get test and culture IDs
             const testIds = testAssociations.map(t => t.test_id);
-            const createdTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
+            const cultureIds = cultureAssociations.map(c => c.culture_id);
+
+            // Fetch tests and cultures
+            const [createdTests, createdCultures] = await Promise.all([
+                testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+                cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+            ]);
 
             const result = {
                 ...newPackageAndOffer.toJSON(),
-                tests: createdTests
+                tests: createdTests,
+                cultures: createdCultures
             };
 
             res.status(201).json(result);
@@ -272,7 +276,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
 // Update a package/offer
 router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
-        const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
+        const { name, shortcut, price, start_date, end_date, type, tests, cultures, item_id, item_type } = req.body;
 
         // Start a transaction
         const transaction = await packages_and_offers.sequelize.transaction();
@@ -309,7 +313,10 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                 where: { packages_and_offers_id: req.params.id },
                 transaction
             });
-
+            await pao_has_culture.destroy({
+                where: { packages_and_offers_id: req.params.id },
+                transaction
+            });
 
             if (type === "package") {
                 // Handle package tests
@@ -338,7 +345,15 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                     ));
                 }
 
-
+                // Handle package cultures
+                if (cultures && cultures.length > 0) {
+                    await Promise.all(cultures.map(cultureId =>
+                        pao_has_culture.create({
+                            packages_and_offers_id: req.params.id,
+                            culture_id: parseInt(cultureId)
+                        }, { transaction })
+                    ));
+                }
             } else if (type === "offer") {
                 // Handle offer item
                 if (item_id && item_type) {
@@ -347,28 +362,45 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                             packages_and_offers_id: req.params.id,
                             test_id: item_id
                         }, { transaction });
-
+                    } else if (item_type === "culture") {
+                        await pao_has_culture.create({
+                            packages_and_offers_id: req.params.id,
+                            culture_id: item_id
+                        }, { transaction });
                     }
                 }
-
-                // Commit the transaction
-                await transaction.commit();
-
-                // Get the updated item with its associations
-                const testAssociations = await pao_has_test.findAll({
-                    where: { packages_and_offers_id: req.params.id }
-                });
-
-                const testIds = testAssociations.map(t => t.test_id);
-                const updatedTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
-
-                const result = {
-                    ...packageAndOffer.toJSON(),
-                    tests: updatedTests
-                };
-
-                res.json(result);
             }
+
+            // Commit the transaction
+            await transaction.commit();
+
+            // Get the updated item with its associations
+            const [testAssociations, cultureAssociations] = await Promise.all([
+                pao_has_test.findAll({
+                    where: { packages_and_offers_id: req.params.id }
+                }),
+                pao_has_culture.findAll({
+                    where: { packages_and_offers_id: req.params.id }
+                })
+            ]);
+
+            // Get test and culture IDs
+            const testIds = testAssociations.map(t => t.test_id);
+            const cultureIds = cultureAssociations.map(c => c.culture_id);
+
+            // Fetch tests and cultures
+            const [updatedTests, updatedCultures] = await Promise.all([
+                testIds.length > 0 ? test.findAll({ where: { id: testIds } }) : [],
+                cultureIds.length > 0 ? culture.findAll({ where: { id: cultureIds } }) : []
+            ]);
+
+            const result = {
+                ...packageAndOffer.toJSON(),
+                tests: updatedTests,
+                cultures: updatedCultures
+            };
+
+            res.json(result);
         } catch (error) {
             // Rollback the transaction if anything fails
             await transaction.rollback();
@@ -410,7 +442,10 @@ router.delete('/:id', authenticateUser, tenantContext, async (req, res) => {
             });
 
             // Delete from pao_has_culture
-
+            await pao_has_culture.destroy({
+                where: { packages_and_offers_id: req.params.id },
+                transaction
+            });
 
             // Finally delete the package/offer
             await packages_and_offers.destroy({

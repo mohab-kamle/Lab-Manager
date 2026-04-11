@@ -51,15 +51,15 @@ const imageUpload = multer({
     fileSize: 5 * 1024 * 1024,
     files: 1
   },
-  fileFilter: (req, file, cb) => {
+   fileFilter: (req, file, cb) => {
     const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (file.mimetype.startsWith('image/') && allowedExtensions.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
-  },
+       cb(null, true);
+     } else {
+       cb(new Error('Only image files are allowed'), false);
+     }
+   },
 });
 
 // List labs (optionally filter by owner_id)
@@ -80,7 +80,7 @@ router.get('/', authenticateUser, async (req, res) => {
 
 // Get lab branding info for medical reports/invoices 
 router.get('/branding', authenticateUser, tenantContext, async (req, res) => {
-  try {
+    try {
     //Get lab branding-specific fields/properties using lab_id
     const labBrandingInfo = await lab.findByPk(req.tenant.lab_id, {
       attributes: ['name', 'lab_email', 'lab_address', 'lab_website', 'primary_color', 'secondary_color', 'logo_url']
@@ -101,12 +101,12 @@ router.get('/branding', authenticateUser, tenantContext, async (req, res) => {
 router.get('/branding/logos/:filename', authorizeFileAccess, (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(LOGO_UPLOAD_PATH, filename);
-
+  
   // Check if file exists
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
-
+  
   // Set appropriate headers for images
   const ext = path.extname(filename).toLowerCase();
   if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
@@ -124,7 +124,7 @@ router.get('/branding/logos/:filename', authorizeFileAccess, (req, res) => {
   // Add security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-
+  
   res.sendFile(filePath);
 });
 
@@ -133,7 +133,7 @@ router.get('/branding/logos/:filename', authorizeFileAccess, (req, res) => {
 router.get('/by-path/:path', async (req, res) => {
   try {
     const { path } = req.params;
-
+    
     // Use subdomain as the path and subscription_status as active
     const labResult = await lab.findOne({
       where: { subdomain: path, subscription_status: 'active' },
@@ -191,7 +191,7 @@ router.get('/by-id/:labId', async (req, res) => {
 router.get('/:labId/settings', async (req, res) => {
   try {
     const { labId } = req.params;
-
+    
     const settings = await LabSettings.findAll({
       where: { lab_id: labId },
       order: [['setting_key', 'ASC']]
@@ -206,18 +206,18 @@ router.get('/:labId/settings', async (req, res) => {
 
 // Update lab settings
 router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), (req, res, next) => {
-  imageUpload.single("logo")(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+    imageUpload.single("logo")(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
+        }
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        return res.status(400).json({ error: err.message });
       }
-      return res.status(400).json({ error: err.message });
-    } else if (err) {
-      return res.status(400).json({ error: err.message });
-    }
-    next();
-  });
-}, async (req, res) => {
+      next();
+    });
+  }, async (req, res) => {
   try {
     const { labId } = req.params;
     const { settings } = req.body;
@@ -226,7 +226,7 @@ router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), (req, 
     if (req.user.lab_id !== parseInt(labId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-
+    
     for (const setting of settings) {
       // Upsert will either insert a new record if it doesn't exist,
       // or update the existing record if one is found with matching lab_id and setting_key
@@ -264,12 +264,12 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
     // Check if lab name is being changed and if it's unique
     if (updateData.name) {
       const existingLab = await lab.findOne({
-        where: {
+        where: { 
           name: updateData.name,
           id: { [Op.ne]: parseInt(labId, 10) }
         }
       });
-
+      
       if (existingLab) {
         return res.status(400).json({ error: 'Lab name already exists' });
       }
@@ -294,8 +294,7 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
       'lab_website',
       'primary_color',
       'secondary_color',
-      'lab_name_invoice',
-      'patient_due_limit'
+      'lab_name_invoice'
     ];
 
     const sanitizedUpdate = {};
@@ -321,8 +320,8 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
         if (oldFilename && oldFilename !== newFilename) {
           const oldPath = path.join(LOGO_UPLOAD_PATH, oldFilename);
           if (fs.existsSync(oldPath)) {
-            try {
-              fs.unlinkSync(oldPath);
+            try { 
+              fs.unlinkSync(oldPath); 
             } catch (e) {
               console.warn('Failed to delete old logo:', oldPath, e.message);
             }
@@ -361,7 +360,7 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
 router.get('/:labId/subscription', async (req, res) => {
   try {
     const { labId } = req.params;
-
+    
     const lab = await lab.findByPk(labId, {
       attributes: ['id', 'subscription_status', 'trial_expires_at', 'is_active']
     });
@@ -405,18 +404,18 @@ router.post('/:labId/upgrade', authenticateUser, authorizeRoles('admin'), async 
     if (merchant_order_id) {
       const { lab_payment } = require('../models');
       const payment = await lab_payment.findOne({
-        where: {
+        where: { 
           merchant_order_id: merchant_order_id,
           lab_id: labId,
           payment_status: 'paid',
           confirmed: true
         }
       });
-
+      
       if (!payment) {
         return res.status(400).json({ error: 'Payment not found or not confirmed' });
       }
-
+      
       // Get the payment amount from the payment record
       paymentAmount = payment.amount || 0;
     }
@@ -424,7 +423,7 @@ router.post('/:labId/upgrade', authenticateUser, authorizeRoles('admin'), async 
     // Calculate subscription dates based on plan
     const startDate = new Date();
     let endDate = new Date();
-
+    
     switch (plan) {
       case 'monthly':
         endDate.setMonth(endDate.getMonth() + 1);
@@ -472,7 +471,7 @@ router.post('/:labId/upgrade', authenticateUser, authorizeRoles('admin'), async 
 router.get('/:labId/stats', authenticateUser, async (req, res) => {
   try {
     const { labId } = req.params;
-
+    
     // Verify user belongs to this lab
     if (req.user.lab_id !== parseInt(labId)) {
       return res.status(403).json({ error: 'Access denied' });

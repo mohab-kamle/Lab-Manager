@@ -93,8 +93,8 @@ const EmployeeManagement = () => {
           }),
         ]);
 
-        setEmployees(employeesRes.data.filter(e => e.role !== 'doctor'));
-        setRoles(rolesRes.data.filter(r => r.value !== 'doctor'));
+        setEmployees(employeesRes.data);
+        setRoles(rolesRes.data);
         setBranches(branchesRes.data);
 
         // Set up table headers

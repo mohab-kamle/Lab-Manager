@@ -16,7 +16,7 @@ const { validatePassword } = require('../utils/passwordValidator');
 router.post("/login", loginLimiter, async (req, res) => {
     const { username, password, lab_id } = req.body;
 
-    // Validate inputs to prevent object injectiongit 
+    // Validate inputs to prevent object injection
     if (!username || typeof username !== 'string') {
         return res.status(400).json({ error: "Invalid username format" });
     }

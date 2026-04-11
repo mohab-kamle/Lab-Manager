@@ -55,29 +55,29 @@ const DoctorDashboard = () => {
       title: 'Medical Reports',
       description: 'View patient reports',
       icon: <FileText size={24} />,
-      variant: 'outline-primary',
-      action: () => navigate('/doctor/medical-reports')
+      variant: 'primary',
+      action: () => navigate('/admin/dashboard/medical-reports')
     },
     {
       title: 'Patient Data',
       description: 'Access patient information',
       icon: <User size={24} />,
-      variant: 'outline-success',
-      action: () => navigate('/doctor/patients')
+      variant: 'success',
+      action: () => navigate('/admin/dashboard/patients')
     },
     {
       title: 'Test Results',
       description: 'Review lab results',
       icon: <ClipboardList size={24} />,
-      variant: 'outline-info',
-      action: () => navigate('/doctor/medical-reports')
+      variant: 'info',
+      action: () => navigate('/admin/dashboard/medical-reports')
     },
     {
       title: 'Diagnosis',
       description: 'Enter medical diagnoses',
       icon: <Stethoscope size={24} />,
-      variant: 'outline-warning',
-      action: () => navigate('/doctor/medical-reports')
+      variant: 'warning',
+      action: () => navigate('/admin/dashboard/medical-reports')
     }
   ];
 

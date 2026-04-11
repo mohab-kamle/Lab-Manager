@@ -52,6 +52,7 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
     due = 0,
     notes,
     status,
+    test_groups = [],
   } = invoiceData;
   
   const [showModal, setShowModal] = useState(false);
@@ -78,6 +79,11 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
         name: culture.name || "Culture",
         type: "Culture", 
         price: Number(culture.price || 0)
+      })),
+      ...test_groups.map(tg => ({
+        name: tg.name || "Test Group",
+        type: "Test Group",
+        price: Number(tg.price || 0)
       })),
       ...packages.map(pkg => ({
         name: pkg.name || "Package",
@@ -357,6 +363,10 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
       ...cultures.map(culture => ({
         name: culture.name || "Culture",
         price: Number(culture.price || 0)
+      })),
+      ...test_groups.map(tg => ({
+        name: tg.name || "Test Group",
+        price: Number(tg.price || 0)
       })),
       ...packages.map(pkg => ({
         name: pkg.name || "Package",

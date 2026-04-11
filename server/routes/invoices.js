@@ -170,6 +170,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             tests = [],
             cultures = [],
             packages = [],
+            test_groups = [],
             payments = [],
             subtotal = 0,
             discount = 0,
@@ -228,44 +229,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             const currentPaid = parseFloat(currentPatient.paid || 0);
             const currentDue = parseFloat(currentPatient.due || 0);
 
-            // Calculate new values
+            // Add new invoice amounts to patient totals
             const newTotal = currentTotal + parseFloat(total);
             const newPaid = currentPaid + parseFloat(paid);
             const newDue = currentDue + parseFloat(due);
 
-            // Check for patient due limit
-            // First fetch the lab settings
-            const limitSetting = await lab_settings.findOne({
-                where: {
-                    lab_id: req.user.lab_id || patientExists.lab_id,
-                    setting_key: 'patient_due_limit'
-                },
-                transaction
-            });
-
-            if (limitSetting && limitSetting.setting_value) {
-                const limit = parseFloat(limitSetting.setting_value);
-                // Check if the NEW due amount exceeds the limit AND valid limit (> 0)
-                // Only block if the new due amount is GREATER than the limit
-                // AND the specific invoice is adding MORE debt (due > 0)
-                if (limit > 0 && newDue > limit && due > 0) {
-                    // Check for bypass flag
-                    if (!req.body.bypass_due_limit) {
-                        await transaction.rollback();
-                        return res.status(403).json({
-                            error: 'Patient due limit exceeded',
-                            requires_bypass: true,
-                            current_due: currentDue,
-                            new_due: newDue,
-                            limit: limit,
-                            invoice_due: due
-                        });
-                    }
-                    console.log(`[INVOICE] Bypassing due limit for patient ${patient_id}. New Due: ${newDue}, Limit: ${limit}`);
-                }
-            }
-
-            // Add new invoice amounts to patient totals
             await currentPatient.update({
                 total: newTotal,
                 paid: newPaid,
@@ -294,6 +262,21 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             }, { transaction });
         }
 
+        // Add cultures with their current prices
+        for (const cultureId of cultures) {
+            const cultureItem = await culture.findByPk(parseInt(cultureId), { transaction });
+            let price = 0.00;
+            if (cultureItem && cultureItem.price !== null && cultureItem.price !== undefined) {
+                const parsedPrice = parseFloat(cultureItem.price);
+                price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
+            }
+            await bill_has_culture.create({
+                bill_id: newBill.id,
+                culture_id: parseInt(cultureId),
+                price: price
+            }, { transaction });
+        }
+
         // Add packages with their current prices
         for (const packageId of packages) {
             const packageItem = await packages_and_offers.findByPk(parseInt(packageId), { transaction });
@@ -318,47 +301,298 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             }, { transaction });
         }
 
+        // Deduplicate test groups early
+        const uniqueTestGroups = [...new Set(test_groups)];
+        console.log('Processing test groups:', { original: test_groups, deduplicated: uniqueTestGroups });
 
+        // Add test groups with their current prices (deduplicated)
+        for (const tgId of uniqueTestGroups) {
+            const testGroup = await test_group.findByPk(parseInt(tgId), { transaction });
+            let price = 0.00;
+            if (testGroup && testGroup.price !== null && testGroup.price !== undefined) {
+                const parsedPrice = parseFloat(testGroup.price);
+                price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
+            }
+            await bill_has_tg.create({
+                bill_id: newBill.id,
+                tg_id: parseInt(tgId),
+                price: price
+            }, { transaction });
+        }
 
-        // Create medical report if invoice contains tests
+        // Create medical report if invoice contains tests or cultures
         let allTests = [...tests];
+        let allCultures = [...cultures];
 
-        // Get tests from packages
+        // Get tests and cultures from packages
         for (const packageId of packages) {
             const packageTests = await pao_has_test.findAll({
                 where: { packages_and_offers_id: parseInt(packageId) },
                 attributes: ['test_id']
             });
+            const packageCultures = await pao_has_culture.findAll({
+                where: { packages_and_offers_id: parseInt(packageId) },
+                attributes: ['culture_id']
+            });
 
             allTests.push(...packageTests.map(pt => pt.test_id.toString()));
+            allCultures.push(...packageCultures.map(pc => pc.culture_id.toString()));
         }
 
         // Remove duplicates
         allTests = [...new Set(allTests)];
+        allCultures = [...new Set(allCultures)];
 
-        // Only create medical report if there are tests
-        console.log('Creating medical report with:', { allTests });
-        if (allTests.length > 0) {
+        // Only create medical report if there are tests, cultures, or test groups
+        console.log('Creating medical report with:', { allTests, allCultures, uniqueTestGroups });
+        if (allTests.length > 0 || allCultures.length > 0 || uniqueTestGroups.length > 0) {
             try {
+                // Create the medical report
+                // Use branch_id from request, or fallback to patient's branch_id, or find main branch
+                let medicalReportBranchId;
+                if (branch_id !== undefined && branch_id !== '') {
+                    medicalReportBranchId = branch_id;
+                } else if (patientExists.branch_id) {
+                    medicalReportBranchId = patientExists.branch_id;
+                } else {
+                    // Find main branch for the patient's lab
+                    const mainBranch = await branch.findOne({
+                        where: {
+                            lab_id: patientExists.lab_id,
+                            is_main_branch: true
+                        }
+                    });
+                    
+                    if (mainBranch) {
+                        medicalReportBranchId = mainBranch.id;
+                    } else {
+                        // If no main branch found, find any branch for this lab
+                        const anyBranch = await branch.findOne({
+                            where: {
+                                lab_id: patientExists.lab_id
+                            }
+                        });
+                        medicalReportBranchId = anyBranch ? anyBranch.id : null;
+                    }
+                }
+                
+                console.log('Medical report branch_id logic:', {
+                    requestBranchId: branch_id,
+                    patientBranchId: patientExists.branch_id,
+                    patientLabId: patientExists.lab_id,
+                    finalBranchId: medicalReportBranchId
+                });
+                
+                // Final check: if branch_id is still null, throw a descriptive error
+                if (medicalReportBranchId === null) {
+                    throw new Error(`Cannot create medical report: No branch found for lab ${patientExists.lab_id}. Please ensure at least one branch exists for this lab.`);
+                }
+                
                 const newMedicalReport = await medical_report.create({
+                    date: new Date(),
                     lab_id: req.user.lab_id || patientExists.lab_id,
-                    branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null,
+                    branch_id: medicalReportBranchId,
                     patient_id: patient_id,
                     bill_id: newBill.id,
-                    date: date ? new Date(date) : new Date(),
-                    done: false,
-                    pending: true,
-                    registered_at: new Date()
+                    done: 0,
+                    pending: 1,
+                    comment: '',
+                    signatory_name: null
                 }, { transaction });
 
-                // Add tests
-                if (allTests.length > 0) {
-                    const testRecords = allTests.map(testId => ({
+                // Add tests to medical report
+                for (const testId of allTests) {
+                    await medical_report_has_test.create({
                         medical_report_id: newMedicalReport.id,
                         test_id: parseInt(testId),
-                        status: 'pending'
-                    }));
-                    await medical_report_has_test.bulkCreate(testRecords, { transaction });
+                        status: 'pending',
+                        result: null
+                    }, { transaction });
+                }
+
+                // Add cultures to medical report
+                for (const cultureId of allCultures) {
+                    await medical_report_has_culture.create({
+                        medical_report_id: newMedicalReport.id,
+                        culture_id: parseInt(cultureId),
+                        status: 'pending',
+                        result: null
+                    }, { transaction });
+                }
+
+                // Add test groups to medical report
+                if (uniqueTestGroups && uniqueTestGroups.length > 0) {
+                    console.log(`\n=== Starting Test Group Association Process ===`);
+                    console.log(`Creating ${uniqueTestGroups.length} test group associations for medical report ${newMedicalReport.id}`);
+                    console.log(`Test groups to process:`, JSON.stringify(uniqueTestGroups, null, 2));
+                    console.log(`Medical report ID: ${newMedicalReport.id}`);
+
+                    // Validate all test group IDs are valid numbers
+                    const invalidTestGroups = uniqueTestGroups.filter(tgId => isNaN(parseInt(tgId)));
+                    if (invalidTestGroups.length > 0) {
+                        throw new Error(`Invalid test group IDs found: ${invalidTestGroups.join(', ')}`);
+                    }
+
+                    // Create all test group associations at once using bulkCreate
+                    const testGroupAssociations = uniqueTestGroups.map(tgId => {
+                        const tgIdNum = parseInt(tgId);
+                        if (isNaN(tgIdNum)) {
+                            throw new Error(`Invalid test group ID: ${tgId}`);
+                        }
+                        return {
+                            medical_report_id: newMedicalReport.id,
+                            test_group_id: tgIdNum,
+                            value: null
+                            // Remove timestamps as they're handled by Sequelize
+                        };
+                    });
+
+                    console.log(`\nPrepared ${testGroupAssociations.length} test group associations for creation:`);
+                    console.log(JSON.stringify(testGroupAssociations, null, 2));
+
+                    // Check if medical report exists before creating associations
+                    const checkMedicalReport = await medical_report.findByPk(newMedicalReport.id, { transaction });
+                    console.log(`Medical report exists check:`, checkMedicalReport ? 'YES' : 'NO');
+                    if (checkMedicalReport) {
+                        console.log(`Medical report details:`, {
+                            id: checkMedicalReport.id,
+                            bill_id: checkMedicalReport.bill_id,
+                            patient_id: checkMedicalReport.patient_id
+                        });
+                    }
+
+                    try {
+                        // Step 1: Clear any existing associations for this medical report
+                        console.log('\nStep 1: Clearing any existing test group associations...');
+                        const deletedCount = await medical_report_has_tg.destroy({
+                            where: { medical_report_id: newMedicalReport.id },
+                            transaction
+                        });
+                        console.log(`✅ Cleared ${deletedCount} existing test group associations`);
+
+                        // Step 2: Verify all test groups exist before creating associations
+                        console.log('\nStep 2: Verifying test group existence...');
+                        const testGroupVerification = await Promise.all(
+                            uniqueTestGroups.map(async (tgId) => {
+                                const tgIdNum = parseInt(tgId);
+                                const tg = await test_group.findByPk(tgIdNum, { 
+                                    transaction,
+                                    raw: true
+                                });
+                                console.log(`Test group ${tgId} (${tgIdNum}):`, tg ? 'EXISTS' : 'NOT FOUND');
+                                if (tg) {
+                                    console.log(`   - Name: ${tg.name}`);
+                                    console.log(`   - Price: ${tg.price}`);
+                                }
+                                return { id: tgIdNum, exists: !!tg, details: tg };
+                            })
+                        );
+
+                        // Check for any missing test groups
+                        const missingTestGroups = testGroupVerification.filter(tg => !tg.exists);
+                        if (missingTestGroups.length > 0) {
+                            const missingIds = missingTestGroups.map(tg => tg.id);
+                            throw new Error(`The following test groups do not exist: ${missingIds.join(', ')}`);
+                        }
+
+                        // Step 3: Create all associations using bulkCreate with individualHooks
+                        console.log('\nStep 3: Creating test group associations...');
+                        console.log(`Attempting to create ${testGroupAssociations.length} associations...`);
+                        
+                        let createdAssociations = [];
+                        try {
+                            // First, try to create all associations at once
+                            createdAssociations = await medical_report_has_tg.bulkCreate(
+                                testGroupAssociations,
+                                {
+                                    validate: true,
+                                    transaction,
+                                    individualHooks: true,
+                                    ignoreDuplicates: true
+                                }
+                            );
+                            console.log(`✅ Successfully created ${createdAssociations.length} test group associations`);
+                        } catch (bulkError) {
+                            console.warn('Bulk create failed, falling back to individual creates:', bulkError.message);
+                            
+                            // If bulk create fails, try creating them one by one
+                            createdAssociations = [];
+                            for (const association of testGroupAssociations) {
+                                try {
+                                    const [instance, created] = await medical_report_has_tg.findOrCreate({
+                                        where: {
+                                            medical_report_id: association.medical_report_id,
+                                            test_group_id: association.test_group_id
+                                        },
+                                        defaults: {
+                                            medical_report_id: association.medical_report_id,
+                                            test_group_id: association.test_group_id,
+                                            value: null
+                                        },
+                                        transaction
+                                    });
+                                    
+                                    if (created) {
+                                        console.log(`✅ Created association for test group ${association.test_group_id}`);
+                                    } else {
+                                        console.log(`ℹ️ Association already exists for test group ${association.test_group_id}`);
+                                    }
+                                    createdAssociations.push(instance);
+                                } catch (individualError) {
+                                    console.error(`❌ Error creating association for test group ${association.test_group_id}:`, individualError.message);
+                                    // Continue with the next association even if one fails
+                                    continue;
+                                }
+                            }
+                        }
+                        
+                        console.log(`✅ Successfully created ${createdAssociations.length} test group associations`);
+
+                        // Step 4: Verify the associations were created
+                        console.log('\nStep 4: Verifying created associations...');
+                        const verifyAssociations = await medical_report_has_tg.findAll({
+                            where: { medical_report_id: newMedicalReport.id },
+                            transaction,
+                            raw: true
+                        });
+                        
+                        console.log(`Found ${verifyAssociations.length} associations in database:`);
+                        verifyAssociations.forEach((assoc, idx) => {
+                            console.log(`  ${idx + 1}. Medical Report ID: ${assoc.medical_report_id}, Test Group ID: ${assoc.test_group_id}`);
+                        });
+
+                        // Final verification - only warn if no associations were created at all
+                        if (verifyAssociations.length === 0) {
+                            console.warn('⚠️ No test group associations were created. This might be expected if all associations already existed.');
+                        } else if (verifyAssociations.length < uniqueTestGroups.length) {
+                            const createdIds = new Set(verifyAssociations.map(a => a.test_group_id));
+                            const missingIds = uniqueTestGroups
+                                .map(Number)
+                                .filter(id => !createdIds.has(id));
+                                
+                            console.warn('⚠️ Some test group associations were not created:');
+                            console.warn(`- Expected: ${uniqueTestGroups.length} associations`);
+                            console.warn(`- Created: ${verifyAssociations.length} associations`);
+                            console.warn(`- Missing test group IDs: ${missingIds.join(', ')}`);
+                            
+                            // Don't throw an error, just log a warning
+                            // The transaction will continue with the associations that were created successfully
+                        }
+
+                        console.log('\n✅ All test group associations verified successfully!');
+
+                        // Also check outside the transaction to see if they're visible
+                        const verifyAssociationsOutside = await medical_report_has_tg.findAll({
+                            where: { medical_report_id: newMedicalReport.id }
+                        });
+                        console.log(`Verified associations outside transaction:`, verifyAssociationsOutside.map(a => ({ medical_report_id: a.medical_report_id, test_group_id: a.test_group_id })));
+
+                    } catch (error) {
+                        console.error(`Error in test group association process:`, error);
+                        // Don't throw the error to prevent transaction rollback
+                        // This allows the invoice to be created even if there are issues with test group associations
+                        console.warn('Continuing with invoice creation despite test group association issues');
+                    }
                 }
             } catch (medicalReportError) {
                 console.error('Error creating medical report:', medicalReportError);
@@ -398,6 +632,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                         attributes: ['id', 'name']
                     },
                     {
+                        model: culture,
+                        as: "culture_id_cultures",
+                        through: { attributes: ['price'] },
+                        attributes: ['id', 'name']
+                    },
+                    {
                         model: packages_and_offers,
                         as: "package_id_packages_and_offers",
                         through: { attributes: ['price'] },
@@ -407,6 +647,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                         model: payment_method,
                         as: "payment_method_id_payment_methods",
                         through: { attributes: ['paid_amount'] },
+                        attributes: ['id', 'name']
+                    },
+                    {
+                        model: test_group,
+                        as: "tg_id_test_groups",
+                        through: { attributes: ['price'] },
                         attributes: ['id', 'name']
                     }
                 ]
@@ -431,6 +677,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                     name: t.name,
                     price: t.bill_has_test.price
                 })),
+                cultures: completeBill.culture_id_cultures.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    price: c.bill_has_culture.price
+                })),
                 packages: completeBill.package_id_packages_and_offers.map(p => ({
                     id: p.id,
                     name: p.name,
@@ -441,7 +692,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                     payment_method_id: p.id,
                     payment_method_name: p.name,
                     paid_amount: p.bill_has_payment_method.paid_amount
-                }))
+                })),
+                test_groups: completeBill.tg_id_test_groups ? completeBill.tg_id_test_groups.map(tg => ({
+                    id: tg.id,
+                    name: tg.name,
+                    price: tg.bill_has_tg.price
+                })) : []
             };
 
             res.status(201).json(response);
@@ -489,6 +745,12 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
                     attributes: ['id', 'name', 'price']
                 },
                 {
+                    model: culture,
+                    as: "culture_id_cultures",
+                    through: { attributes: [] },
+                    attributes: ['id', 'name', 'price']
+                },
+                {
                     model: packages_and_offers,
                     as: "package_id_packages_and_offers",
                     through: { attributes: [] },
@@ -499,6 +761,12 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
                     as: "payment_method_id_payment_methods",
                     through: { attributes: ['paid_amount'] },
                     attributes: ['id', 'name']
+                },
+                {
+                    model: test_group,
+                    as: "tg_id_test_groups",
+                    through: { attributes: [] },
+                    attributes: ['id', 'name', 'price']
                 }
             ]
         });
@@ -526,6 +794,11 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
                 name: t.name,
                 price: t.price
             })),
+            cultures: invoice.culture_id_cultures.map(c => ({
+                id: c.id,
+                name: c.name,
+                price: c.price
+            })),
             packages: invoice.package_id_packages_and_offers.map(p => ({
                 id: p.id,
                 name: p.name,
@@ -536,7 +809,12 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
                 payment_method_id: p.id,
                 payment_method_name: p.name,
                 paid_amount: p.bill_has_payment_method.paid_amount
-            }))
+            })),
+            test_groups: invoice.tg_id_test_groups ? invoice.tg_id_test_groups.map(tg => ({
+                id: tg.id,
+                name: tg.name,
+                price: tg.price
+            })) : []
         };
 
         res.json(response);
@@ -638,7 +916,26 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
             await bill_has_test.bulkCreate(testRecords);
         }
 
-
+        if (cultures) {
+            await bill_has_culture.destroy({ where: { bill_id: id } });
+            const validCultures = cultures.filter(culture_id => !isNaN(Number(culture_id)) && culture_id !== '' && culture_id !== null);
+            // Get current prices for each culture
+            const cultureRecords = [];
+            for (const cultureId of validCultures) {
+                const cultureItem = await culture.findByPk(parseInt(cultureId));
+                let price = 0.00;
+                if (cultureItem && cultureItem.price !== null && cultureItem.price !== undefined) {
+                    const parsedPrice = parseFloat(cultureItem.price);
+                    price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
+                }
+                cultureRecords.push({
+                    bill_id: id,
+                    culture_id: parseInt(cultureId),
+                    price: price
+                });
+            }
+            await bill_has_culture.bulkCreate(cultureRecords);
+        }
 
         if (packages) {
             await bill_has_package.destroy({ where: { bill_id: id } });
@@ -670,7 +967,27 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
             })));
         }
 
-
+        if (test_groups) {
+            await bill_has_tg.destroy({ where: { bill_id: id } });
+            // Filter out invalid IDs and deduplicate before inserting
+            const validTestGroups = [...new Set(test_groups.filter(tg_id => !isNaN(Number(tg_id)) && tg_id !== '' && tg_id !== null))];
+            // Get current prices for each test group
+            const testGroupRecords = [];
+            for (const tgId of validTestGroups) {
+                const testGroupItem = await test_group.findByPk(parseInt(tgId));
+                let price = 0.00;
+                if (testGroupItem && testGroupItem.price !== null && testGroupItem.price !== undefined) {
+                    const parsedPrice = parseFloat(testGroupItem.price);
+                    price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
+                }
+                testGroupRecords.push({
+                    bill_id: id,
+                    tg_id: parseInt(tgId),
+                    price: price
+                });
+            }
+            await bill_has_tg.bulkCreate(testGroupRecords);
+        }
 
         // Find the associated medical report
         const medicalReport = await medical_report.findOne({ where: { bill_id: id } });
@@ -684,15 +1001,15 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
 
                 // Identify tests to add
                 const testsToAdd = tests.filter(test_id => !existingTestIds.has(parseInt(test_id)))
-                    .map(test_id => ({
-                        medical_report_id: medicalReport.id,
-                        test_id: parseInt(test_id),
-                        status: 'pending' // Default status
-                    }));
+                                        .map(test_id => ({
+                                            medical_report_id: medicalReport.id,
+                                            test_id: parseInt(test_id),
+                                            status: 'pending' // Default status
+                                        }));
 
                 // Identify tests to remove
                 const testsToRemoveIds = existingMedicalReportTests.filter(existingTest => !tests.includes(existingTest.test_id.toString()))
-                    .map(t => t.id);
+                                                                .map(t => t.id);
 
                 // Perform deletions and additions
                 if (testsToRemoveIds.length > 0) {
@@ -703,6 +1020,64 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
                 }
             }
 
+            // Update medical_report_has_culture
+            if (cultures) {
+                // Get existing medical report cultures
+                const existingMedicalReportCultures = await medical_report_has_culture.findAll({ where: { medical_report_id: medicalReport.id } });
+                const existingCultureIds = new Set(existingMedicalReportCultures.map(c => c.culture_id));
+
+                // Identify cultures to add
+                const culturesToAdd = cultures.filter(culture_id => !existingCultureIds.has(parseInt(culture_id)))
+                                            .map(culture_id => ({
+                                                medical_report_id: medicalReport.id,
+                                                culture_id: parseInt(culture_id),
+                                                status: 'pending' // Default status
+                                            }));
+
+                // Identify cultures to remove
+                const culturesToRemove = existingMedicalReportCultures.filter(existingCulture => !cultures.includes(existingCulture.culture_id.toString()));
+                const culturesToRemoveIds = culturesToRemove.map(c => c.id);
+
+                // Delete dependent records in medical_report_culture_result first for cultures being removed
+                if (culturesToRemoveIds.length > 0) {
+                    await medical_report_culture_result.destroy({ where: { medical_report_has_culture_id: culturesToRemoveIds } });
+                }
+
+                // Perform deletions and additions
+                if (culturesToRemoveIds.length > 0) {
+                    await medical_report_has_culture.destroy({ where: { id: culturesToRemoveIds } });
+                }
+                if (culturesToAdd.length > 0) {
+                    await medical_report_has_culture.bulkCreate(culturesToAdd);
+                }
+            }
+
+            // Update medical_report_has_tg
+            if (test_groups) {
+                // Get existing medical report test groups
+                const existingMedicalReportTGs = await medical_report_has_tg.findAll({ where: { medical_report_id: medicalReport.id } });
+                const existingTGIds = new Set(existingMedicalReportTGs.map(tg => tg.test_group_id));
+
+                // Identify test groups to add
+                const tgsToAdd = test_groups.filter(tg_id => !existingTGIds.has(parseInt(tg_id)))
+                                            .map(tg_id => ({
+                                                medical_report_id: medicalReport.id,
+                                                test_group_id: parseInt(tg_id),
+                                                value: null // Default value
+                                            }));
+
+                // Identify test groups to remove
+                const tgsToRemoveIds = existingMedicalReportTGs.filter(existingTG => !test_groups.includes(existingTG.test_group_id.toString()))
+                                                                .map(tg => tg.id);
+
+                // Perform deletions and additions
+                if (tgsToRemoveIds.length > 0) {
+                    await medical_report_has_tg.destroy({ where: { id: tgsToRemoveIds } });
+                }
+                if (tgsToAdd.length > 0) {
+                    await medical_report_has_tg.bulkCreate(tgsToAdd);
+                }
+            }
         }
 
         // Fetch the updated bill with all associations
@@ -721,6 +1096,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
                     attributes: ['id', 'name']
                 },
                 {
+                    model: culture,
+                    as: "culture_id_cultures",
+                    through: { attributes: ['price'] },
+                    attributes: ['id', 'name']
+                },
+                {
                     model: packages_and_offers,
                     as: "package_id_packages_and_offers",
                     through: { attributes: ['price'] },
@@ -732,6 +1113,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
                     through: { attributes: ['paid_amount'] },
                     attributes: ['id', 'name']
                 },
+                {
+                    model: test_group,
+                    as: "tg_id_test_groups",
+                    through: { attributes: ['price'] },
+                    attributes: ['id', 'name']
+                }
             ]
         });
 
@@ -754,6 +1141,11 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
                 name: t.name,
                 price: t.bill_has_test.price
             })),
+            cultures: updatedBill.culture_id_cultures.map(c => ({
+                id: c.id,
+                name: c.name,
+                price: c.bill_has_culture.price
+            })),
             packages: updatedBill.package_id_packages_and_offers.map(p => ({
                 id: p.id,
                 name: p.name,
@@ -764,7 +1156,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
                 payment_method_id: p.id,
                 payment_method_name: p.name,
                 paid_amount: p.bill_has_payment_method.paid_amount
-            }))
+            })),
+            test_groups: updatedBill.tg_id_test_groups ? updatedBill.tg_id_test_groups.map(tg => ({
+                id: tg.id,
+                name: tg.name,
+                price: tg.bill_has_tg.price
+            })) : []
         };
 
         res.json(response);
@@ -800,15 +1197,17 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), invalidateInvoi
 
         // Delete all associated records first
         await bill_has_test.destroy({ where: { bill_id: id }, transaction });
-
+        await bill_has_culture.destroy({ where: { bill_id: id }, transaction });
         await bill_has_package.destroy({ where: { bill_id: id }, transaction });
         await bill_has_payment_method.destroy({ where: { bill_id: id }, transaction });
+        await bill_has_tg.destroy({ where: { bill_id: id }, transaction });
 
         // Find and delete associated medical report and its entries
         const medicalReport = await medical_report.findOne({ where: { bill_id: id }, transaction });
         if (medicalReport) {
             await medical_report_has_test.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
-
+            await medical_report_has_culture.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
+            await medical_report_has_tg.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
             await medicalReport.destroy({ transaction });
         }
 

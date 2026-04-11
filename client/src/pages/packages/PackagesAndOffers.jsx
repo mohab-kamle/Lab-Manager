@@ -14,6 +14,7 @@ const PackagesAndOffers = () => {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [tests, setTests] = useState([]);
+  const [cultures, setCultures] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,6 +34,7 @@ const PackagesAndOffers = () => {
     end_date: "",
     type: "package",
     tests: [],
+    cultures: [],
     item_id: "",
     item_type: ""
   });
@@ -40,23 +42,29 @@ const PackagesAndOffers = () => {
   const [lastAttemptedItem, setLastAttemptedItem] = useState(null);
   const [showRetryButton, setShowRetryButton] = useState(false);
   const [typeFilter, setTypeFilter] = useState("");
+  const [selectedItemType, setSelectedItemType] = useState("test"); // "test" or "culture"
+
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const [itemsRes, testsRes] = await Promise.all([
+        const [itemsRes, testsRes, culturesRes] = await Promise.all([
           axios.get(`${apiUrl}/packages-and-offers`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
           axios.get(`${apiUrl}/tests`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          axios.get(`${apiUrl}/cultures`, {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
 
         setItems(itemsRes.data);
         setTests(testsRes.data);
+        setCultures(culturesRes.data);
 
         // Set up table headers based on item type
         const headers = [
@@ -66,7 +74,8 @@ const PackagesAndOffers = () => {
           { field: 'start_date', label: 'Start Date', sortable: true },
           { field: 'end_date', label: 'End Date', sortable: true },
           { field: 'type', label: 'Type', sortable: true },
-          { field: 'tests', label: 'Tests' }
+          { field: 'tests', label: 'Tests' },
+          { field: 'cultures', label: 'Cultures' }
         ];
 
         setTableHeaders(headers);
@@ -84,14 +93,21 @@ const PackagesAndOffers = () => {
   const handleAddItem = async (e) => {
     e.preventDefault();
     try {
+      // Clean up the cultures array to ensure only valid IDs are included
+      const cleanedCultures = item.cultures
+        .map(id => parseInt(id))
+        .filter(id => !isNaN(id) && id > 0);
+
+      // Create a cleaned item object
       const cleanedItem = {
         ...item,
+        cultures: cleanedCultures,
         price: parseFloat(item.price),
         start_date: item.start_date || null,
         end_date: item.end_date || null,
         tests: item.tests.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0),
         item_id: item.item_id || null,
-        item_type: item.item_type || 'test' // Always test now
+        item_type: item.item_type || null
       };
 
       // Validate dates
@@ -122,6 +138,7 @@ const PackagesAndOffers = () => {
         delete dataToSend.item_type;
       } else {
         delete dataToSend.tests;
+        delete dataToSend.cultures;
       }
 
       console.log('Sending data to server:', dataToSend);
@@ -277,6 +294,13 @@ const PackagesAndOffers = () => {
       if (!item.tests || item.tests.length === 0) {
         errors.tests = 'At least one test is required for packages';
       }
+      // Cultures are optional for packages, but if provided, they must be valid
+      if (item.cultures && item.cultures.length > 0) {
+        const invalidCultures = item.cultures.filter(id => isNaN(id) || id <= 0);
+        if (invalidCultures.length > 0) {
+          errors.cultures = 'Invalid culture IDs selected';
+        }
+      }
     } else if (item.type === 'offer') {
       if (!item.item_id) errors.item_id = 'Item ID is required';
       if (!item.item_type) errors.item_type = 'Item type is required';
@@ -312,7 +336,26 @@ const PackagesAndOffers = () => {
             </tbody>
           </table>
         );
-
+      case 'cultures':
+        if (!Array.isArray(value) || value.length === 0) return '-';
+        return (
+          <table style={{ borderCollapse: 'collapse', width: '100%', border: '1px solid #ddd', fontSize: '0.9rem' }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid #ddd', padding: '4px', background: '#f5f5f5', textAlign: 'left' }}>Name</th>
+                <th style={{ border: '1px solid #ddd', padding: '4px', background: '#f5f5f5', textAlign: 'left' }}>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {value.map((culture, index) => (
+                <tr key={index}>
+                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>{culture.name || '-'}</td>
+                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>${Number(culture.price || 0).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
       case 'price':
         return `$${Number(value || 0).toFixed(2)}`;
       case 'type':
@@ -322,6 +365,15 @@ const PackagesAndOffers = () => {
     }
   };
 
+  // Update the culture selection handling
+  const handleCultureChange = (e) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+    console.log('Selected cultures:', selectedOptions);
+    setItem(prev => ({
+      ...prev,
+      cultures: selectedOptions
+    }));
+  };
 
   const handleResetForm = () => {
     setItem({
@@ -332,6 +384,7 @@ const PackagesAndOffers = () => {
       end_date: "",
       type: "package",
       tests: [],
+      cultures: [],
       item_id: "",
       item_type: ""
     });
@@ -360,6 +413,7 @@ const PackagesAndOffers = () => {
                   end_date: "",
                   type: "package",
                   tests: [],
+                  cultures: [],
                   item_id: "",
                   item_type: ""
                 });
@@ -441,6 +495,7 @@ const PackagesAndOffers = () => {
                             ...item, 
                             type: e.target.value,
                             tests: [],
+                            cultures: [],
                             item_id: "",
                             item_type: ""
                           });
@@ -512,7 +567,7 @@ const PackagesAndOffers = () => {
                   </Col>
                   {item.type === "package" ? (
                     <>
-                      <Col md={12}>
+                      <Col md={6}>
                         <Form.Group className="mb-3">
                           <Form.Label>Tests</Form.Label>
                           <Form.Select
@@ -536,27 +591,70 @@ const PackagesAndOffers = () => {
                           </Form.Control.Feedback>
                         </Form.Group>
                       </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Cultures</Form.Label>
+                          <Form.Select
+                            multiple
+                            value={item.cultures}
+                            onChange={handleCultureChange}
+                            isInvalid={!!formErrors.cultures}
+                          >
+                            {cultures.map(culture => (
+                              <option key={`culture-${culture.id}`} value={culture.id}>
+                                {culture.name} (${culture.price})
+                              </option>
+                            ))}
+                          </Form.Select>
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors.cultures}
+                          </Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
                     </>
                   ) : (
                     <>
-                      <Col md={12}>
+                      <Col md={6}>
                         <Form.Group className="mb-3">
-                          <Form.Label>Select Test *</Form.Label>
+                          <Form.Label>Item Type *</Form.Label>
                           <Form.Select
-                            value={item.item_id ? `test-${item.item_id}` : ""}
+                            value={selectedItemType}
+                            onChange={(e) => {
+                              setSelectedItemType(e.target.value);
+                              setItem({ ...item, item_id: null, item_type: null });
+                            }}
+                          >
+                            <option value="test">Test</option>
+                            <option value="culture">Culture</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Select {selectedItemType === "test" ? "Test" : "Culture"} *</Form.Label>
+                          <Form.Select
+                            value={item.item_id ? `${item.item_type}-${item.item_id}` : ""}
                             onChange={(e) => {
                               const [type, id] = e.target.value.split("-");
-                              setItem({ ...item, item_type: 'test', item_id: id });
+                              setItem({ ...item, item_type: type, item_id: id });
                               if (formErrors.item_id) setFormErrors({ ...formErrors, item_id: null });
                             }}
                             isInvalid={!!formErrors.item_id}
                           >
-                            <option value="">Select a Test</option>
-                            {tests.map(test => (
-                              <option key={`test-${test.id}`} value={`test-${test.id}`}>
-                                {test.name} (Original Price: ${test.price})
-                              </option>
-                            ))}
+                            <option value="">Select a {selectedItemType}</option>
+                            {selectedItemType === "test" ? (
+                              tests.map(test => (
+                                <option key={`test-${test.id}`} value={`test-${test.id}`}>
+                                  {test.name} (Original Price: ${test.price})
+                                </option>
+                              ))
+                            ) : (
+                              cultures.map(culture => (
+                                <option key={`culture-${culture.id}`} value={`culture-${culture.id}`}>
+                                  {culture.name} (Original Price: ${culture.price})
+                                </option>
+                              ))
+                            )}
                           </Form.Select>
                           <Form.Control.Feedback type="invalid">
                             {formErrors.item_id}

@@ -27,15 +27,17 @@ const EmployeeDashboard = () => {
         const headers = { Authorization: `Bearer ${token}` };
         
         // Fetch employee-accessible stats (read-only)
-        const [reportsResponse, testsResponse, invoicesResponse] = await Promise.all([
+        const [reportsResponse, testsResponse, culturesResponse, invoicesResponse] = await Promise.all([
           axios.get(`${apiUrl}/medical-reports`, { headers }),
           axios.get(`${apiUrl}/tests`, { headers }),
+          axios.get(`${apiUrl}/cultures`, { headers }),
           axios.get(`${apiUrl}/invoices`, { headers })
         ]);
 
         const stats = {
           totalReports: reportsResponse.data.length || 0,
           totalTests: testsResponse.data.length || 0,
+          totalCultures: culturesResponse.data.length || 0,
           totalInvoices: invoicesResponse.data.length || 0,
           recentReports: reportsResponse.data.slice(0, 5) || [],
           recentInvoices: invoicesResponse.data.slice(0, 5) || []
@@ -66,7 +68,13 @@ const EmployeeDashboard = () => {
       variant: 'success',
       action: () => navigate('/admin/dashboard/tests')
     },
-
+    {
+      title: 'View Cultures',
+      description: 'Browse culture types',
+      icon: <Beaker size={24} />,
+      variant: 'info',
+      action: () => navigate('/admin/dashboard/cultures')
+    },
     {
       title: 'View Invoices',
       description: 'Browse invoices',
@@ -102,7 +110,7 @@ const EmployeeDashboard = () => {
 
       {/* Stats Cards */}
       <Row className="mb-4">
-        <Col md={4}>
+        <Col md={3}>
           <Card className="text-center h-100">
             <Card.Body>
               <FileText size={32} className="text-primary mb-2" />
@@ -111,7 +119,7 @@ const EmployeeDashboard = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
+        <Col md={3}>
           <Card className="text-center h-100">
             <Card.Body>
               <TestTube size={32} className="text-success mb-2" />
@@ -120,7 +128,16 @@ const EmployeeDashboard = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
+        <Col md={3}>
+          <Card className="text-center h-100">
+            <Card.Body>
+              <Beaker size={32} className="text-info mb-2" />
+              <h4>{stats?.totalCultures || 0}</h4>
+              <p className="text-muted mb-0">Culture Types</p>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
           <Card className="text-center h-100">
             <Card.Body>
               <ClipboardList size={32} className="text-warning mb-2" />
@@ -141,7 +158,7 @@ const EmployeeDashboard = () => {
             <Card.Body>
               <Row>
                 {quickActions.map((action, index) => (
-                  <Col md={4} key={index} className="mb-3">
+                  <Col md={3} key={index} className="mb-3">
                     <Button
                       variant={action.variant}
                       className="w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3"
@@ -245,9 +262,9 @@ const EmployeeDashboard = () => {
                 </ListGroup.Item>
                 <ListGroup.Item className="d-flex justify-content-between align-items-center">
                   <div>
-                    <strong>Tests Catalog</strong>
+                    <strong>Tests & Cultures</strong>
                     <br />
-                    <small className="text-muted">Browse test catalog</small>
+                    <small className="text-muted">Browse test and culture catalogs</small>
                   </div>
                   <CheckCircle size={20} className="text-success" />
                 </ListGroup.Item>

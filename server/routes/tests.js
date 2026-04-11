@@ -9,7 +9,7 @@ const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const db = require("../models");
 const multer = require('multer');
-const upload = multer({
+const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
@@ -34,7 +34,7 @@ router.use((req, res, next) => {
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
   try {
     console.log('Tests route accessed by user:', req.user.id, 'with role:', req.user.role);
-
+    
     const testsList = await db.test.findAll({
       include: [
         {
@@ -49,7 +49,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         }
       ]
     });
-
+    
     console.log(`Found ${testsList.length} tests`);
     res.json(testsList || []);
   } catch (error) {
@@ -62,33 +62,29 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 // Create a new test
 router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
-    const {
-      name,
-      shortcut,
-      price,
+    const { 
+      name, 
+      shortcut, 
+      price, 
       cost,
       lab_to_lab_status,
       lab_name,
-      category_id,
-      precautions,
-      decreased_in,
-      increased_in,
+      category_id, 
+      precautions, 
+      decreased_in, 
+      increased_in, 
       sample_type_id,
-      contract_id,
-      global_test_id,
-      structure_config,
-      type,
-      tat_hours
+      contract_id 
     } = req.body;
-
+    
     if (!name) return res.status(400).json({ error: 'Name is required' });
-
+    
     // Check if test with same name already exists
     const existingTest = await db.test.findOne({ where: { name } });
     if (existingTest) {
       return res.status(400).json({ error: `A test with the name "${name}" already exists` });
     }
-
+    
     // Check if shortcut already exists (only for non-empty shortcuts)
     if (shortcut && shortcut.trim()) {
       const existingShortcut = await db.test.findOne({ where: { shortcut } });
@@ -96,29 +92,25 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
         return res.status(400).json({ error: `A test with the shortcut "${shortcut}" already exists` });
       }
     }
-
-    const test = await db.test.create({
-      name,
+    
+    const test = await db.test.create({ 
+      name, 
       shortcut: shortcut || null, // Convert empty string to null
       price: price || 0.00, // Default to 0 if no price provided
       cost,
       lab_to_lab_status,
       lab_name,
-      category_id,
-      precautions,
-      decreased_in,
-      increased_in,
+      category_id, 
+      precautions, 
+      decreased_in, 
+      increased_in, 
       sample_type_id,
-      contract_id,
-      global_test_id,
-      structure_config,
-      type: type || 'single',
-      tat_hours
+      contract_id 
     });
     res.status(201).json(test);
   } catch (error) {
     console.error('Error creating test:', error);
-
+    
     // Handle specific database errors
     if (error.name === 'SequelizeUniqueConstraintError') {
       if (error.fields && error.fields.name) {
@@ -128,7 +120,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
         return res.status(400).json({ error: `A test with the shortcut "${req.body.shortcut}" already exists` });
       }
     }
-
+    
     res.status(500).json({ error: 'Failed to create test' });
   }
 });
@@ -136,28 +128,24 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
 // Update a test
 router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
-    const {
-      name,
-      shortcut,
-      price,
+    const { 
+      name, 
+      shortcut, 
+      price, 
       cost,
       lab_to_lab_status,
       lab_name,
-      category_id,
-      precautions,
-      decreased_in,
-      increased_in,
+      category_id, 
+      precautions, 
+      decreased_in, 
+      increased_in, 
       sample_type_id,
-      contract_id,
-      global_test_id,
-      structure_config,
-      type,
-      tat_hours
+      contract_id 
     } = req.body;
-
+    
     const test = await db.test.findByPk(req.params.id);
     if (!test) return res.status(404).json({ error: 'Test not found' });
-
+    
     // Update fields, allowing empty strings for text fields
     test.name = name !== undefined ? name : test.name;
     test.shortcut = shortcut !== undefined ? (shortcut || null) : test.shortcut; // Convert empty string to null
@@ -171,16 +159,12 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
     test.increased_in = increased_in !== undefined ? increased_in : test.increased_in;
     test.sample_type_id = sample_type_id !== undefined ? sample_type_id : test.sample_type_id;
     test.contract_id = contract_id !== undefined ? contract_id : test.contract_id;
-    test.global_test_id = global_test_id !== undefined ? global_test_id : test.global_test_id;
-    test.structure_config = structure_config !== undefined ? structure_config : test.structure_config;
-    test.type = type !== undefined ? type : test.type;
-    test.tat_hours = tat_hours !== undefined ? tat_hours : test.tat_hours;
-
+    
     await test.save();
     res.json(test);
   } catch (error) {
     console.error('Error updating test:', error);
-
+    
     // Handle specific database errors
     if (error.name === 'SequelizeUniqueConstraintError') {
       if (error.fields && error.fields.name) {
@@ -190,7 +174,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
         return res.status(400).json({ error: `A test with the shortcut "${req.body.shortcut}" already exists` });
       }
     }
-
+    
     res.status(500).json({ error: 'Failed to update test' });
   }
 });
@@ -200,9 +184,9 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
   try {
     const testInstance = await db.test.findByPk(req.params.id);
     if (!testInstance) return res.status(404).json({ error: 'Test not found' });
-
+    
     console.log(`Deleting test ${req.params.id} and all associated data...`);
-
+    
     // Delete all associated data in the correct order to avoid foreign key constraint errors
     let deletedComponents = 0;
     let deletedBillTests = 0;
@@ -210,64 +194,72 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
     let deletedMedicalReportTests = 0;
     let deletedPaoTests = 0;
     let deletedQuestionTests = 0;
-
-
-
+    
+    try {
+      // 1. Delete test components
+      deletedComponents = await db.test_component.destroy({ 
+        where: { test_id: req.params.id } 
+      });
+      console.log(`Deleted ${deletedComponents} test components`);
+    } catch (error) {
+      console.log(`Error deleting test components: ${error.message}`);
+    }
+    
     try {
       // 2. Delete bill_has_test relationships
-      deletedBillTests = await db.bill_has_test.destroy({
-        where: { test_id: req.params.id }
+      deletedBillTests = await db.bill_has_test.destroy({ 
+        where: { test_id: req.params.id } 
       });
       console.log(`Deleted ${deletedBillTests} bill-test relationships`);
     } catch (error) {
       console.log(`Error deleting bill-test relationships: ${error.message}`);
     }
-
+    
     try {
       // 3. Delete contract_has_test relationships
-      deletedContractTests = await db.contract_has_test.destroy({
-        where: { test_id: req.params.id }
+      deletedContractTests = await db.contract_has_test.destroy({ 
+        where: { test_id: req.params.id } 
       });
       console.log(`Deleted ${deletedContractTests} contract-test relationships`);
     } catch (error) {
       console.log(`Error deleting contract-test relationships: ${error.message}`);
     }
-
+    
     try {
       // 4. Delete medical_report_has_test relationships
-      deletedMedicalReportTests = await db.medical_report_has_test.destroy({
-        where: { test_id: req.params.id }
+      deletedMedicalReportTests = await db.medical_report_has_test.destroy({ 
+        where: { test_id: req.params.id } 
       });
       console.log(`Deleted ${deletedMedicalReportTests} medical report-test relationships`);
     } catch (error) {
       console.log(`Error deleting medical report-test relationships: ${error.message}`);
     }
-
+    
     try {
       // 5. Delete pao_has_test relationships (packages and offers)
-      deletedPaoTests = await db.pao_has_test.destroy({
-        where: { test_id: req.params.id }
+      deletedPaoTests = await db.pao_has_test.destroy({ 
+        where: { test_id: req.params.id } 
       });
       console.log(`Deleted ${deletedPaoTests} package-test relationships`);
     } catch (error) {
       console.log(`Error deleting package-test relationships: ${error.message}`);
     }
-
+    
     try {
       // 6. Delete question-test relationships
-      deletedQuestionTests = await db.test_has_question.destroy({
-        where: { test_id: req.params.id }
+      deletedQuestionTests = await db.test_has_question.destroy({ 
+        where: { test_id: req.params.id } 
       });
       console.log(`Deleted ${deletedQuestionTests} question-test relationships`);
     } catch (error) {
       console.log(`Error deleting question-test relationships: ${error.message}`);
     }
-
+    
     // Finally, delete the test itself
     await testInstance.destroy();
     console.log(`Successfully deleted test ${req.params.id}`);
-
-    res.json({
+    
+    res.json({ 
       message: 'Test deleted successfully',
       deletedData: {
         components: deletedComponents,
@@ -280,15 +272,15 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
     });
   } catch (error) {
     console.error('Error deleting test:', error);
-
+    
     // Handle specific foreign key constraint errors
     if (error.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({
+      return res.status(400).json({ 
         error: 'Cannot delete test because it has associated data. Please remove all associated components and references first.',
         details: error.message
       });
     }
-
+    
     res.status(500).json({ error: 'Failed to delete test', details: error.message });
   }
 });
@@ -296,32 +288,10 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
 // Get test components
 router.get('/:id/components', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
   try {
-    const test = await db.test.findByPk(req.params.id, { attributes: ['structure_config'] });
-    if (!test) return res.status(404).json({ error: 'Test not found' });
-
-    let mappedComponents = [];
-    if (test.structure_config && Array.isArray(test.structure_config)) {
-      mappedComponents = test.structure_config
-        .filter(c => c.type !== 'header')
-        .map(c => {
-          const firstRange = (c.reference_ranges && c.reference_ranges.length > 0) ? c.reference_ranges[0] : {};
-          return {
-            name: c.label || c.name || '',
-            unit: c.unit || '',
-            normal_from: firstRange.min !== null && firstRange.min !== undefined ? firstRange.min : '',
-            normal_to: firstRange.max !== null && firstRange.max !== undefined ? firstRange.max : '',
-            c_low: '',
-            c_high: '',
-            gender: firstRange.gender === 'Male' ? 'Male' : firstRange.gender === 'Female' ? 'Female' : 'Any',
-            age_start: c.age_start || '',
-            age_end: c.age_end || '',
-            reference_range: c.reference_range || '',
-            result_type: c.type === 'boolean' ? 'boolean' : 'range',
-          };
-        });
-    }
-
-    res.json(mappedComponents);
+    const testComponents = await db.test_component.findAll({
+      where: { test_id: req.params.id }
+    });
+    res.json(testComponents);
   } catch (error) {
     console.error('Error fetching test components:', error);
     res.status(500).json({ error: 'Failed to fetch test components' });
@@ -333,51 +303,56 @@ router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async 
   try {
     const { components } = req.body;
     const testId = req.params.id;
-
+    
     console.log('Creating test components for test ID:', testId);
-
-    const test = await db.test.findByPk(testId);
-    if (!test) return res.status(404).json({ error: 'Test not found' });
-
-    const structureConfig = [];
-    let idCounter = 1;
+    console.log('Components data:', JSON.stringify(components, null, 2));
+    
+    // Delete existing components for this test
+    await db.test_component.destroy({ where: { test_id: testId } });
+    
+    // Create new components
+    const createdComponents = [];
     for (const component of components) {
-      if (component.gender === 'both') continue;
-
-      let genderValue = 'Any';
-      if (component.gender === 'm' || component.gender === 'Male') genderValue = 'Male';
-      if (component.gender === 'f' || component.gender === 'Female') genderValue = 'Female';
-
-      let normalFrom = null;
-      let normalTo = null;
-
-      if (component.result_type === 'boolean') {
-        normalFrom = 0;
-        normalTo = 1;
-      } else {
-        if (component.normal_from !== undefined && component.normal_from !== '') normalFrom = parseFloat(component.normal_from);
-        if (component.normal_to !== undefined && component.normal_to !== '') normalTo = parseFloat(component.normal_to);
+      // Map gender values from frontend to database format
+      let genderValue = null;
+      if (component.gender === 'm') {
+        genderValue = 'Male';
+      } else if (component.gender === 'f') {
+        genderValue = 'Female';
+      } else if (component.gender === 'both') {
+        // For 'both', we'll create two components (handled in frontend)
+        continue;
       }
-
-      structureConfig.push({
-        key: `comp_${Date.now()}_${idCounter++}`,
-        type: component.result_type === 'boolean' ? 'boolean' : component.result_type === 'culture_panel' ? 'culture_panel' : 'numeric',
-        label: component.name,
-        unit: component.unit || '',
-        reference_ranges: [{
-          gender: genderValue,
-          min: normalFrom,
-          max: normalTo
-        }],
+      
+      // Handle boolean components differently
+      let normalFrom = component.normal_from;
+      let normalTo = component.normal_to;
+      
+      if (component.result_type === 'boolean') {
+        // For boolean components, set default values
+        normalFrom = '0';
+        normalTo = '1';
+      }
+      
+      const created = await db.test_component.create({
+        test_id: testId,
+        name: component.name,
+        unit: component.unit,
+        normal_from: normalFrom,
+        normal_to: normalTo,
+        c_low: component.c_low || null,
+        c_high: component.c_high || null,
+        gender: genderValue,
         age_start: component.age_start ? parseInt(component.age_start) : null,
         age_end: component.age_end ? parseInt(component.age_end) : null,
-        reference_range: component.reference_range || null
+        reference_range: component.reference_range || null,
+        result_type: component.result_type === 'boolean' ? 'boolean' : 'range',
       });
+      createdComponents.push(created);
     }
-
-    await test.update({ structure_config: structureConfig });
-    console.log('Successfully created', structureConfig.length, 'components in structure_config');
-    res.status(201).json(components);
+    
+    console.log('Successfully created', createdComponents.length, 'components');
+    res.status(201).json(createdComponents);
   } catch (error) {
     console.error('Error creating test components:', error);
     res.status(500).json({ error: 'Failed to create test components', details: error.message });
@@ -389,62 +364,68 @@ router.put('/:id/components', authenticateUser, authorizeRoles('admin'), async (
   try {
     const { components } = req.body;
     const testId = req.params.id;
-
+    
     console.log('Updating test components for test ID:', testId);
-
-    const test = await db.test.findByPk(testId);
-    if (!test) return res.status(404).json({ error: 'Test not found' });
-
-    const structureConfig = [];
-    let idCounter = 1;
+    console.log('Components data:', JSON.stringify(components, null, 2));
+    
+    // Delete existing components for this test
+    await db.test_component.destroy({ where: { test_id: testId } });
+    
+    // Create new components
+    const updatedComponents = [];
     for (const component of components) {
-      if (component.gender === 'both') continue;
-
-      let genderValue = 'Any';
-      if (component.gender === 'm' || component.gender === 'Male') genderValue = 'Male';
-      if (component.gender === 'f' || component.gender === 'Female') genderValue = 'Female';
-
-      let normalFrom = null;
-      let normalTo = null;
-
-      if (component.result_type === 'boolean') {
-        normalFrom = 0;
-        normalTo = 1;
-      } else {
-        if (component.normal_from !== undefined && component.normal_from !== '') normalFrom = parseFloat(component.normal_from);
-        if (component.normal_to !== undefined && component.normal_to !== '') normalTo = parseFloat(component.normal_to);
+      // Map gender values from frontend to database format
+      let genderValue = null;
+      if (component.gender === 'm') {
+        genderValue = 'Male';
+      } else if (component.gender === 'f') {
+        genderValue = 'Female';
+      } else if (component.gender === 'both') {
+        // For 'both', we'll create two components (handled in frontend)
+        continue;
       }
-
-      structureConfig.push({
-        key: `comp_${Date.now()}_${idCounter++}`,
-        type: component.result_type === 'boolean' ? 'boolean' : component.result_type === 'culture_panel' ? 'culture_panel' : 'numeric',
-        label: component.name,
-        unit: component.unit || '',
-        reference_ranges: [{
-          gender: genderValue,
-          min: normalFrom,
-          max: normalTo
-        }],
+      
+      // Handle boolean components differently
+      let normalFrom = component.normal_from;
+      let normalTo = component.normal_to;
+      
+      if (component.result_type === 'boolean') {
+        // For boolean components, set default values
+        normalFrom = '0';
+        normalTo = '1';
+      }
+      
+      const created = await db.test_component.create({
+        test_id: testId,
+        name: component.name,
+        unit: component.unit,
+        normal_from: normalFrom,
+        normal_to: normalTo,
+        c_low: component.c_low || null,
+        c_high: component.c_high || null,
+        gender: genderValue,
         age_start: component.age_start ? parseInt(component.age_start) : null,
         age_end: component.age_end ? parseInt(component.age_end) : null,
-        reference_range: component.reference_range || null
+        reference_range: component.reference_range || null,
+        result_type: component.result_type === 'boolean' ? 'boolean' : 'range',
       });
+      updatedComponents.push(created);
     }
-
-    await test.update({ structure_config: structureConfig });
-    console.log('Successfully updated', structureConfig.length, 'components in structure_config');
-    res.json(components);
+    
+    console.log('Successfully updated', updatedComponents.length, 'components');
+    res.json(updatedComponents);
   } catch (error) {
     console.error('Error updating test components:', error);
     res.status(500).json({ error: 'Failed to update test components', details: error.message });
   }
 });
 
-// Optimized endpoint: get all tests with their category and sample_type
+// Optimized endpoint: get all tests with their components, category, and sample_type
 router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemist', 'doctor', 'employee'), async (req, res) => {
   try {
     const tests = await db.test.findAll({
       include: [
+        {          model: db.test_component,          as: 'components',        },
         {
           model: db.categories_test_and_culture,
           as: 'category',
@@ -465,38 +446,7 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
         }
       ]
     });
-
-    // Map structure_config to components for frontend compatibility
-    const mappedTests = tests.map(test => {
-      const testJson = test.toJSON();
-      let mappedComponents = [];
-
-      if (testJson.structure_config && Array.isArray(testJson.structure_config)) {
-        mappedComponents = testJson.structure_config
-          .filter(c => c.type !== 'header')
-          .map(c => {
-            const firstRange = (c.reference_ranges && c.reference_ranges.length > 0) ? c.reference_ranges[0] : {};
-            return {
-              name: c.label || c.name || '',
-              unit: c.unit || '',
-              normal_from: firstRange.min !== null && firstRange.min !== undefined ? firstRange.min : '',
-              normal_to: firstRange.max !== null && firstRange.max !== undefined ? firstRange.max : '',
-              c_low: '',
-              c_high: '',
-              gender: firstRange.gender === 'Male' ? 'Male' : firstRange.gender === 'Female' ? 'Female' : 'Any',
-              age_start: c.age_start || '',
-              age_end: c.age_end || '',
-              reference_range: c.reference_range || '',
-              result_type: c.type === 'boolean' ? 'boolean' : 'range',
-            };
-          });
-      }
-
-      testJson.components = mappedComponents;
-      return testJson;
-    });
-
-    res.json(mappedTests);
+    res.json(tests);
   } catch (error) {
     console.error('Error fetching all tests with components:', error);
     res.status(500).json({ error: 'Failed to fetch tests with components' });
@@ -517,7 +467,7 @@ router.get('/count', authenticateUser, authorizeRoles('admin'), async (req, res)
 router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-
+    
     // Validate file
     const validation = validateExcelBuffer(req.file.buffer);
     if (!validation.isValid) {
@@ -526,7 +476,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
 
     // Read Excel data
     const data = await readExcelBuffer(req.file.buffer);
-
+    
     if (!data || data.length === 0) {
       return res.status(400).json({ error: "No data found in the uploaded file" });
     }

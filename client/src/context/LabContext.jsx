@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import { getSubdomain } from '../utils/subdomain';
 
 const LabContext = createContext();
 
@@ -24,6 +23,7 @@ export const LabProvider = ({ children }) => {
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const apiUrl = import.meta.env.VITE_API_URL;
 
   // Fetch lab information and settings
@@ -32,64 +32,24 @@ export const LabProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      const storedToken = localStorage.getItem('token');
-      let payload = null;
-      let labPath = null;
-      let fetchById = false;
-      let lab = null;
-
-      if (storedToken) {
-        const parseJwt = (t) => {
-          try {
-            return JSON.parse(atob(t.split('.')[1]));
-          } catch (e) {
-            return null;
+      //use lab_id from JWT token (for authenticated dashboards)
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+          const parseJwt = (t) => {
+            try {
+              return JSON.parse(atob(t.split('.')[1]));
+            } catch (e) {
+              return null;
+            }
+          };
+          const payload = parseJwt(storedToken);
+          if (payload?.lab_id) {
+            var labPath = payload.lab_id; // we will treat as ID
+            var fetchById = true;
           }
-        };
-        payload = parseJwt(storedToken);
-        if (payload?.lab_id) {
-          labPath = payload.lab_id; // we will treat as ID
-          fetchById = true;
         }
-      }
 
-      const subdomain = getSubdomain();
-
-      // Special handling for Doctor role or subdomain
-      if (payload?.role === 'doctor' || subdomain === 'doctor') {
-           setLabInfo({ 
-               name: 'Doctor Portal', 
-               id: 'doctor-portal', 
-               is_active: true,
-               subscription_status: 'active',
-               path: 'doctor' 
-           });
-           setLabSettings({});
-           setSubscriptionStatus({ status: 'active' });
-           setLoading(false);
-           return;
-      }
-
-      // If no token-based labPath, try subdomain
-      if (!labPath && subdomain) {
-          labPath = subdomain;
-          fetchById = false;
-      }
-
-      if (!labPath) {
-        // If still no labPath, it's the main landing page or error
-        // But invalid subdomains returning null from getSubdomain() is handled in App.jsx usually
-        // Here we just error out if we expected a lab context
-        // Actually, for landing page (subdomain=null), we might not want to error, just leave labInfo null
-        if (!subdomain) {
-             setLoading(false);
-             return;
-        }
-        setError('No lab identifier found. Please log in again or contact support.');
-        setLoading(false);
-        return;
-      }
-
+      let lab;
       if (!labPath) {
         setError('No lab identifier found. Please log in again or contact support.');
         setLoading(false);
