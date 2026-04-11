@@ -142,51 +142,42 @@ router.get(
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
-      // Safety check for tenant context
-      // For doctors, tenant context might not have lab_id, which is expected
-      if (!req.tenant && req.user.role !== 'doctor') {
-        console.error('❌ Critical Error: req.tenant is undefined in medical_reports route');
-        console.log('Headers:', req.headers);
-        console.log('User:', req.user);
-        return res.status(500).json({ error: "Internal Server Error: Tenant context missing" });
-      }
+      // First, get the count of test groups for each medical report
+      // Optimized to avoid fetching all report IDs first which causes performance issues with large datasets
+      const testGroupCounts = await db.medical_report_has_tg.findAll({
+        attributes: [
+          "medical_report_id",
+          [
+            db.sequelize.fn("COUNT", db.sequelize.col("medical_report_has_tg.test_group_id")),
+            "count",
+          ],
+        ],
+        include: [{
+          model: db.medical_report,
+          as: "medical_report",
+          attributes: [],
+          where: {
+            lab_id: req.tenant.lab_id
+          }
+        }],
+        group: ["medical_report_id"],
+        raw: true,
+      });
 
-      let whereClause = {};
+      // Create a map of medical_report_id -> test group count
+      const testGroupCountMap = {};
+      testGroupCounts.forEach((item) => {
+        testGroupCountMap[item.medical_report_id] = parseInt(item.count, 10);
+      });
 
-      if (req.user.role === 'doctor') {
-        // Fetch all labs associated with this doctor
-        const contracts = await db.lab_contracts_doctor.findAll({
-          where: { doctor_id: req.user.id },
-          attributes: ['lab_id']
-        });
-        const labIds = contracts.map(c => c.lab_id);
+      // Optimized: Fetch tests and cultures separately to avoid N+M Cartesian product in the main query
+      // This is "Application-Side Join" which is often faster for complex includes
 
-        if (labIds.length === 0) {
-          return res.json([]); // No contracts, no reports
-        }
-        whereClause.lab_id = { [Op.in]: labIds };
-      } else {
-        if (!req.tenant.lab_id) {
-          return res.status(500).json({ error: "Tenant context missing lab_id" });
-        }
-        whereClause.lab_id = req.tenant.lab_id;
-      }
-
-      // Get medical_report_ids for the filtered labs
-      const medicalReportIds = await db.medical_report
-        .findAll({
-          attributes: ["id"],
-          where: whereClause,
-          raw: true,
-        })
-        .then((reports) => reports.map((report) => report.id));
-
-      // Note: Test and culture counts are now calculated from the actual associations
-      // instead of separate count queries for better accuracy and performance
-
-      // Then get all medical reports with their associations
+      // First fetch reports filtered by lab_id
       const reports = await db.medical_report.findAll({
-        where: whereClause,
+        where: {
+          lab_id: req.tenant.lab_id
+        },
         include: [
           {
             model: db.patient,
@@ -205,12 +196,6 @@ router.get(
                 ],
               },
             ],
-          },
-          {
-            model: db.test,
-            as: "tests",
-            through: { attributes: [] },
-            attributes: ["id", "name"],
           },
           {
             model: db.bill,
@@ -244,14 +229,81 @@ router.get(
         ],
       });
 
+      // Collect report IDs for fetching related tests and cultures
+      const medicalReportIds = reports.map(r => r.id);
+
+      // Fetch tests and cultures in parallel using the collected report IDs
+      const [tests, cultures] = await Promise.all([
+        // Fetch tests for these reports
+        medicalReportIds.length > 0 ? db.medical_report_has_test.findAll({
+          where: {
+            medical_report_id: {
+              [Op.in]: medicalReportIds
+            }
+          },
+          include: [{
+            model: db.test,
+            as: 'test',
+            attributes: ['id', 'name']
+          }]
+        }) : [],
+        // Fetch cultures for these reports
+        medicalReportIds.length > 0 ? db.medical_report_has_culture.findAll({
+          where: {
+            medical_report_id: {
+              [Op.in]: medicalReportIds
+            }
+          },
+          include: [{
+            model: db.culture,
+            as: 'culture',
+            attributes: ['id', 'name']
+          }]
+        }) : []
+      ]);
+
+      // Group tests and cultures by medical_report_id
+      const testsMap = {};
+      const culturesMap = {};
+
+      if (tests) {
+        tests.forEach(item => {
+          if (!testsMap[item.medical_report_id]) testsMap[item.medical_report_id] = [];
+          if (item.test) { // Ensure test object exists
+            testsMap[item.medical_report_id].push({
+              id: item.test.id,
+              name: item.test.name
+            });
+          }
+        });
+      }
+
+      if (cultures) {
+        cultures.forEach(item => {
+          if (!culturesMap[item.medical_report_id]) culturesMap[item.medical_report_id] = [];
+          if (item.culture) {
+            culturesMap[item.medical_report_id].push({
+              id: item.culture.id,
+              name: item.culture.name
+            });
+          }
+        });
+      }
+
       // Add patient_name, counts, and test group counts to each report for easier access
       const reportsWithPatientName = reports.map((report) => {
         const reportData = report.get({ plain: true });
+        const reportTests = testsMap[reportData.id] || [];
+        const reportCultures = culturesMap[reportData.id] || [];
+
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
-          tests: reportData.tests || [],
-          tests_count: (reportData.tests || []).length,
+          tests: reportTests,
+          cultures: reportCultures,
+          tests_count: reportTests.length,
+          cultures_count: reportCultures.length,
+          test_groups_count: testGroupCountMap[reportData.id] || 0,
           invoice_id: reportData.bill?.id || null,
         };
       });
@@ -1833,13 +1885,13 @@ router.post(
 
       // 1. Save test results (for tests without components)
       if (test_results.length > 0) {
-        for (const result of test_results) {
+        const testPromises = test_results.map(async (result) => {
           if (result.result && result.result.toString().trim() !== "") {
             hasAnyResults = true;
             // For tests without components, status is 'done' if result exists, 'pending' if empty
             const status = result.result && result.result.toString().trim() !== '' ? 'done' : 'pending';
 
-            await db.medical_report_has_test.update(
+            return db.medical_report_has_test.update(
               {
                 result: result.result,
                 status: status,
@@ -1854,23 +1906,23 @@ router.post(
               }
             );
           }
-        }
+        });
+        await Promise.all(testPromises);
       }
 
       // 2. Save test component results
       if (Object.keys(test_component_results).length > 0) {
-        for (const [testId, components] of Object.entries(
-          test_component_results
-        )) {
-          // Access test structure_config for normal ranges
-          const testDef = await db.test.findByPk(parseInt(testId, 10), { transaction: t });
-          const structureConfig = testDef ? (testDef.structure_config || []) : [];
+        const componentPromises = Object.entries(test_component_results).map(async ([testId, components]) => {
+          // Get test components to access normal ranges
+          const testComponents = await db.test_component.findAll({
+            where: { test_id: parseInt(testId, 10) },
+            attributes: ['id', 'normal_from', 'normal_to', 'c_low', 'c_high'],
+            transaction: t
+          });
 
           const componentResultsToSave = [];
 
-          for (const [componentId, componentData] of Object.entries(
-            components
-          )) {
+          for (const [componentId, componentData] of Object.entries(components)) {
             if (
               componentData.result &&
               componentData.result.toString().trim() !== ""
@@ -1909,11 +1961,39 @@ router.post(
               'DELETE FROM medical_report_results WHERE medical_report_id = ? AND test_id = ?',
               { replacements: [parseInt(reportId, 10), parseInt(testId, 10)], transaction: t }
             );
+          }
+        });
+        await Promise.all(componentPromises);
+      }
 
-            // Bulk create new results via raw queries
-            for (const r of componentResultsToSave) {
-              await db.sequelize.query(
-                'INSERT INTO medical_report_results (medical_report_id, test_id, parameter_key, result_value, clinical_flag, workflow_status) VALUES (?, ?, ?, ?, ?, ?)',
+      // 3. Save culture results
+      if (culture_results.length > 0) {
+        const culturePromises = culture_results.map(async (result) => {
+          if (result.result && result.result.toString().trim() !== "") {
+            hasAnyResults = true;
+
+            // First, find the medical_report_has_culture record
+            const cultureRecord = await db.medical_report_has_culture.findOne({
+              where: {
+                medical_report_id: reportId,
+                culture_id: result.culture_id,
+              },
+              transaction: t,
+            });
+
+            if (cultureRecord) {
+
+              // Check if there are actual culture results in medical_report_culture_result table
+              const actualCultureResults = await db.medical_report_culture_result.findAll({
+                where: {
+                  medical_report_has_culture_id: cultureRecord.id,
+                },
+                transaction: t,
+              });
+
+              // Set status based on existence of actual culture results
+              const status = actualCultureResults.length > 0 ? "done" : "pending";
+              return db.medical_report_has_culture.update(
                 {
                   replacements: [r.medical_report_id, r.test_id, r.parameter_key, r.result_value, r.clinical_flag, r.workflow_status],
                   transaction: t
@@ -1921,7 +2001,8 @@ router.post(
               );
             }
           }
-        }
+        });
+        await Promise.all(culturePromises);
       }
 
 

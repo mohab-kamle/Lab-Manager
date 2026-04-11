@@ -56,6 +56,11 @@ var _lab_payment = require("./lab_payment");
 var _subscription = require("./subscription");
 var _test_comments = require("./test_comments");
 var _comment_images = require("./comment_images");
+var _supplier = require("./supplier");
+var _inventory_item = require("./inventory_item");
+var _inventory_batch = require("./inventory_batch");
+var _inventory_transaction = require("./inventory_transaction");
+var _inventory_notification = require("./inventory_notification");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -110,6 +115,11 @@ function initModels(sequelize) {
   var subscription = _subscription(sequelize, DataTypes);
   var test_comments = _test_comments(sequelize, DataTypes);
   var comment_images = _comment_images(sequelize, DataTypes);
+  var supplier = _supplier(sequelize, DataTypes);
+  var inventory_item = _inventory_item(sequelize, DataTypes);
+  var inventory_batch = _inventory_batch(sequelize, DataTypes);
+  var inventory_transaction = _inventory_transaction(sequelize, DataTypes);
+  var inventory_notification = _inventory_notification(sequelize, DataTypes);
 
   // Add many-to-many association between test and question
   test.belongsToMany(question, {
@@ -516,8 +526,46 @@ function initModels(sequelize) {
   doctor.belongsTo(lab, { as: "doctor_lab", foreignKey: "lab_id" });
   lab.hasMany(doctor, { as: "doctors", foreignKey: "lab_id" });
 
-  chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
-  lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
+chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
+lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
+
+  // Inventory & Stock Management Associations
+  supplier.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(supplier, { as: "suppliers", foreignKey: "lab_id" });
+
+  inventory_item.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(inventory_item, { as: "inventory_items", foreignKey: "lab_id" });
+
+  inventory_batch.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(inventory_batch, { as: "inventory_batches", foreignKey: "lab_id" });
+
+  inventory_transaction.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(inventory_transaction, { as: "inventory_transactions", foreignKey: "lab_id" });
+
+  inventory_batch.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id" });
+  supplier.hasMany(inventory_batch, { as: "batches", foreignKey: "supplier_id" });
+
+  inventory_batch.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
+  inventory_item.hasMany(inventory_batch, { as: "batches", foreignKey: "item_id" });
+
+  inventory_transaction.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
+  inventory_item.hasMany(inventory_transaction, { as: "transactions", foreignKey: "item_id" });
+
+  inventory_transaction.belongsTo(inventory_batch, { as: "batch", foreignKey: "batch_id" });
+  inventory_batch.hasMany(inventory_transaction, { as: "transactions", foreignKey: "batch_id" });
+
+  inventory_transaction.belongsTo(employee, { as: "employee", foreignKey: "employee_id" });
+  employee.hasMany(inventory_transaction, { as: "inventory_transactions", foreignKey: "employee_id" });
+  
+  // Inventory Notifications
+  inventory_notification.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(inventory_notification, { as: "inventory_notifications", foreignKey: "lab_id" });
+
+  inventory_notification.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
+  inventory_item.hasMany(inventory_notification, { as: "notifications", foreignKey: "item_id" });
+
+  inventory_notification.belongsTo(inventory_batch, { as: "batch", foreignKey: "batch_id" });
+  inventory_batch.hasMany(inventory_notification, { as: "notifications", foreignKey: "batch_id" });
 
   // Lab Payment relationships
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
@@ -603,24 +651,36 @@ function initModels(sequelize) {
     lab_samples,
 
     packages_and_offers,
-    pao_has_test,
-    patient,
-    patient_has_diseases,
-    payment_method,
-    phone,
-    question,
-    receptionist,
-    referral,
-    sample_type,
-    status,
-    subscription,
-    lab_payment,
-    global_test_catalog,
-    test,
-    test_has_question,
-    test_comments,
-    comment_images,
-  };
+  pao_has_culture,
+  pao_has_test,
+  patient,
+  patient_has_diseases,
+  payment_method,
+  phone,
+  question,
+  receptionist,
+  referral,
+  sample_type,
+  status,
+  subscription,
+  lab_payment,
+  test,
+  test_component,
+  test_group,
+  test_has_question,
+  tg_component,
+  tg_fields,
+  tgc_category,
+  test_group_result,
+  test_comments,
+  test_group_comments,
+  comment_images,
+  supplier,
+  inventory_item,
+  inventory_batch,
+  inventory_transaction,
+  inventory_notification,
+};
 }
 module.exports = initModels;
 module.exports.initModels = initModels;
