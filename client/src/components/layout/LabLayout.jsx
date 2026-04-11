@@ -11,15 +11,15 @@ import { toast } from 'react-toastify';
 
 const LabLayout = () => {
   const navigate = useNavigate();
-  const { 
-    labInfo, 
-    loading, 
-    error, 
-    isTrialExpired, 
-    isInTrial, 
+  const {
+    labInfo,
+    loading,
+    error,
+    isTrialExpired,
+    isInTrial,
     getTrialDaysLeft,
     primaryColor,
-    labName 
+    labName
   } = useLab();
   const { user } = useAuth();
 
@@ -128,8 +128,8 @@ const LabLayout = () => {
     <div className="lab-layout" style={{ '--lab-primary-color': primaryColor, paddingTop: '20px' }}>
       {/* Trial status warnings */}
       {isInTrial() && (
-        <Alert 
-          variant={isTrialExpired() ? "danger" : "warning"} 
+        <Alert
+          variant={isTrialExpired() ? "danger" : "warning"}
           className="mb-0 text-center"
           style={{ borderRadius: 0 }}
         >
@@ -139,7 +139,7 @@ const LabLayout = () => {
             </>
           ) : (
             <>
-              <strong>Trial Account</strong> - {getTrialDaysLeft()} days remaining. 
+              <strong>Trial Account</strong> - {getTrialDaysLeft()} days remaining.
               Upgrade now to continue using all features after your trial expires.
             </>
           )}
@@ -155,11 +155,11 @@ const LabLayout = () => {
 
       {/* Footer */}
       <footer className="lab-footer text-center py-1 mt-2 justify-content-center align-items-center d-flex text-white"
-      style={{
-        background: 'var(--primary)',
-        boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
-        border: 'none',
-      }}>
+        style={{
+          background: 'var(--primary)',
+          boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+          border: 'none',
+        }}>
         <Container>
           <p className="mb-0 text-white">
             © {new Date().getFullYear()} {labName} - Powered by LabManager
