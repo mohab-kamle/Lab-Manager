@@ -1,4 +1,6 @@
 # Node modules (dependencies)
+.pnpm-store/
+server/.pnpm-store/
 node_modules/
 npm-debug.log*
 yarn-debug.log*
