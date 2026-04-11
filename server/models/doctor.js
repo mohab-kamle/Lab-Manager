@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define('doctor', {
     id: {
       autoIncrement: true,
@@ -7,13 +7,14 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    lab_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'lab',
-        key: 'id'
-      }
+    username: {
+      type: DataTypes.STRING(45),
+      allowNull: true,
+      unique: "username_UNIQUE"
+    },
+    password: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     },
     name: {
       type: DataTypes.STRING(45),
@@ -24,7 +25,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     gender: {
-      type: DataTypes.ENUM('Male','Female'),
+      type: DataTypes.ENUM('Male', 'Female'),
       allowNull: true
     },
     birth_date: {
@@ -59,6 +60,14 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
+        name: "username_UNIQUE",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "username" },
+        ]
+      },
+      {
         name: "national_id_UNIQUE",
         unique: true,
         using: "BTREE",
@@ -67,30 +76,13 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "unique_national_id_per_lab",
+        name: "passport_no_UNIQUE",
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "lab_id" },
-          { name: "national_id" },
-        ]
-      },
-      {
-        name: "unique_passport_per_lab",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "lab_id" },
           { name: "passport_no" },
         ]
-      },
-      {
-        name: "idx_doctor_lab",
-        using: "BTREE",
-        fields: [
-          { name: "lab_id" },
-        ]
-      },
+      }
     ]
   });
 };
