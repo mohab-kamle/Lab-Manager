@@ -202,16 +202,10 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
     }
 });
 
-// Get employee by ID (admin or self)
-router.get("/:id", authenticateUser, tenantContext, async (req, res) => {
+// Get employee by ID (admin only)
+router.get("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // Ensure user is admin OR requesting their own profile
-        if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
-            return res.status(403).json({ error: "Access denied. You can only view your own profile." });
-        }
-
         const emp = await employee.findByPk(id, {
             attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
             where: {
@@ -355,16 +349,10 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
     }
 });
 
-// Update employee (admin or self)
-router.put("/:id", authenticateUser, tenantContext, async (req, res) => {
+// Update employee (admin only)
+router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
-        
-        // Ensure user is admin OR updating their own profile
-        if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
-            return res.status(403).json({ error: "Access denied. You can only update your own profile." });
-        }
-
         const { 
             name, 
             username, 
@@ -385,11 +373,8 @@ router.put("/:id", authenticateUser, tenantContext, async (req, res) => {
             return res.status(404).json({ error: "Employee not found" });
         }
 
-        // Validate role if provided (Only admin can change roles)
-        if (role && role !== emp.role) {
-            if (req.user.role !== 'admin') {
-                return res.status(403).json({ error: "Access denied. Only admins can change roles." });
-            }
+        // Validate role if provided
+        if (role) {
             const validRoles = ['admin', 'receptionist', 'chemist', 'doctor', 'employee'];
             if (!validRoles.includes(role)) {
                 return res.status(400).json({ error: "Invalid role. Must be one of: " + validRoles.join(', ') });
@@ -422,7 +407,7 @@ router.put("/:id", authenticateUser, tenantContext, async (req, res) => {
             national_id: national_id || emp.national_id,
             nationality: nationality || emp.nationality,
             passport_no: passport_no || emp.passport_no,
-            role: (req.user.role === 'admin' && role) ? role : emp.role
+            role: role || emp.role
         };
 
         // Hash password if provided
@@ -440,8 +425,8 @@ router.put("/:id", authenticateUser, tenantContext, async (req, res) => {
         // Update employee
         await emp.update(updateData);
 
-        // Update branch assignment if branch_id is provided (Only admin can change branches)
-        if (branch_id && req.user.role === 'admin') {
+        // Update branch assignment if branch_id is provided
+        if (branch_id) {
             const BranchHasEmployee = sequelize.models.branch_has_employee;
             await BranchHasEmployee.destroy({ where: { employee_id: emp.id } });
             await BranchHasEmployee.create({ branch_id: branch_id, employee_id: emp.id });
