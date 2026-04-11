@@ -1,4 +1,6 @@
 # Node modules (dependencies)
+.pnpm-store/
+server/.pnpm-store/
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -36,3 +38,9 @@ coverage/
 .trae/
 .agent/
 Dump20251013.sql
+
+# Ignore LOINC raw data in the server folder
+server/data/
+
+# Ignore the LOINC versioned folder in the root
+/Loinc_2.82/
