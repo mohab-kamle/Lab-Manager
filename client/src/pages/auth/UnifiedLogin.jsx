@@ -216,7 +216,7 @@ const UnifiedLogin = () => {
           <Col lg={8} md={10} sm={12}>
             <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)' }}>
               {/* Header */}
-              <div className="text-center pt-4" style={{
+              <div className="text-center pt-4 pb-3" style={{
                 background: 'var(--bg)',
                 color: 'var(--text)'
               }}>
@@ -240,7 +240,7 @@ const UnifiedLogin = () => {
                 <p className="mb-0 opacity-75">Please select your role and sign in</p>
               </div>
 
-              <Card.Body className="px-5">
+              <Card.Body className="px-5 bg-theme-surface">
                 {/* User Type Selection */}
                 <div className="mb-4">
                   <h6 className="text-muted mb-3 fw-semibold">
@@ -286,8 +286,7 @@ const UnifiedLogin = () => {
                     <div className="d-flex align-items-center">
                       <span style={{ fontSize: '1.5em', marginRight: '12px' }}>{selectedUserType?.icon}</span>
                       <div>
-                        <strong className="text-dark">{selectedUserType?.label}</strong>
-                        <br />
+                        <strong className="text-theme d-block">{selectedUserType?.label}</strong>
                         <small className="text-muted">{selectedUserType?.description}</small>
                       </div>
                     </div>
@@ -308,7 +307,7 @@ const UnifiedLogin = () => {
                   {userType === "patient" ? (
                     /* Patient Login Form */
                     <Form.Group className="mb-4">
-                      <Form.Label className="fw-semibold text-dark">
+                      <Form.Label className="fw-semibold text-theme">
                         <User size={18} className="me-2" />
                         Patient Code
                       </Form.Label>
@@ -318,9 +317,8 @@ const UnifiedLogin = () => {
                         value={patientCode}
                         onChange={(e) => setPatientCode(e.target.value)}
                         required
-                        className="py-3 px-4 border-0"
+                        className="py-3 px-4 border-1 bg-theme-surface text-theme"
                         style={{
-                          backgroundColor: '#f8f9fa',
                           borderRadius: '12px',
                           fontSize: '1.1em'
                         }}
@@ -404,7 +402,7 @@ const UnifiedLogin = () => {
                     /* Employee Login Form */
                     <>
                       <Form.Group className="mb-4">
-                        <Form.Label className="fw-semibold text-dark">
+                        <Form.Label className="fw-semibold text-theme">
                           <User size={18} className="me-2" />
                           Username
                         </Form.Label>
@@ -414,9 +412,8 @@ const UnifiedLogin = () => {
                           value={credentials.username}
                           onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                           required
-                          className="py-3 px-4 border-0"
+                          className="py-3 px-4 border-1 bg-theme-surface text-theme"
                           style={{
-                            backgroundColor: '#f8f9fa',
                             borderRadius: '12px',
                             fontSize: '1.1em'
                           }}
@@ -424,7 +421,7 @@ const UnifiedLogin = () => {
                       </Form.Group>
 
                       <Form.Group className="mb-4">
-                        <Form.Label className="fw-semibold text-dark">
+                        <Form.Label className="fw-semibold text-theme">
                           <Lock size={18} className="me-2" />
                           Password
                         </Form.Label>
@@ -435,9 +432,8 @@ const UnifiedLogin = () => {
                             value={credentials.password}
                             onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                             required
-                            className="py-3 px-4 border-0"
+                            className="py-3 px-4 border-1 bg-theme-surface text-theme"
                             style={{
-                              backgroundColor: '#f8f9fa',
                               borderRadius: '12px',
                               fontSize: '1.1em',
                               paddingRight: '50px'
@@ -503,7 +499,7 @@ const UnifiedLogin = () => {
                   </h6>
                   <div className="row">
                     <div className="col-md-4 mb-3">
-                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded border bg-theme-surface">
                         <strong className="text-primary">Patients</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact your healthcare provider for your patient code
@@ -511,7 +507,7 @@ const UnifiedLogin = () => {
                       </div>
                     </div>
                     <div className="col-md-4 mb-3">
-                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded border bg-theme-surface">
                         <strong className="text-success">Employees</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact your system administrator for login credentials
@@ -519,7 +515,7 @@ const UnifiedLogin = () => {
                       </div>
                     </div>
                     <div className="col-md-4 mb-3">
-                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded border bg-theme-surface">
                         <strong className="text-info">Technical Support</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact IT department for assistance

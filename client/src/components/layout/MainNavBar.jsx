@@ -11,9 +11,9 @@ import {
 } from "react-bootstrap";
 import { toast } from "react-toastify";
 
+import ThemeToggle from "../ui/ThemeToggle";
+
 import {
-  Moon,
-  Sun,
   DoorClosed,
   DoorOpen,
   House,
@@ -33,7 +33,7 @@ import {
 import api from "../../utils/api";
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
-import { getSubdomain } from "../../utils/subdomain"; // Add this import properly
+import { getSubdomain } from "../../utils/subdomain";
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
 import VersionBadge from "../ui/VersionBadge";
@@ -312,18 +312,19 @@ const MainNavBar = () => {
       <Navbar
         expand="xl"
         sticky="top"
-        fixed="top"
         expanded={expanded}
         collapseOnSelect
         onClick={handleNavClick}
-        data-bs-theme="white"
-        className="text-white pt-3 px-3 d-flex align-items-center"
+        className="pt-2 px-3 d-flex align-items-center"
         style={{
-          background: "white",
+          background: "transparent",
+          color: "var(--text)",
           border: "none",
           boxShadow: "0 0 10px 0 rgba(0, 0, 0, 0.1)",
           borderBottom: "1px solid var(--border)",
           zIndex: 1050,
+          WebkitBackdropFilter: "blur(12px)",
+          backdropFilter: "blur(12px)",
         }}
       >
         <Container fluid>
@@ -344,6 +345,7 @@ const MainNavBar = () => {
                 marginTop: "15px",
                 fontSize: "clamp(16px, 2.5vw, 20px)",
                 fontWeight: "bold",
+                color: "var(--text)",
               }}
             >
               Lab Manager
@@ -950,6 +952,11 @@ const MainNavBar = () => {
               )}
             </Nav>
             <Nav className="d-flex align-items-center">
+              <div className="mx-3 d-flex align-items-center">
+                <ThemeToggle />
+              </div>
+
+              {/* Logout Link */}
               <Nav className="d-flex align-items-center">
                 {/* Notification Bell — visible only for admin/chemist */}
                 {user && (user.role === 'admin' || user.role === 'chemist') && (
