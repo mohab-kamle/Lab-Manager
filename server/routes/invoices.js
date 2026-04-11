@@ -1,111 +1,156 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, lab, lab_settings } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, medical_report_has_culture, medical_report_culture_result, pao_has_test, pao_has_culture, bill_has_tg, medical_report_has_tg, test_group, branch, status, sequelize } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
 require("dotenv").config();
-const { sequelize } = require("../models");
 
 /**
  * GET /invoices - Fetch all bills with associated tests, cultures, packages, and payment methods.
  */
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, cacheInvoicesList, async (req, res) => {
     try {
-        console.log('Fetching invoices...');
-        const query = `
-        SELECT 
-            b.id, b.date, b.paid, b.due, b.subtotal, b.total, b.discount, b.tax,
-            b.status_id, s.state as status, p.name AS patient_name, p.id as patient_id, p.patientcode,
-            b.branch_id, br.name as branch_name,
-            t.id AS test_id, t.name AS test_name, bht.price AS test_price,
+        console.log('Fetching invoices using optimized query...');
 
-            pkg.id AS package_id, pkg.name AS package_name, bhp.price AS package_price, pkg.type as package_type,
-            pm.id AS payment_method_id, pm.name AS payment_method_name, bhpm.paid_amount
-        FROM bill b
-        LEFT JOIN receptionist r ON r.id = b.receptionist_id
-        LEFT JOIN patient p ON p.id = b.patient_id
-        LEFT JOIN status s ON s.id = b.status_id
-        LEFT JOIN branch br ON br.id = b.branch_id
-        LEFT JOIN bill_has_test bht ON bht.bill_id = b.id
-        LEFT JOIN test t ON t.id = bht.test_id
-        LEFT JOIN bill_has_package bhp ON bhp.bill_id = b.id
-        LEFT JOIN packages_and_offers pkg ON pkg.id = bhp.package_id
-        LEFT JOIN bill_has_payment_method bhpm ON bhpm.bill_id = b.id
-        LEFT JOIN payment_method pm ON pm.id = bhpm.payment_method_id
-        WHERE b.lab_id = :labId
-        ORDER BY b.id DESC;
-        `;
-
-        const results = await sequelize.query(query, {
-            replacements: { labId: req.tenant.lab_id },
-            type: sequelize.QueryTypes.SELECT
+        const bills = await bill.findAll({
+            where: {
+                lab_id: req.tenant.lab_id
+            },
+            attributes: [
+                'id', 'date', 'paid', 'due', 'subtotal', 'total', 'discount', 'tax',
+                'status_id', 'branch_id', 'patient_id'
+            ],
+            include: [
+                {
+                    model: patient,
+                    as: "patient",
+                    attributes: ['id', 'name', 'patientcode']
+                },
+                {
+                    model: status,
+                    as: "status",
+                    attributes: ['state']
+                },
+                {
+                    model: branch,
+                    as: "branch",
+                    attributes: ['name']
+                },
+                // Use separate queries for hasMany relations to avoid Cartesian products
+                {
+                    model: bill_has_test,
+                    as: "bill_has_tests",
+                    separate: true,
+                    include: [{
+                        model: test,
+                        as: "test",
+                        attributes: ['id', 'name']
+                    }]
+                },
+                {
+                    model: bill_has_culture,
+                    as: "bill_has_cultures",
+                    separate: true,
+                    include: [{
+                        model: culture,
+                        as: "culture",
+                        attributes: ['id', 'name']
+                    }]
+                },
+                {
+                    model: bill_has_package,
+                    as: "bill_has_packages",
+                    separate: true,
+                    include: [{
+                        model: packages_and_offers,
+                        as: "package",
+                        attributes: ['id', 'name', 'type']
+                    }]
+                },
+                {
+                    model: bill_has_payment_method,
+                    as: "bill_has_payment_methods",
+                    separate: true,
+                    include: [{
+                        model: payment_method,
+                        as: "payment_method",
+                        attributes: ['id', 'name']
+                    }]
+                },
+                // Use join for test_groups as bill.hasMany(bill_has_tg) is not defined
+                {
+                    model: test_group,
+                    as: "tg_id_test_groups",
+                    attributes: ['id', 'name'],
+                    through: { attributes: ['price'] }
+                }
+            ],
+            order: [['id', 'DESC']]
         });
-        console.log(`Found ${results.length} invoices`);
 
-        // Group bills by id
-        const groupedBills = results.reduce((acc, row) => {
-            let billEntry = acc.find((b) => b.id === row.id);
+        console.log(`Found ${bills.length} invoices`);
 
-            if (!billEntry) {
-                billEntry = {
-                    id: row.id,
-                    date: row.date,
-                    paid: row.paid,
-                    due: row.due,
-                    subtotal: row.subtotal,
-                    total: row.total,
-                    discount: row.discount,
-                    tax: row.tax,
-                    discount_percent: row.discount ? ((row.discount / row.subtotal) * 100) : 0,
-                    status_id: row.status_id,
-                    status: row.status,
-                    patient_id: row.patient_id,
-                    patient_name: row.patient_name,
-                    patientcode: row.patientcode,
-                    branch_id: row.branch_id,
-                    branch_name: row.branch_name,
-                    tests: [],
-                    cultures: [],
-                    packages: [],
-                    payments: []
-                };
-                acc.push(billEntry);
-            }
+        // Transform the results to match the expected frontend format
+        const formattedBills = bills.map(b => {
+            const billData = b.toJSON();
 
-            if (row.test_id && !billEntry.tests.some(t => t.id === row.test_id)) {
-                billEntry.tests.push({
-                    id: row.test_id,
-                    name: row.test_name,
-                    price: row.test_price
-                });
-            }
+            return {
+                id: billData.id,
+                date: billData.date,
+                paid: billData.paid,
+                due: billData.due,
+                subtotal: billData.subtotal,
+                total: billData.total,
+                discount: billData.discount,
+                tax: billData.tax,
+                discount_percent: billData.discount && billData.subtotal ? ((billData.discount / billData.subtotal) * 100) : 0,
+                status_id: billData.status_id,
+                status: billData.status?.state,
+                patient_id: billData.patient_id,
+                patient_name: billData.patient?.name,
+                patientcode: billData.patient?.patientcode,
+                branch_id: billData.branch_id,
+                branch_name: billData.branch?.name,
 
-            if (row.package_id && !billEntry.packages.some(p => p.id === row.package_id)) {
-                billEntry.packages.push({
-                    id: row.package_id,
-                    name: row.package_name,
-                    price: row.package_price,
-                    type: row.package_type
-                });
-            }
+                // Map separate includes
+                tests: (billData.bill_has_tests || []).map(bht => ({
+                    id: bht.test?.id,
+                    name: bht.test?.name,
+                    price: bht.price
+                })),
 
-            if (row.payment_method_id && !billEntry.payments.some(p => p.payment_method_id === row.payment_method_id)) {
-                billEntry.payments.push({
-                    payment_method_id: row.payment_method_id,
-                    payment_method_name: row.payment_method_name,
-                    paid_amount: row.paid_amount
-                });
-            }
+                cultures: (billData.bill_has_cultures || []).map(bhc => ({
+                    id: bhc.culture?.id,
+                    name: bhc.culture?.name,
+                    price: bhc.price
+                })),
 
+                packages: (billData.bill_has_packages || []).map(bhp => ({
+                    id: bhp.package?.id,
+                    name: bhp.package?.name,
+                    price: bhp.price,
+                    type: bhp.package?.type
+                })),
 
+                payments: (billData.bill_has_payment_methods || []).map(bhpm => ({
+                    payment_method_id: bhpm.payment_method?.id,
+                    payment_method_name: bhpm.payment_method?.name,
+                    paid_amount: bhpm.paid_amount
+                })),
 
-            return acc;
-        }, []);
+                // Map joined include (belongsToMany)
+                test_groups: (billData.tg_id_test_groups || []).map(tg => ({
+                    id: tg.id,
+                    name: tg.name,
+                    price: tg.bill_has_tg?.price
+                }))
+            };
+        });
 
-        console.log(`Successfully processed ${groupedBills.length} invoices`);
-        res.json(groupedBills || []);
+        console.log(`Successfully processed ${formattedBills.length} invoices`);
+        res.json(formattedBills);
     } catch (error) {
         console.error('Error in GET /invoices:', error);
         // Return empty array on error to prevent frontend crashes
