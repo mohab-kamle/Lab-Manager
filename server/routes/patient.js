@@ -679,13 +679,14 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                     continue;
                 }
 
-                // Check if patient already exists by phone number in the current lab
+                // Check if patient already exists by phone number within the current lab
                 const existingPhone = await phone.findOne({ 
                     where: { 
                         phone_number: row['Primary Phone'].toString()
                     },
                     include: [{
                         model: patient,
+                        as: 'patient',
                         where: { lab_id: req.tenant.lab_id },
                         required: true
                     }]
