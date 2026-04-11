@@ -20,7 +20,6 @@ import {
   Users,
   FileText,
   User,
-  FlaskConical,
   Eye,
   Database,
   DollarSignIcon,
@@ -427,57 +426,6 @@ const MainNavBar = () => {
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : null}
-              {/* Test Groups Dropdown for admin, chemist, receptionist */}
-              {(user?.role === "admin" ||
-                user?.role === "chemist" ||
-                user?.role === "receptionist") && (
-                  <Dropdown className="mx-1 mb-1">
-                    <Dropdown.Toggle
-                      id="dropdown-basic"
-                      className={`nav-button ${["test-groups", "categories", "components"].includes(
-                        activeItem
-                      )
-                        ? "active-dropdown"
-                        : ""
-                        }`}
-                    >
-                      <FlaskConical size={18} className="me-1 mb-1" />
-                      {titles.testGroups}
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item
-                        as={Link}
-                        to={`/${user?.role}/test-groups`}
-                        data-dropdown-key="testGroups"
-                        data-title="Test Groups"
-                        data-id="test-groups"
-                        active={activeItem === "test-groups"}
-                      >
-                        Test Groups
-                      </Dropdown.Item>
-                      <Dropdown.Item
-                        as={Link}
-                        to={`/${user?.role}/test-group-categories`}
-                        data-dropdown-key="testGroups"
-                        data-title="Categories"
-                        data-id="categories"
-                        active={activeItem === "categories"}
-                      >
-                        Categories
-                      </Dropdown.Item>
-                      <Dropdown.Item
-                        as={Link}
-                        to={`/${user?.role}/test-group-components`}
-                        data-dropdown-key="testGroups"
-                        data-title="Components"
-                        data-id="components"
-                        active={activeItem === "components"}
-                      >
-                        Components
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                )}
               {/* Employee Links - Different access based on role */}
               {(user?.role === "admin" ||
                 user?.role === "receptionist" ||
@@ -638,16 +586,6 @@ const MainNavBar = () => {
                                   </Dropdown.Item>
                                 </>
                               )}
-                            <Dropdown.Item
-                              as={Link}
-                              to={`/${user?.role}/cultures`}
-                              data-dropdown-key="tests_C"
-                              data-title="culture"
-                              data-id="culture-tests"
-                              active={activeItem === "culture-tests"}
-                            >
-                              culture
-                            </Dropdown.Item>
                             <Dropdown.Item
                               as={Link}
                               to={`/${user?.role}/diseases`}
