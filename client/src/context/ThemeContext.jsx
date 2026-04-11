@@ -6,9 +6,10 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    // Check local storage for saved theme
+    // Only trust known-good values to prevent corrupted/tampered storage
+    // from breaking downstream UI that strictly compares 'light' / 'dark'.
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
+    if (savedTheme === 'light' || savedTheme === 'dark') {
       return savedTheme;
     }
     // Check system preference
@@ -32,7 +33,9 @@ export const ThemeProvider = ({ children }) => {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+    // Guard against an unexpected/invalid current state by treating anything
+    // other than 'dark' as 'light' before toggling.
+    setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
   };
 
   return (

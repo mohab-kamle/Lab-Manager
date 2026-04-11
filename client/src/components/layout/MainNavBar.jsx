@@ -14,8 +14,6 @@ import { toast } from "react-toastify";
 import ThemeToggle from "../ui/ThemeToggle";
 
 import {
-  Moon,
-  Sun,
   DoorClosed,
   DoorOpen,
   House,
