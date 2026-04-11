@@ -1,238 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Container } from "react-bootstrap";
+import { Container, Modal, Button } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import PrintPDF from "../../components/pdf/PrintPDF";
+// Use the same PDF components that admin uses for consistent PDF output
+import PrintPDF, { DirectPDFDownload } from "../../components/pdf/PrintPDF";
 import { formatDate } from "../../utils/dateFormatter";
-import autoTable from "jspdf-autotable";
-import headerImage from "../../assets/headerpdf.png";
-import footerImage from "../../assets/footerpdf.png";
+import { Eye, CircleX } from "lucide-react";
+import { toast } from "react-toastify";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
-const loadPdf = async () => {
-  const { jsPDF } = await import("jspdf");
-  return new jsPDF();
-};
 
-async function generateMedicalReportPDF(patient, report) {
-  const doc = await loadPdf();
-  try { doc.addImage(headerImage, "PNG", 10, 10, 190, 30); } catch {}
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(40, 40, 40);
-  doc.text("Medical Report", 105, 50, null, null, "center");
-  doc.setFillColor(240, 240, 240);
-  doc.rect(10, 60, 190, 40, "F");
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  const patientInfo = [
-    [`Patient Name:`, patient.name || "Not Provided"],
-    [`Age:`, patient.birth_date ? Math.floor((new Date().getFullYear() - new Date(patient.birth_date).getFullYear())) : "Not Provided"],
-    [`Gender:`, patient.gender === "m" ? "Male" : patient.gender === "f" ? "Female" : "Not Provided"],
-    [`Patient Code:`, patient.patientcode || "Not Provided"],
-  ];
-  patientInfo.forEach((item, index) => {
-    doc.text(`${item[0]} ${item[1]}`, 15, 70 + index * 8);
-  });
-  let testsWithResults = [];
-  if (report.tests && Array.isArray(report.tests)) {
-    testsWithResults = report.tests.map(test => {
-      // Handle multi-component tests with component-level results
-      if (test.has_component_results && test.component_results && test.component_results.length > 0) {
-        const mergedComponents = test.component_results.map(componentResult => {
-          const component = componentResult.component || componentResult.test_component;
-          return {
-            ...component,
-            result: componentResult.result || '',
-            status: componentResult.status || '',
-            name: component ? component.name : 'Unknown Component'
-          };
-        });
-        return { ...test, components: mergedComponents };
-      } else {
-        // Handle single-component tests or tests without component results
-        return {
-          ...test,
-          result: test.result || '',
-          status: test.status || ''
-        };
-      }
-    });
-  }
-  const testResults = testsWithResults.flatMap((test) => {
-    if (test.components && test.components.length > 0) {
-      return test.components.map(component => [
-        `${test.test_name || test.name || "N/A"} - ${component.name}`,
-        component.result || "N/A",
-        component.unit || "N/A",
-        component.status || "N/A",
-        component.normal_from && component.normal_to ? `${component.normal_from} - ${component.normal_to}` : "N/A",
-      ]);
-    } else {
-      return [[
-        test.test_name || test.name || "N/A",
-        test.result || "N/A",
-        test.unit || "N/A",
-        test.status || "N/A",
-        test.normal_from && test.normal_to ? `${test.normal_from} - ${test.normal_to}` : "N/A",
-      ]];
-    }
-  });
-  const tableResult = autoTable(doc, {
-    startY: 110,
-    head: [["Test Name", "Result", "Unit", "Status", "Normal Range"]],
-    body: testResults,
-    theme: "grid",
-    styles: { fontSize: 12, textColor: [0, 0, 0] },
-    headStyles: { fillColor: [75, 46, 127], textColor: [255, 255, 255] },
-    alternateRowStyles: { fillColor: [245, 245, 245] },
-  });
-  let finalY = (tableResult && tableResult.finalY) || (doc.autoTable && doc.autoTable.previous && doc.autoTable.previous.finalY) || 180;
-  if (report.cultures && Array.isArray(report.cultures) && report.cultures.length > 0) {
-    const cultureResults = report.cultures.map(culture => {
-      let resultObj = null;
-      if (report.culture_results && Array.isArray(report.culture_results)) {
-        resultObj = report.culture_results.find(r => r.culture_id === culture.id);
-      }
-      return [
-        culture.name || "N/A",
-        resultObj ? resultObj.result : culture.result || "N/A",
-        resultObj ? resultObj.status : culture.status || "N/A"
-      ];
-    });
-    const cultureTable = autoTable(doc, {
-      startY: finalY + 10,
-      head: [["Culture Name", "Result", "Status"]],
-      body: cultureResults,
-      theme: "grid",
-      styles: { fontSize: 12, textColor: [0, 0, 0] },
-      headStyles: { fillColor: [75, 46, 127], textColor: [255, 255, 255] },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-    });
-    finalY = (cultureTable && cultureTable.finalY) || (finalY + 40);
-  }
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "bold");
-  doc.text("Doctor Comments:", 14, finalY + 10);
-  doc.setFont("helvetica", "normal");
-  const comment = report.comment || "No additional comments provided.";
-  const commentLines = doc.splitTextToSize(comment, 180);
-  const commentY = finalY + 20;
-  doc.text(commentLines, 14, commentY);
-  const lineHeight = 7;
-  const doctorY = commentY + commentLines.length * lineHeight + 4;
-  doc.setFont("helvetica", "bold");
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const footerHeight = 30;
-  const footerY = pageHeight - footerHeight;
-  let safeDoctorY = doctorY;
-  if (doctorY + 8 > footerY) {
-    safeDoctorY = footerY - 8;
-  }
-  doc.text(`Doctor: ${report.doctor_name || "Not Provided"}`, 14, safeDoctorY, { maxWidth: 180 });
-  try { doc.addImage(footerImage, "PNG", 10, footerY, 190, footerHeight); } catch {}
-  doc.save(`Medical_Report_${patient.name}.pdf`);
-}
-
-function calculateAge(birthDate) {
-  if (!birthDate) return null;
-  const birth = new Date(birthDate);
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  const m = now.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age;
-}
-
-function transformReportForPDF(report, patient) {
-  const patientAge = calculateAge(patient.birth_date);
-  const patientGender = patient.gender;
-
-  // Handle both old and new API structure for tests
-  const testsData = report.reportTests || report.tests || [];
-  const tests = testsData.map(test => {
-    let selectedComponent = null;
-    let allComponents = [];
-    let hasComponentResults = false;
-    let componentResults = [];
-    
-    if (Array.isArray(test.test_components) && test.test_components.length > 0) {
-      const mappedComponents = test.test_components.map(component => ({
-        ...component,
-        gender: component.gender
-      }));
-      
-      allComponents = mappedComponents;
-      
-      // Check if we have component-level results from the new structure
-      if (report.testComponentResults && report.testComponentResults[test.id]) {
-        hasComponentResults = true;
-        componentResults = report.testComponentResults[test.id].map(cr => ({
-          ...cr,
-          component: mappedComponents.find(c => c.id === cr.test_component_id)
-        }));
-      }
-      
-      // Find component that matches patient's age and gender (for fallback display)
-      selectedComponent = mappedComponents.find(tc => {
-        const genderMatch = !tc.gender || tc.gender == patientGender;
-        const ageMatch = (tc.age_start == null || patientAge >= tc.age_start) &&
-                         (tc.age_end == null || patientAge <= tc.age_end);
-        return genderMatch && ageMatch;
-      });
-    }
-
-    // Get test result from medical_report_has_test
-    let testResult = '';
-    let testStatus = '';
-    if (test.medical_report_has_test) {
-      testResult = test.medical_report_has_test.result || '';
-      testStatus = test.medical_report_has_test.status || '';
-    }
-
-    return {
-      ...test,
-      unit: selectedComponent ? selectedComponent.unit : '',
-      normal_from: selectedComponent ? selectedComponent.normal_from : '',
-      normal_to: selectedComponent ? selectedComponent.normal_to : '',
-      reference_range: selectedComponent ? selectedComponent.reference_range : '',
-      result_type: selectedComponent ? selectedComponent.result_type : test.result_type,
-      c_low: selectedComponent ? selectedComponent.c_low : null,
-      c_high: selectedComponent ? selectedComponent.c_high : null,
-      // Add component name for better identification
-      component_name: selectedComponent ? selectedComponent.name : '',
-      component_id: selectedComponent ? selectedComponent.id : null,
-      result: testResult,
-      status: testStatus,
-      // Include all components for manual determination if needed
-      all_components: allComponents,
-      // Include component-level results
-      has_component_results: hasComponentResults,
-      component_results: componentResults
-    };
-  });
-
-  const cultures = (report.cultures || []).map(culture => ({
-    ...culture
-  }));
-  const culture_results = (report.medical_report_has_cultures || []).map(cr => ({
-    culture_id: cr.culture_id,
-    result: cr.result,
-    status: cr.status
-  }));
-
-  return {
-    ...report,
-    tests,
-    cultures,
-    culture_results
-  };
-}
 
 const PatientReports = () => {
   const [reports, setReports] = useState([]);
@@ -245,7 +24,11 @@ const PatientReports = () => {
   const [sortConfig, setSortConfig] = useState({ field: "", direction: "asc" });
   const [dateFilter, setDateFilter] = useState({ startDate: "", endDate: "" });
   const [typeFilter, setTypeFilter] = useState("all");
-  const [pdfLoadingId, setPdfLoadingId] = useState(null);
+  // PDF Preview state (mirrors admin interface)
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [selectedReportForPDF, setSelectedReportForPDF] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(null); // reportId being loaded
+
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const { user } = useAuth();
@@ -414,25 +197,45 @@ const PatientReports = () => {
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
 
-  const handleDownloadPDF = async (rowData) => {
-    setPdfLoadingId(rowData.id);
+  /**
+   * Fetch full report data and open the PDF preview modal.
+   * Uses the same endpoint as admin (/medical-reports/:id?pdf=true) for identical output.
+   */
+  const handlePreviewPDF = async (reportId) => {
+    // Prevent multiple clicks on the same report
+    if (previewLoading === reportId) return;
+
+    setPreviewLoading(reportId);
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      // Use the optimized endpoint for PDF generation
-      const response = await axios.get(`${apiUrl}/medical-reports/${rowData.id}?pdf=true`, { headers });
-      const fullReportData = response.data;
-      
-      // Use the patient data from the report response, not the user
-      const patient = fullReportData.patient || rowData.patient || user;
-      const transformed = transformReportForPDF(fullReportData, patient);
-      await generateMedicalReportPDF(patient, transformed);
+
+      // Fetch the complete report details for PDF preview using the optimized endpoint
+      const response = await axios.get(
+        `${apiUrl}/medical-reports/${reportId}?pdf=true`,
+        { headers }
+      );
+      const responseData = response.data;
+
+      // Extract data from the API response structure (same as admin)
+      const fullReportData = {
+        ...responseData,
+        testComponentResults: responseData.testComponentResults || {},
+        testGroups: responseData.testGroups || [],
+        testComponents: responseData.testComponents || {},
+      };
+
+      setSelectedReportForPDF(fullReportData);
+      setShowPDFPreview(true);
     } catch (error) {
-      console.error("Failed to fetch full report for PDF", error);
+      console.error("Error fetching full report data:", error);
+      toast.error("Failed to load report data for preview");
     } finally {
-      setPdfLoadingId(null);
+      setPreviewLoading(null);
     }
   };
+
+
 
   return (
     <Container fluid className="patient-reports-container">
@@ -463,13 +266,33 @@ const PatientReports = () => {
             columns={tableHeaders} 
             formatCellData={formatCellData} 
             ActionComponent={({ rowData }) => (
-              <button
-                className="btn btn-primary"
-                onClick={() => handleDownloadPDF(rowData)}
-                disabled={pdfLoadingId === rowData.id}
-              >
-                {pdfLoadingId === rowData.id ? 'Downloading...' : 'Download PDF'}
-              </button>
+              <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                {/* Download PDF - same DirectPDFDownload component as admin */}
+                <DirectPDFDownload
+                  reportId={rowData.id}
+                  patient={rowData.patient || user}
+                  apiUrl={apiUrl}
+                />
+                {/* Preview PDF - same approach as admin */}
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => handlePreviewPDF(rowData.id)}
+                  title="Preview PDF"
+                  disabled={previewLoading === rowData.id}
+                  style={{ minWidth: 36 }}
+                >
+                  {previewLoading === rowData.id ? (
+                    <div
+                      className="spinner-border spinner-border-sm"
+                      role="status"
+                      style={{ width: "12px", height: "12px" }}
+                    />
+                  ) : (
+                    <Eye size={16} />
+                  )}
+                </Button>
+              </div>
             )}
           />
           <TablePagination 
@@ -477,6 +300,50 @@ const PatientReports = () => {
             pageCount={Math.ceil(sortedReports.length / itemsPerPage)} 
             handlePageChange={handlePageChange} 
           />
+
+          {/* PDF Preview Modal - matches admin interface */}
+          <Modal
+            show={showPDFPreview}
+            onHide={() => {
+              setShowPDFPreview(false);
+              setSelectedReportForPDF(null);
+            }}
+            size="xl"
+          >
+            <Modal.Header>
+              <Modal.Title>PDF Preview</Modal.Title>
+              <button
+                className="modal-close-btn"
+                onClick={() => {
+                  setShowPDFPreview(false);
+                  setSelectedReportForPDF(null);
+                }}
+              >
+                <CircleX size={24} />
+              </button>
+            </Modal.Header>
+            <Modal.Body>
+              {selectedReportForPDF && selectedReportForPDF.patient && (
+                <PrintPDF
+                  patient={selectedReportForPDF.patient}
+                  report={selectedReportForPDF}
+                  lab={selectedReportForPDF.lab}
+                  comments={{}}
+                />
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowPDFPreview(false);
+                  setSelectedReportForPDF(null);
+                }}
+              >
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </>
       )}
     </Container>
