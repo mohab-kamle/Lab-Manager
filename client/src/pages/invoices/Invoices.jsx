@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX } from "lucide-react";
+import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
@@ -23,12 +23,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
   const [patients, setPatients] = useState([]);
   const [tests, setTests] = useState([]);
-  const [cultures, setCultures] = useState([]);
+
   const [packages, setPackages] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [receptionists, setReceptionists] = useState([]);
-  const [testGroups, setTestGroups] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [referrals, setReferrals] = useState([]); // Add referrals state
@@ -56,7 +55,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     patient_id: "",
     date: new Date(),
     tests: [],
-    cultures: [],
     packages: [],
     payments: [],
     subtotal: 0,
@@ -67,7 +65,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     due: 0,
     status_id: "",
     receptionist_id: "",
-    test_groups: [],
     branch_id: ""
   });
 
@@ -79,9 +76,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredPatients, setFilteredPatients] = useState([]);
   const [testSearchTerm, setTestSearchTerm] = useState("");
-  const [cultureSearchTerm, setCultureSearchTerm] = useState("");
+
   const [packageSearchTerm, setPackageSearchTerm] = useState("");
-  const [testGroupSearchTerm, setTestGroupSearchTerm] = useState("");
   const [diseaseSearchTerm, setDiseaseSearchTerm] = useState("");
 
   // Status management states
@@ -94,6 +90,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [statusDetectionError, setStatusDetectionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [modalSuccessMessage, setModalSuccessMessage] = useState("");
+
+  // Limit warning modal support
+  const [limitWarningModal, setLimitWarningModal] = useState(false);
+  const [limitWarningData, setLimitWarningData] = useState(null);
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -122,12 +122,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         invoicesRes,
         patientsRes,
         testsRes,
-        culturesRes,
         packagesRes,
         paymentMethodsRes,
         statusesRes,
         receptionistsRes,
-        testGroupsRes,
         contractsRes,
         diseasesRes,
         referralsRes,
@@ -136,12 +134,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         axios.get(`${apiUrl}/invoices`, { headers }),
         axios.get(`${apiUrl}/patient`, { headers }),
         axios.get(`${apiUrl}/tests`, { headers }),
-        axios.get(`${apiUrl}/cultures`, { headers }),
         axios.get(`${apiUrl}/packages-and-offers`, { headers }),
         axios.get(`${apiUrl}/payment-methods`, { headers }),
         axios.get(`${apiUrl}/statuses`, { headers }),
         user?.role === 'admin' ? axios.get(`${apiUrl}/receptionists`, { headers }) : Promise.resolve({ data: [] }),
-        axios.get(`${apiUrl}/test-groups?includeDeleted=false`, { headers }),
         axios.get(`${apiUrl}/contracts`, { headers }),
         axios.get(`${apiUrl}/patient/diseases`, { headers }),
         axios.get(`${apiUrl}/referrals`, { headers }), // Add referrals fetching
@@ -151,12 +147,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       setInvoices(invoicesRes.data || []);
       setPatients(patientsRes.data || []);
       setTests(testsRes.data || []);
-      setCultures(culturesRes.data || []);
       setPackages(packagesRes.data || []);
       setPaymentMethods(paymentMethodsRes.data || []);
       setStatuses(statusesRes.data || []);
       setReceptionists(receptionistsRes.data || []);
-      setTestGroups(testGroupsRes.data || []);
       setContracts(contractsRes.data || []);
       setDiseases(diseasesRes.data || []);
       setReferrals(referralsRes.data.referrals || []); // Set referrals data
@@ -168,12 +162,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       setInvoices([]);
       setPatients([]);
       setTests([]);
-      setCultures([]);
       setPackages([]);
       setPaymentMethods([]);
       setStatuses([]);
       setReceptionists([]);
-      setTestGroups([]);
       setContracts([]);
       setDiseases([]);
       setReferrals([]); // Set empty referrals array on error
@@ -501,22 +493,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       }
     });
 
-    // Calculate cultures total
-    items.cultures.forEach(cultureId => {
-      const culture = cultures.find(c => c.id === parseInt(cultureId));
-      if (culture) {
-        // Check if culture is part of an offer
-        const hasOffer = selectedPackages.some(pkg => 
-          pkg.type === 'offer' && 
-          pkg.item_type === 'culture' && 
-          pkg.item_id === culture.id
-        );
-        if (!hasOffer) {
-          subtotal += culture.price;
-        }
-      }
-    });
-
     // Add packages and offers
     items.packages.forEach(packageId => {
       const pkg = packages.find(p => p.id === parseInt(packageId));
@@ -524,14 +500,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         subtotal += pkg.price;
       }
     });
-
-    // Add test groups
-    if (items.test_groups && Array.isArray(items.test_groups)) {
-      items.test_groups.forEach(tgId => {
-        const tg = testGroups.find(tg => tg.id === parseInt(tgId));
-        if (tg) subtotal += Number(tg.price) || 0;
-      });
-    }
 
     // Calculate discount amount from percentage (use custom percentage if provided, otherwise use state)
     const currentDiscountPercentage = customDiscountPercentage !== null ? customDiscountPercentage : discountPercentage;
@@ -584,8 +552,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     return updateInvoiceCalculations(updatedInvoice);
   };
 
-  const handleAddInvoice = async (e) => {
-    e.preventDefault();
+  const handleAddInvoice = async (e, bypass = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       setStatusDetectionError("");
       const token = localStorage.getItem("token");
@@ -605,13 +573,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       }
       setShowFormErrorAlert(false);
 
-      // Filter out invalid IDs before sending
+      // Filter out invalid numbers
       const filteredTests = (invoice.tests || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-      const filteredCultures = (invoice.cultures || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredPackages = (invoice.packages || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-      const filteredTestGroups = (invoice.test_groups || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       
-      // Determine automatic status if not manually set
+      // Determine automatic status
       let finalStatusId = invoice.status_id;
       if (!finalStatusId) {
         const { due } = calculateTotals(invoice);
@@ -625,9 +591,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       const invoiceData = {
         ...invoice,
         tests: filteredTests,
-        cultures: filteredCultures,
         packages: filteredPackages,
-        test_groups: filteredTestGroups,
         subtotal: invoice.subtotal,
         discount: invoice.discount,
         total: invoice.total,
@@ -635,7 +599,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         due: invoice.due,
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
-        branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined
+        branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined,
+        bypass_due_limit: bypass
       };
 
       // Only add receptionist_id if it's a valid number
@@ -675,13 +640,19 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
       setShowAddModal(false);
       resetForm();
-      // Refresh patient data to show updated financial information
       await refreshPatientData();
-      // Show success message as a toast
       const action = editingInvoice ? "updated" : "created";
       toast.success(`Invoice ${action} successfully! Patient financial information has been updated.`, { autoClose: 5000 });
     } catch (error) {
       console.error("Error saving invoice:", error);
+      
+      // Handle Patient Due Limit Logic
+      if (error.response?.status === 403 && error.response?.data?.requires_bypass) {
+        setLimitWarningData(error.response.data);
+        setLimitWarningModal(true);
+        return;
+      }
+
       if (error.response?.data?.error && error.response.data.error.toLowerCase().includes('status')) {
         setStatusDetectionError("Invoice could not be saved due to a status error. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
       } else {
@@ -835,11 +806,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     if (!data.receptionist_id) errors.receptionist_id = "Receptionist is required";
     if (
       (!data.tests || data.tests.length === 0) &&
-      (!data.cultures || data.cultures.length === 0) &&
-      (!data.packages || data.packages.length === 0) &&
-      (!data.test_groups || data.test_groups.length === 0)
+      (!data.packages || data.packages.length === 0)
     ) {
-      errors.items = "At least one test, culture, package, or test group is required";
+      errors.items = "At least one test, culture, or package is required";
     }
     if (!data.payments || data.payments.length === 0) errors.payments = "At least one payment method is required";
     return errors;
@@ -850,7 +819,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       patient_id: "",
       date: new Date(),
       tests: [],
-      cultures: [],
       packages: [],
       payments: [],
       subtotal: 0,
@@ -861,7 +829,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       due: 0,
       status_id: "",
       receptionist_id: "",
-      test_groups: [],
       branch_id: ""
     });
     setFormErrors({});
@@ -991,56 +958,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
           </div>
         );
         
-      case 'cultures':
-        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No cultures</span>;
-        
-        const culturesExpanded = expandedCells[`${rowData.id}-cultures`];
-        
-        if (value.length <= 3 || culturesExpanded) {
-          return (
-            <div className="d-flex flex-wrap">
-              {value.length > 3 && (
-                <div className="mt-2">
-                  <Button 
-                    variant="outline-info" 
-                    size="sm" 
-                    onClick={() => toggleCellExpansion(rowData.id, 'cultures')}
-                    style={{fontSize: '0.7em', padding: '2px 6px'}}
-                  >
-                    {culturesExpanded ? '▲ Show Less' : '▼ Show All'}
-                  </Button>
-                </div>
-              )}
-              {value.map((culture, index) => (
-                <Badge key={index} bg="info" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
-                  {culture.name} (EGP {culture.price})
-                </Badge>
-              ))}
-              
-            </div>
-          );
-        }
-        
-        return (
-          <div>
-            <Badge bg="info" className="me-2" style={{fontSize: '0.8em'}}>
-              🦠 {value.length} Cultures
-            </Badge>
-            <Button 
-              variant="outline-info" 
-              size="sm" 
-              onClick={() => toggleCellExpansion(rowData.id, 'cultures')}
-              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
-            >
-              ▼ Expand
-            </Button>
-            <br />
-            <small className="text-muted">
-              Total: EGP {value.reduce((sum, culture) => sum + parseFloat(culture.price || 0), 0).toFixed(2)}
-            </small>
-          </div>
-        );
-        
+
       case 'packages':
         if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No packages</span>;
         
@@ -1086,55 +1004,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             <br />
             <small className="text-muted">
               Total: EGP {value.reduce((sum, pkg) => sum + parseFloat(pkg.price || 0), 0).toFixed(2)}
-            </small>
-          </div>
-        );
-        
-      case 'test_groups':
-        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No test groups</span>;
-        
-        const testGroupsExpanded = expandedCells[`${rowData.id}-test_groups`];
-        
-        if (value.length <= 3 || testGroupsExpanded) {
-          return (
-            <div>
-              {value.map((tg, index) => (
-                <Badge key={index} bg="secondary" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
-                  {tg.name} (EGP {tg.price})
-                </Badge>
-              ))}
-              {value.length > 3 && (
-                <div className="mt-2">
-                  <Button 
-                    variant="outline-secondary" 
-                    size="sm" 
-                    onClick={() => toggleCellExpansion(rowData.id, 'test_groups')}
-                    style={{fontSize: '0.7em', padding: '2px 6px'}}
-                  >
-                    {testGroupsExpanded ? '▲ Show Less' : '▼ Show All'}
-                  </Button>
-                </div>
-              )}
-            </div>
-          );
-        }
-        
-        return (
-          <div>
-            <Badge bg="secondary" className="me-2" style={{fontSize: '0.8em'}}>
-              🔬 {value.length} Test Groups
-            </Badge>
-            <Button 
-              variant="outline-secondary" 
-              size="sm" 
-              onClick={() => toggleCellExpansion(rowData.id, 'test_groups')}
-              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
-            >
-              ▼ Expand
-            </Button>
-            <br />
-            <small className="text-muted">
-              Total: EGP {value.reduce((sum, tg) => sum + parseFloat(tg.price || 0), 0).toFixed(2)}
             </small>
           </div>
         );
@@ -1193,9 +1062,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
           setEditingInvoice(rowData);
           // Extract IDs from the nested objects for editing
           const testIds = rowData.tests ? rowData.tests.map(t => String(t.id)) : [];
-          const cultureIds = rowData.cultures ? rowData.cultures.map(c => String(c.id)) : [];
           const packageIds = rowData.packages ? rowData.packages.map(p => String(p.id)) : [];
-          const testGroupIds = rowData.test_groups ? rowData.test_groups.map(tg => String(tg.id)) : [];
           const paymentMethods = rowData.payments ? rowData.payments.map(p => ({
             payment_method_id: String(p.payment_method_id),
             paid_amount: String(p.paid_amount)
@@ -1209,9 +1076,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
           setInvoice({
             ...rowData,
             tests: testIds,
-            cultures: cultureIds,
             packages: packageIds,
-            test_groups: testGroupIds,
             payments: paymentMethods,
             subtotal: Number(rowData.subtotal) || 0,
             discount: Number(rowData.discount) || 0,
@@ -1326,9 +1191,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               "date",
               "patient_name",
               "tests",
-              "cultures",
               "packages",
-              "test_groups",
               "discount",
               "tax",
               "subtotal",
@@ -1861,7 +1724,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                 {/* Tests, Cultures, Packages, and Test Groups Selection */}
 
                 <Row>
-                  <Col md={4}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Tests</Form.Label>
                       <Form.Control
@@ -1895,41 +1758,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       </div>
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Cultures</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Search cultures..."
-                        value={cultureSearchTerm}
-                        onChange={e => setCultureSearchTerm(e.target.value)}
-                        className="mb-2"
-                      />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
-                        {cultures
-                          .filter(culture => culture.name.toLowerCase().includes(cultureSearchTerm.toLowerCase()))
-                          .map(culture => (
-                            <Form.Check
-                              key={culture.id}
-                              type="checkbox"
-                              label={`${culture.name} (EGP ${culture.price})`}
-                              checked={invoice.cultures.includes(String(culture.id))}
-                              onChange={e => {
-                                const selected = invoice.cultures.includes(String(culture.id))
-                                  ? invoice.cultures.filter(id => id !== String(culture.id))
-                                  : [...invoice.cultures, String(culture.id)];
-                                setInvoice(prev => {
-                                  const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-                                  const newInvoice = { ...prev, cultures: filtered };
-                                  return updateInvoiceCalculations(newInvoice);
-                                });
-                              }}
-                            />
-                          ))}
-                      </div>
-                    </Form.Group>
-                  </Col>
-                  <Col md={4}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Packages & Offers</Form.Label>
                       <Form.Control
@@ -1965,46 +1794,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                   </Col>
                 </Row>
 
-                <Row>
-                  <Col md={12}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Test Groups</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Search test groups..."
-                        value={testGroupSearchTerm}
-                        onChange={e => setTestGroupSearchTerm(e.target.value)}
-                        className="mb-2"
-                      />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
-                        {testGroups
-                          .filter(tg => tg.name.toLowerCase().includes(testGroupSearchTerm.toLowerCase()))
-                          .map(tg => (
-                            <Form.Check
-                              key={tg.id}
-                              type="checkbox"
-                              label={`${tg.name} (EGP ${tg.price})`}
-                              checked={invoice.test_groups.includes(String(tg.id))}
-                              onChange={e => {
-                                const selected = invoice.test_groups.includes(String(tg.id))
-                                  ? invoice.test_groups.filter(id => id !== String(tg.id))
-                                  : [...invoice.test_groups, String(tg.id)];
-                                // Filter out any accidental NaN/empty/null values
-                                setInvoice(prev => {
-                                  const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-                                  const newInvoice = { ...prev, test_groups: filtered };
-                                  return updateInvoiceCalculations(newInvoice);
-                                });
-                              }}
-                            />
-                          ))}
-                      </div>
-                    </Form.Group>
-                  </Col>
-                </Row>
-
                 {/* Selected Items Summary - Restructured with two rows for better visual layout */}
-                {(invoice.tests.length > 0 || invoice.cultures.length > 0 || invoice.packages.length > 0 || invoice.test_groups.length > 0) && (
+                {(invoice.tests.length > 0 || invoice.packages.length > 0) && (
                   <Row className="mb-4">
                     <Col md={12}>
                       <div className="border rounded p-3 bg-light">
@@ -2041,35 +1832,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                               </div>
                             </Col>
                           )}
-                          {invoice.cultures.length > 0 && (
-                            <Col md={6}>
-                              <div className="mb-3">
-                                <strong className="text-info">🦠 Cultures ({invoice.cultures.length})</strong>
-                                <div className="mt-2">
-                                  {invoice.cultures.map(cultureId => {
-                                    const culture = cultures.find(c => c.id === parseInt(cultureId));
-                                    return culture ? (
-                                      <Badge key={cultureId} bg="info" className="me-1 mb-1 d-inline-flex align-items-center">
-                                        {culture.name} (EGP {culture.price})
-                                        <button 
-                                          type="button" 
-                                          className="btn-close btn-close-white ms-2" 
-                                          style={{fontSize: '0.6em'}}
-                                          onClick={() => {
-                                            const filtered = invoice.cultures.filter(id => id !== String(culture.id));
-                                            setInvoice(prev => {
-                                              const newInvoice = { ...prev, cultures: filtered };
-                                              return updateInvoiceCalculations(newInvoice);
-                                            });
-                                          }}
-                                        ></button>
-                                      </Badge>
-                                    ) : null;
-                                  })}
-                                </div>
-                              </div>
-                            </Col>
-                          )}
+
                         </Row>
                         
                         {/* Second Row: Packages and Test Groups */}
@@ -2092,35 +1855,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                             const filtered = invoice.packages.filter(id => id !== String(pkg.id));
                                             setInvoice(prev => {
                                               const newInvoice = { ...prev, packages: filtered };
-                                              return updateInvoiceCalculations(newInvoice);
-                                            });
-                                          }}
-                                        ></button>
-                                      </Badge>
-                                    ) : null;
-                                  })}
-                                </div>
-                              </div>
-                            </Col>
-                          )}
-                          {invoice.test_groups.length > 0 && (
-                            <Col md={6}>
-                              <div className="mb-3">
-                                <strong className="text-secondary">🔬 Test Groups ({invoice.test_groups.length})</strong>
-                                <div className="mt-2">
-                                  {invoice.test_groups.map(tgId => {
-                                    const tg = testGroups.find(t => t.id === parseInt(tgId));
-                                    return tg ? (
-                                      <Badge key={tgId} bg="secondary" className="me-1 mb-1 d-inline-flex align-items-center">
-                                        {tg.name} (EGP {tg.price})
-                                        <button 
-                                          type="button" 
-                                          className="btn-close btn-close-white ms-2" 
-                                          style={{fontSize: '0.6em'}}
-                                          onClick={() => {
-                                            const filtered = invoice.test_groups.filter(id => id !== String(tg.id));
-                                            setInvoice(prev => {
-                                              const newInvoice = { ...prev, test_groups: filtered };
                                               return updateInvoiceCalculations(newInvoice);
                                             });
                                           }}
@@ -2813,6 +2547,80 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               </Button>
             </Modal.Footer>
           </Modal>
+
+          {/* Due Limit Warning Modal */}
+          <Modal
+            show={limitWarningModal}
+            onHide={() => {
+              setLimitWarningModal(false);
+              setLimitWarningData(null);
+            }}
+            backdrop="static"
+            keyboard={false}
+            centered
+          >
+            <Modal.Header className="border-0 pb-0 bg-white justify-content-center">
+              <Modal.Title className="d-flex align-items-center text-danger">
+                <AlertTriangle size={24} className="me-2" />
+                Limit Exceeded
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="pt-0 px-4 pb-4">
+              {limitWarningData && (
+                <div className="text-center">
+                  <p className="text-muted mb-4">
+                    This action will increase the patient's due balance beyond the allowed limit.
+                  </p>
+                  
+                  <div className="bg-light rounded-3 p-3 mb-4">
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Current Due</span>
+                      <span className="fw-medium">{limitWarningData.current_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">+ New Invoice</span>
+                      <span className="fw-medium text-danger">+{limitWarningData.invoice_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2 border-top pt-2">
+                      <span className="fw-bold">Total New Due</span>
+                      <span className="fw-bold fs-5">{limitWarningData.new_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-dashed">
+                      <span className="text-muted small">Allowed Limit</span>
+                      <Badge bg="secondary" className="px-3 py-2 fw-normal" style={{ fontSize: '0.9em' }}>
+                        {limitWarningData.limit?.toFixed(2)}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <p className="small text-muted mb-0">
+                    You can bypass this check if necessary. This event will be logged.
+                  </p>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  setLimitWarningModal(false);
+                  setLimitWarningData(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="danger" 
+                onClick={() => {
+                  setLimitWarningModal(false);
+                  handleAddInvoice(null, true); 
+                }}
+              >
+                Bypass & Create Invoice
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
         </>
       )}
     </Container>
