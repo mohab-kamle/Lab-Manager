@@ -98,18 +98,28 @@ function createCacheMiddleware(cacheKeyGenerator, cacheGetter, cacheSetter, ttl 
 const cacheMedicalReportsList = createCacheMiddleware(
   (req) => {
     const { page = 1, limit = 20, search = '', status = '', dateFrom = '', dateTo = '' } = req.query;
-    const labId = req.tenant?.lab_id || 'unknown';
+    let labId = req.tenant?.lab_id;
+    if (!labId && req.user?.role === 'doctor') {
+      labId = `doctor:${req.user.id}`;
+    }
+    labId = labId || 'unknown';
     return `list:${labId}:${page}:${limit}:${search}:${status}:${dateFrom}:${dateTo}`;
   },
   async (cacheKey, req) => {
     const { page = 1, limit = 20, search = '', status = '', dateFrom = '', dateTo = '' } = req.query;
-    const labId = req.tenant?.lab_id;
+    let labId = req.tenant?.lab_id;
+    if (!labId && req.user?.role === 'doctor') {
+      labId = `doctor:${req.user.id}`;
+    }
     const filters = { search, status, dateFrom, dateTo };
     return await cacheService.getMedicalReportsList(labId, page, limit, filters);
   },
   async (cacheKey, data, req) => {
     const { page = 1, limit = 20, search = '', status = '', dateFrom = '', dateTo = '' } = req.query;
-    const labId = req.tenant?.lab_id;
+    let labId = req.tenant?.lab_id;
+    if (!labId && req.user?.role === 'doctor') {
+      labId = `doctor:${req.user.id}`;
+    }
     const filters = { search, status, dateFrom, dateTo };
     return await cacheService.setMedicalReportsList(labId, page, limit, filters, data);
   },
