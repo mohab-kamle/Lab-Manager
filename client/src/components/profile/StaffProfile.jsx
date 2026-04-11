@@ -384,8 +384,8 @@ const StaffProfile = () => {
                         isEditing
                           ? formData.birth_date
                           : profile.birth_date
-                          ? formatDate(profile.birth_date)
-                          : null
+                            ? formatDate(profile.birth_date)
+                            : null
                       }
                       color="success"
                       delay={0.5}
@@ -404,10 +404,10 @@ const StaffProfile = () => {
                         isEditing
                           ? formData.gender
                           : profile.gender
-                          ? profile.gender === "Male" || profile.gender === "m"
-                            ? "Male"
-                            : "Female"
-                          : null
+                            ? profile.gender === "Male" || profile.gender === "m"
+                              ? "Male"
+                              : "Female"
+                            : null
                       }
                       color="warning"
                       delay={0.6}
