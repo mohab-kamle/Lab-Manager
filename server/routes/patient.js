@@ -1010,5 +1010,10 @@ router.get('/recent', authenticateUser, authorizeRoles('admin'), tenantContext,
       limit: 5,
       attributes: ['id', 'name', 'birth_date']
     });
+    res.json(patients);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get recent patients' });
+  }
+});
 
 module.exports = router;
