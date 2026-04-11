@@ -20,6 +20,16 @@ const UnifiedLogin = () => {
     password: ""
   });
   const [patientCode, setPatientCode] = useState("");
+  const [isSignup, setIsSignup] = useState(false);
+  const [signupData, setSignupData] = useState({
+    name: "",
+    username: "",
+    password: "",
+    email: "",
+    phone: "",
+    national_id: "",
+    gender: "male"
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -106,6 +116,15 @@ const UnifiedLogin = () => {
         response = await axios.post(`${apiUrl}/patient/login`, {
           patientcode: patientCode
         });
+      } else if (userType === "doctor") {
+        if (isSignup) {
+            response = await axios.post(`${apiUrl}/doctor/signup`, signupData);
+        } else {
+            response = await axios.post(`${apiUrl}/doctor/login`, {
+                username: credentials.username,
+                password: credentials.password
+            });
+        }
       } else {
         response = await axios.post(`${apiUrl}/emp/login`, {
           username: credentials.username,
@@ -182,6 +201,7 @@ const UnifiedLogin = () => {
     setError(null);
     setCredentials({ username: "", password: "" });
     setPatientCode("");
+    setIsSignup(false);
   };
 
   const selectedUserType = userTypes.find(t => t.value === userType);
@@ -308,6 +328,76 @@ const UnifiedLogin = () => {
                         Enter the patient code provided by your healthcare provider
                       </Form.Text>
                     </Form.Group>
+                  ) : (userType === 'doctor' && isSignup) ? (
+                    /* Doctor Signup Form */
+                    <>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Full Name</Form.Label>
+                            <Form.Control 
+                                type="text" 
+                                required 
+                                value={signupData.name}
+                                onChange={e => setSignupData({...signupData, name: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control 
+                                type="email" 
+                                required 
+                                value={signupData.email}
+                                onChange={e => setSignupData({...signupData, email: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Username</Form.Label>
+                             <Form.Control 
+                                type="text" 
+                                required 
+                                value={signupData.username}
+                                onChange={e => setSignupData({...signupData, username: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Password</Form.Label>
+                             <Form.Control 
+                                type="password" 
+                                required 
+                                value={signupData.password}
+                                onChange={e => setSignupData({...signupData, password: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>National ID</Form.Label>
+                             <Form.Control 
+                                type="text" 
+                                value={signupData.national_id}
+                                onChange={e => setSignupData({...signupData, national_id: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Gender</Form.Label>
+                            <Form.Select
+                                value={signupData.gender}
+                                onChange={e => setSignupData({...signupData, gender: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            >
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </Form.Select>
+                         </Form.Group>
+                    </>
                   ) : (
                     /* Employee Login Form */
                     <>
@@ -375,7 +465,6 @@ const UnifiedLogin = () => {
                       </Form.Group>
                     </>
                   )}
-
                   <Button
                     type="submit"
                     variant={loading ? "outline-primary" : "primary"}
