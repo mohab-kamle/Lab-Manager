@@ -64,34 +64,34 @@ const AdminDashboard = () => {
 
   const prefix = useLabPrefix();
   const actions = [
-    { 
-      icon: <UserPlus size={20} />, 
-      label: 'Add Patient', 
+    {
+      icon: <UserPlus size={20} />,
+      label: 'Add Patient',
       onClick: () => navigate(`/admin/patients`),
       variant: 'outline-primary'
     },
-    { 
-      icon: <Plus size={20} />, 
-      label: 'Add Test', 
+    {
+      icon: <Plus size={20} />,
+      label: 'Add Test',
       onClick: () => navigate(`/admin/tests`),
       variant: 'outline-success'
     },
-    { 
-      icon: <ClipboardList size={20} />, 
-      label: 'View Reports', 
+    {
+      icon: <ClipboardList size={20} />,
+      label: 'View Reports',
       onClick: () => navigate(`/admin/medical-reports`),
       variant: 'outline-secondary'
     },
-    { 
-      icon: <Settings size={20} />, 
-      label: 'Lab Management', 
+    {
+      icon: <Settings size={20} />,
+      label: 'Lab Management',
       onClick: () => navigate(`/admin/lab-management`),
       variant: 'outline-info'
     },
-    { 
-      icon: <User size={20} />, 
-      label: 'My Profile', 
-      onClick: () => navigate(`/admin/profile`), 
+    {
+      icon: <User size={20} />,
+      label: 'My Profile',
+      onClick: () => navigate(`/admin/profile`),
       variant: 'outline-primary'
     },
     {
@@ -242,7 +242,7 @@ const AdminDashboard = () => {
           </Row>
           {/* Recent Activity */}
           <Card className="shadow-sm mb-3">
-            <Card.Header className="bg-white fw-bold">
+            <Card.Header className="bg-theme fw-bold">
               Recent Activity
             </Card.Header>
             <ListGroup variant="flush">
@@ -266,8 +266,8 @@ const AdminDashboard = () => {
                       {report.done
                         ? "Done"
                         : report.pending
-                        ? "Pending"
-                        : "In Progress"}
+                          ? "Pending"
+                          : "In Progress"}
                     </span>
                   </ListGroup.Item>
                 ))}
