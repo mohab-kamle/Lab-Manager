@@ -349,8 +349,6 @@ app.use("/bill", require('./routes/bill'));
 app.use("/diseases", require('./routes/diseases'));
 app.use("/receptionists", require('./routes/receptionist'));
 app.use("/referrals", require('./routes/referrals'));
-app.use("/tgc-categories", require("./routes/tgc_categories"));
-app.use("/test-groups", require("./routes/test_groups"));
 app.use("/suppliers", require("./routes/suppliers"));
 app.use("/inventory", require("./routes/inventory"));
 app.use("/questions", require("./routes/questions"));
