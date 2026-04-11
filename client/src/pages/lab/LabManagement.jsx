@@ -68,7 +68,12 @@ const LabManagement = () => {
     currency: 'USD',
     tax_rate: 0,
     allow_partial_payments: true,
-    payment_reminder_days: 7
+    // Payment Settings
+    currency: 'USD',
+    tax_rate: 0,
+    allow_partial_payments: true,
+    payment_reminder_days: 7,
+    patient_due_limit: 0
   });
 
   const [subscription, setSubscription] = useState({
@@ -579,6 +584,8 @@ const LabManagement = () => {
                       placeholder="Lab website"
                     />
                   </div>
+
+
                 </div>
 
                 <button type="submit" className="btn-primary" disabled={loading}>
@@ -838,13 +845,29 @@ const LabManagement = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>Payment Reminder (Days)</label>
                       <input
                         type="number"
                         value={settings.payment_reminder_days}
                         onChange={(e) => setSettings(prev => ({ ...prev, payment_reminder_days: parseInt(e.target.value) }))}
                         min="1"
                         max="30"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        Max Due Limit (Patient)
+                        <span className="info-tooltip" title="Maximum allowed debt for a patient. Set to 0 to disable limit.">
+                          <Info size={14} />
+                        </span>
+                      </label>
+                      <input
+                        type="number"
+                        value={settings.patient_due_limit}
+                        onChange={(e) => setSettings(prev => ({ ...prev, patient_due_limit: parseFloat(e.target.value) || 0 }))}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
                       />
                     </div>
                   </div>

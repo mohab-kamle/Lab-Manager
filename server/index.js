@@ -1,6 +1,13 @@
 // Load environment variables
 require("dotenv").config();
 
+// 🔒 SECURITY CHECK: Ensure SECRET_KEY is defined
+if (!process.env.SECRET_KEY) {
+  console.error("FATAL ERROR: SECRET_KEY is not defined in environment variables.");
+  console.error("Please set SECRET_KEY in your .env file to secure JWT tokens.");
+  process.exit(1);
+}
+
 // Core dependencies
 const express = require("express");
 const cors = require("cors");
@@ -9,7 +16,11 @@ const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
-const { employee, patient, phone } = require("./models");
+const { employee, patient, phone, doctor } = require("./models");
+
+// Socket.io for Real-Time Events
+const http = require("http");
+const { Server } = require("socket.io");
 
 // Subscription scheduler service
 const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('./services/subscriptionScheduler');
@@ -17,8 +28,22 @@ const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('
 // Cache service
 const cacheService = require('./services/cacheService');
 
+// Inventory expiry checker
+const { checkExpiringBatches } = require('./services/inventoryEvents');
+
 // Initialize Express app
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Use stricter CORS in production
+    methods: ["GET", "POST"]
+  }
+});
+app.set("io", io); // Make it available to routes
+
 // Trust first proxy (Cloudflare/Nginx) for correct IP rate limiting
 app.set('trust proxy', 1);
 const router = express.Router();
@@ -43,7 +68,7 @@ const corsOptions = {
       console.log('CORS: No origin provided, allowing');
       return callback(null, true);
     }
-    
+
     const allowedOrigins = [
       'https://mlab-manager.vercel.app',
       'https://www.labdoctors-laboratories.com',
@@ -53,13 +78,19 @@ const corsOptions = {
       'http://127.0.0.1:5173',
       'http://127.0.0.1:3000'
     ];
-    
+
     // In production, also allow any subdomain of the main domain
     if (process.env.NODE_ENV === 'production' && allowedDomainPattern.test(origin)) {
       console.log(`CORS: Allowing ${MAIN_DOMAIN} subdomain:`, origin);
       return callback(null, true);
     }
-    
+
+    // In development, allow dynamic localhost subdomains (e.g. test.localhost:5173)
+    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)*localhost(:[0-9]+)?$/.test(origin)) {
+      console.log('CORS: Allowing localhost subdomain:', origin);
+      return callback(null, true);
+    }
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       console.log('CORS: Allowing origin:', origin);
       callback(null, true);
@@ -136,12 +167,12 @@ app.use('/uploads/public', express.static(publicUploadsPath, {
 app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(privateUploadsPath, filename);
-  
+
   // Check if file exists
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
+
   // Set appropriate headers
   const ext = path.extname(filename).toLowerCase();
   if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
@@ -149,11 +180,11 @@ app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
   } else if (ext === '.pdf') {
     res.setHeader('Content-Type', 'application/pdf');
   }
-  
+
   // Add security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-  
+
   res.sendFile(filePath);
 });
 
@@ -161,22 +192,22 @@ app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
 app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => {
   const filename = req.params.filename;
   const filePath = path.join(commentImagesPath, filename);
-  
+
   // Check if file exists
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
-  
+
   // Set appropriate headers for images
   const ext = path.extname(filename).toLowerCase();
   if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
     res.setHeader('Content-Type', `image/${ext.substring(1)}`);
   }
-  
+
   // Add security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-  
+
   res.sendFile(filePath);
 });
 
@@ -201,7 +232,7 @@ app.use((req, res, next) => {
 // Add CORS debugging middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin || 'No origin'} - User-Agent: ${req.headers['user-agent'] || 'No user-agent'}`);
-  
+
   // Log CORS headers for debugging
   if (req.method === 'OPTIONS') {
     console.log('CORS Preflight Request Headers:', {
@@ -210,7 +241,7 @@ app.use((req, res, next) => {
       'Origin': req.headers.origin
     });
   }
-  
+
   next();
 });
 
@@ -254,24 +285,20 @@ app.get('/health', async (req, res) => {
   try {
     // Test database connection
     await db.sequelize.authenticate();
-    
+
     // Test if key tables exist
     const tableChecks = await Promise.allSettled([
-      db.test_group.count(),
-      db.tgc_category.count(),
       db.test.count(),
-      db.culture.count(),
+      db.medical_report.count(),
       db.patient.count()
     ]);
-    
+
     const tableStatus = {
-      test_group: tableChecks[0].status === 'fulfilled' ? 'OK' : 'ERROR',
-      tgc_category: tableChecks[1].status === 'fulfilled' ? 'OK' : 'ERROR',
-      test: tableChecks[2].status === 'fulfilled' ? 'OK' : 'ERROR',
-      culture: tableChecks[3].status === 'fulfilled' ? 'OK' : 'ERROR',
-      patient: tableChecks[4].status === 'fulfilled' ? 'OK' : 'ERROR'
+      test: tableChecks[0].status === 'fulfilled' ? 'OK' : 'ERROR',
+      medical_report: tableChecks[1].status === 'fulfilled' ? 'OK' : 'ERROR',
+      patient: tableChecks[2].status === 'fulfilled' ? 'OK' : 'ERROR'
     };
-    
+
     res.json({
       status: 'OK',
       database: 'Connected',
@@ -303,13 +330,10 @@ app.get('/health', async (req, res) => {
 app.use("/me", router);
 app.use("/patient", require("./routes/patient"));
 app.use("/emp", require("./routes/employee"));
+app.use("/doctor", require("./routes/doctor"));
 app.use("/categories", require("./routes/categories"));
 app.use("/tests", require("./routes/tests"));
 app.use("/samples", require("./routes/samples"));
-app.use("/cultures", require("./routes/culture"));
-app.use("/culture-options", require("./routes/cultureOptions"));
-app.use("/culture-sub-options", require("./routes/cultureSubOptions"));
-app.use("/antibiotics", require("./routes/antibiotics"));
 app.use("/payment-methods", require("./routes/paymentMethods"));
 app.use("/subscriptions", require("./routes/subscriptions"));
 app.use("/invoices", require("./routes/invoices"));
@@ -318,6 +342,7 @@ app.use("/labs", require("./routes/labs"));
 app.use("/packages-and-offers", require("./routes/packages_and_offers"));
 app.use("/statuses", require("./routes/statuses"));
 app.use("/medical-reports", require('./routes/medical_reports'));
+app.use("/antibiotics", require('./routes/antibiotics'));
 app.use("/admin", require('./routes/admin'));
 app.use("/validate-admin-info", require("./routes/validateAdminInfo"));
 app.use("/bill", require('./routes/bill'));
@@ -326,10 +351,10 @@ app.use("/receptionists", require('./routes/receptionist'));
 app.use("/referrals", require('./routes/referrals'));
 app.use("/tgc-categories", require("./routes/tgc_categories"));
 app.use("/test-groups", require("./routes/test_groups"));
+app.use("/suppliers", require("./routes/suppliers"));
+app.use("/inventory", require("./routes/inventory"));
 app.use("/questions", require("./routes/questions"));
 app.use("/contracts", require("./routes/contracts"));
-app.use("/culture-antibiotics", require("./routes/culture_antibiotics"));
-app.use("/field-comp-options", require("./routes/field_comp_options"));
 app.use("/demo", require("./routes/demo"));
 app.use("/register", require("./routes/register"));
 app.use("/payments", require("./routes/paymentsGateway"));
@@ -338,7 +363,7 @@ app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 // Global error handler
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
-  
+
   if (error.message === 'Not allowed by CORS') {
     console.error('CORS Error Details:', {
       origin: req.headers.origin,
@@ -346,16 +371,16 @@ app.use((error, req, res, next) => {
       path: req.path,
       userAgent: req.headers['user-agent']
     });
-    return res.status(403).json({ 
-      error: 'CORS Error', 
+    return res.status(403).json({
+      error: 'CORS Error',
       message: 'Origin not allowed',
-      origin: req.headers.origin 
+      origin: req.headers.origin
     });
   }
-  
-  res.status(500).json({ 
+
+  res.status(500).json({
     error: 'Internal Server Error',
-    message: error.message 
+    message: error.message
   });
 });
 
@@ -375,8 +400,17 @@ router.get("/", authenticateUser, async (req, res) => {
         const phones = await phone.findAll({ where: { patient_id: req.user.id } });
         user = { ...user.get(), role: "patient", phones };
       }
+    } else if (req.user.role === "doctor") {
+      user = await doctor.findByPk(req.user.id, {
+        attributes: ["id", "name", "username", "email"]
+      });
+      // If role is not in db column yet (it is not in schema i think, usually derived), append it
+      if (user) {
+        user = user.toJSON();
+        user.role = 'doctor';
+      }
     } else {
-      user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role"] });
+      user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role", "lab_id"] });
     }
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
@@ -412,7 +446,7 @@ console.log('- CORS Origins:', [
 async function connectDatabase() {
   const maxRetries = 5;
   const retryDelay = 5000; // 5 seconds
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔌 Database connection attempt ${attempt}/${maxRetries}...`);
@@ -421,13 +455,13 @@ async function connectDatabase() {
       return true;
     } catch (error) {
       console.error(`❌ Database connection attempt ${attempt} failed:`, error.message);
-      
+
       if (attempt === maxRetries) {
         console.error(`💥 All database connection attempts failed. Server will start without database sync.`);
         return false;
       }
-      
-      console.log(`⏳ Retrying in ${retryDelay/1000} seconds...`);
+
+      console.log(`⏳ Retrying in ${retryDelay / 1000} seconds...`);
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
@@ -438,47 +472,39 @@ async function syncDatabase() {
   try {
     console.log(`🔌 Connecting to ${isProduction ? "Production" : "Development"} Database...`);
     const connected = await connectDatabase();
-    
+
     if (!connected) {
       console.log(`⚠️  Database connection failed, skipping sync`);
       return false;
     }
-    
-    // Check if we should force sync (only in development)
+
+    // Force sync in dev only if explicitly set
     const forceSync = process.env.FORCE_SYNC === 'true' && !isProduction;
-    const alterSync = !forceSync; // Use alter by default, force only if explicitly set
-    
-    const syncOptions = alterSync ? { alter: false } : { force: true };
-    
+    // Alter in both dev and prod by default (safe)
+    const alterSync = true; // always true so migrations run automatically
+    const syncOptions = forceSync ? { force: true } : { alter: true };
     console.log(`🔄 Database synchronization mode: ${alterSync ? 'ALTER (safe)' : 'FORCE (destructive)'}`);
     console.log(`📋 Sync options:`, syncOptions);
-    
+
     if (forceSync) {
       console.log(`⚠️  WARNING: Force sync will drop all tables and recreate them!`);
       console.log(`⚠️  This will DELETE ALL DATA! Only use in development!`);
     }
-    
+
     // Try to sync, but handle various constraint issues gracefully
     try {
       await db.sequelize.sync(syncOptions);
       console.log(`✅ Database schema synchronized successfully`);
     } catch (syncError) {
       console.log(`🔧 Sync error detected: ${syncError.message}`);
-      
-      if (syncError.message.includes('Multiple primary key defined') || syncError.code === 'ER_MULTIPLE_PRI_KEY') {
-        console.log(`🔧 Primary key conflict detected, applying manual fix...`);
-        await fixPrimaryKeyConflict();
-        console.log(`✅ Primary key conflict resolved, continuing with sync...`);
-        // Try sync again after the fix
-        await db.sequelize.sync(syncOptions);
-        console.log(`✅ Database schema synchronized successfully after fix`);
-      } else if (syncError.name === 'SequelizeUnknownConstraintError' || syncError.message.includes('does not exist') || syncError.code === 'ER_TOO_MANY_KEYS') {
+
+      if (syncError.name === 'SequelizeUnknownConstraintError' || syncError.message.includes('does not exist') || syncError.code === 'ER_TOO_MANY_KEYS') {
         console.log(`🔧 Constraint issue detected, attempting individual model sync...`);
-        
+
         // Try to sync models individually to handle constraint issues
         const models = Object.values(db.sequelize.models);
         let syncSuccess = true;
-        
+
         for (const model of models) {
           try {
             console.log(`  🔄 Syncing model: ${model.name}`);
@@ -486,7 +512,7 @@ async function syncDatabase() {
             console.log(`  ✅ Successfully synced: ${model.name}`);
           } catch (modelError) {
             console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
-            
+
             // If it's a constraint error, log it but continue
             if (modelError.name === 'SequelizeUnknownConstraintError' || modelError.code === 'ER_TOO_MANY_KEYS') {
               console.log(`  ⚠️  Constraint issue with ${model.name}, skipping...`);
@@ -495,7 +521,7 @@ async function syncDatabase() {
             }
           }
         }
-        
+
         if (syncSuccess) {
           console.log(`✅ Individual model sync completed successfully`);
         } else {
@@ -507,30 +533,30 @@ async function syncDatabase() {
         console.log(`⚠️  Continuing with server startup despite sync issues...`);
       }
     }
-    
+
     // Verify key tables exist
-    const keyTables = ['patient', 'test', 'culture', 'medical_report', 'test_group'];
+    const keyTables = ['patient', 'test', 'medical_report'];
     const tableChecks = await Promise.allSettled(
       keyTables.map(table => db.sequelize.query(`SELECT 1 FROM ${table} LIMIT 1`))
     );
-    
+
     const tableStatus = {};
     keyTables.forEach((table, index) => {
       tableStatus[table] = tableChecks[index].status === 'fulfilled' ? '✅' : '❌';
     });
-    
+
     console.log(`📊 Table verification:`, tableStatus);
-    
+
     // Check for any failed table verifications
     const failedTables = keyTables.filter((table, index) => tableChecks[index].status === 'rejected');
     if (failedTables.length > 0) {
       console.warn(`⚠️  Warning: Some tables may not be accessible:`, failedTables);
     }
-    
+
     return true;
   } catch (error) {
     console.error("❌ Database synchronization failed:", error);
-    
+
     // Provide helpful error messages
     if (error.code === 'ECONNREFUSED') {
       console.error("💡 Tip: Make sure your database server is running");
@@ -538,10 +564,8 @@ async function syncDatabase() {
       console.error("💡 Tip: Check your database credentials in config/config.json");
     } else if (error.message.includes('Unknown column')) {
       console.error("💡 Tip: This might be a schema mismatch. Consider using FORCE_SYNC=true in development");
-    } else if (error.message.includes('Multiple primary key defined')) {
-      console.error("💡 Tip: Primary key conflict detected. This has been automatically fixed.");
     }
-    
+
     return false;
   }
 }
@@ -550,25 +574,25 @@ async function syncDatabase() {
 async function safeSyncWithConstraintHandling() {
   try {
     console.log(`🔧 Applying safe sync with constraint handling...`);
-    
+
     // Get all models
     const models = Object.values(db.sequelize.models);
-    
+
     for (const model of models) {
       try {
         console.log(`  🔄 Syncing model: ${model.name}`);
-        
+
         // Use alter: true to modify existing tables instead of dropping them
         await model.sync({ alter: true, force: false });
-        
+
         console.log(`  ✅ Successfully synced: ${model.name}`);
       } catch (modelError) {
         console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
-        
+
         // If it's a constraint error, try to handle it gracefully
         if (modelError.name === 'SequelizeUnknownConstraintError') {
           console.log(`  🔧 Attempting to fix constraint issue for ${model.name}...`);
-          
+
           try {
             // Try to sync without constraints first
             await model.sync({ alter: true, force: false });
@@ -579,82 +603,16 @@ async function safeSyncWithConstraintHandling() {
         }
       }
     }
-    
+
     console.log(`✅ Safe sync with constraint handling completed!`);
-    
+
   } catch (error) {
     console.error(`❌ Error during safe sync:`, error);
     throw error;
   }
 }
 
-// Direct fix for primary key conflict
-async function fixPrimaryKeyConflict() {
-  try {
-    console.log(`🔧 Applying direct primary key conflict fix...`);
-    
-    // Step 1: Check if table exists
-    const [tables] = await db.sequelize.query("SHOW TABLES LIKE 'medical_report_has_culture'");
-    if (tables.length === 0) {
-      console.log(`✅ Table doesn't exist, will be created by sync`);
-      return;
-    }
-    
-    // Step 2: Check current structure
-    const [columns] = await db.sequelize.query("SHOW COLUMNS FROM medical_report_has_culture");
-    const hasPrimaryKey = columns.some(col => col.Key === 'PRI');
-    const hasIdColumn = columns.some(col => col.Field === 'id');
-    
-    console.log(`📊 Current structure: hasPrimaryKey=${hasPrimaryKey}, hasIdColumn=${hasIdColumn}`);
-    
-    // Step 3: Handle sql_require_primary_key constraint by recreating table
-    console.log(`🔄 Recreating table to handle sql_require_primary_key constraint...`);
-    
-    // Create backup table
-    await db.sequelize.query("CREATE TABLE medical_report_has_culture_backup AS SELECT * FROM medical_report_has_culture");
-    console.log(`✅ Created backup table`);
-    
-    // Drop original table
-    await db.sequelize.query("DROP TABLE medical_report_has_culture");
-    console.log(`✅ Dropped original table`);
-    
-    // Recreate with correct structure
-    await db.sequelize.query(`
-      CREATE TABLE medical_report_has_culture (
-        id int NOT NULL AUTO_INCREMENT,
-        medical_report_id int NOT NULL,
-        culture_id int NOT NULL,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        UNIQUE KEY unique_medical_report_culture (medical_report_id, culture_id),
-        KEY idx_medical_report_id (medical_report_id),
-        KEY idx_culture_id (culture_id)
-      )
-    `);
-    console.log(`✅ Recreated table with correct structure`);
-    
-    // Copy data back
-    await db.sequelize.query(`
-      INSERT INTO medical_report_has_culture (medical_report_id, culture_id, created_at, updated_at)
-      SELECT medical_report_id, culture_id, created_at, updated_at 
-      FROM medical_report_has_culture_backup
-    `);
-    console.log(`✅ Copied data back from backup`);
-    
-    // Drop backup table
-    await db.sequelize.query("DROP TABLE medical_report_has_culture_backup");
-    console.log(`✅ Dropped backup table`);
-    
-    console.log(`✅ Primary key conflict fix completed`);
-    
-  } catch (error) {
-    console.error(`❌ Error in primary key conflict fix:`, error.message);
-    throw error;
-  }
-}
-
-
+// End of safe sync function
 // Start server with enhanced database sync
 // Only sync database on master process in cluster mode to prevent race conditions
 const shouldSyncDatabase = !process.env.pm_id || process.env.pm_id === '0';
@@ -680,81 +638,121 @@ if (shouldSyncDatabase) {
 // Extract server startup logic into a separate function
 async function startServer() {
   const PORT = process.env.PORT || 3001;
-    
-    // Add connection pool monitoring (using a different approach)
-    if (db.sequelize.connectionManager) {
-      console.log('🔌 Database connection pool initialized');
-      console.log(`📊 Pool config: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
-    }
-    
-    // Initialize Redis cache service
-    try {
-      await cacheService.init();
-      console.log('🗄️ Redis cache service initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize Redis cache service:', error);
-    }
-    
-    // Initialize subscription scheduler after database is ready
-    let subscriptionScheduler;
-    try {
-      subscriptionScheduler = initializeSubscriptionScheduler();
-      console.log('⏰ Subscription scheduler initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize subscription scheduler:', error);
-    }
-    
-    // Add graceful shutdown handling
-    process.on('SIGTERM', async () => {
-      console.log('🛑 Received SIGTERM, shutting down gracefully...');
-      try {
-        // Stop subscription scheduler
-        if (subscriptionScheduler) {
-          stopSubscriptionScheduler(subscriptionScheduler);
-        }
-        
-        // Close Redis cache connection
-        await cacheService.close();
-        
-        // Close database connections
-        await db.sequelize.close();
-        console.log('✅ All connections closed successfully');
-        process.exit(0);
-      } catch (error) {
-        console.error('❌ Error during shutdown:', error);
-        process.exit(1);
-      }
-    });
-    
-    process.on('SIGINT', async () => {
-      console.log('🛑 Received SIGINT, shutting down gracefully...');
-      try {
-        // Stop subscription scheduler
-        if (subscriptionScheduler) {
-          stopSubscriptionScheduler(subscriptionScheduler);
-        }
-        
-        // Close Redis cache connection
-        await cacheService.close();
-        
-        // Close database connections
-        await db.sequelize.close();
-        console.log('✅ All connections closed successfully');
-        process.exit(0);
-      } catch (error) {
-        console.error('❌ Error during shutdown:', error);
-        process.exit(1);
-      }
-    });
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌐 CORS enabled for production domains`);
-      console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
-      console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
-      console.log(`📊 Database sync: ENABLED`);
-      console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
-      console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
-      console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
-    });
+
+  // Add connection pool monitoring (using a different approach)
+  if (db.sequelize.connectionManager) {
+    console.log('🔌 Database connection pool initialized');
+    console.log(`📊 Pool config: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
   }
+
+  // Initialize Redis cache service
+  try {
+    await cacheService.init();
+    console.log('🗄️ Redis cache service initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize Redis cache service:', error);
+  }
+
+  // Initialize subscription scheduler after database is ready
+  let subscriptionScheduler;
+  try {
+    subscriptionScheduler = initializeSubscriptionScheduler();
+    console.log('⏰ Subscription scheduler initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize subscription scheduler:', error);
+  }
+
+  // Add graceful shutdown handling
+  // Reference for the expiry check interval (set up after Socket.io handler below)
+  let expiryCheckInterval = null;
+
+  process.on('SIGTERM', async () => {
+    console.log('🛑 Received SIGTERM, shutting down gracefully...');
+    try {
+      // Stop subscription scheduler
+      if (subscriptionScheduler) {
+        stopSubscriptionScheduler(subscriptionScheduler);
+      }
+
+      // Stop expiry check interval
+      if (expiryCheckInterval) clearInterval(expiryCheckInterval);
+
+      // Close Redis cache connection
+      await cacheService.close();
+
+      // Close database connections
+      await db.sequelize.close();
+      console.log('✅ All connections closed successfully');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('🛑 Received SIGINT, shutting down gracefully...');
+    try {
+      // Stop subscription scheduler
+      if (subscriptionScheduler) {
+        stopSubscriptionScheduler(subscriptionScheduler);
+      }
+
+      // Stop expiry check interval
+      if (expiryCheckInterval) clearInterval(expiryCheckInterval);
+
+      // Close Redis cache connection
+      await cacheService.close();
+
+      // Close database connections
+      await db.sequelize.close();
+      console.log('✅ All connections closed successfully');
+      process.exit(0);
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+      process.exit(1);
+    }
+  });
+
+  // Socket.io connection handling
+  io.on("connection", (socket) => {
+    console.log(`🔌 Client connected: ${socket.id}`);
+
+    // Track which labs have already had their expiry check this cycle
+    socket.on("join_lab", (lab_id) => {
+      socket.join(`lab_${lab_id}`);
+      console.log(`🏠 Socket ${socket.id} joined lab_${lab_id}`);
+
+      // Run expiry check for this lab once per cycle (first client to connect triggers it)
+      if (!checkedLabs.has(lab_id)) {
+        checkedLabs.add(lab_id);
+        // Small delay to ensure the client has fully joined the room before we emit events
+        setTimeout(() => checkExpiringBatches(io), 2000);
+      }
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`🔌 Client disconnected: ${socket.id}`);
+    });
+  });
+
+  // Track which labs have been checked for expiring batches this cycle
+  // Resets every 24h so labs get re-checked daily
+  let checkedLabs = new Set();
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+  expiryCheckInterval = setInterval(() => {
+    checkedLabs.clear(); // Reset so next client connection triggers a fresh check
+  }, TWENTY_FOUR_HOURS);
+  console.log('🔔 Inventory expiry checker: runs on first client join per lab, resets every 24 hours');
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 CORS enabled for production domains`);
+    console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
+    console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
+    console.log(`📊 Database sync: ENABLED`);
+    console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
+    console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
+    console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
+  });
+}

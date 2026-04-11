@@ -67,9 +67,10 @@ CMD ["nginx", "-g", "daemon off;"]
 # -----------------------------------------------------------------------------
 # 6. PRODUCTION: Server
 # -----------------------------------------------------------------------------
-FROM base AS server-prod
+FROM configs AS server-prod
+COPY server/package.json ./server/
 # Re-install only production dependencies to keep image small
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile --filter server...
 
 COPY server/ ./server/
 WORKDIR /app/server
