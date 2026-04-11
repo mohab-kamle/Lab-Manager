@@ -225,22 +225,38 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
 });
 
 // Get all patients
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee"), tenantContext,
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee", "doctor"), tenantContext,
     // Add cache headers for 5 minutes
     (req, res, next) => {
         res.set({
             'Cache-Control': 'public, max-age=300', // 5 minutes
-            'ETag': `"patients-${req.tenant.lab_id}-${Date.now()}"`
+            'ETag': `"patients-${req.tenant?.lab_id || req.user.id}-${Date.now()}"`
         });
         next();
     },
     async (req, res) => {
         try {
             console.log('Fetching patients...');
+            let whereClause = {};
+
+            if (req.user.role === 'doctor') {
+                // Fetch all labs associated with this doctor
+                const contracts = await sequelize.models.lab_contracts_doctor.findAll({
+                    where: { doctor_id: req.user.id },
+                    attributes: ['lab_id']
+                });
+                const labIds = contracts.map(c => c.lab_id);
+
+                if (labIds.length === 0) {
+                    return res.json([]);
+                }
+                whereClause.lab_id = { [sequelize.Sequelize.Op.in]: labIds };
+            } else {
+                whereClause.lab_id = req.tenant.lab_id;
+            }
+
             const patients = await patient.findAll({
-                where: {
-                    lab_id: req.tenant.lab_id
-                },
+                where: whereClause,
                 attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address', 'total', 'paid', 'due', 'contract_id', 'referral_id', 'createdAt'],
                 include: [
                     {
@@ -606,7 +622,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
 });
 
 // Get all available diseases
-router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist"),
+router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist", "doctor"),
     // Add cache headers for 1 hour - diseases rarely change
     (req, res, next) => {
         res.set({
@@ -934,22 +950,11 @@ router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (r
                     model: db.test,
                     as: 'test_id_test_medical_report_has_tests',
                     through: { attributes: [] },
-                    include: [
-                        { model: db.test_component, as: 'components', attributes: ['id', 'name', 'unit', 'normal_from', 'normal_to', 'gender', 'age_start', 'age_end', 'test_id'] }
-                    ]
-                },
-                {
-                    model: db.culture,
-                    as: 'culture_id_culture_medical_report_has_cultures',
-                    through: { attributes: [] }
+                    attributes: ['id', 'name', 'structure_config', 'type']
                 },
                 {
                     model: db.medical_report_has_test,
                     as: 'medical_report_has_tests'
-                },
-                {
-                    model: db.medical_report_has_culture,
-                    as: 'medical_report_has_cultures'
                 }
             ]
         });
