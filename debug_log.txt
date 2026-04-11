@@ -1,0 +1,3 @@
+Dotenv result: Error
+DATABASE_URL defined: false
+Starting model import...
