@@ -6,7 +6,6 @@ import PrivateRoute from './components/auth/PrivateRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import ChemistDashboard from './pages/chemist/ChemistDashboard';
-import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 import PatientDashboard from './pages/patient/PatientDashboard';
 
@@ -80,10 +79,6 @@ const LabRoutes = () => (
       <Route
         path="/chemist/dashboard"
         element={<PrivateRoute element={<ChemistDashboard />} allowedRoles={["chemist"]} />}
-      />
-      <Route
-        path="/doctor/dashboard"
-        element={<PrivateRoute element={<DoctorDashboard />} allowedRoles={["doctor"]} />}
       />
       <Route
         path="/employee/dashboard"
