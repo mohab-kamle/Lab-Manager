@@ -110,8 +110,23 @@ const corsOptions = {
 
 app.use(express.json());
 
-// Apply security headers
-app.use(helmet());
+// Apply security headers with CSP for Socket.io
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "http:", "https:"],
+      connectSrc: ["'self'", "http://localhost:3001", "ws://localhost:3001", "https://*.labdoctors-laboratories.com", "wss://*.labdoctors-laboratories.com"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Apply global rate limiter
 app.use(globalLimiter);
@@ -348,7 +363,7 @@ app.use("/validate-admin-info", require("./routes/validateAdminInfo"));
 app.use("/bill", require('./routes/bill'));
 app.use("/diseases", require('./routes/diseases'));
 app.use("/receptionists", require('./routes/receptionist'));
-app.use("/referrals", require('./routes/referrals'));
+
 app.use("/suppliers", require("./routes/suppliers"));
 app.use("/inventory", require("./routes/inventory"));
 app.use("/questions", require("./routes/questions"));
@@ -476,60 +491,26 @@ async function syncDatabase() {
       return false;
     }
 
-    // Force sync in dev only if explicitly set
-    const forceSync = process.env.FORCE_SYNC === 'true' && !isProduction;
-    // Alter in both dev and prod by default (safe)
-    const alterSync = true; // always true so migrations run automatically
-    const syncOptions = forceSync ? { force: true } : { alter: true };
-    console.log(`🔄 Database synchronization mode: ${alterSync ? 'ALTER (safe)' : 'FORCE (destructive)'}`);
-    console.log(`📋 Sync options:`, syncOptions);
-
-    if (forceSync) {
-      console.log(`⚠️  WARNING: Force sync will drop all tables and recreate them!`);
-      console.log(`⚠️  This will DELETE ALL DATA! Only use in development!`);
-    }
-
-    // Try to sync, but handle various constraint issues gracefully
-    try {
-      await db.sequelize.sync(syncOptions);
-      console.log(`✅ Database schema synchronized successfully`);
-    } catch (syncError) {
-      console.log(`🔧 Sync error detected: ${syncError.message}`);
-
-      if (syncError.name === 'SequelizeUnknownConstraintError' || syncError.message.includes('does not exist') || syncError.code === 'ER_TOO_MANY_KEYS') {
-        console.log(`🔧 Constraint issue detected, attempting individual model sync...`);
-
-        // Try to sync models individually to handle constraint issues
-        const models = Object.values(db.sequelize.models);
-        let syncSuccess = true;
-
-        for (const model of models) {
-          try {
-            console.log(`  🔄 Syncing model: ${model.name}`);
-            await model.sync({ alter: true, force: false });
-            console.log(`  ✅ Successfully synced: ${model.name}`);
-          } catch (modelError) {
-            console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
-
-            // If it's a constraint error, log it but continue
-            if (modelError.name === 'SequelizeUnknownConstraintError' || modelError.code === 'ER_TOO_MANY_KEYS') {
-              console.log(`  ⚠️  Constraint issue with ${model.name}, skipping...`);
-            } else {
-              syncSuccess = false;
-            }
-          }
-        }
-
-        if (syncSuccess) {
-          console.log(`✅ Individual model sync completed successfully`);
-        } else {
-          console.log(`⚠️  Some models failed to sync, but continuing...`);
-        }
-      } else {
-        // For other errors, log but don't crash
+    if (!isProduction) {
+      console.log("🔧 Development mode: syncing database...");
+      
+      const forceSync = process.env.FORCE_SYNC === 'true';
+      const syncOptions = forceSync ? { force: true } : { alter: true };
+      
+      if (forceSync) {
+        console.log(`⚠️  WARNING: Force sync will drop all tables and recreate them!`);
+        console.log(`⚠️  This will DELETE ALL DATA! Only use in development!`);
+      }
+      
+      try {
+        await db.sequelize.sync(syncOptions);
+        console.log(`✅ Database schema synchronized successfully`);
+      } catch (syncError) {
         console.error(`❌ Database sync error:`, syncError.message);
         console.log(`⚠️  Continuing with server startup despite sync issues...`);
       }
+    } else {
+      console.log("🚀 Production mode: skipping sequelize sync (using migrations)");
     }
 
     // Verify key tables exist
@@ -568,49 +549,7 @@ async function syncDatabase() {
   }
 }
 
-// Safe sync function to handle constraint issues
-async function safeSyncWithConstraintHandling() {
-  try {
-    console.log(`🔧 Applying safe sync with constraint handling...`);
-
-    // Get all models
-    const models = Object.values(db.sequelize.models);
-
-    for (const model of models) {
-      try {
-        console.log(`  🔄 Syncing model: ${model.name}`);
-
-        // Use alter: true to modify existing tables instead of dropping them
-        await model.sync({ alter: true, force: false });
-
-        console.log(`  ✅ Successfully synced: ${model.name}`);
-      } catch (modelError) {
-        console.error(`  ❌ Error syncing ${model.name}:`, modelError.message);
-
-        // If it's a constraint error, try to handle it gracefully
-        if (modelError.name === 'SequelizeUnknownConstraintError') {
-          console.log(`  🔧 Attempting to fix constraint issue for ${model.name}...`);
-
-          try {
-            // Try to sync without constraints first
-            await model.sync({ alter: true, force: false });
-            console.log(`  ✅ Successfully synced ${model.name} after constraint fix`);
-          } catch (retryError) {
-            console.error(`  ❌ Failed to sync ${model.name} even after constraint fix:`, retryError.message);
-          }
-        }
-      }
-    }
-
-    console.log(`✅ Safe sync with constraint handling completed!`);
-
-  } catch (error) {
-    console.error(`❌ Error during safe sync:`, error);
-    throw error;
-  }
-}
-
-// End of safe sync function
+// safeSyncWithConstraintHandling removed as it is dangerous to sync individual models in production
 // Start server with enhanced database sync
 // Only sync database on master process in cluster mode to prevent race conditions
 const shouldSyncDatabase = !process.env.pm_id || process.env.pm_id === '0';
@@ -748,7 +687,7 @@ async function startServer() {
     console.log(`🌐 CORS enabled for production domains`);
     console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
     console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
-    console.log(`📊 Database sync: ENABLED`);
+    console.log(`📊 Database sync: ${isProduction ? 'DISABLED (using migrations)' : 'ENABLED (dev only)'}`);
     console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
     console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
     console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);

@@ -30,7 +30,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [receptionists, setReceptionists] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [diseases, setDiseases] = useState([]);
-  const [referrals, setReferrals] = useState([]); // Add referrals state
+  const [doctors, setDoctors] = useState([]); // Doctors replacing referrals
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,7 +65,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     due: 0,
     status_id: "",
     receptionist_id: "",
-    branch_id: ""
+    branch_id: "",
+    referred_doctor_id: ""
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -128,7 +129,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         receptionistsRes,
         contractsRes,
         diseasesRes,
-        referralsRes,
+        doctorsRes,
         branchesRes
       ] = await Promise.all([
         axios.get(`${apiUrl}/invoices`, { headers }),
@@ -140,7 +141,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         user?.role === 'admin' ? axios.get(`${apiUrl}/receptionists`, { headers }) : Promise.resolve({ data: [] }),
         axios.get(`${apiUrl}/contracts`, { headers }),
         axios.get(`${apiUrl}/patient/diseases`, { headers }),
-        axios.get(`${apiUrl}/referrals`, { headers }), // Add referrals fetching
+        axios.get(`${apiUrl}/doctor`, { headers }), // Fetch doctors
         axios.get(`${apiUrl}/branches`, { headers })
       ]);
 
@@ -153,7 +154,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       setReceptionists(receptionistsRes.data || []);
       setContracts(contractsRes.data || []);
       setDiseases(diseasesRes.data || []);
-      setReferrals(referralsRes.data.referrals || []); // Set referrals data
+      setDoctors(doctorsRes.data || []); // Set doctors data
       setBranches(branchesRes.data || []);
       setLoading(false);
     } catch (error) {
@@ -168,7 +169,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       setReceptionists([]);
       setContracts([]);
       setDiseases([]);
-      setReferrals([]); // Set empty referrals array on error
+      setDoctors([]); // Set empty doctors array on error
       setBranches([]);
       setLoading(false);
     }
@@ -245,8 +246,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     primaryPhone: "",
     secondaryPhone: "",
     diseases: [], // This will store disease IDs
-    contract_id: "",
-    referral_id: "" // Add referral_id to patient form
+    contract_id: ""
   });
   const [patientFormErrors, setPatientFormErrors] = useState({});
   const [showDiseaseCreateModal, setShowDiseaseCreateModal] = useState(false);
@@ -283,14 +283,15 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       year: date.getFullYear().toString()
     };
   };
-  // Referral modal states
-  const [showReferralModal, setShowReferralModal] = useState(false);
-  const [newReferral, setNewReferral] = useState({
-    doctor_name: "",
+
+  // Doctor modal states
+  const [showDoctorModal, setShowDoctorModal] = useState(false);
+  const [newDoctor, setNewDoctor] = useState({
+    name: "",
     specialization: "",
     phone: "",
     email: "",
-    address: ""
+    commission: 0
   });
 
   const handleCreatePatient = async () => {
@@ -317,8 +318,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         primaryPhone: patientForm.primaryPhone || null,
         secondaryPhone: patientForm.secondaryPhone || null,
         diseases: patientForm.diseases || [], // This should be an array of disease IDs
-        contract_id: patientForm.contract_id || null,
-        referral_id: patientForm.referral_id || null // Include referral_id in patient creation
+        contract_id: patientForm.contract_id || null
       };
       const response = await axios.post(`${apiUrl}/patient`, cleanedPatient, {
         headers: { Authorization: `Bearer ${token}` },
@@ -356,8 +356,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         primaryPhone: "",
         secondaryPhone: "",
         diseases: [],
-        contract_id: "",
-        referral_id: "" // Reset referral_id
+        contract_id: ""
       });
       setDiseaseSearchTerm("");
       setPatientFormErrors({});
@@ -419,59 +418,88 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     }
   };
 
-  // Handle adding new referral
-  const handleAddReferral = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      setLoading(true);
-      setError(null);
+  const updateAutoDiscount = (patientId, doctorId, currentInvoice) => {
+    let patientDiscount = 0;
+    let doctorDiscount = 0;
 
-      const response = await axios.post(`${apiUrl}/referrals`, newReferral, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      // Add new referral to the list
-      setReferrals(prevReferrals => [...prevReferrals, response.data]);
-      
-      // Set the new referral as selected
-      setPatientForm(prev => ({ ...prev, referral_id: response.data.id }));
-      
-      setShowReferralModal(false);
-      setNewReferral({
-        doctor_name: "",
-        specialization: "",
-        phone: "",
-        email: "",
-        address: ""
-      });
-      
-      // Show success message
-      setModalSuccessMessage(`Referral "${response.data.doctor_name}" created successfully and selected!`);
-      setTimeout(() => setModalSuccessMessage(""), 3000);
-    } catch (error) {
-      console.error('Error creating referral:', error);
-      setError(error.response?.data?.error || 'Failed to create referral');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePatientSelect = (selectedOption) => {
-    setInvoice(prev => ({
-      ...prev,
-      patient_id: selectedOption?.value || "",
-      patient_name: selectedOption?.label.split(" (")[0] || ""
-    }));
-    // Find the selected patient and apply contract discount if exists
-    const selectedPatient = patients.find(p => p.id === selectedOption?.value);
+    const selectedPatient = patients.find(p => p.id === patientId);
     if (selectedPatient && selectedPatient.contract_id) {
       const patientContract = contracts.find(c => c.id === selectedPatient.contract_id);
       if (patientContract && patientContract.discount_type === 'percentage' && patientContract.discount_amount > 0) {
-        setDiscountPercentage(patientContract.discount_amount);
+        patientDiscount = patientContract.discount_amount;
       }
-    } else {
-      setDiscountPercentage(0);
     }
+
+    const selectedDoctor = doctors.find(d => d.id === doctorId);
+    if (selectedDoctor && selectedDoctor.contract_id) {
+      const doctorContract = contracts.find(c => c.id === selectedDoctor.contract_id);
+      if (doctorContract && doctorContract.discount_type === 'percentage' && doctorContract.discount_amount > 0) {
+        doctorDiscount = doctorContract.discount_amount;
+      }
+    }
+    
+    // Higher discount applies
+    const bestDiscount = Math.max(patientDiscount, doctorDiscount);
+    setDiscountPercentage(bestDiscount);
+    setInvoice(prev => {
+      const workingInvoice = currentInvoice || prev;
+      const { subtotal, discount, total, due, paid } = calculateTotals(workingInvoice, [], bestDiscount);
+      return {
+        ...workingInvoice,
+        subtotal,
+        discount,
+        total,
+        due,
+        paid
+      };
+    });
+  };
+
+  const handlePatientSelect = (selectedOption) => {
+    const pId = selectedOption?.value || "";
+    setInvoice(prev => {
+      const updatedInvoice = {
+        ...prev,
+        patient_id: pId,
+        patient_name: selectedOption?.label.split(" (")[0] || ""
+      };
+      
+      // Update discount based on new patient and existing doctor
+      updateAutoDiscount(pId, updatedInvoice.referred_doctor_id, updatedInvoice);
+      return updatedInvoice;
+    });
+  };
+  const handleAddDoctor = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${apiUrl}/doctor`, newDoctor, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDoctors([...doctors, res.data]);
+      handleDoctorSelect(res.data.id);
+      setShowDoctorModal(false);
+      setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+    } catch (err) {
+      console.error("Error creating doctor:", err);
+      // Optional: Handle error display
+    }
+  };
+
+  const handleDoctorSelect = (val) => {
+    const dId = val && !isNaN(Number(val)) ? Number(val) : "";
+    setInvoice(prev => {
+      const updatedInvoice = {
+        ...prev,
+        referred_doctor_id: dId
+      };
+      if (formErrors.referred_doctor_id) {
+        setFormErrors({ ...formErrors, referred_doctor_id: null });
+      }
+      
+      // Update discount based on existing patient and new doctor
+      updateAutoDiscount(updatedInvoice.patient_id, dId, updatedInvoice);
+      return updatedInvoice;
+    });
   };
 
   const calculateTotals = (items, selectedPackages = [], customDiscountPercentage = null) => {
@@ -1568,34 +1596,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                </Alert>
                              )}
                             
-                            {/* Referral Selection */}
-                            <Form.Group className="mb-3">
-                              <Form.Label>Referral (Optional)</Form.Label>
-                              <div className="d-flex gap-2">
-                                <Form.Select
-                                  value={patientForm.referral_id || ""}
-                                  onChange={(e) => setPatientForm({ ...patientForm, referral_id: e.target.value || null })}
-                                >
-                                  <option value="">Select Referral</option>
-                                  {Array.isArray(referrals) && referrals.map(referral => (
-                                    <option key={referral.id} value={referral.id}>
-                                      {referral.doctor_name} - {referral.specialization}
-                                    </option>
-                                  ))}
-                                </Form.Select>
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={() => setShowReferralModal(true)}
-                                  title="Add New Referral"
-                                >
-                                  <Plus size={16} />
-                                </Button>
-                              </div>
-                              <Form.Text className="text-muted">
-                                Select an existing referral or add a new one
-                              </Form.Text>
-                            </Form.Group>
+
                             
                             <Button 
                               type="button" 
@@ -1668,6 +1669,40 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       </Form.Select>
                       <Form.Control.Feedback type="invalid">
                         {formErrors.receptionist_id}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                {/* Referring Doctor Selection */}
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Referring Doctor (Optional)</Form.Label>
+                      <div className="d-flex gap-2">
+                        <Form.Select
+                          value={invoice.referred_doctor_id || ''}
+                          onChange={(e) => handleDoctorSelect(e.target.value)}
+                          isInvalid={!!formErrors.referred_doctor_id}
+                        >
+                          <option value="">No Referring Doctor</option>
+                          {doctors.map(doctor => (
+                            <option key={doctor.id} value={doctor.id}>
+                              {doctor.name} {doctor.specialization ? `- ${doctor.specialization}` : ''}
+                            </option>
+                          ))}
+                        </Form.Select>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          title="Add New Doctor"
+                          onClick={() => setShowDoctorModal(true)}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                      </div>
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.referred_doctor_id}
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
@@ -2420,97 +2455,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             </Modal.Footer>
           </Modal>
 
-          {/* Add Referral Modal */}
-          <Modal
-            show={showReferralModal}
-            onHide={() => {
-              setShowReferralModal(false);
-              setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
-            }}
-            size="lg"
-          >
-            <Modal.Header>
-              <Modal.Title>Add New Referral</Modal.Title>
-              <button className="modal-close-btn" onClick={() => {
-                setShowReferralModal(false);
-                setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
-              }}>
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              <Form>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Doctor Name *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter doctor name"
-                        value={newReferral.doctor_name}
-                        onChange={(e) => setNewReferral({ ...newReferral, doctor_name: e.target.value })}
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Specialization *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter specialization"
-                        value={newReferral.specialization}
-                        onChange={(e) => setNewReferral({ ...newReferral, specialization: e.target.value })}
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Phone (Optional)</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter phone number"
-                        value={newReferral.phone}
-                        onChange={(e) => setNewReferral({ ...newReferral, phone: e.target.value })}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Email (Optional)</Form.Label>
-                      <Form.Control
-                        type="email"
-                        placeholder="Enter email address"
-                        value={newReferral.email}
-                        onChange={(e) => setNewReferral({ ...newReferral, email: e.target.value })}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Form>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button 
-                variant="secondary" 
-                onClick={() => {
-                  setShowReferralModal(false);
-                  setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={handleAddReferral}
-                disabled={loading || !newReferral.doctor_name.trim() || !newReferral.specialization.trim()}
-              >
-                {loading ? "Creating..." : "Create Referral"}
-              </Button>
-            </Modal.Footer>
-          </Modal>
+
 
           {/* PDF Preview Modal */}
           <Modal
@@ -2544,6 +2489,95 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                 }}
               >
                 Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Add Doctor Modal */}
+          <Modal
+            show={showDoctorModal}
+            onHide={() => {
+              setShowDoctorModal(false);
+              setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+            }}
+            size="lg"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Add New Referring Doctor</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Form onSubmit={(e) => e.preventDefault()}>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Doctor Name *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        required
+                        value={newDoctor.name}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, name: e.target.value })}
+                        placeholder="Enter doctor's name"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Specialization</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={newDoctor.specialization}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })}
+                        placeholder="Enter specialization"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Commission (%)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={newDoctor.commission}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, commission: e.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Phone</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={newDoctor.phone}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, phone: e.target.value })}
+                        placeholder="Enter phone number"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        value={newDoctor.email}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, email: e.target.value })}
+                        placeholder="Enter email address"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Form>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowDoctorModal(false)}>Cancel</Button>
+              <Button 
+                variant="primary" 
+                onClick={handleAddDoctor}
+                disabled={!newDoctor.name.trim()}
+              >
+                Create Doctor
               </Button>
             </Modal.Footer>
           </Modal>
@@ -2628,3 +2662,4 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 };
 
 export default Invoices;
+
