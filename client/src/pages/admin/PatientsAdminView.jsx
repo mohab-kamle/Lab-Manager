@@ -19,7 +19,6 @@ const PatientsAdminView = () => {
   const [patients, setPatients] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [contracts, setContracts] = useState([]);
-  const [referrals, setReferrals] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   // const [error, setError] = useState(null); // Removed blocking error state
@@ -53,8 +52,7 @@ const PatientsAdminView = () => {
     total: "",
     paid: "",
     due: "",
-    contract_id: "",
-    referral_id: ""
+    contract_id: ""
   });
 
   // Helper function to calculate birth date from age
@@ -100,7 +98,6 @@ const PatientsAdminView = () => {
   const [selectedDisease, setSelectedDisease] = useState(null);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showDiseaseCreateModal, setShowDiseaseCreateModal] = useState(false);
-  const [showReferralModal, setShowReferralModal] = useState(false);
   const [newContract, setNewContract] = useState({
     name: "",
     region: "",
@@ -113,13 +110,6 @@ const PatientsAdminView = () => {
     name: "",
     details: ""
   });
-  const [newReferral, setNewReferral] = useState({
-    doctor_name: "",
-    specialization: "",
-    phone: "",
-    email: "",
-    address: ""
-  });
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -127,7 +117,7 @@ const PatientsAdminView = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const [patientsRes, diseasesRes, contractsRes, referralsRes] = await Promise.all([
+        const [patientsRes, diseasesRes, contractsRes] = await Promise.all([
           axios.get(`${apiUrl}/patient`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
@@ -136,16 +126,12 @@ const PatientsAdminView = () => {
           }),
           axios.get(`${apiUrl}/contracts`, {
             headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get(`${apiUrl}/referrals`, {
-            headers: { Authorization: `Bearer ${token}` }
           })
         ]);
 
         setPatients(Array.isArray(patientsRes.data) ? patientsRes.data : []);
         setDiseases(Array.isArray(diseasesRes.data) ? diseasesRes.data : []);
         setContracts(Array.isArray(contractsRes.data) ? contractsRes.data : []);
-        setReferrals(Array.isArray(referralsRes.data.referrals) ? referralsRes.data.referrals: []);
 
         // Set up table headers
         const headers = [
@@ -164,7 +150,6 @@ const PatientsAdminView = () => {
           { field: 'amount_due', label: 'Amount Due', sortable: false },
           { field: 'credit', label: 'Credit', sortable: false },
           { field: 'contract_id', label: 'Contract', sortable: true },
-          { field: 'referral_id', label: 'Referral', sortable: true },
           { field: 'diseases_id_diseases', label: 'Diseases', sortable: false }
         ];
 
@@ -203,8 +188,7 @@ const PatientsAdminView = () => {
         total: patient.total ? parseFloat(patient.total) : null,
         paid: patient.paid ? parseFloat(patient.paid) : null,
         due: patient.due ? parseFloat(patient.due) : null,
-        contract_id: patient.contract_id || null,
-        referral_id: patient.referral_id || null
+        contract_id: patient.contract_id || null
       };
 
       // Validate the cleaned patient
@@ -511,8 +495,7 @@ const PatientsAdminView = () => {
             total: rowData.total || "",
             paid: rowData.paid || "",
             due: rowData.due || "",
-            contract_id: rowData.contract_id || "",
-            referral_id: rowData.referral_id || ""
+            contract_id: rowData.contract_id || ""
           });
           setShowAddModal(true);
         }}
@@ -591,10 +574,6 @@ const PatientsAdminView = () => {
         if (!value) return '-';
         const selectedContract = contracts.find(c => c.id === value);
         return selectedContract ? (selectedContract.name || `${selectedContract.region} - ${selectedContract.governorate}`) : value;
-      case 'referral_id':
-        if (!value) return '-';
-        const selectedReferral = referrals.find(r => r.id === value);
-        return selectedReferral ? `${selectedReferral.doctor_name} - ${selectedReferral.specialization}` : value;
       case 'diseases_id_diseases':
         if (!Array.isArray(value) || value.length === 0) return '-';
         return (
@@ -642,8 +621,7 @@ const PatientsAdminView = () => {
       total: "",
       paid: "",
       due: "",
-      contract_id: "",
-      referral_id: ""
+      contract_id: ""
     });
     setFormErrors({});
   };
@@ -676,38 +654,6 @@ const PatientsAdminView = () => {
     } catch (error) {
       console.error('Error creating contract:', error);
       toast.error(error.response?.data?.error || 'Failed to create contract');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddReferral = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      setLoading(true);
-      setError(null);
-
-      const response = await axios.post(`${apiUrl}/referrals`, newReferral, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      // Add new referral to the list
-      setReferrals(prevReferrals => [...prevReferrals, response.data]);
-      
-      // Set the new referral as selected
-      setPatient(prev => ({ ...prev, referral_id: response.data.id }));
-      
-      setShowReferralModal(false);
-      setNewReferral({
-        doctor_name: "",
-        specialization: "",
-        phone: "",
-        email: "",
-        address: ""
-      });
-    } catch (error) {
-      console.error('Error creating referral:', error);
-      toast.error(error.response?.data?.error || 'Failed to create referral');
     } finally {
       setLoading(false);
     }
@@ -809,7 +755,7 @@ const PatientsAdminView = () => {
                     paid: "",
                     due: "",
                     contract_id: "",
-                    referral_id: ""
+
                   });
                   setShowAddModal(true);
                 }}
@@ -1753,3 +1699,4 @@ const PatientsAdminView = () => {
 };
 
 export default PatientsAdminView;
+

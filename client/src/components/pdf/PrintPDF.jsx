@@ -1996,3 +1996,4 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
 
 export default PrintPDF;
 export { DirectPDFDownload };
+
