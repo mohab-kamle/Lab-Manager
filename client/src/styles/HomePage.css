@@ -94,7 +94,7 @@ body.dark .homepage-root {
 /* Animated mesh */
 .hero-mesh-bg {
   position: absolute;
-  top: -30%; left: -20%; right: -20%; bottom: 0; /* Changed from -10% to prevent extending the scrollable area */
+  top: -20vh; left: -20vw; right: -20vw; height: 120vh;
   background: 
     var(--bg-glow-spot) top right / 60% 60% no-repeat,
     var(--bg-glow-spot) top left / 50% 50% no-repeat;
@@ -134,7 +134,7 @@ body.dark .homepage-root {
 
 /* Buttons */
 .btn-glass {
-  background: var(--glass-btn-bg);
+  background: transparent;
   backdrop-filter: blur(8px);
   border: 1px solid var(--glass-border);
   color: var(--text);

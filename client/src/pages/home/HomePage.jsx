@@ -33,7 +33,7 @@ import TermsAndConditions from "../../components/info/TermsAndConditions";
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
 
 // Assets & Styles
-import heroImage from "../../assets/heroImage.webp";
+import heroImage from "../../assets/heroImage_sm.webp";
 import "../../styles/HomePage.css";
 
 // Lazy load DotLottieReact
