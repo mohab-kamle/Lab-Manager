@@ -93,6 +93,16 @@ module.exports = function (sequelize, DataTypes) {
         onUpdate: 'CASCADE',
         onDelete: 'SET NULL',
       },
+      referred_doctor_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'doctor',
+          key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
+      },
     },
     {
       sequelize,

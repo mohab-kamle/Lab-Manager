@@ -22,7 +22,6 @@ var _doctor = require("./doctor");
 var _employee = require("./employee");
 var _lab = require("./lab");
 var _lab_contracts_company = require("./lab_contracts_company");
-var _lab_contracts_doctor = require("./lab_contracts_doctor");
 var _lab_settings = require("./lab_settings");
 var _lab_activity_log = require("./lab_activity_log");
 var _medical_report = require("./medical_report");
@@ -39,7 +38,6 @@ var _payment_method = require("./payment_method");
 var _phone = require("./phone");
 var _question = require("./question");
 var _receptionist = require("./receptionist");
-var _referral = require("./referral");
 var _sample_type = require("./sample_type");
 var _status = require("./status");
 var _global_test_catalog = require("./global_test_catalog");
@@ -83,7 +81,6 @@ function initModels(sequelize) {
   var employee = _employee(sequelize, DataTypes);
   var lab = _lab(sequelize, DataTypes);
   var lab_contracts_company = _lab_contracts_company(sequelize, DataTypes);
-  var lab_contracts_doctor = _lab_contracts_doctor(sequelize, DataTypes);
   var lab_settings = _lab_settings(sequelize, DataTypes);
   var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
   var lab_payment = _lab_payment(sequelize, DataTypes);
@@ -102,7 +99,6 @@ function initModels(sequelize) {
   var phone = _phone(sequelize, DataTypes);
   var question = _question(sequelize, DataTypes);
   var receptionist = _receptionist(sequelize, DataTypes);
-  var referral = _referral(sequelize, DataTypes);
   var sample_type = _sample_type(sequelize, DataTypes);
   var status = _status(sequelize, DataTypes);
   var global_test_catalog = _global_test_catalog(sequelize, DataTypes);
@@ -137,9 +133,13 @@ function initModels(sequelize) {
   patient.belongsTo(contract, { as: "contract", foreignKey: "contract_id" });
   contract.hasMany(patient, { as: "patients", foreignKey: "contract_id" });
 
-  // Add association between patient and referral
-  patient.belongsTo(referral, { as: "referral", foreignKey: "referral_id" });
-  referral.hasMany(patient, { as: "patients", foreignKey: "referral_id" });
+  // Add association between bill and doctor
+  bill.belongsTo(doctor, { as: "referred_doctor", foreignKey: "referred_doctor_id" });
+  doctor.hasMany(bill, { as: "referred_bills", foreignKey: "referred_doctor_id" });
+
+  // Add association between doctor and contract
+  doctor.belongsTo(contract, { as: "contract", foreignKey: "contract_id" });
+  contract.hasMany(doctor, { as: "doctors", foreignKey: "contract_id" });
 
   admin.belongsToMany(packages_and_offers, {
     as: "package_id_packages_and_offers",
@@ -321,14 +321,6 @@ function initModels(sequelize) {
     as: "lab_contracts_companies",
     foreignKey: "contract_id",
   });
-  lab_contracts_doctor.belongsTo(contract, {
-    as: "contract",
-    foreignKey: "contract_id",
-  });
-  contract.hasMany(lab_contracts_doctor, {
-    as: "lab_contracts_doctors",
-    foreignKey: "contract_id",
-  });
   test.belongsTo(contract, { as: "contract", foreignKey: "contract_id" });
   contract.hasMany(test, { as: "tests", foreignKey: "contract_id" });
   test.belongsTo(global_test_catalog, { as: "global_test", foreignKey: "global_test_id", constraints: false });
@@ -340,14 +332,6 @@ function initModels(sequelize) {
   diseases.hasMany(patient_has_diseases, {
     as: "patient_has_diseases",
     foreignKey: "diseases_id",
-  });
-  lab_contracts_doctor.belongsTo(doctor, {
-    as: "doctor",
-    foreignKey: "doctor_id",
-  });
-  doctor.hasMany(lab_contracts_doctor, {
-    as: "lab_contracts_doctors",
-    foreignKey: "doctor_id",
   });
   admin.belongsTo(employee, { as: "id_employee", foreignKey: "id" });
   employee.hasOne(admin, { as: "admin", foreignKey: "id" });
@@ -361,8 +345,6 @@ function initModels(sequelize) {
   lab.hasMany(branch, { as: "lab_branches", foreignKey: "lab_id" });
   lab_contracts_company.belongsTo(lab, { as: "company_lab", foreignKey: "lab_id" });
   lab.hasMany(lab_contracts_company, { as: "lab_company_contracts", foreignKey: "lab_id" });
-  lab_contracts_doctor.belongsTo(lab, { as: "doctor_lab", foreignKey: "lab_id" });
-  lab.hasMany(lab_contracts_doctor, { as: "lab_doctor_contracts", foreignKey: "lab_id" });
   medical_report_has_test.belongsTo(medical_report, {
     as: "medical_report",
     foreignKey: "medical_report_id",
@@ -647,7 +629,6 @@ lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
     lab,
     lab_activity_log,
     lab_contracts_company,
-    lab_contracts_doctor,
     lab_payment,
     lab_samples,
     lab_settings,
@@ -662,7 +643,6 @@ lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
     phone,
     question,
     receptionist,
-    referral,
     sample_type,
     status,
     subscription,
