@@ -31,7 +31,7 @@ import {
 
 import api from "../../utils/api";
 
-import labIcon from "../../assets/LabIconWithRoundedWhiteBg.webp";
+import labIcon from "../../assets/LabIconWithRoundedWhiteBg_sm.webp";
 import { getSubdomain } from "../../utils/subdomain";
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
