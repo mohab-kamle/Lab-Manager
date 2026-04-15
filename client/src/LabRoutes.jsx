@@ -94,8 +94,6 @@ const LabRoutes = () => (
       <Route path="/:role/categories" element={<PrivateRoute element={<Categories />} allowedRoles={["admin", "chemist", "employee"]} />} />
       <Route path="/:role/tests" element={<PrivateRoute element={<Tests />} allowedRoles={["admin", "chemist", "employee"]} />} />
       <Route path="/:role/sample-types" element={<PrivateRoute element={<SampleType />} allowedRoles={["admin", "chemist", "employee"]} />} />
-      <Route path="/:role/cultures" element={<PrivateRoute element={<Cultures />} allowedRoles={["admin", "receptionist", "chemist", "doctor", "employee"]} />} />
-      <Route path="/:role/culture-options" element={<PrivateRoute element={<CultureOptions />} allowedRoles={["admin", "chemist", "employee"]} />} />
       <Route path="/:role/antibiotics" element={<PrivateRoute element={<Antibiotics />} allowedRoles={["admin", "chemist", "employee"]} />} />
       <Route path="/:role/diseases" element={<PrivateRoute element={<Diseases />} allowedRoles={["admin", "chemist", "employee"]} />} />
       <Route path="/:role/packages-and-offers" element={<PrivateRoute element={<PackagesAndOffers />} allowedRoles={["admin", "chemist", "employee"]} />} />
@@ -106,9 +104,6 @@ const LabRoutes = () => (
       <Route path="/:role/medical-reports" element={<PrivateRoute element={<MedicalReports />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
       <Route path="/:role/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
       <Route path="/:role/patients-analytics" element={<PrivateRoute element={<PatientsAnalytics />} allowedRoles={["admin"]} />} />
-      <Route path="/:role/test-groups" element={<PrivateRoute element={<TestGroups />} allowedRoles={["admin", "chemist", "receptionist", "employee"]} />} />
-      <Route path="/:role/test-group-categories" element={<PrivateRoute element={<TestGroupCategories />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
-      <Route path="/:role/test-group-components" element={<PrivateRoute element={<TestGroupComponents />} allowedRoles={["admin", "chemist", "receptionist"]} />} />
       <Route path="/:role/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
       {/* Profile routes — each role gets its own profile page backed by the shared StaffProfile component */}
       <Route path="/admin/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />

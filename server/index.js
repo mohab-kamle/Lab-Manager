@@ -16,7 +16,7 @@ const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
-const { employee, patient, phone } = require("./models");
+const { employee, patient, phone, doctor } = require("./models");
 
 // Socket.io for Real-Time Events
 const http = require("http");
@@ -349,8 +349,6 @@ app.use("/bill", require('./routes/bill'));
 app.use("/diseases", require('./routes/diseases'));
 app.use("/receptionists", require('./routes/receptionist'));
 app.use("/referrals", require('./routes/referrals'));
-app.use("/tgc-categories", require("./routes/tgc_categories"));
-app.use("/test-groups", require("./routes/test_groups"));
 app.use("/suppliers", require("./routes/suppliers"));
 app.use("/inventory", require("./routes/inventory"));
 app.use("/questions", require("./routes/questions"));
