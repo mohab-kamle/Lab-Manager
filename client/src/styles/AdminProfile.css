@@ -30,36 +30,33 @@
   gap: 10px;
   padding: 12px 28px;
   border-radius: 50px;
-  font-size: 0.9rem; /* ← Bigger font */
+  font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
-  /* Add margin so glow has space */
   margin: 10px;
 }
 
-/* Gradient Background */
 .role-badge.admin {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--info) 100%);
-  color: var(--bg);
-  /* FIXED: Rounder, softer glow */
-  box-shadow: 0 4px 20px 0px oklch(0.5 0.2 255 / 0.35),
-    0 8px 40px 0px oklch(0.5 0.2 255 / 0.2);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  /* Subtle elevation instead of neon glow */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .role-badge.manager {
-  background: linear-gradient(135deg, var(--secondary) 0%, var(--warning) 100%);
-  color: var(--bg);
-  box-shadow: 0 4px 15px oklch(0.4 0.2 75 / 0.4);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-warning) 100%);
+  color: var(--bg-base);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .role-badge.user {
-  background: linear-gradient(135deg, var(--success) 0%, var(--info) 100%);
-  color: var(--bg);
-  box-shadow: 0 4px 15px oklch(0.5 0.2 160 / 0.4);
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-info) 100%);
+  color: var(--bg-base);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Shine Effect */
@@ -83,18 +80,17 @@
   left: 100%;
 }
 
-/* Hover Effect */
+/* Hover Effect — subtle lift, no neon */
 .role-badge:hover {
   transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 6px 25px 5px oklch(0.5 0.2 255 / 0.4),
-    0 12px 50px 10px oklch(0.5 0.2 255 / 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 /* Pulse Dot Indicator */
 .role-badge .status-dot {
   width: 8px;
   height: 8px;
-  background: var(--bg);
+  background: var(--bg-base);
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
@@ -124,25 +120,43 @@
 
 /* Glass Style */
 .role-badge.glass {
-  background: oklch(0.4 0.2 255 / 0.15);
+  background: oklch(0.4 0.14 255 / 0.15);
   backdrop-filter: blur(10px);
-  border: 1px solid oklch(0.76 0.2 255 / 0.3);
-  color: var(--primary);
+  border: 1px solid oklch(0.65 0.14 255 / 0.3);
+  color: var(--color-primary);
 }
 
 .role-badge.glass:hover {
-  background: oklch(0.4 0.2 255 / 0.25);
-  box-shadow: 0 8px 32px oklch(0.4 0.2 255 / 0.2);
+  background: oklch(0.4 0.14 255 / 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 /* Outlined Style */
 .role-badge.outlined {
   background: transparent;
-  border: 2px solid var(--primary);
-  color: var(--primary);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
 }
 
 .role-badge.outlined:hover {
-  background: var(--primary);
-  color: var(--bg);
+  background: var(--color-primary);
+  color: var(--bg-base);
+}
+
+/* ================================
+   Refactored Inline Styles
+   ================================ */
+
+.info-card-label {
+  font-size: 0.75rem !important;
+}
+
+.profile-avatar-container {
+  width: 140px;
+  height: 140px;
+}
+
+.profile-animation {
+  width: 85% !important;
+  height: 85% !important;
 }
