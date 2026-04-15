@@ -106,6 +106,11 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(7),
       allowNull: true
     },
+    patient_due_limit: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,

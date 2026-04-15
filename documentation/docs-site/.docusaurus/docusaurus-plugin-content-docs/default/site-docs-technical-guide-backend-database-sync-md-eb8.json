@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/backend/database-sync",
+  "title": "Database Synchronization Guide",
+  "description": "This guide explains how the automatic database synchronization works in the LabManager application.",
+  "source": "@site/docs/technical-guide/backend/database-sync.md",
+  "sourceDirName": "technical-guide/backend",
+  "slug": "/technical-guide/backend/database-sync",
+  "permalink": "/docs/technical-guide/backend/database-sync",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "LabManager Server Documentation",
+    "permalink": "/docs/technical-guide/backend/server-readme"
+  },
+  "next": {
+    "title": "🧩 Sequelize Models & Migrations Workflow",
+    "permalink": "/docs/technical-guide/backend/sequelize-workflow"
+  }
+}

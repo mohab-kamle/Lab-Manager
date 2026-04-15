@@ -3,12 +3,12 @@ import { Container, Form, Button, Alert, Card, Row, Col, ProgressBar, Spinner, O
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle, CreditCard, Building, User, Mail, Phone, MapPin, X } from 'lucide-react';
 import axios from 'axios';
-import '../../styles/Register.css';
+import '../../styles/Register.module.css';
 import TermsAndConditions from '../../components/info/TermsAndConditions';
 import PrivacyPolicy from '../../components/info/PrivacyPolicy';
 
 const Register = () => {
-    const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -18,7 +18,7 @@ const Register = () => {
   const [plansLoading, setPlansLoading] = useState(true);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  
+
   // Clear saved form data when component unmounts (after successful registration)
   // Modified to clear only if payment is successful, which is handled by the PaymentCallback component
   useEffect(() => {
@@ -33,7 +33,7 @@ const Register = () => {
   // Payment states
   const [paymentData, setPaymentData] = useState(null);
   const [registrationData, setRegistrationData] = useState(null);
-  
+
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -48,7 +48,7 @@ const Register = () => {
       labAddress: '',
       labWebsite: '',
       region: '',
-      
+
       // Admin Information
       adminName: '',
       adminEmail: '',
@@ -56,11 +56,11 @@ const Register = () => {
       adminUsername: '',
       adminPassword: '',
       confirmPassword: '',
-      
+
       // Subscription
       subscriptionPlan: 'monthly',
       paymentMethod: 'card',
-      
+
       // Terms
       acceptTerms: false,
       acceptMarketing: false
@@ -73,7 +73,7 @@ const Register = () => {
       try {
         setPlansLoading(true);
         const response = await axios.get(`${apiUrl}/subscriptions`);
-        
+
         // Transform API data to match component structure
         const transformedPlans = response.data.map(plan => {
           // Parse features from JSON string or use default array
@@ -112,24 +112,24 @@ const Register = () => {
             console.warn('Failed to parse features for plan:', plan.name, e);
             features = ['All basic features included'];
           }
-          
+
           return {
             id: plan.id, // Use the unique database ID instead of duration_type
             duration_type: plan.duration_type, // Keep duration_type for other logic
             name: plan.name,
             price: parseFloat(plan.price),
-            period: plan.duration_type === 'monthly' ? 'month' : 
-                    plan.duration_type === 'yearly' ? 'year' : 
-                    plan.duration_type === '3_months' ? 'quarter' : plan.duration_type,
+            period: plan.duration_type === 'monthly' ? 'month' :
+              plan.duration_type === 'yearly' ? 'year' :
+                plan.duration_type === '3_months' ? 'quarter' : plan.duration_type,
             features: features,
             popular: plan.is_popular || false,
-            savings: plan.duration_type === 'yearly' && plan.price < 300 ? 
-                     Math.round((29 * 12) - plan.price) : undefined
+            savings: plan.duration_type === 'yearly' && plan.price < 300 ?
+              Math.round((29 * 12) - plan.price) : undefined
           };
         });
-        
+
         setSubscriptionPlans(transformedPlans);
-        
+
         // Set default subscription plan to the first one or popular one
         const defaultPlan = transformedPlans.find(plan => plan.popular) || transformedPlans[0];
         if (defaultPlan) {
@@ -138,7 +138,7 @@ const Register = () => {
       } catch (error) {
         console.error('Failed to fetch subscription plans:', error);
         setError('Failed to load subscription plans. Please refresh the page.');
-        
+
         // Fallback to default plans if API fails
         const fallbackPlans = [
           {
@@ -165,19 +165,19 @@ const Register = () => {
         setPlansLoading(false);
       }
     };
-    
+
     fetchSubscriptionPlans();
   }, [apiUrl]);
 
   const handleInputChange = (e) => {
     // Add null checks to prevent autofill errors
     if (!e || !e.target) return;
-    
+
     const { name, value, type, checked } = e.target;
-    
+
     // Ensure name exists before updating state
     if (!name) return;
-    
+
     setFormData(prev => {
       const newFormData = {
         ...prev,
@@ -336,7 +336,7 @@ const Register = () => {
               <CheckCircle size={64} className="text-success mb-3" />
               <h2>Registration & Payment Successful!</h2>
               <p className="lead">
-                Your lab account has been created and payment has been processed successfully. 
+                Your lab account has been created and payment has been processed successfully.
                 You will receive an email with your login credentials and payment receipt shortly.
               </p>
               {selectedPlan && (
@@ -382,11 +382,11 @@ const Register = () => {
                 <h2>Register Your Lab</h2>
                 <p className="text-white-50">Create your lab account and start managing your laboratory operations</p>
               </Card.Header>
-              
+
               <Card.Body>
                 {/* Progress Bar */}
-                <ProgressBar 
-                  now={(step / 3) * 100} 
+                <ProgressBar
+                  now={(step / 3) * 100}
                   className="mb-4"
                   variant="primary"
                 />
@@ -427,7 +427,7 @@ const Register = () => {
                           </Form.Group>
                         </Col>
                       </Row>
-                      
+
                       <Row>
                         <Col md={6}>
                           <Form.Group className="mb-3">
@@ -455,7 +455,7 @@ const Register = () => {
                           </Form.Group>
                         </Col>
                       </Row>
-                      
+
                       <Form.Group className="mb-3">
                         <Form.Label>Lab Address</Form.Label>
                         <Form.Control
@@ -467,7 +467,7 @@ const Register = () => {
                           placeholder="Enter lab address"
                         />
                       </Form.Group>
-                      
+
                       <Form.Group className="mb-3">
                         <Form.Label>Lab Website</Form.Label>
                         <Form.Control
@@ -517,7 +517,7 @@ const Register = () => {
                           </Form.Group>
                         </Col>
                       </Row>
-                      
+
                       <Row>
                         <Col md={6}>
                           <Form.Group className="mb-3">
@@ -546,7 +546,7 @@ const Register = () => {
                           </Form.Group>
                         </Col>
                       </Row>
-                      
+
                       <Row>
                         <Col md={6}>
                           <Form.Group className="mb-3">
@@ -621,7 +621,7 @@ const Register = () => {
                         <CreditCard size={24} />
                         Choose Plan & Complete Registration
                       </h3>
-                      
+
                       <div className="subscription-plans">
                         {plansLoading ? (
                           <div className="text-center py-4">
@@ -636,8 +636,8 @@ const Register = () => {
                           </div>
                         ) : (
                           subscriptionPlans.map(plan => (
-                            <div 
-                              key={plan.id} 
+                            <div
+                              key={plan.id}
                               className={`plan-option ${formData.subscriptionPlan === plan.id ? 'selected' : ''}`}
                               onClick={() => setFormData(prev => ({ ...prev, subscriptionPlan: plan.id }))}
                             >
@@ -649,16 +649,16 @@ const Register = () => {
                               {plan.savings && (
                                 <div className="savings">Save {plan.savings} EGP/year</div>
                               )}
-                            <ul>
-                              {plan.features.map((feature, index) => (
-                                <li key={index}>{feature}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))
+                              <ul>
+                                {plan.features.map((feature, index) => (
+                                  <li key={index}>{feature}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))
                         )}
                       </div>
-                      
+
                       <div className="terms-section">
                         <Form.Group className="mb-3">
                           <Form.Check
@@ -674,7 +674,7 @@ const Register = () => {
                             }
                           />
                         </Form.Group>
-                        
+
                         <Form.Group className="mb-3">
                           <Form.Check
                             type="checkbox"
@@ -689,7 +689,7 @@ const Register = () => {
                           />
                         </Form.Group>
                       </div>
-                      
+
                       <div className="order-summary">
                         <h4>Order Summary</h4>
                         <div className="summary-item">
@@ -707,12 +707,12 @@ const Register = () => {
                       </div>
                     </div>
                   )}
-                {error && (
-                  <Alert variant="danger" onClose={() => setError('')} dismissible>
-                    {error}
-                  </Alert>
+                  {error && (
+                    <Alert variant="danger" onClose={() => setError('')} dismissible>
+                      {error}
+                    </Alert>
                   )}
-                  
+
                   {/* Navigation Buttons */}
                   <div className="step-navigation">
                     {step > 1 && (
@@ -720,15 +720,15 @@ const Register = () => {
                         Previous
                       </Button>
                     )}
-                    
+
                     {step < 3 ? (
                       <Button variant="primary" onClick={nextStep}>
                         Next
                       </Button>
                     ) : (
-                      <Button 
-                        variant="primary" 
-                        type="button" 
+                      <Button
+                        variant="primary"
+                        type="button"
                         onClick={handleSubmit}
                         disabled={loading || plansLoading}
                         className="ms-auto"

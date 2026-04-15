@@ -3,19 +3,19 @@ import axios from 'axios';
 import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import { 
-  Palette, Settings, CreditCard, Upload, Eye, EyeOff, 
-  Save, RefreshCw, AlertTriangle, CheckCircle, Info 
+import {
+  Palette, Settings, CreditCard, Upload, Eye, EyeOff,
+  Save, RefreshCw, AlertTriangle, CheckCircle, Info
 } from 'lucide-react';
-import '../../styles/LabManagement.css';
+import '../../styles/LabManagement.module.css';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const LabManagement = () => {
-  const { 
-    labInfo, 
-    labSettings, 
-    subscriptionStatus, 
-    updateLabInfo, 
+  const {
+    labInfo,
+    labSettings,
+    subscriptionStatus,
+    updateLabInfo,
     updateLabSettings,
     refreshAfterUpgrade,
     isTrialExpired,
@@ -45,30 +45,35 @@ const LabManagement = () => {
     sms_notifications: false,
     patient_notifications: true,
     report_notifications: true,
-    
+
     // Template Settings
     invoice_template: 'default',
     report_template: 'default',
     receipt_template: 'default',
-    
+
     // System Settings
     auto_backup: true,
     backup_frequency: 'daily',
     data_retention_days: 365,
     session_timeout: 30,
-    
+
     // Lab Specific Settings
     allow_patient_registration: true,
     require_doctor_referral: false,
     auto_generate_reports: true,
     enable_qr_codes: true,
     enable_barcodes: true,
-    
+
     // Payment Settings
     currency: 'USD',
     tax_rate: 0,
     allow_partial_payments: true,
-    payment_reminder_days: 7
+    // Payment Settings
+    currency: 'USD',
+    tax_rate: 0,
+    allow_partial_payments: true,
+    payment_reminder_days: 7,
+    patient_due_limit: 0
   });
 
   const [subscription, setSubscription] = useState({
@@ -130,7 +135,7 @@ const LabManagement = () => {
   const handleBrandingSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       await updateLabInfo(branding);
       toast.success('Lab branding updated successfully!');
@@ -144,7 +149,7 @@ const LabManagement = () => {
   const handleSettingsSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       // Convert settings to the format expected by the API
       const settingsToUpdate = Object.entries(settings).map(([key, value]) => ({
@@ -165,17 +170,17 @@ const LabManagement = () => {
   const handleSubscriptionUpgrade = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       // Check if user is logged in and lab info is available
       if (!user) {
         throw new Error('Please log in to upgrade your subscription');
       }
-      
+
       if (!labInfo || !labInfo.id) {
         throw new Error('Lab information not available. Please refresh the page and try again.');
       }
-      
+
       // Get selected subscription plan details
       const selectedPlan = subscriptionPlans.find(plan => plan.duration_type === subscription.duration);
       if (!selectedPlan) {
@@ -234,8 +239,8 @@ const LabManagement = () => {
       };
       console.log('Upgrade payload:', upgradePayload);
       // Use the upgrade endpoint for existing lab subscription upgrades
-       const response = await axios.post(`${import.meta.env.VITE_API_URL}/register/upgrade`, upgradePayload);
-      
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/register/upgrade`, upgradePayload);
+
       if (response.data.success && response.data.payment.payment_url) {
         // Store payment data for potential reference
         localStorage.setItem('upgradePaymentData', JSON.stringify({
@@ -244,7 +249,7 @@ const LabManagement = () => {
           lab_id: labInfo.id,
           plan: selectedPlan.duration_type
         }));
-        
+
         // Redirect to payment page
         window.location.href = response.data.payment.payment_url;
       } else {
@@ -266,7 +271,7 @@ const LabManagement = () => {
         toast.error('Please select a valid image file');
         return;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast.error('Image size should be less than 5MB');
         return;
@@ -285,10 +290,10 @@ const LabManagement = () => {
   };
 
   const handleDurationChange = (duration) => {
-    setSubscription(prev => ({ 
-      ...prev, 
-      duration, 
-      amount: getSubscriptionPrice(duration) 
+    setSubscription(prev => ({
+      ...prev,
+      duration,
+      amount: getSubscriptionPrice(duration)
     }));
   };
 
@@ -413,28 +418,28 @@ const LabManagement = () => {
 
         {/* Navigation Tabs */}
         <div className="tab-navigation">
-          <button 
+          <button
             className={`tab-button ${activeTab === 'branding' ? 'active' : ''}`}
             onClick={() => setActiveTab('branding')}
           >
             <Palette size={20} />
             Branding
           </button>
-          <button 
+          <button
             className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
             <Settings size={20} />
             Settings
           </button>
-          <button 
+          <button
             className={`tab-button ${activeTab === 'subscription' ? 'active' : ''}`}
             onClick={() => setActiveTab('subscription')}
           >
             <CreditCard size={20} />
             Subscription
           </button>
-          <button 
+          <button
             className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
             onClick={() => setActiveTab('activity')}
           >
@@ -480,8 +485,8 @@ const LabManagement = () => {
                     {logoPreview && (
                       <div className="logo-preview-container">
                         <img src={logoPreview} alt="Lab Logo" className="logo-preview" />
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           className="remove-logo"
                           onClick={() => {
                             setLogoPreview('');
@@ -579,6 +584,8 @@ const LabManagement = () => {
                       placeholder="Lab website"
                     />
                   </div>
+
+
                 </div>
 
                 <button type="submit" className="btn-primary" disabled={loading}>
@@ -838,13 +845,29 @@ const LabManagement = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>Payment Reminder (Days)</label>
                       <input
                         type="number"
                         value={settings.payment_reminder_days}
                         onChange={(e) => setSettings(prev => ({ ...prev, payment_reminder_days: parseInt(e.target.value) }))}
                         min="1"
                         max="30"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        Max Due Limit (Patient)
+                        <span className="info-tooltip" title="Maximum allowed debt for a patient. Set to 0 to disable limit.">
+                          <Info size={14} />
+                        </span>
+                      </label>
+                      <input
+                        type="number"
+                        value={settings.patient_due_limit}
+                        onChange={(e) => setSettings(prev => ({ ...prev, patient_due_limit: parseFloat(e.target.value) || 0 }))}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
                       />
                     </div>
                   </div>

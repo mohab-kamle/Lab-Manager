@@ -1,0 +1,27 @@
+{
+  "id": "technical-guide/frontend/index",
+  "title": "Frontend Overview",
+  "description": "This section covers the LabManager frontend — a React single-page application built with Vite, featuring role-based dashboards, medical report interfaces, and a modern UI with React-Bootstrap and Framer Motion animations.",
+  "source": "@site/docs/technical-guide/frontend/index.md",
+  "sourceDirName": "technical-guide/frontend",
+  "slug": "/technical-guide/frontend/",
+  "permalink": "/docs/technical-guide/frontend/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Frontend Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "MySQL 64-Key Limit Fix Summary",
+    "permalink": "/docs/technical-guide/backend/index-fix-summary"
+  },
+  "next": {
+    "title": "LabManager Client Documentation",
+    "permalink": "/docs/technical-guide/frontend/client-readme"
+  }
+}
