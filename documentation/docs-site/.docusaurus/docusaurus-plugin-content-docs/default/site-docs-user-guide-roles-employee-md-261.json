@@ -1,0 +1,27 @@
+{
+  "id": "user-guide/roles/employee",
+  "title": "Employee Guide",
+  "description": "As an Employee, you have basic access to the LabManager system. The Employee role is a general-purpose role that provides access to core system features without the specialized permissions granted to Administrators, Chemists, Doctors, or Receptionists.",
+  "source": "@site/docs/user-guide/roles/employee.md",
+  "sourceDirName": "user-guide/roles",
+  "slug": "/user-guide/roles/employee",
+  "permalink": "/docs/user-guide/roles/employee",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "Employee Guide"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Doctor Guide",
+    "permalink": "/docs/user-guide/roles/doctor"
+  },
+  "next": {
+    "title": "Receptionist Guide",
+    "permalink": "/docs/user-guide/roles/receptionist"
+  }
+}
