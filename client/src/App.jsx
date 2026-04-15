@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { getSubdomain } from './utils/subdomain';
 import { AuthProvider } from './context/AuthContext';
@@ -13,14 +13,14 @@ import './App.css';
 
 // Components
 import MainNavBar from './components/layout/MainNavBar';
-import UnifiedLogin from './pages/auth/UnifiedLogin';
-import LabRoutes from './LabRoutes';
-import HomePage from './pages/home/HomePage';
-import Register from './pages/auth/Register';
-import ChangePassword from './pages/auth/ChangePassword';
+const UnifiedLogin = lazy(() => import('./pages/auth/UnifiedLogin'));
+const LabRoutes = lazy(() => import('./LabRoutes'));
+const HomePage = lazy(() => import('./pages/home/HomePage'));
+const Register = lazy(() => import('./pages/auth/Register'));
+const ChangePassword = lazy(() => import('./pages/auth/ChangePassword'));
+const PaymentCallback = lazy(() => import('./pages/payment/PaymentCallback'));
 import OTPVerify from './pages/auth/OTPVerify';
-import PaymentCallback from './pages/payment/PaymentCallback';
-import KnowUs from './pages/info/KnowUs';
+const KnowUs = lazy(() => import('./pages/info/KnowUs'));
 
 import { useAuth } from './context/AuthContext';
 
@@ -79,8 +79,8 @@ function App() {
             <Routes>
               <Route path="/change-password" element={<PageTransition><ChangePassword /></PageTransition>} />
               <Route path="/" element={<Navigate to={user ? `/${user.role}/dashboard` : "/login"} replace />} />
-              <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <UnifiedLogin />} />
-              <Route path="/otp-verify" element={<OTPVerify />} />
+              <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <PageTransition><UnifiedLogin /></PageTransition>} />
+              <Route path="/otp-verify" element={<PageTransition><OTPVerify /></PageTransition>} />
               <Route path="/*" element={<LabRoutes />} />
             </Routes>
           )}

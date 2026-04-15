@@ -589,7 +589,6 @@ function initModels(sequelize) {
     lab_contracts_company,
     lab_payment,
     lab_samples,
-    lab_contracts_doctor,
     lab_settings,
     medical_report,
     medical_report_has_test,
