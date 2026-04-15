@@ -1,0 +1,27 @@
+{
+  "id": "user-guide/roles/chemist",
+  "title": "Chemist Guide",
+  "description": "As a Chemist, your primary role in the LabManager system is to perform laboratory analysis and enter the scientific data that forms the foundation of every medical report. You handle the hands-on diagnostic work — running tests, recording results, and managing cultures and antibiotic sensitivities.",
+  "source": "@site/docs/user-guide/roles/chemist.md",
+  "sourceDirName": "user-guide/roles",
+  "slug": "/user-guide/roles/chemist",
+  "permalink": "/docs/user-guide/roles/chemist",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Chemist Guide"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "System Admin Guide",
+    "permalink": "/docs/user-guide/roles/admin"
+  },
+  "next": {
+    "title": "Doctor Guide",
+    "permalink": "/docs/user-guide/roles/doctor"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/architecture/structure-review",
+  "title": "Codebase Structure Review",
+  "description": "This document outlines a review of the server/ and client/ directory structures, highlighting best practices observed and suggesting areas for improvement.",
+  "source": "@site/docs/technical-guide/architecture/structure-review.md",
+  "sourceDirName": "technical-guide/architecture",
+  "slug": "/technical-guide/architecture/structure-review",
+  "permalink": "/docs/technical-guide/architecture/structure-review",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Docker & PNPM Architecture",
+    "permalink": "/docs/technical-guide/architecture/docker-architecture"
+  },
+  "next": {
+    "title": "Backend Overview",
+    "permalink": "/docs/technical-guide/backend/"
+  }
+}

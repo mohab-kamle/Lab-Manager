@@ -86,41 +86,18 @@ const renderTestComments = (testId, comments) => {
           <Text style={styles.commentDate}>
             {new Date(comment.created_at).toLocaleDateString()}
           </Text>
-          {comment.images && comment.images.length > 0 && (
+          {comment.images && comment.images.length > 0 ? (
             <View style={styles.commentImages}>
               <Text style={styles.commentImagesLabel}>Attached Images: {comment.images.length}</Text>
             </View>
-          )}
+          ) : null}
         </View>
       ))}
     </View>
   );
 };
 
-// Helper function to render test group comments
-const renderTestGroupComments = (testGroupId, comments) => {
-  const testGroupComments = comments?.testGroup?.[testGroupId];
-  if (!testGroupComments || testGroupComments.length === 0) return null;
 
-  return (
-    <View style={styles.commentSection}>
-      <Text style={styles.commentSectionTitle}>Test Group Comments:</Text>
-      {testGroupComments.map((comment, index) => (
-        <View key={comment.id || index} style={styles.commentItem}>
-          <Text style={styles.commentText}>{comment.comment_text}</Text>
-          <Text style={styles.commentDate}>
-            {new Date(comment.created_at).toLocaleDateString()}
-          </Text>
-          {comment.images && comment.images.length > 0 && (
-            <View style={styles.commentImages}>
-              <Text style={styles.commentImagesLabel}>Attached Images: {comment.images.length}</Text>
-            </View>
-          )}
-        </View>
-      ))}
-    </View>
-  );
-};
 
 // Helper function to render medical report images
 const renderMedicalReportImages = (comments) => {
@@ -750,7 +727,7 @@ const PDFHeader = ({ patient, report, barcodeUrl, lab }) => (
         </View>
       </View>
       <View style={{ alignItems: "flex-end", justifyContent: "flex-start" }}>
-        {barcodeUrl && (
+        {!!barcodeUrl && (
           <Image src={barcodeUrl} style={{ width: 60, height: 20 }} />
         )}
       </View>
@@ -776,7 +753,7 @@ const PDFFooter = ({ qrUrl, signatory, lab }) => (
       </Text>
     </View>
     <View style={styles.footerRight}>
-      {qrUrl && <Image src={qrUrl} style={{ width: 35, height: 35 }} />}
+      {!!qrUrl && <Image src={qrUrl} style={{ width: 35, height: 35 }} />}
     </View>
   </View>
 );
@@ -812,12 +789,7 @@ const PDFInfoGrid = ({ patient, report, lab }) => (
           Tests: {report?.tests?.length || report?.tests_count || 0}
           {"\n"}
           Cultures: {report?.cultures?.length || report?.cultures_count || 0}
-          {"\n"}
-          Groups:{" "}
-          {report?.test_groups?.length ||
-            report?.test_group_results?.length ||
-            report?.test_groups_count ||
-            0}
+
         </Text>
       </View>
       <View style={[styles.infoCard, styles.infoCardLast]}>
@@ -922,589 +894,223 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
           <>
             <Text style={styles.sectionTitle}>Tests</Text>
             {report.tests?.map((test, testIndex) => {
-              // Check if we have component-level results to display
-              if (test.has_component_results) {
-                // Display test with individual component results
-                return (
-                  <View key={testIndex} wrap={false}>
-                    {/* Test Header */}
-                    <View
-                      style={[
-                        styles.testCard,
-                        {
-                          minHeight: 30,
-                          backgroundColor: "#f8f9fa",
-                          borderLeft: "3pt solid #2d3e8b",
-                        },
-                      ]}
-                      wrap={false}
-                    >
-                      <View style={styles.testCardCol}>
-                        <Text style={styles.testName}>
-                          {test.name || "Unknown Test"}
-                        </Text>
-                        {/* <Text
-                          style={[
-                            styles.testRefRange,
-                            { color: "#2d3e8b", fontWeight: "bold" },
-                          ]}
-                        >
-                          Multi-Component Test Results
-                        </Text> */}
-                        {/* <Text style={styles.testRefRange}>
-                          Overall Status: {test.status || "Pending"}
-                        </Text> */}
-                      </View>
-                      {test.status && (
-                        <Text
-                          style={[
-                            styles.testStatusBadge,
-                            test.status.toLowerCase() === "normal" ||
-                              test.status.toLowerCase() === "n" ||
-                              test.component_results.length > 0
-                              ? styles.normalBadge
-                              : test.status.toLowerCase() === "abnormal" ||
-                                test.status.toLowerCase() === "a"
-                              ? styles.abnormalBadge
-                              : styles.otherBadge,
-                          ]}
-                        >
-                          {test.component_results.length > 0
-                            ? "Done"
-                            : test.status}
+              // Get result color for single-value tests or fallback test card
+              const getFlagColor = (flag) => {
+                switch (flag?.toLowerCase()) {
+                  case "normal": return "#2ecc40"; // Green
+                  case "high": return "#ff851b";   // Orange
+                  case "low": return "#ff851b";    // Orange
+                  case "panic_high": return "#ff4136"; // Red
+                  case "panic_low": return "#ff4136";  // Red
+                  default: return "#2ecc40";       // Default to green if missing
+                }
+              };
+
+              // Header for each test
+              return (
+                <View key={testIndex} style={{ marginBottom: 10 }}>
+                  <View style={styles.testCard} wrap={false}>
+                    <View style={styles.testCardCol}>
+                      <Text style={styles.testName}>
+                        {test.name || "Unknown Test"}
+                      </Text>
+                      {/* For single-result tests without structure */}
+                      {!test.has_component_results && (
+                        <Text style={styles.testRefRange}>
+                          Result: {test.result || "N/A"}
                         </Text>
                       )}
                     </View>
-
-                    {/* Component Results Table */}
-                    <View
-                      style={{
-                        marginHorizontal: 20,
-                        marginBottom: 12,
-                        backgroundColor: "#fff",
-                        borderRadius: 4,
-                        border: "1pt solid #dee2e6",
-                      }}
-                    >
-                      {/* Table Header */}
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          backgroundColor: "#2d3e8b",
-                          paddingVertical: 4,
-                        }}
+                    
+                    {/* Status Badge */}
+                    {!!test.status && (
+                      <Text
+                        style={[
+                          styles.testStatusBadge,
+                          test.status.toLowerCase() === "done" ||
+                          test.status.toLowerCase() === "d"
+                            ? styles.normalBadge
+                            : test.status.toLowerCase() === "pending" ||
+                              test.status.toLowerCase() === "p"
+                            ? styles.abnormalBadge
+                            : styles.otherBadge,
+                        ]}
                       >
-                        <Text
-                          style={{
-                            fontSize: 8,
-                            fontWeight: "bold",
-                            color: "#fff",
-                            flex: 2,
-                            textAlign: "center",
-                            padding: 2,
-                          }}
-                        >
-                          Test name
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 8,
-                            fontWeight: "bold",
-                            color: "#fff",
-                            flex: 1.5,
-                            textAlign: "center",
-                            padding: 2,
-                          }}
-                        >
-                          Result
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 8,
-                            fontWeight: "bold",
-                            color: "#fff",
-                            flex: 1,
-                            textAlign: "center",
-                            padding: 2,
-                          }}
-                        >
-                          Unit
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 8,
-                            fontWeight: "bold",
-                            color: "#fff",
-                            flex: 2,
-                            textAlign: "center",
-                            padding: 2,
-                          }}
-                        >
-                          Normal Range
-                        </Text>
-                        <Text
-                          style={{
-                            fontSize: 8,
-                            fontWeight: "bold",
-                            color: "#fff",
-                            flex: 1,
-                            textAlign: "center",
-                            padding: 2,
-                          }}
-                        >
-                          Status
-                        </Text>
+                        {test.status}
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* Component Results Table */}
+                  {test.has_component_results && test.component_results.length > 0 ? (
+                    <View style={styles.tableContainer}>
+                      {/* Header */}
+                      <View style={styles.tableHeaderFixed}>
+                        <View style={[styles.headerCell, styles.componentCell]}>
+                          <Text>Component</Text>
+                        </View>
+                        <View style={styles.headerCell}>
+                          <Text>Result</Text>
+                        </View>
+                        <View style={styles.headerCell}>
+                          <Text>Unit</Text>
+                        </View>
+                        <View style={styles.headerCell}>
+                          <Text>Normal Range</Text>
+                        </View>
+                        <View style={styles.headerCell}>
+                          <Text>Status</Text>
+                        </View>
                       </View>
 
-                      {/* Component Rows */}
+                      {/* Rows for each component/field in structure_config */}
                       {test.component_results.map(
-                        (componentResult, compIndex) => {
-                          const component = componentResult.test_component;
-                          const normalRange =
-                            component?.normal_from && component?.normal_to
-                              ? `${component.normal_from} - ${component.normal_to}`
-                              : component?.reference_range || "N/A";
-                          const resultColor = getResultColor(
-                            componentResult.result,
-                            normalRange,
-                            componentResult.status
-                          );
+                        (field, compIndex) => {
+                          const flagColor = getFlagColor(field.clinical_flag);
+                          const isEven = compIndex % 2 === 0;
+
+                          if (field.type === "culture_panel") {
+                            let cultureData = {};
+                            try {
+                              // Handle both wrapped string JSON and direct object results
+                              // Depending on backend fetch (GET /id vs GET /id/results-data), 
+                              // it might be parsed or still a string.
+                              cultureData = typeof field.result === 'string' 
+                                ? JSON.parse(field.result) 
+                                : (field.result || {});
+                                
+                              // Some results might be double-wrapped like { result: { organism: ... } }
+                              if (cultureData && cultureData.result && typeof cultureData.result === 'object') {
+                                cultureData = cultureData.result;
+                              }
+                            } catch (e) {
+                              cultureData = {};
+                            }
+                            const antibiotics = cultureData.antibiotics || {};
+                            const abKeys = Object.keys(antibiotics);
+
+                            return (
+                              <View key={compIndex} style={{ marginTop: 15, marginBottom: 15, paddingHorizontal: 5 }} wrap={false}>
+                                <Text style={{ fontSize: 11, fontWeight: "bold", color: "#2d3e8b", marginBottom: 6 }}>
+                                  {field.name}
+                                </Text>
+                                <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                                  <Text style={{ fontSize: 9, fontWeight: "bold", marginRight: 5 }}>Isolated Organism:</Text>
+                                  <Text style={{ fontSize: 9, marginRight: 15, color: "#333" }}>{cultureData.organism || "No growth / N/A"}</Text>
+                                  
+                                  <Text style={{ fontSize: 9, fontWeight: "bold", marginRight: 5 }}>Colony Count:</Text>
+                                  <Text style={{ fontSize: 9, color: "#333" }}>{cultureData.colony_count || "N/A"}</Text>
+                                </View>
+
+                                {abKeys.length > 0 && (
+                                  <View style={{ border: "1pt solid #e6e6e6", borderRadius: 4, padding: 8, backgroundColor: "#fafafa" }}>
+                                    <Text style={{ fontSize: 10, fontWeight: "bold", marginBottom: 5, color: "#2d3e8b" }}>
+                                      Antibiotic Susceptibility Testing:
+                                    </Text>
+                                    <View style={{ flexDirection: "row", borderBottom: "1pt solid #e6e6e6", paddingBottom: 4, marginBottom: 4 }}>
+                                      <Text style={{ fontSize: 9, fontWeight: "bold", flex: 3, color: "#2d3e8b" }}>Antibiotic</Text>
+                                      <Text style={{ fontSize: 9, fontWeight: "bold", flex: 2, color: "#2d3e8b", textAlign: "center" }}>Sensitivity</Text>
+                                      <Text style={{ fontSize: 9, fontWeight: "bold", flex: 2, color: "#2d3e8b", textAlign: "center" }}>MIC</Text>
+                                    </View>
+                                    {abKeys.map((abName, abIndex) => {
+                                      const abData = antibiotics[abName] || {};
+                                      const sensitivity = typeof abData === 'string' ? abData : (abData.sensitivity || '-');
+                                      const mic = typeof abData === 'object' ? (abData.mic || '') : '';
+                                      
+                                      let sensColor = "#333";
+                                      if (sensitivity === 'S') sensColor = "#16a34a"; // green
+                                      if (sensitivity === 'R') sensColor = "#ef4444"; // red
+                                      if (sensitivity === 'I') sensColor = "#eab308"; // yellow
+
+                                      return (
+                                        <View key={abIndex} style={{ flexDirection: "row", paddingVertical: 3, borderBottom: abIndex < abKeys.length - 1 ? "1pt solid #f0f0f0" : "none" }}>
+                                          <Text style={{ fontSize: 8, flex: 3, color: "#444" }}>{abName}</Text>
+                                          <Text style={{ fontSize: 8, flex: 2, color: sensColor, textAlign: "center", fontWeight: "bold" }}>
+                                            {sensitivity === 'S' ? 'Sensitive (S)' : sensitivity === 'R' ? 'Resistant (R)' : sensitivity === 'I' ? 'Intermediate (I)' : '-'}
+                                          </Text>
+                                          <Text style={{ fontSize: 8, flex: 2, color: "#444", textAlign: "center" }}>{mic}</Text>
+                                        </View>
+                                      );
+                                    })}
+
+                                  </View>
+                                )}
+                              </View>
+                            );
+                          }
 
                           return (
                             <View
                               key={compIndex}
-                              style={{
-                                flexDirection: "row",
-                                paddingVertical: 4,
-                                borderBottom:
-                                  compIndex < test.component_results.length - 1
-                                    ? "1pt solid #e9ecef"
-                                    : "none",
-                                backgroundColor:
-                                  compIndex % 2 === 0 ? "#f8f9fa" : "#fff",
-                              }}
+                              style={[
+                                styles.tableRow,
+                                isEven ? styles.evenRow : {},
+                                { minHeight: 12 },
+                              ]}
+                              wrap={false}
                             >
-                              <Text
-                                style={{
-                                  fontSize: 8,
-                                  color: "#333",
-                                  flex: 2,
-                                  textAlign: "center",
-                                  padding: 2,
-                                }}
-                              >
-                                {component?.name || "Component"}
-                              </Text>
                               <View
-                                style={{
-                                  flex: 1.5,
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
+                                style={[styles.cell, styles.componentCell]}
                               >
+                                <Text
+                                  style={{
+                                    fontWeight: "bold",
+                                    color: "#2d3e8b",
+                                  }}
+                                >
+                                  {field.name}
+                                </Text>
+                              </View>
+                              <View style={styles.cell}>
+                                <Text style={{ fontWeight: "bold" }}>
+                                  {field.type === "boolean" 
+                                    ? (field.result === "true" || field.result === true ? "Positive" : field.result === "false" || field.result === false ? "Negative" : field.result || "N/A")
+                                    : (field.type === "text" && typeof field.result === "string" ? field.result : typeof field.result === "object" ? JSON.stringify(field.result) : field.result || "N/A")}
+                                </Text>
+                              </View>
+                              <View style={styles.cell}>
+                                <Text style={{ color: "#666" }}>
+                                  {field.unit || "N/A"}
+                                </Text>
+                              </View>
+                              <View style={styles.cell}>
+                                <Text style={{ color: "#444" }}>
+                                  {field.type === "boolean" ? "N/A" : (field.reference_range || "N/A")}
+                                </Text>
+                              </View>
+                              <View style={styles.cell}>
                                 <View
-                                  style={[
-                                    {
-                                      borderRadius: 4,
-                                      paddingVertical: 2,
-                                      paddingHorizontal: 6,
-                                      minWidth: 40,
-                                    },
-                                  ]}
+                                  style={{
+                                    backgroundColor: field.type === "boolean" ? "#2ecc40" : flagColor,
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 2,
+                                    borderRadius: 3,
+                                  }}
                                 >
                                   <Text
                                     style={{
-                                      fontSize: 8,
+                                      color: "#fff",
+                                      fontSize: 6,
                                       fontWeight: "bold",
-                                      color: "#000",
-                                      textAlign: "center",
                                     }}
                                   >
-                                    {componentResult.result || "N/A"}
+                                    {field.type === "boolean" 
+                                      ? "N/A" 
+                                      : (field.clinical_flag ? field.clinical_flag.replace('_', ' ').toUpperCase() : "NORMAL")}
                                   </Text>
                                 </View>
                               </View>
-                              <Text
-                                style={{
-                                  fontSize: 8,
-                                  color: "#666",
-                                  flex: 1,
-                                  textAlign: "center",
-                                  padding: 2,
-                                }}
-                              >
-                                {component?.unit || "N/A"}
-                              </Text>
-                              <Text
-                                style={{
-                                  fontSize: 8,
-                                  color: "#333",
-                                  flex: 2,
-                                  textAlign: "center",
-                                  padding: 2,
-                                }}
-                              >
-                                {normalRange}
-                              </Text>
-                              <Text
-                                style={[
-                                  {
-                                    fontSize: 7,
-                                    fontWeight: "bold",
-                                    flex: 1,
-                                    textAlign: "center",
-                                    padding: 2,
-                                    color: resultColor,
-                                  },
-                                ]}
-                              >
-                                {componentResult.status || "Pending"}
-                              </Text>
                             </View>
                           );
                         }
                       )}
                     </View>
-                  </View>
-                );
-              } else {
-                // Display traditional single-component test result
-                const normalRange =
-                  test.normal_from && test.normal_to
-                    ? `${test.normal_from} - ${test.normal_to}`
-                    : test.normal_range;
-                const resultColor = getResultColor(
-                  test.result,
-                  normalRange,
-                  test.status
-                );
-
-                // Check if we have multiple components to display for manual determination
-                const hasMultipleComponents =
-                  test.all_components && test.all_components.length > 1;
-                const showAllComponents =
-                  hasMultipleComponents &&
-                  (!test.normal_from ||
-                    !test.normal_to ||
-                    test.normal_from === "N/A" ||
-                    test.normal_to === "N/A");
-
-                return (
-                  <View key={testIndex}>
-                    <View style={styles.testCard} wrap={false}>
-                      <View style={styles.testCardCol}>
-                        <Text style={styles.testName}>
-                          {test.name || "Unknown Test"}
-                        </Text>
-                        {/* Display component name if available */}
-                        {test.component_name && (
-                          <Text
-                            style={[
-                              styles.testRefRange,
-                              { color: "#2d3e8b", fontWeight: "bold" },
-                            ]}
-                          >
-                            Component: {test.component_name}
-                          </Text>
-                        )}
-                        {test.result_type === "boolean" ? (
-                          <Text style={styles.testRefRange}>
-                            Result Type: Boolean
-                          </Text>
-                        ) : (
-                          <Text style={styles.testRefRange}>
-                            {test.normal_from &&
-                            test.normal_to &&
-                            test.normal_from !== "N/A" &&
-                            test.normal_to !== "N/A"
-                              ? `Ref. Range: ${test.normal_from} - ${test.normal_to}`
-                              : test.normal_range
-                              ? `Ref. Range: ${test.normal_range}`
-                              : "N/A"}
-                            {test.unit ? ` ${test.unit}` : ""}
-                            {test.reference_range
-                              ? ` | Ref. Range: ${test.reference_range}`
-                              : ""}
-                          </Text>
-                        )}
-                        {/* Display critical values if available */}
-                        {(test.c_low !== null || test.c_high !== null) &&
-                          test.result_type !== "boolean" && (
-                            <Text
-                              style={[
-                                styles.testRefRange,
-                                { color: "#dc3545", fontWeight: "bold" },
-                              ]}
-                            >
-                              Critical:{" "}
-                              {test.c_low !== null ? `Low < ${test.c_low}` : ""}
-                              {test.c_low !== null && test.c_high !== null
-                                ? " | "
-                                : ""}
-                              {test.c_high !== null
-                                ? `High > ${test.c_high}`
-                                : ""}
-                              {test.unit ? ` ${test.unit}` : ""}
-                            </Text>
-                          )}
-                        {showAllComponents && (
-                          <Text
-                            style={[
-                              styles.testRefRange,
-                              { color: "#ff6b35", fontWeight: "bold" },
-                            ]}
-                          >
-                            Multiple components available - Manual determination
-                            required
-                          </Text>
-                        )}
-                      </View>
-                      <View
-                        style={[
-                          styles.testResultBox,
-                          { borderColor: resultColor, borderWidth: 1 },
-                        ]}
-                      >
-                        <Text style={styles.testResultText}>
-                          {test.result_type === "boolean"
-                            ? test.result === "positive"
-                              ? "Positive"
-                              : test.result === "negative"
-                              ? "Negative"
-                              : test.result || "N/A"
-                            : `${test.result || "N/A"}${
-                                test.unit ? ` ${test.unit}` : ""
-                              }`}
-                        </Text>
-                      </View>
-                      {test.status && (
-                        <Text
-                          style={[
-                            styles.testStatusBadge,
-                            test.status.toLowerCase() === "done" ||
-                            test.status.toLowerCase() === "d"
-                              ? styles.normalBadge
-                              : test.status.toLowerCase() === "pending" ||
-                                test.status.toLowerCase() === "p"
-                              ? styles.abnormalBadge
-                              : styles.otherBadge,
-                          ]}
-                        >
-                          {test.status}
-                        </Text>
-                      )}
-                    </View>
-
-                    {/* Display all components when manual determination is needed */}
-                    {showAllComponents && (
-                      <View
-                        style={{
-                          marginHorizontal: 20,
-                          marginBottom: 12,
-                          padding: 10,
-                          backgroundColor: "#f8f9fa",
-                          borderRadius: 4,
-                          border: "1pt solid #dee2e6",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "bold",
-                            color: "#2d3e8b",
-                            marginBottom: 8,
-                            textAlign: "center",
-                          }}
-                        >
-                          Available Components for Manual Selection:
-                        </Text>
-                        {/* Header for component table */}
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            backgroundColor: "#e8f0fe",
-                            paddingVertical: 3,
-                            borderBottom: "1pt solid #d0d7de",
-                            marginBottom: 4,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 7,
-                              fontWeight: "bold",
-                              color: "#2d3e8b",
-                              flex: 2,
-                              textAlign: "center",
-                            }}
-                          >
-                            Component
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 7,
-                              fontWeight: "bold",
-                              color: "#2d3e8b",
-                              flex: 1,
-                              textAlign: "center",
-                            }}
-                          >
-                            Gender
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 7,
-                              fontWeight: "bold",
-                              color: "#2d3e8b",
-                              flex: 1,
-                              textAlign: "center",
-                            }}
-                          >
-                            Age
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 7,
-                              fontWeight: "bold",
-                              color: "#2d3e8b",
-                              flex: 1,
-                              textAlign: "center",
-                            }}
-                          >
-                            Type
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 7,
-                              fontWeight: "bold",
-                              color: "#2d3e8b",
-                              flex: 2,
-                              textAlign: "center",
-                            }}
-                          >
-                            Normal Range
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 7,
-                              fontWeight: "bold",
-                              color: "#2d3e8b",
-                              flex: 2,
-                              textAlign: "center",
-                            }}
-                          >
-                            Critical Values
-                          </Text>
-                        </View>
-                        {test.all_components.map((component, compIndex) => (
-                          <View
-                            key={compIndex}
-                            style={{
-                              flexDirection: "row",
-                              justifyContent: "space-between",
-                              paddingVertical: 4,
-                              borderBottom:
-                                compIndex < test.all_components.length - 1
-                                  ? "1pt solid #e9ecef"
-                                  : "none",
-                            }}
-                          >
-                            <Text
-                              style={{
-                                fontSize: 8,
-                                color: "#333",
-                                flex: 2,
-                                textAlign: "center",
-                              }}
-                            >
-                              {component.name || "Component"}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 8,
-                                color: "#666",
-                                flex: 1,
-                                textAlign: "center",
-                              }}
-                            >
-                              {component.gender ? component.gender : "Any"}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 8,
-                                color: "#666",
-                                flex: 1,
-                                textAlign: "center",
-                              }}
-                            >
-                              {component.age_start || "Any"}-
-                              {component.age_end || "Any"}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 8,
-                                color: "#666",
-                                flex: 1,
-                                textAlign: "center",
-                              }}
-                            >
-                              {component.result_type || "range"}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 8,
-                                color: "#333",
-                                flex: 2,
-                                textAlign: "center",
-                              }}
-                            >
-                              {component.result_type === "boolean"
-                                ? "Boolean"
-                                : component.normal_from && component.normal_to
-                                ? `${component.normal_from}-${
-                                    component.normal_to
-                                  }${
-                                    component.unit ? ` ${component.unit}` : ""
-                                  }`
-                                : component.reference_range || "N/A"}
-                            </Text>
-                            <Text
-                              style={{
-                                fontSize: 8,
-                                color: "#dc3545",
-                                flex: 2,
-                                textAlign: "center",
-                              }}
-                            >
-                              {component.result_type === "boolean"
-                                ? "N/A"
-                                : component.c_low !== null ||
-                                  component.c_high !== null
-                                ? `${
-                                    component.c_low !== null
-                                      ? `L<${component.c_low}`
-                                      : ""
-                                  }${
-                                    component.c_low !== null &&
-                                    component.c_high !== null
-                                      ? " | "
-                                      : ""
-                                  }${
-                                    component.c_high !== null
-                                      ? `H>${component.c_high}`
-                                      : ""
-                                  }`
-                                : "None"}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    
-                    {/* Render test comments */}
-                    {renderTestComments(test.id, comments)}
-                  </View>
-                );
-              }
+                  ) : null}
+                  
+                  {/* Test Comments Rendered Below The Table */}
+                  {renderTestComments(test.id, comments)}
+                </View>
+              );
             })}
           </>
         ) : null}
@@ -1540,7 +1146,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
                           {culture.culture?.name || "Unknown Culture"}
                         </Text>
                       </View>
-                      {/* {culture.status && (
+                      {/* {!!culture.status && (
                       <Text style={[
                         styles.testStatusBadge,
                         culture.status.toLowerCase() === 'normal' || culture.status.toLowerCase() === 'n' ? styles.normalBadge :
@@ -1553,7 +1159,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
                     </View>
                     {/* Culture Options and Results */}
                     {culture.culture_results &&
-                      culture.culture_results.length > 0 && (
+                      culture.culture_results.length > 0 ? (
                         <View
                           style={{
                             marginTop: 8,
@@ -1614,7 +1220,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
                                       >
                                         {result.culture_option_name}
                                       </Text>
-                                      {result.culture_sub_option_name && (
+                                      {!!result.culture_sub_option_name && (
                                         <Text
                                           style={{
                                             fontSize: 9,
@@ -1625,7 +1231,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
                                           • {result.culture_sub_option_name}
                                         </Text>
                                       )}
-                                      {result.custom_result && (
+                                      {!!result.custom_result && (
                                         <Text
                                           style={{
                                             fontSize: 9,
@@ -1666,10 +1272,10 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
                             )}
                           </View>
                         </View>
-                      )}
+                      ) : null}
 
                     {/* Antibiotic Sensitivity Table - Directly under culture */}
-                    {cultureAntibiotics.length > 0 && (
+                    {cultureAntibiotics.length > 0 ? (
                       <View
                         style={{
                           marginTop: 8,
@@ -1771,7 +1377,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
                                   }}
                                 >
                                   {ca.antibiotic?.name || ca.antibiotic_name}
-                                  {ca.antibiotic?.shortcut && (
+                                  {!!ca.antibiotic?.shortcut && (
                                     <Text
                                       style={{
                                         fontSize: 8,
@@ -1830,7 +1436,7 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
                           })}
                         </View>
                       </View>
-                    )}
+                    ) : null}
                   </View>
                 );
               }
@@ -1838,377 +1444,8 @@ const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
           </>
         ) : null}
 
-        {/* Test Groups Section - Enhanced with Category Grouping */}
-        {report?.test_groups && report.test_groups.length > 0 ? (
-          <>
-            <Text style={styles.sectionTitle}>Test Groups</Text>
-            {report.test_groups.map((group, groupIndex) => {
-              // Get all unique fields across all components
-              const allFields = [
-                { id: "component", name: "Component", width: 3 },
-                ...(group.tg_fields || []).map((f) => ({ ...f, width: 1.2 })),
-              ];
-
-              // Organize components by category for better rendering
-              const directComponents = (group.direct_components || []).map(
-                (c) => ({
-                  ...c,
-                  category: null,
-                  type: "direct",
-                })
-              );
-
-              // Group categorized components by category
-              const categorizedGroups = {};
-              (group.categories || []).forEach((cat) => {
-                if (cat.components && cat.components.length > 0) {
-                  categorizedGroups[cat.name] = cat.components.map((comp) => ({
-                    ...comp,
-                    category: cat.name,
-                    type: "categorized",
-                  }));
-                }
-              });
-
-              // Helper function to render component rows
-              const renderComponentRow = (component, compIndex, isEven) => {
-                const componentNormalRange =
-                  component.normal_from && component.normal_to
-                    ? `${component.normal_from} - ${component.normal_to}`
-                    : component.normal_range;
-
-                return (
-                  <View
-                    key={`comp-${component.id}-${compIndex}`}
-                    style={[
-                      styles.tableRow,
-                      isEven && styles.evenRow,
-                      component.result && styles.resultRow,
-                      {
-                        pageBreakInside: "avoid", // Prevent component row from breaking
-                        orphans: 2, // Minimum lines at bottom of page
-                        widows: 2, // Minimum lines at top of page
-                      },
-                    ]}
-                  >
-                    {allFields.map((field, fieldIdx) => {
-                      // Component Name Cell
-                      if (field.id === "component") {
-                        return (
-                          <View
-                            key={fieldIdx}
-                            style={[
-                              styles.cell,
-                              { flex: field.width },
-                              styles.componentCell,
-                            ]}
-                          >
-                            <Text style={styles.componentText}>
-                              {component.name}
-                            </Text>
-                          </View>
-                        );
-                      }
-
-                      // Reference Range Cell
-                      if (field.id === "reference") {
-                        return (
-                          <View
-                            key={fieldIdx}
-                            style={[
-                              styles.cell,
-                              {
-                                flex: field.width,
-                                minWidth: 80,
-                                padding: "4px 2px",
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.referenceText,
-                                { fontSize: 7, lineHeight: 1.2 },
-                              ]}
-                            >
-                              {componentNormalRange || "N/A"}
-                            </Text>
-                          </View>
-                        );
-                      }
-
-                      // Unit Cell
-                      if (field.id === "unit") {
-                        return (
-                          <View
-                            key={fieldIdx}
-                            style={[
-                              styles.cell,
-                              { flex: field.width, minWidth: 40 },
-                            ]}
-                          >
-                            <Text style={[styles.unitText, { fontSize: 8 }]}>
-                              {component.unit || "-"}
-                            </Text>
-                          </View>
-                        );
-                      }
-
-                      // Regular Field Cell
-                      let fieldValue = "N/A";
-
-                      // Get value from the new results structure
-                      if (
-                        component.results &&
-                        component.results[field.name] !== undefined &&
-                        component.results[field.name] !== ""
-                      ) {
-                        fieldValue = String(component.results[field.name]);
-                      }
-                      // Try alternative field name formats
-                      else if (component.results) {
-                        const fieldKey = field.name
-                          .toLowerCase()
-                          .replace(/\s+/g, "_");
-                        if (
-                          component.results[fieldKey] !== undefined &&
-                          component.results[fieldKey] !== ""
-                        ) {
-                          fieldValue = String(component.results[fieldKey]);
-                        }
-                      }
-                      // Try field ID as key in component results
-                      else if (
-                        component.results &&
-                        component.results[field.id] !== undefined &&
-                        component.results[field.id] !== ""
-                      ) {
-                        fieldValue = String(component.results[field.id]);
-                      }
-                      // Fallback to old structure for backward compatibility
-                      else if (
-                        group.values?.[component.id]?.[field.id] !== undefined
-                      ) {
-                        fieldValue = String(
-                          group.values[component.id][field.id]
-                        );
-                      }
-                      // Additional fallback: try field name in group values
-                      else if (
-                        group.values?.[component.id]?.[field.name] !== undefined
-                      ) {
-                        fieldValue = String(
-                          group.values[component.id][field.name]
-                        );
-                      }
-
-                      const isResult = field.name
-                        .toLowerCase()
-                        .includes("result");
-                      const fieldNormalRange = null; // tg_fields table doesn't have normal range columns
-
-                      const resultColor = isResult
-                        ? getResultColor(
-                            fieldValue,
-                            fieldNormalRange,
-                            field.status
-                          )
-                        : "transparent";
-
-                      return (
-                        <View
-                          key={fieldIdx}
-                          style={[
-                            styles.cell,
-                            {
-                              flex: field.width,
-                              backgroundColor:
-                                resultColor !== "transparent"
-                                  ? resultColor
-                                  : undefined,
-                            },
-                            isResult && styles.resultCell,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.cellText,
-                              isResult && {
-                                color:
-                                  resultColor === "#2ecc40" ||
-                                  resultColor === "#ff4136"
-                                    ? "#fff"
-                                    : "#333",
-                                fontWeight: "bold",
-                              },
-                            ]}
-                          >
-                            {fieldValue}
-                          </Text>
-                          {isResult && fieldNormalRange && (
-                            <Text style={styles.rangeText}>
-                              {fieldNormalRange}
-                            </Text>
-                          )}
-                        </View>
-                      );
-                    })}
-                  </View>
-                );
-              };
-
-              // Helper function to render category header with improved page break handling
-              const renderCategoryHeader = (categoryName) => (
-                <View
-                  key={`category-${categoryName}`}
-                  style={styles.categoryHeader}
-                >
-                  <View
-                    style={[
-                      styles.cell,
-                      {
-                        flex: allFields.reduce(
-                          (sum, f) => sum + (f.width || 1),
-                          0
-                        ),
-                        justifyContent: "flex-start",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryText,
-                        {
-                          fontSize: 11, // Slightly smaller font
-                          fontWeight: "bold",
-                          color: "#2d3e8b",
-                          textAlign: "center",
-                          paddingVertical: 3, // Reduced padding
-                        },
-                      ]}
-                    >
-                      {categoryName}
-                    </Text>
-                  </View>
-                </View>
-              );
-
-              // Helper function to render small header row under category names
-              const renderCategorySubHeader = () => (
-                <View style={styles.categorySubHeader}>
-                  {allFields.map((field, idx) => (
-                    <View
-                      key={`sub-header-${field.id || idx}`}
-                      style={[
-                        styles.categorySubHeaderCell,
-                        { flex: field.width || 1 },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 6,
-                          fontWeight: "bold",
-                          color: "#5d6481",
-                          textAlign: "center",
-                        }}
-                      >
-                        {field.name}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              );
-
-              return (
-                <View
-                  key={groupIndex}
-                  style={[
-                    styles.tableContainer,
-                    { marginTop: groupIndex === 0 ? 20 : 10 },
-                  ]}
-                >
-                  <Text style={styles.tableTitle}>
-                    {group.name || "Unknown Group"}
-                  </Text>
-
-                  {/* Table Header - Enhanced visibility with fixed positioning */}
-                  <View style={styles.tableHeaderFixed} wrap={false} fixed>
-                    {allFields.map((field, idx) => (
-                      <View
-                        key={field.id || idx}
-                        style={[styles.headerCell, { flex: field.width || 1 }]}
-                      >
-                        <Text
-                          style={[
-                            styles.headerText,
-                            { fontSize: 8, fontWeight: "bold" },
-                          ]}
-                        >
-                          {field.name}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Render Direct Components First - wrapped in section */}
-                  {directComponents.length > 0 && (
-                    <View style={styles.tableSection}>
-                      {directComponents.map((component, compIndex) =>
-                        renderComponentRow(
-                          component,
-                          compIndex,
-                          compIndex % 2 === 0
-                        )
-                      )}
-                    </View>
-                  )}
-
-                  {/* Render Categorized Components Grouped by Category */}
-                  {Object.entries(categorizedGroups).map(
-                    ([categoryName, components], catIndex) => {
-                      const startIndex =
-                        directComponents.length +
-                        Object.entries(categorizedGroups)
-                          .slice(0, catIndex)
-                          .reduce(
-                            (sum, [, comps]) => sum + comps.length + 1,
-                            0
-                          ); // +1 for category header
-
-                      return (
-                        <View
-                          key={`category-group-${categoryName}`}
-                          style={styles.categoryContainer}
-                        >
-                          {/* Category Header */}
-                          {renderCategoryHeader(categoryName)}
-
-                          {/* Small Header Row under Category Name */}
-                          {/* {renderCategorySubHeader()} */}
-
-                          {/* Category Components - wrapped in section to prevent breaks */}
-                          <View style={styles.tableSection}>
-                            {components.map((component, compIndex) =>
-                              renderComponentRow(
-                                component,
-                                startIndex + compIndex + 1, // +1 for category header
-                                (startIndex + compIndex + 1) % 2 === 0
-                              )
-                            )}
-                          </View>
-                        </View>
-                      );
-                    }
-                  )}
-                  
-                  {/* Render test group comments */}
-                  {renderTestGroupComments(group.id, comments)}
-                </View>
-              );
-            })}
-          </>
-        ) : null}
         {/* Doctor's Comment */}
-        {doctorComment && (
+        {!!doctorComment && (
           <View style={styles.commentBox}>
             <Text style={styles.commentLabel}>Comment : </Text>
             <RichTextPdfRenderer 
@@ -2249,11 +1486,8 @@ const PrintPDF = ({ patient, report, lab, comments }) => {
     report &&
     (report.tests?.length > 0 ||
       report.cultures?.length > 0 ||
-      report.test_groups?.length > 0 ||
       report.reportTests?.length > 0 ||
-      report.medical_report_has_cultures?.length > 0 ||
-      report.tg_id_test_groups?.length > 0 ||
-      report.test_group_results?.length > 0);
+      report.medical_report_has_cultures?.length > 0);
 
   if (!hasValidData) {
     return <span style={styles.btn}>No Data Available</span>;
@@ -2372,7 +1606,7 @@ const PrintPDF = ({ patient, report, lab, comments }) => {
       )}
 
       {/* Download button for desktop */}
-      {!isMobile && (
+      {!isMobile ? (
         <PDFDownloadLink
           document={
             <ProfessionalPDFDocument
@@ -2406,7 +1640,7 @@ const PrintPDF = ({ patient, report, lab, comments }) => {
             );
           }}
         </PDFDownloadLink>
-      )}
+      ) : null}
     </div>
   );
 };
@@ -2426,180 +1660,89 @@ function transformReportForPDF(report, patient) {
   const patientGender = patient.gender || "N/A";
 
   // Handle both old and new API structure for tests
-  const testsData = report.reportTests || report.tests || [];
-  const tests = testsData.map((test) => {
-    let selectedComponent = null;
-    let allComponents = [];
+  const tests = (report.tests || []).map((test) => {
+    const structureConfig = test.structure_config || [];
+
+    // New architecture: results are in report.test_component_results[testId]
+    // as an array of { test_component_id: parameterKey, result, status }
+    const testResultsRaw = report.test_component_results?.[test.id] || [];
+    
+    // Build a dict by parameter_key for easy lookup
+    const resultsByKey = {};
+    if (Array.isArray(testResultsRaw)) {
+      // Array form from results-data endpoint: [{ test_component_id, result, status }]
+      testResultsRaw.forEach((res) => {
+        const key = res.test_component_id || res.parameter_key;
+        if (key) resultsByKey[key] = res;
+      });
+    } else if (typeof testResultsRaw === 'object') {
+      // Object form: { parameterKey: { result, status } }
+      Object.entries(testResultsRaw).forEach(([key, data]) => {
+        resultsByKey[key] = data;
+      });
+    }
+
+    // Process the structure config into our standard format for rendering
     let hasComponentResults = false;
     let componentResults = [];
 
-    // Use components from new API structure (test.components) or fallback to old structure
-    const testComponents = test.components || test.test_components || [];
+    if (Array.isArray(structureConfig) && structureConfig.length > 0) {
+      hasComponentResults = true;
 
-    if (Array.isArray(testComponents) && testComponents.length > 0) {
-      const mappedComponents = testComponents.map((component) => ({
-        ...component,
-        gender: component.gender,
-      }));
-
-      // Filter components based on patient age and gender (matching MedicalReports.jsx logic)
-      let finalFilteredComponents;
-
-      if (!patientGender && !patient.birth_date) {
-        // Both gender and birth date missing - show all components
-        finalFilteredComponents = mappedComponents;
-      } else if (!patientGender) {
-        // Only gender missing - filter by age but show all genders
-        finalFilteredComponents = mappedComponents.filter((tc) => {
-          const ageMatch =
-            (tc.age_start == null || patientAge >= tc.age_start) &&
-            (tc.age_end == null || patientAge <= tc.age_end);
-          return ageMatch;
-        });
-      } else if (!patient.birth_date) {
-        // Only birth date missing - filter by gender but show all ages
-        finalFilteredComponents = mappedComponents.filter((tc) => {
-          const genderMatch = !tc.gender || tc.gender === patientGender;
-          return genderMatch;
-        });
-      } else {
-        // Both available - filter by both gender and age
-        finalFilteredComponents = mappedComponents.filter((tc) => {
-          const genderMatch = !tc.gender || tc.gender === patientGender;
-          const ageMatch =
-            (tc.age_start == null || patientAge >= tc.age_start) &&
-            (tc.age_end == null || patientAge <= tc.age_end);
-          return genderMatch && ageMatch;
-        });
-      }
-
-      allComponents = finalFilteredComponents;
-
-      // Check if we have component-level results from the new API structure
-      // In new API: test.components[].results[]
-      const allComponentResults = [];
-      testComponents.forEach((component) => {
-        if (component.results && component.results.length > 0) {
-          component.results.forEach((result) => {
-            allComponentResults.push({
-              ...result,
-              test_component: component,
-              test_component_id: component.id,
+      // Filter structure_config by patient demographics (same logic as DynamicResultForm)
+      const gender = patientGender !== 'N/A' ? patientGender : null;
+      const age = patientAge;
+      const filteredConfig = (!gender && age == null)
+        ? structureConfig
+        : structureConfig.filter(field => {
+            if (!Array.isArray(field.reference_ranges) || field.reference_ranges.length === 0) return true;
+            return field.reference_ranges.some(r => {
+              const genderMatch = !r.gender || !gender || r.gender.toLowerCase() === gender.toLowerCase();
+              const ageMatch =
+                (r.age_min == null || age == null || age >= r.age_min) &&
+                (r.age_max == null || age == null || age <= r.age_max);
+              return genderMatch && ageMatch;
             });
           });
+
+      // Map over filtered structure_config and merge the matching saved result
+      componentResults = filteredConfig.map((field) => {
+        const matchingResult = resultsByKey[field.key] || {};
+        
+        let derivedRange = matchingResult.reference_string || field.reference_range || "";
+        
+        // Derive from reference_ranges array if still empty
+        if (!derivedRange && Array.isArray(field.reference_ranges) && field.reference_ranges.length > 0) {
+           let matchingRange = field.reference_ranges.find(r => !r.gender || r.gender.toLowerCase() === (gender || '').toLowerCase());
+           if (!matchingRange) matchingRange = field.reference_ranges[0];
+           if (matchingRange?.min != null && matchingRange?.max != null) {
+               derivedRange = `${matchingRange.min} - ${matchingRange.max}`;
+           }
         }
-      });
 
-      if (allComponentResults.length > 0) {
-        // Use component results from the new API structure
-        hasComponentResults = true;
-        componentResults = allComponentResults.filter((cr) => {
-          // Filter component results using the same logic as MedicalReports.jsx
-          const component = cr.test_component;
-          if (!component) return true; // Keep if no component data to filter by
-
-          if (!patientGender && !patient.birth_date) {
-            // Both gender and birth date missing - show all components
-            return true;
-          } else if (!patientGender) {
-            // Only gender missing - filter by age but show all genders
-            const ageMatch =
-              (component.age_start == null ||
-                patientAge >= component.age_start) &&
-              (component.age_end == null || patientAge <= component.age_end);
-            return ageMatch;
-          } else if (!patient.birth_date) {
-            // Only birth date missing - filter by gender but show all ages
-            const genderMatch =
-              !component.gender || component.gender === patientGender;
-            return genderMatch;
-          } else {
-            // Both available - filter by both gender and age
-            const genderMatch =
-              !component.gender || component.gender === patientGender;
-            const ageMatch =
-              (component.age_start == null ||
-                patientAge >= component.age_start) &&
-              (component.age_end == null || patientAge <= component.age_end);
-            return genderMatch && ageMatch;
-          }
-        });
-      } else if (
-        report.testComponentResults &&
-        report.testComponentResults[test.id]
-      ) {
-        // Fallback to testComponentResults structure
-        hasComponentResults = true;
-        componentResults = report.testComponentResults[test.id].map((cr) => {
-          const component =
-            cr.test_component ||
-            finalFilteredComponents.find((c) => c.id === cr.test_component_id);
-          return {
-            ...cr,
-            test_component: component,
-          };
-        });
-      } else if (finalFilteredComponents.length > 1) {
-        // Only treat as multi-component test if there are actual saved results
-        // Don't create empty placeholder results for PDF generation
-        hasComponentResults = false;
-        componentResults = [];
-      }
-
-      // Select the first component from the filtered set as the primary component
-      selectedComponent = finalFilteredComponents[0] || mappedComponents[0];
-    }
-
-    // Access result and status from the medical_report_has_test relationship
-    // Based on API structure: test.medical_report_has_test.result and test.medical_report_has_test.status
-    const testResult =
-      test.medical_report_has_test?.result ?? test.result ?? "";
-    const testStatus =
-      test.medical_report_has_test?.status ?? test.status ?? "pending";
-
-    // Debug logging for test status issues
-    if (!testResult || testStatus === "pending") {
-      console.log(`Test ${test.name} (ID: ${test.id}):`, {
-        result: testResult,
-        status: testStatus,
-        medical_report_has_test: test.medical_report_has_test,
-        hasComponentResults: hasComponentResults,
-        componentResultsCount: componentResults.length,
+        // Result value: try both forms
+        const resultVal = matchingResult.result ?? matchingResult.result_value ?? "";
+        
+        return {
+          id: field.key,
+          name: field.label || field.key,
+          unit: field.unit || "",
+          reference_range: derivedRange,
+          type: field.type || "text",
+          result: resultVal,
+          clinical_flag: matchingResult.status || matchingResult.clinical_flag || "normal",
+          raw_field: field
+        };
       });
     }
+
+    const testStatus = test.medical_report_has_test?.status ?? test.status ?? "pending";
+    const testResult = test.medical_report_has_test?.result ?? test.result ?? "";
 
     return {
       ...test,
-      unit: selectedComponent ? selectedComponent.unit : "",
-      normal_from: Number.isNaN(
-        selectedComponent ? selectedComponent.normal_from : 0
-      )
-        ? ""
-        : selectedComponent
-        ? selectedComponent.normal_from
-        : "0",
-      normal_to: Number.isNaN(
-        selectedComponent ? selectedComponent.normal_to : 0
-      )
-        ? ""
-        : selectedComponent
-        ? selectedComponent.normal_to
-        : "0",
-      reference_range: selectedComponent
-        ? selectedComponent.reference_range
-        : "",
-      result_type: selectedComponent ? selectedComponent.result_type : "range",
-      // Add support for critical values (c_low, c_high)
-      c_low: selectedComponent ? selectedComponent.c_low : null,
-      c_high: selectedComponent ? selectedComponent.c_high : null,
-      // Add component name for better identification
-      component_name: selectedComponent ? selectedComponent.name : "",
-      component_id: selectedComponent ? selectedComponent.id : null,
-      result: testResult,
       status: testStatus,
-      // Include all components for manual determination if needed
-      all_components: allComponents,
-      // Include component-level results
+      result: testResult,
       has_component_results: hasComponentResults,
       component_results: componentResults,
     };
@@ -2676,118 +1819,13 @@ function transformReportForPDF(report, patient) {
     status: cr.status || "",
   }));
 
-  // Handle test groups from the new API structure
-  const testGroupResults = report.test_group_results || [];
 
-  // Group test group results by test_group_id to reconstruct test groups
-  const testGroupsMap = new Map();
-  const fieldsMap = new Map(); // Track unique fields across all test groups
-
-  testGroupResults.forEach((tgr) => {
-    if (tgr.test_group && tgr.tg_component) {
-      const testGroupId = tgr.test_group.id;
-
-      if (!testGroupsMap.has(testGroupId)) {
-        testGroupsMap.set(testGroupId, {
-          id: testGroupId,
-          name: tgr.test_group.name,
-          price: tgr.test_group.price,
-          components: new Map(),
-          fields: new Map(),
-          results: [],
-        });
-      }
-
-      const testGroup = testGroupsMap.get(testGroupId);
-      testGroup.results.push(tgr);
-
-      // Add component info
-      if (!testGroup.components.has(tgr.tg_component.id)) {
-        testGroup.components.set(tgr.tg_component.id, {
-          id: tgr.tg_component.id,
-          name: tgr.tg_component.name,
-          reference_range: tgr.tg_component.reference_range,
-          result_type: tgr.tg_component.result_type,
-          category: tgr.tg_component.tgc_category,
-          results: {},
-        });
-      }
-
-      // Extract fields from test_group.tg_fields if available      if (tgr.test_group.tg_fields && Array.isArray(tgr.test_group.tg_fields)) {        tgr.test_group.tg_fields.forEach(field => {          if (!testGroup.fields.has(field.id)) {            testGroup.fields.set(field.id, {              id: field.id,              name: field.name,              test_group_id: field.test_group_id,              width: 1.2            });          }        });      }
-
-      // Parse and store result_json
-      if (tgr.result_json) {
-        try {
-          const resultJson =
-            typeof tgr.result_json === "string"
-              ? JSON.parse(tgr.result_json)
-              : tgr.result_json;
-
-          const component = testGroup.components.get(tgr.tg_component.id);
-          Object.assign(component.results, resultJson);
-        } catch (error) {
-          console.error("Error parsing test group result_json:", error);
-        }
-      }
-    }
-  });
-
-  // Convert map to array and format for PDF
-  const test_groups = Array.from(testGroupsMap.values()).map((tg) => {
-    const components = Array.from(tg.components.values());
-    const fields = Array.from(tg.fields.values());
-
-    // Group components by category
-    const categoriesMap = new Map();
-    const directComponents = [];
-
-    components.forEach((component) => {
-      if (component.category && component.category.name) {
-        const categoryName = component.category.name;
-        if (!categoriesMap.has(categoryName)) {
-          categoriesMap.set(categoryName, {
-            name: categoryName,
-            components: [],
-          });
-        }
-        categoriesMap.get(categoryName).components.push(component);
-      } else {
-        directComponents.push(component);
-      }
-    });
-
-    return {
-      id: tg.id,
-      name: tg.name,
-      price: tg.price,
-      components: components,
-      direct_components: directComponents,
-      categories: Array.from(categoriesMap.values()),
-      fields: fields, // Add fields array for PDF rendering
-      results: tg.results,
-    };
-  });
-
-  // Debug logging for test groups
-  console.log("Test Groups Processing:", {
-    testGroupResultsCount: testGroupResults.length,
-    testGroupsMapSize: testGroupsMap.size,
-    finalTestGroupsCount: test_groups.length,
-    testGroupsData: test_groups.map((tg) => ({
-      id: tg.id,
-      name: tg.name,
-      componentsCount: tg.components.length,
-      directComponentsCount: tg.direct_components.length,
-      categoriesCount: tg.categories.length,
-    })),
-  });
 
   return {
     ...report,
     tests,
     cultures,
     culture_results,
-    test_groups,
     doctor_name: report.signatory_name || "",
   };
 }
@@ -2840,18 +1878,31 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
       const responseData = response.data;
       console.log("Full response data received:", responseData);
 
+      // Also fetch the results-data endpoint to get saved component results (new architecture)
+      let resultsData = null;
+      try {
+        const resultsResponse = await axios.get(
+          `${apiUrl}/medical-reports/${reportId}/results-data`,
+          { headers }
+        );
+        resultsData = resultsResponse.data;
+      } catch (e) {
+        console.warn("Could not fetch results-data for PDF, results may be missing:", e.message);
+      }
+
       // Extract data from the API response structure
+      // Prefer tests from results-data because they include structure_config + saved results
       const fullReportData = {
         ...responseData,
+        tests: (resultsData?.tests || responseData.tests || []),
+        test_component_results: resultsData?.test_component_results || {},
         testComponentResults: responseData.testComponentResults || {},
-        testGroups: responseData.testGroups || [],
         testComponents: responseData.testComponents || {},
       };
       
       // Extract comments data from the API response
       const comments = {
         tests: responseData.testComments || {},
-        testGroup: responseData.testGroupComments || {},
         reportImages: responseData.reportImages || []
       };
 
@@ -2945,3 +1996,4 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
 
 export default PrintPDF;
 export { DirectPDFDownload };
+

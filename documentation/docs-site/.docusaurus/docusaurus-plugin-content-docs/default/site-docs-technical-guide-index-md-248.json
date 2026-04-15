@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/index",
+  "title": "Technical Guide",
+  "description": "This section contains technical documentation for the LabManager system, including architecture, frontend, backend, deployment, and security details.",
+  "source": "@site/docs/technical-guide/index.md",
+  "sourceDirName": "technical-guide",
+  "slug": "/technical-guide/",
+  "permalink": "/docs/technical-guide/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Patient Guide",
+    "permalink": "/docs/user-guide/roles/patient"
+  },
+  "next": {
+    "title": "Architecture Overview",
+    "permalink": "/docs/technical-guide/architecture/"
+  }
+}

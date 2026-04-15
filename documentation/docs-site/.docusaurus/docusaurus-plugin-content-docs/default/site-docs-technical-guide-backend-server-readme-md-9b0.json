@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/backend/server-readme",
+  "title": "LabManager Server Documentation",
+  "description": "Overview",
+  "source": "@site/docs/technical-guide/backend/server-readme.md",
+  "sourceDirName": "technical-guide/backend",
+  "slug": "/technical-guide/backend/server-readme",
+  "permalink": "/docs/technical-guide/backend/server-readme",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Backend Overview",
+    "permalink": "/docs/technical-guide/backend/"
+  },
+  "next": {
+    "title": "Database Synchronization Guide",
+    "permalink": "/docs/technical-guide/backend/database-sync"
+  }
+}

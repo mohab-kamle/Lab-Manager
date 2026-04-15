@@ -5,7 +5,7 @@ require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { loginLimiter } = require('../middleware/rateLimiters');
 
-const { employee, admin, sequelize } = require('../models'); 
+const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor } = require('../models'); 
 const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
@@ -15,66 +15,80 @@ const { validatePassword } = require('../utils/passwordValidator');
 // Employee login
 router.post("/login", loginLimiter, async (req, res) => {
     const { username, password, lab_id } = req.body;
-  
+
+    // 🛡️ Validate username
+    if (!username || typeof username !== 'string') {
+        return res.status(400).json({ error: "Invalid username format" });
+    }
+
+    // 🛡️ Validate lab_id
+    let safeLabId = null;
+    if (lab_id !== undefined && lab_id !== null) {
+        if (typeof lab_id !== 'string' && typeof lab_id !== 'number') {
+            return res.status(400).json({ error: "Invalid lab ID format" });
+        }
+
+        safeLabId = Number(lab_id);
+        if (isNaN(safeLabId)) {
+            return res.status(400).json({ error: "Invalid lab_id format" });
+        }
+    }
+
     try {
-      // For login, we need to check if the employee exists in the specified lab
-      // or find them across all labs if lab_id is not provided
-      let emp;
-      
-      if (lab_id) {
-        // If lab_id is provided, check in that specific lab
-        emp = await employee.findOne({ 
-          where: { 
-            username: username,
-            lab_id: lab_id 
-          } 
-        });
-      } else {
-        // If no lab_id provided, find the employee 
-        emp = await employee.findOne({ 
-          where: { username: username } 
-        });
-      }
-  
-      if (!emp) {
-        return res.status(401).json({ error: "User not found" });
-      }
-      
-      const passwordMatch = await bcrypt.compare(password, emp.password);
-      if (!passwordMatch) {
-        return res.status(401).json({ error: "Incorrect password" });
-      }
-      
-      // Generate token with lab_id included
-      const token = sign({ 
-        id: emp.id, 
-        role: emp.role,
-        lab_id: emp.lab_id 
-      }, SECRET_KEY, { expiresIn: "6h" });
+        let emp;
 
-      // Exclude sensitive fields before sending the user object
-      const { password: _password, ...safeUser } = emp.get({ plain: true });
-      
-      if(emp.role !== "admin"){
-        res.json({ token, user: safeUser});
-      } else {
-                console.log("isFirstTimeLogin");
+        if (safeLabId !== null) {
+            emp = await employee.findOne({
+                where: {
+                    username: username,
+                    lab_id: safeLabId
+                }
+            });
+        } else {
+            emp = await employee.findOne({
+                where: { username: username }
+            });
+        }
 
-        let adminObj = await admin.findByPk(emp.id)
-        let isFirstTimeLogin = adminObj.isFirstTimeLogin;
-        res.json({ token, user: safeUser, isFirstTimeLogin});
-      }
+        if (!emp) {
+            return res.status(401).json({ error: "User not found" });
+        }
+
+        const passwordMatch = await bcrypt.compare(password, emp.password);
+        if (!passwordMatch) {
+            return res.status(401).json({ error: "Incorrect password" });
+        }
+
+        // 🔐 Generate JWT
+        const token = sign({
+            id: emp.id,
+            role: emp.role,
+            lab_id: emp.lab_id
+        }, SECRET_KEY, { expiresIn: "6h" });
+
+        // 🧼 Remove password
+        const { password: _, ...safeUser } = emp.get({ plain: true });
+
+        if (emp.role !== "admin") {
+            return res.json({ token, user: safeUser });
+        }
+
+        // 👑 Admin extra logic
+        const adminObj = await admin.findByPk(emp.id);
+        const isFirstTimeLogin = adminObj?.isFirstTimeLogin ?? false;
+
+        return res.json({ token, user: safeUser, isFirstTimeLogin });
 
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Server error" });
+        console.error(error);
+        res.status(500).json({ error: "Server error" });
     }
 });
 
 // Change password (admins only!)
 router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
-        const { 
+        const {
             oldPassword,
             newPassword
         } = req.body;
@@ -103,12 +117,12 @@ router.put("/changePassword", authenticateUser, authorizeRoles("admin"), tenantC
             const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
             // Update employee
-            await emp.update({password: hashedNewPassword});
+            await emp.update({ password: hashedNewPassword });
 
             // Change login Status for admins
-            if(req.user.role === 'admin'){
+            if (req.user.role === 'admin') {
                 const adminObj = await admin.findByPk(req.user.id);
-                if(adminObj.isFirstTimeLogin) await adminObj.update({isFirstTimeLogin: false});
+                if (adminObj.isFirstTimeLogin) await adminObj.update({ isFirstTimeLogin: false });
             }
 
             // Return updated employee without password
@@ -134,9 +148,9 @@ router.put("/skip-password-change", authenticateUser, authorizeRoles("admin"), t
         }
 
         // Change login Status for admins
-        if(req.user.role === 'admin'){
+        if (req.user.role === 'admin') {
             const adminObj = await admin.findByPk(req.user.id);
-            if(adminObj.isFirstTimeLogin) await adminObj.update({isFirstTimeLogin: false});
+            if (adminObj.isFirstTimeLogin) await adminObj.update({ isFirstTimeLogin: false });
         }
 
         res.json({ message: "Password change skipped successfully" });
@@ -154,11 +168,11 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
             attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
             include: [
                 {
-                    model: sequelize.models.branch_has_employee,
+                    model: branch_has_employee,
                     as: 'branch_has_employees',
                     include: [
                         {
-                            model: sequelize.models.branch,
+                            model: branch,
                             as: 'branch',
                             attributes: ['id', 'name']
                         }
@@ -176,13 +190,13 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
             const empData = emp.toJSON();
             // Assuming an employee belongs to one branch for now as per UI
             const branchRelationship = empData.branch_has_employees && empData.branch_has_employees[0];
-            
+
             return {
                 ...empData,
                 branch_id: branchRelationship ? branchRelationship.branch_id : null,
                 branch_name: branchRelationship && branchRelationship.branch ? branchRelationship.branch.name : null,
                 // Remove the nested object to keep payload clean
-                branch_has_employees: undefined 
+                branch_has_employees: undefined
             };
         });
 
@@ -203,11 +217,11 @@ router.get("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
                 lab_id: req.tenant.lab_id
             }
         });
-        
+
         if (!emp) {
             return res.status(404).json({ error: "Employee not found" });
         }
-        
+
         res.json(emp);
     } catch (error) {
         console.error('Error fetching employee:', error);
@@ -218,20 +232,20 @@ router.get("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
 // Create new employee (admin only)
 router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
-        const { 
-            name, 
-            username, 
-            password, 
-            email, 
-            gender, 
-            birth_date, 
-            national_id, 
-            nationality, 
-            passport_no, 
+        const {
+            name,
+            username,
+            password,
+            email,
+            gender,
+            birth_date,
+            national_id,
+            nationality,
+            passport_no,
             role,
             branch_id
         } = req.body;
-        
+
         // Validate required fields
         if (!name || !username || !password || !role || !branch_id) {
             return res.status(400).json({ error: "Name, username, password, role, and branch are required" });
@@ -244,14 +258,14 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
         }
 
         // Check if username already exists
-        const existingUser = await employee.findOne({ where: {  username , lab_id: req.tenant.lab_id } });
+        const existingUser = await employee.findOne({ where: { username, lab_id: req.tenant.lab_id } });
         if (existingUser) {
             return res.status(400).json({ error: "Username already exists" });
         }
 
         // Check if national_id already exists (if provided)
         if (national_id) {
-            const existingNationalId = await employee.findOne({ where: {  national_id , lab_id: req.tenant.lab_id } });
+            const existingNationalId = await employee.findOne({ where: { national_id, lab_id: req.tenant.lab_id } });
             if (existingNationalId) {
                 return res.status(400).json({ error: "National ID already exists" });
             }
@@ -283,52 +297,40 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
         });
 
         // Assign employee to branch
-        await sequelize.models.branch_has_employee.create({
-            branch_id: branch_id,
+        await branch_has_employee.create({
+            branch_id,
             employee_id: newEmployee.id
         });
 
-        // Create role-specific record based on the role
-        switch (role) {
-            case 'admin':
-                await sequelize.models.admin.create({
-                    id: newEmployee.id,
-                    lab_id: req.tenant.lab_id
-                });
-                break;
-            case 'chemist':
-                await sequelize.models.chemist.create({
-                    id: newEmployee.id,
-                    no_of_reports: 0,
-                    lab_id: req.tenant.lab_id
-                });
-                break;
-            case 'receptionist':
-                await sequelize.models.receptionist.create({
-                    id: newEmployee.id,
-                    no_of_bills: 0,
-                    lab_id: req.tenant.lab_id
-                });
-                break;
-            case 'doctor':
-                // Doctor table has auto-incrementing ID, so we create a separate record
-                // The doctor table is independent of the employee table
-                await sequelize.models.doctor.create({
-                    name: newEmployee.name,
-                    email: newEmployee.email,
-                    gender: newEmployee.gender,
-                    birth_date: newEmployee.birth_date,
-                    national_id: newEmployee.national_id,
-                    nationality: newEmployee.nationality,
-                    passport_no: newEmployee.passport_no,
-                    lab_id: req.tenant.lab_id
-                });
-                break;
-            case 'employee':
-                // Basic employee doesn't need additional table
-                break;
-            default:
-                console.warn(`Unknown role: ${role}`);
+        if (role === "admin") {
+            await admin.create({
+                id: newEmployee.id,
+                isFirstTimeLogin: true,
+                lab_id: req.tenant.lab_id
+            });
+        } else if (role === "chemist") {
+            await chemist.create({
+                id: newEmployee.id,
+                no_of_reports: 0,
+                lab_id: req.tenant.lab_id
+            });
+        } else if (role === "receptionist") {
+            await receptionist.create({
+                id: newEmployee.id,
+                no_of_bills: 0,
+                lab_id: req.tenant.lab_id
+            });
+        } else if (role === "doctor") {
+            await doctor.create({
+                name: newEmployee.name,
+                email: newEmployee.email,
+                gender: newEmployee.gender,
+                birth_date: newEmployee.birth_date,
+                national_id: newEmployee.national_id,
+                nationality: newEmployee.nationality,
+                passport_no: newEmployee.passport_no,
+                lab_id: req.tenant.lab_id
+            });
         }
 
         // Return employee without password
@@ -344,16 +346,16 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
 router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
-        const { 
-            name, 
-            username, 
-            password, 
-            email, 
-            gender, 
-            birth_date, 
-            national_id, 
-            nationality, 
-            passport_no, 
+        const {
+            name,
+            username,
+            password,
+            email,
+            gender,
+            birth_date,
+            national_id,
+            nationality,
+            passport_no,
             role,
             branch_id
         } = req.body;
@@ -374,7 +376,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
 
         // Check if username already exists (if changed)
         if (username && username !== emp.username) {
-            const existingUser = await employee.findOne({ where: {  username , lab_id: req.tenant.lab_id } });
+            const existingUser = await employee.findOne({ where: { username, lab_id: req.tenant.lab_id } });
             if (existingUser) {
                 return res.status(400).json({ error: "Username already exists" });
             }
@@ -382,7 +384,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
 
         // Check if national_id already exists (if changed)
         if (national_id && national_id !== emp.national_id) {
-            const existingNationalId = await employee.findOne({ where: {  national_id , lab_id: req.tenant.lab_id } });
+            const existingNationalId = await employee.findOne({ where: { national_id, lab_id: req.tenant.lab_id } });
             if (existingNationalId) {
                 return res.status(400).json({ error: "National ID already exists" });
             }
@@ -418,9 +420,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
 
         // Update branch assignment if branch_id is provided
         if (branch_id) {
-            const BranchHasEmployee = sequelize.models.branch_has_employee;
-            await BranchHasEmployee.destroy({ where: { employee_id: emp.id } });
-            await BranchHasEmployee.create({ branch_id: branch_id, employee_id: emp.id });
+            await branch_has_employee.destroy({ where: { employee_id: emp.id } });
+            await branch_has_employee.create({ branch_id: branch_id, employee_id: emp.id });
         }
 
         // Handle role changes - delete old role record and create new one
@@ -429,21 +430,21 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             const oldRole = emp.role;
             switch (oldRole) {
                 case 'admin':
-                    await sequelize.models.admin.destroy({ where: { id: emp.id } });
+                    await admin.destroy({ where: { id: emp.id } });
                     break;
                 case 'chemist':
-                    await sequelize.models.chemist.destroy({ where: { id: emp.id } });
+                    await chemist.destroy({ where: { id: emp.id } });
                     break;
                 case 'receptionist':
-                    await sequelize.models.receptionist.destroy({ where: { id: emp.id } });
+                    await receptionist.destroy({ where: { id: emp.id } });
                     break;
                 case 'doctor':
                     // Find and delete doctor record by matching employee data
-                    await sequelize.models.doctor.destroy({ 
+                    await doctor.destroy({ 
                         where: { 
                             name: emp.name,
-                            national_id: emp.national_id 
-                        } 
+                            national_id: emp.national_id
+                        }
                     });
                     break;
             }
@@ -451,27 +452,28 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             // Create new role record
             switch (role) {
                 case 'admin':
-                    await sequelize.models.admin.create({
+                    await admin.create({
                         id: emp.id,
+                        isFirstTimeLogin: true,
                         lab_id: req.tenant.lab_id
                     });
                     break;
                 case 'chemist':
-                    await sequelize.models.chemist.create({
+                    await chemist.create({
                         id: emp.id,
                         no_of_reports: 0,
                         lab_id: req.tenant.lab_id
                     });
                     break;
                 case 'receptionist':
-                    await sequelize.models.receptionist.create({
+                    await receptionist.create({
                         id: emp.id,
                         no_of_bills: 0,
                         lab_id: req.tenant.lab_id
                     });
                     break;
                 case 'doctor':
-                    await sequelize.models.doctor.create({
+                    await doctor.create({
                         name: emp.name,
                         email: emp.email,
                         gender: emp.gender,
@@ -513,31 +515,24 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
         }
 
         // Delete role-specific record first
-        const role = emp.role;
-        switch (role) {
-            case 'admin':
-                await sequelize.models.admin.destroy({ where: { id: emp.id } });
-                break;
-            case 'chemist':
-                await sequelize.models.chemist.destroy({ where: { id: emp.id } });
-                break;
-            case 'receptionist':
-                await sequelize.models.receptionist.destroy({ where: { id: emp.id } });
-                break;
-            case 'doctor':
-                // Find and delete doctor record by matching employee data
-                await sequelize.models.doctor.destroy({ 
-                    where: { 
-                        name: emp.name,
-                        national_id: emp.national_id 
-                    } 
-                });
-                break;
+        if (emp.role === 'admin') {
+            await admin.destroy({ where: { id: emp.id } });
+        } else if (emp.role === 'chemist') {
+            await chemist.destroy({ where: { id: emp.id } });
+        } else if (emp.role === 'receptionist') {
+            await receptionist.destroy({ where: { id: emp.id } });
+        } else if (emp.role === 'doctor') {
+            await doctor.destroy({ 
+                where: { 
+                    name: emp.name,
+                    lab_id: emp.lab_id
+                } 
+            });
         }
 
-        // Delete from branch_has_employee
-        await sequelize.models.branch_has_employee.destroy({
-             where: { employee_id: emp.id }
+        // Delete branch assignment
+        await branch_has_employee.destroy({
+            where: { employee_id: id }
         });
 
         // Delete employee record
@@ -570,7 +565,7 @@ router.get("/roles/available", authenticateUser, authorizeRoles("admin"), tenant
 router.get("/roles/:role/permissions", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { role } = req.params;
-        
+
         const permissions = {
             admin: {
                 description: "Full system access",

@@ -15,7 +15,7 @@
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.17.8",
     "@react-pdf/renderer": "^4.3.0",
-    "axios": "^1.13.5",
+    "axios": "^1.15.0",
     "bootstrap": "^5.3.3",
     "buffer": "^6.0.3",
     "date-fns": "^4.1.0",
@@ -26,7 +26,7 @@
     "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
     "jsbarcode": "^3.11.6",
-    "jspdf": "^4.2.0",
+    "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.2",
     "jspdf-font": "^1.0.7",
     "lottie-react": "^2.4.1",
@@ -51,6 +51,7 @@
     "react-toastify": "^11.0.5",
     "recharts": "^3.0.2",
     "sass": "^1.94.2",
+    "socket.io-client": "^4.8.3",
     "yup": "^1.6.1"
   },
   "devDependencies": {
@@ -67,7 +68,7 @@
     "sass-embedded": "^1.83.4",
     "sharp": "^0.34.3",
     "terser": "^5.43.1",
-    "vite": "^6.3.5",
+    "vite": "^6.4.2",
     "vite-plugin-image-optimizer": "^2.0.2",
     "vite-plugin-remove-console": "^2.2.0"
   }

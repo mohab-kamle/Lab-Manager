@@ -1,0 +1,27 @@
+{
+  "id": "user-guide/roles/doctor",
+  "title": "Doctor Guide",
+  "description": "As a Doctor, your primary role in the LabManager system is to review, approve, and oversee medical reports. You focus on clinical interpretation and patient diagnosis, ensuring that every report released by the laboratory meets medical standards.",
+  "source": "@site/docs/user-guide/roles/doctor.md",
+  "sourceDirName": "user-guide/roles",
+  "slug": "/user-guide/roles/doctor",
+  "permalink": "/docs/user-guide/roles/doctor",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Doctor Guide"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Chemist Guide",
+    "permalink": "/docs/user-guide/roles/chemist"
+  },
+  "next": {
+    "title": "Employee Guide",
+    "permalink": "/docs/user-guide/roles/employee"
+  }
+}
