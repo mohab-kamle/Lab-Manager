@@ -355,41 +355,68 @@
 }
 
 /* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .register-page {
-    background: #f8f9fa;
-  }
-  
-  .register-card {
+[data-bs-theme="dark"] .register-page,
+body.dark .register-page {
+  background: var(--bg-base);
+}
 
-    color: white;
-  }
-  
-  .form-control {
-    color: black;
-  }
-  
-  .form-control:focus {
-    color: white;
-  }
-  
-  .plan-option {
-    color: white;
-  }
-  
-  .terms-section {
-    background: #f8f9fa;
-    color: black;
-  }
-  
-  .order-summary {
-    background: #e7f3ff;
-    color: black;
-  }
-  
-  .form-check-label {
-    color: black;
-  }
+[data-bs-theme="dark"] .register-card,
+body.dark .register-card {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .form-control,
+body.dark .form-control {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  border-color: var(--border-muted);
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+body.dark .form-control:focus {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .plan-option,
+body.dark .plan-option {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  border-color: var(--border-muted);
+}
+
+[data-bs-theme="dark"] .plan-option h4,
+[data-bs-theme="dark"] .plan-option li,
+body.dark .plan-option h4,
+body.dark .plan-option li {
+  color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .terms-section,
+body.dark .terms-section {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .order-summary,
+body.dark .order-summary {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .order-summary h4,
+[data-bs-theme="dark"] .summary-total,
+[data-bs-theme="dark"] .summary-item,
+body.dark .order-summary h4,
+body.dark .summary-total,
+body.dark .summary-item {
+  color: var(--text-primary);
+}
+
+[data-bs-theme="dark"] .form-check-label,
+body.dark .form-check-label {
+  color: var(--text-primary);
 }
 
 /* Payment Modal Styles */
@@ -437,7 +464,7 @@
 
 /* Payment Modal Header */
 .modal-header {
-  background: var(--bg-dark);
+  background: var(--bg-inset);
   border-bottom: 1px solid var(--border-muted);
 }
 

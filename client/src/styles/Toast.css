@@ -1,0 +1,566 @@
+/* ============================================
+   TOAST NOTIFICATIONS
+   ============================================ */
+
+/* Right Toast Container */
+.toast-container-right {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  animation: slideInShake 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Right Toast - Hide Animation */
+.toast-container-right.hiding {
+  animation: slideOutRight 0.3s ease-in forwards;
+}
+
+/* Center Toast Container */
+.toast-container-center {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  animation: slideDown 0.4s ease-out forwards;
+}
+
+/* Center Toast - Hide Animation */
+.toast-container-center.hiding {
+  animation: slideUp 0.3s ease-in forwards;
+}
+
+/* Base Toast Card */
+.toast-card {
+  display: flex;
+  align-items: center;
+  background: var(--toast-bg);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Right Toast Card */
+.toast-container-right .toast-card {
+  padding: 16px 20px;
+  min-width: 300px;
+  max-width: 400px;
+  border-left: 5px solid;
+}
+
+.toast-container-right .toast-card.success {
+  border-left-color: var(--toast-success);
+}
+
+.toast-container-right .toast-card.error {
+  border-left-color: var(--toast-error);
+}
+
+.toast-container-right .toast-card.warning {
+  border-left-color: var(--toast-warning);
+}
+
+.toast-container-right .toast-card.info {
+  border-left-color: var(--toast-info);
+}
+
+/* Right Toast Hover */
+.toast-container-right .toast-card:hover {
+  transform: translateX(-4px);
+  box-shadow: 0 12px 45px rgba(0, 0, 0, 0.18);
+}
+
+/* Center Toast Card */
+.toast-container-center .toast-card {
+  padding: 20px 24px;
+  min-width: 400px;
+  max-width: 550px;
+  border-top: 4px solid;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+}
+
+.toast-container-center .toast-card.success {
+  border-top-color: var(--toast-success);
+}
+
+.toast-container-center .toast-card.error {
+  border-top-color: var(--toast-error);
+}
+
+.toast-container-center .toast-card.warning {
+  border-top-color: var(--toast-warning);
+}
+
+.toast-container-center .toast-card.info {
+  border-top-color: var(--toast-info);
+}
+
+/* Center Toast Hover Effect */
+.toast-container-center .toast-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Center Toast Click Effect */
+.toast-container-center:active .toast-card {
+  transform: scale(0.98);
+}
+
+/* Icon Box */
+.toast-card .icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  padding: 8px;
+}
+
+.toast-container-right .icon-box {
+  width: 44px;
+  height: 44px;
+}
+
+.toast-container-center .icon-box {
+  width: 48px;
+  height: 48px;
+}
+
+.toast-card.success .icon-box {
+  background-color: var(--toast-success-bg);
+  color: var(--toast-success);
+}
+
+.toast-card.error .icon-box {
+  background-color: var(--toast-error-bg);
+  color: var(--toast-error);
+}
+
+.toast-card.warning .icon-box {
+  background-color: var(--toast-warning-bg);
+  color: var(--toast-warning);
+}
+
+.toast-card.info .icon-box {
+  background-color: var(--toast-info-bg);
+  color: var(--toast-info);
+}
+
+/* Toast Content */
+.toast-content {
+  flex: 1;
+}
+
+/* Toast Title */
+.toast-card .toast-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--toast-text);
+}
+
+.toast-container-right .toast-title {
+  font-size: 1.1rem;
+}
+
+.toast-container-center .toast-title {
+  font-size: 1.15rem;
+}
+
+/* Toast Message */
+.toast-card .toast-message {
+  margin: 4px 0 0 0;
+  font-weight: 500;
+}
+
+.toast-container-right .toast-message {
+  font-size: 0.95rem;
+}
+
+.toast-container-center .toast-message {
+  font-size: 1rem;
+}
+
+.toast-card.success .toast-message {
+  color: var(--toast-success);
+}
+
+.toast-card.error .toast-message {
+  color: var(--toast-error);
+}
+
+.toast-card.warning .toast-message {
+  color: var(--toast-warning);
+}
+
+.toast-card.info .toast-message {
+  color: var(--toast-info);
+}
+
+/* Close Button */
+.toast-card .toast-close-btn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background-color 0.2s, transform 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--toast-text-muted);
+}
+
+.toast-card .toast-close-btn:hover {
+  background-color: var(--toast-error-bg);
+  color: var(--toast-error);
+}
+
+.toast-card .toast-close-btn:active {
+  transform: translateY(-50%) scale(0.9);
+}
+
+/* When close button is shown, add padding */
+.toast-card:has(.toast-close-btn) {
+  padding-right: 44px;
+}
+
+/* Progress Bar */
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  animation: progress 3s linear forwards;
+}
+
+.toast-container-center .toast-progress {
+  height: 4px;
+}
+
+.toast-card.success .toast-progress {
+  background-color: var(--toast-success);
+}
+
+.toast-card.error .toast-progress {
+  background-color: var(--toast-error);
+}
+
+.toast-card.warning .toast-progress {
+  background-color: var(--toast-warning);
+}
+
+.toast-card.info .toast-progress {
+  background-color: var(--toast-info);
+}
+
+/* Stop progress bar when hiding */
+.hiding .toast-progress {
+  animation-play-state: paused;
+}
+
+/* ============================================
+   CONFIRMATION DIALOG
+   ============================================ */
+
+/* Overlay */
+.confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+  cursor: pointer;
+}
+
+/* Card */
+.confirm-card {
+  background: var(--toast-bg);
+  border-radius: 16px;
+  padding: 32px;
+  min-width: 350px;
+  max-width: 450px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.2s ease-out;
+  cursor: default;
+}
+
+/* Icon */
+.confirm-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+
+.confirm-icon.danger {
+  background: var(--toast-error-bg);
+  color: var(--toast-error);
+}
+
+.confirm-icon.warning {
+  background: var(--toast-warning-bg);
+  color: var(--toast-warning);
+}
+
+.confirm-icon.info {
+  background: var(--toast-info-bg);
+  color: var(--toast-info);
+}
+
+/* Title */
+.confirm-title {
+  margin: 0 0 12px 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--toast-text);
+}
+
+/* Message */
+.confirm-message {
+  margin: 0 0 24px 0;
+  font-size: 1rem;
+  color: var(--toast-text);
+  opacity: 0.8;
+  line-height: 1.5;
+}
+
+/* Buttons Container */
+.confirm-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* Base Button */
+.confirm-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  min-width: 120px;
+}
+
+/* Cancel Button */
+.confirm-btn.cancel {
+  background: var(--bg-inset);
+  color: var(--toast-text);
+}
+
+.confirm-btn.cancel:hover {
+  background: var(--border-muted);
+}
+
+/* Danger Button */
+.confirm-btn.danger {
+  background: var(--toast-error);
+  color: white;
+}
+
+.confirm-btn.danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+/* Warning Button */
+.confirm-btn.warning {
+  background: var(--toast-warning);
+  color: white;
+}
+
+.confirm-btn.warning:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+}
+
+/* Info Button */
+.confirm-btn.info {
+  background: var(--toast-info);
+  color: white;
+}
+
+.confirm-btn.info:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+/* Slide In from Right with Shake */
+@keyframes slideInShake {
+  0% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(-8px);
+    opacity: 1;
+  }
+  65% {
+    transform: translateX(4px);
+  }
+  80% {
+    transform: translateX(-2px);
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Slide Out to Right */
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+/* Slide Down from Top (Calm) */
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Slide Up to Top */
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-50%) translateY(-120%);
+    opacity: 0;
+  }
+}
+
+/* Progress Bar */
+@keyframes progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+/* Fade In */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Scale In */
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 576px) {
+  .toast-container-right,
+  .toast-container-center {
+    left: 10px;
+    right: 10px;
+    transform: none;
+  }
+
+  .toast-container-center {
+    top: 10px;
+  }
+
+  .toast-card {
+    min-width: unset;
+    max-width: unset;
+    width: 100%;
+  }
+
+  .confirm-card {
+    min-width: unset;
+    width: calc(100% - 32px);
+    margin: 0 16px;
+    padding: 24px;
+  }
+}
+/* ============================================
+   CONFIRM LOADING STATE
+   ============================================ */
+
+.confirm-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.confirm-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.confirm-loading .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Prevent body scroll when confirm is open */
+body:has(.confirm-overlay) {
+  overflow: hidden;
+}
