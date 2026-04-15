@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateUser, authorizeRoles, tenantContext } = require('../middleware/auth');
+const authenticateUser = require('../middleware/authenticateUser');
+const authorizeRoles = require('../middleware/authorizeRoles');
+const { tenantContext } = require('../middleware/tenantContext');
 const db = require('../models');
 const { Op } = require('sequelize');
 
