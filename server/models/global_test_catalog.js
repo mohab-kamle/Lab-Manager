@@ -16,6 +16,23 @@ module.exports = function (sequelize, DataTypes) {
             type: DataTypes.STRING(255),
             allowNull: false
         },
+        type: {
+            type: DataTypes.ENUM('single', 'panel', 'culture'),
+            allowNull: false,
+            defaultValue: 'single' // Ziad will use this for frontend filtering
+        },
+        order_rank: {
+            type: DataTypes.INTEGER,
+            allowNull: true // From COMMON_ORDER_RANK, helps with search sorting
+        },
+        patient_friendly_name: {
+            type: DataTypes.STRING,
+            allowNull: true // From ConsumerName, used for the final patient PDF
+        },
+        global_category: {
+            type: DataTypes.STRING,
+            allowNull: true // The universal LOINC department (e.g., 'Microbiology')
+        },
         default_structure: {
             type: DataTypes.JSON,
             allowNull: true
