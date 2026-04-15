@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
-const { doctor, lab_contracts_doctor, contract, sequelize } = require('../models');
+const { doctor, contract, sequelize } = require('../models');
 const { loginLimiter } = require('../middleware/rateLimiters');
 const authenticateUser = require('../middleware/authenticateUser');
 
@@ -106,6 +106,48 @@ router.get("/me", authenticateUser, async (req, res) => {
         res.json(doc);
     } catch (error) {
         console.error("Error fetching doctor profile:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// Get all doctors with contract
+router.get("/", authenticateUser, async (req, res) => {
+    try {
+        const docs = await doctor.findAll({
+            attributes: { exclude: ['password'] },
+            include: [{
+                model: contract,
+                as: 'contract'
+            }]
+        });
+        res.json(docs);
+    } catch (error) {
+        console.error("Error fetching doctors:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// Create a new doctor (from invoice page or management)
+router.post("/", authenticateUser, async (req, res) => {
+    try {
+        const { name, specialization, phone, email, commission, contract_id } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: "Doctor name is required" });
+        }
+
+        const newDoctor = await doctor.create({
+            name,
+            specialization,
+            phone,
+            email,
+            commission: commission || 0,
+            contract_id: contract_id || null
+        });
+
+        res.status(201).json(newDoctor);
+    } catch (error) {
+        console.error("Error creating doctor:", error);
         res.status(500).json({ error: "Server error" });
     }
 });
