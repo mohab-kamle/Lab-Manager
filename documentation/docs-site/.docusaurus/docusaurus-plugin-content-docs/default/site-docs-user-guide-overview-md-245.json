@@ -1,0 +1,23 @@
+{
+  "id": "user-guide/overview",
+  "title": "Overview",
+  "description": "LabManager is a comprehensive laboratory management system designed to streamline the operations of medical laboratories. It provides dedicated interfaces and features for different roles within the organization, ensuring each team member has access to exactly the tools they need.",
+  "source": "@site/docs/user-guide/overview.md",
+  "sourceDirName": "user-guide",
+  "slug": "/user-guide/overview",
+  "permalink": "/docs/user-guide/overview",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "next": {
+    "title": "System Admin Guide",
+    "permalink": "/docs/user-guide/roles/admin"
+  }
+}

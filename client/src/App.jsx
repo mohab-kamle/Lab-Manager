@@ -19,6 +19,7 @@ const HomePage = lazy(() => import('./pages/home/HomePage'));
 const Register = lazy(() => import('./pages/auth/Register'));
 const ChangePassword = lazy(() => import('./pages/auth/ChangePassword'));
 const PaymentCallback = lazy(() => import('./pages/payment/PaymentCallback'));
+import OTPVerify from './pages/auth/OTPVerify';
 const KnowUs = lazy(() => import('./pages/info/KnowUs'));
 
 import { useAuth } from './context/AuthContext';
@@ -26,7 +27,6 @@ import { useAuth } from './context/AuthContext';
 function App() {
   const subdomain = getSubdomain();
   const { user, loading } = useAuth();
-
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -45,7 +45,6 @@ function App() {
   if (loading) {
     return <LoadingSpinner />;
   }
-
 
   return (
     <ToastProvider>
@@ -71,14 +70,17 @@ function App() {
               <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <PageTransition><UnifiedLogin /></PageTransition>} />
               <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
               <Route path="/change-password" element={<PageTransition><ChangePassword /></PageTransition>} />
+              <Route path="/otp-verify" element={<PageTransition><OTPVerify /></PageTransition>} />
               <Route path="/payment-callback" element={<PageTransition><PaymentCallback /></PageTransition>} />
               <Route path="/know-us" element={<PageTransition><KnowUs /></PageTransition>} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           ) : (
             <Routes>
+              <Route path="/change-password" element={<PageTransition><ChangePassword /></PageTransition>} />
               <Route path="/" element={<Navigate to={user ? `/${user.role}/dashboard` : "/login"} replace />} />
-              <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <UnifiedLogin />} />
+              <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <PageTransition><UnifiedLogin /></PageTransition>} />
+              <Route path="/otp-verify" element={<PageTransition><OTPVerify /></PageTransition>} />
               <Route path="/*" element={<LabRoutes />} />
             </Routes>
           )}

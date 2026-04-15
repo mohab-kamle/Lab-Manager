@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   Info,
   UserX,
+  EyeOff,
 } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -57,6 +58,7 @@ const EmployeeManagement = () => {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
   const [rolePermissions, setRolePermissions] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [employee, setEmployee] = useState({
     name: "",
     username: "",
@@ -91,8 +93,8 @@ const EmployeeManagement = () => {
           }),
         ]);
 
-        setEmployees(employeesRes.data);
-        setRoles(rolesRes.data);
+        setEmployees(employeesRes.data.filter(e => e.role !== 'doctor'));
+        setRoles(rolesRes.data.filter(r => r.value !== 'doctor'));
         setBranches(branchesRes.data);
 
         // Set up table headers
@@ -112,7 +114,7 @@ const EmployeeManagement = () => {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast.error("Failed to fetch data. Please try again later.");
+        toast.error("Unable to load employee data. Please refresh the page.");
         setLoading(false);
       }
     };
@@ -126,6 +128,12 @@ const EmployeeManagement = () => {
       // Clean up the employee object
       const cleanedEmployee = {
         ...employee,
+        name: employee.name?.trim() || "",
+        username: employee.username?.trim() || "",
+        email: employee.email?.trim() || "",
+        national_id: employee.national_id?.trim() || "",
+        nationality: employee.nationality?.trim() || "",
+        passport_no: employee.passport_no?.trim() || "",
         birth_date: employee.birth_date
           ? new Date(employee.birth_date).toISOString().split("T")[0]
           : null,
@@ -135,6 +143,9 @@ const EmployeeManagement = () => {
       const validationErrors = validateForm(cleanedEmployee);
       if (Object.keys(validationErrors).length > 0) {
         setFormErrors(validationErrors);
+        // Show the first validation error as a toast
+        const firstErrorKey = Object.keys(validationErrors)[0];
+        toast.error(validationErrors[firstErrorKey]);
         return;
       }
 
@@ -168,16 +179,16 @@ const EmployeeManagement = () => {
       const savedName = editingEmployee ? editingEmployee.name : employee.name;
       toast.success(
         editingEmployee
-          ? `"${savedName}" updated successfully!`
-          : `"${savedName}" added successfully!`
+          ? `Changes to "${savedName}" saved successfully.`
+          : `Employee "${savedName}" has been successfully created.`
       );
       setShowAddModal(false);
       handleResetForm();
     } catch (error) {
       const errorMessage =
-        error.response?.data?.error || "Failed to save employee";
+        error.response?.data?.error || "An unexpected error occurred while saving the employee.";
       console.error("Error saving employee:", error);
-      toast.error(error.response?.data?.error || "Failed to save employee");
+      toast.error(errorMessage);
       if (errorMessage.toLowerCase().includes("username")) {
         setFormErrors({
           ...formErrors,
@@ -202,12 +213,12 @@ const EmployeeManagement = () => {
       setEmployees((prevEmployees) =>
         prevEmployees.filter((emp) => emp.id !== id)
       );
-      toast.success(`"${name}" deleted successfully!`);
+      toast.success(`Employee "${name}" has been removed.`);
       setShowDeleteModal(false);
       setEmployeeToDelete(null);
     } catch (error) {
       console.error("Error deleting employee:", error);
-      toast.error("Failed to delete employee.");
+      toast.error("Could not delete employee record. Please try again.");
     } finally {
       setShowDeleteModal(false);
       setEmployeeToDelete(null);
@@ -229,7 +240,7 @@ const EmployeeManagement = () => {
       setShowPermissionsModal(true);
     } catch (error) {
       console.error("Error fetching permissions:", error);
-      toast.error("Failed to fetch permissions");
+      toast.error("Unable to retrieve role permissions.");
     }
   };
 
@@ -285,6 +296,7 @@ const EmployeeManagement = () => {
               : null,
             password: "", // Don't show password
           });
+          setShowPassword(false);
           setShowAddModal(true);
         }}
       >
@@ -307,24 +319,26 @@ const EmployeeManagement = () => {
 
   const validateForm = (employee) => {
     const errors = {};
-    if (!employee.name) errors.name = "Name is required";
-    if (!employee.username) errors.username = "Username is required";
+    if (!employee.name) errors.name = "Full name is required to create an employee account.";
+    if (!employee.username) errors.username = "Please provide a unique username for login.";
     if (!editingEmployee && !employee.password)
-      errors.password = "Password is required";
-    if (!employee.role) errors.role = "Role is required";
-    if (!employee.branch_id) errors.branch_id = "Branch is required";
+      errors.password = "A secure password must be set for new accounts.";
+    if (!employee.role) errors.role = "Please select a system role for this employee.";
+    if (!employee.branch_id) errors.branch_id = "An employee must be assigned to a specific branch.";
     // Email validation
-    if (employee.email) {
+    if (!employee.email) {
+      errors.email = "Email address is required for password recovery and notifications.";
+    } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(employee.email)) {
-        errors.email = "Invalid email format";
+        errors.email = "The email format is incorrect. Example: name@domain.com";
       }
     }
     if (employee.username && employee.username.length < 3) {
-      errors.username = "Username must be at least 3 characters";
+      errors.username = "Username is too short (minimum 3 characters).";
     }
     if (!editingEmployee && employee.password && employee.password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+      errors.password = "Password is too weak (minimum 6 characters).";
     }
     return errors;
   };
@@ -349,12 +363,12 @@ const EmployeeManagement = () => {
               value === "admin"
                 ? "danger"
                 : value === "receptionist"
-                ? "primary"
-                : value === "chemist"
-                ? "success"
-                : value === "doctor"
-                ? "info"
-                : "secondary"
+                  ? "primary"
+                  : value === "chemist"
+                    ? "success"
+                    : value === "doctor"
+                      ? "info"
+                      : "secondary"
             }
           >
             {value?.charAt(0).toUpperCase() + value?.slice(1)}
@@ -384,6 +398,7 @@ const EmployeeManagement = () => {
       branch_id: "",
     });
     setFormErrors({});
+    setShowPassword(false);
   };
 
   const getRoleColor = (role) => {
@@ -458,6 +473,7 @@ const EmployeeManagement = () => {
             onHide={() => {
               setShowAddModal(false);
               setFormErrors({});
+              setShowPassword(false);
             }}
             size="lg"
           >
@@ -468,6 +484,7 @@ const EmployeeManagement = () => {
               <button className="modal-close-btn" onClick={() => {
                 setShowAddModal(false);
                 setFormErrors({});
+                setShowPassword(false);
               }}>
                 <CircleX size={24} />
               </button>
@@ -554,25 +571,37 @@ const EmployeeManagement = () => {
                       <Form.Label>
                         Password {!editingEmployee && "*"}
                       </Form.Label>
-                      <Form.Control
-                        type="password"
-                        placeholder={
-                          editingEmployee
-                            ? "Leave blank to keep current"
-                            : "Enter password"
-                        }
-                        value={employee.password}
-                        onChange={(e) => {
-                          setEmployee({
-                            ...employee,
-                            password: e.target.value,
-                          });
-                          if (formErrors.password)
-                            setFormErrors({ ...formErrors, password: null });
-                        }}
-                        isInvalid={!!formErrors.password}
-                      />
-                      <Form.Control.Feedback type="invalid">
+                      <div className="position-relative">
+                        <Form.Control
+                          type={showPassword ? "text" : "password"}
+                          placeholder={
+                            editingEmployee
+                              ? "Leave blank to keep current"
+                              : "Enter password"
+                          }
+                          value={employee.password}
+                          onChange={(e) => {
+                            setEmployee({
+                              ...employee,
+                              password: e.target.value,
+                            });
+                            if (formErrors.password)
+                              setFormErrors({ ...formErrors, password: null });
+                          }}
+                          isInvalid={!!formErrors.password}
+                          style={{ paddingRight: '40px' }}
+                        />
+                        <Button
+                          variant="link"
+                          className="position-absolute end-0 top-0 h-100 text-muted p-2 d-flex align-items-center justify-content-center border-0"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{ zIndex: 5, textDecoration: 'none' }}
+                          tabIndex="-1"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </Button>
+                      </div>
+                      <Form.Control.Feedback type="invalid" style={{ display: formErrors.password ? 'block' : 'none' }}>
                         {formErrors.password}
                       </Form.Control.Feedback>
                       {editingEmployee && (
@@ -611,7 +640,7 @@ const EmployeeManagement = () => {
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Email</Form.Label>
+                      <Form.Label>Email *</Form.Label>
                       <Form.Control
                         type="email"
                         placeholder="Enter email address"
@@ -734,8 +763,8 @@ const EmployeeManagement = () => {
                 {isSubmitting
                   ? "Saving..."
                   : editingEmployee
-                  ? "Update"
-                  : "Add"}
+                    ? "Update"
+                    : "Add"}
               </Button>
             </Modal.Footer>
           </Modal>

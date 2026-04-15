@@ -10,6 +10,16 @@
   --blob-shadow: 0 10px 30px rgba(0, 188, 212, 0.15);
 }
 
+/* Dark mode: remap cheerful colors to global system */
+body.dark {
+  --cheerful-bg-gradient: linear-gradient(135deg, var(--bg-inset) 0%, var(--bg-base) 100%);
+  --cheerful-primary: var(--color-primary);
+  --cheerful-secondary: var(--color-secondary);
+  --cheerful-success: var(--color-success);
+  --cheerful-text: var(--text-primary);
+  --blob-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
 .cheerful-container {
   min-height: 80vh;
   position: relative;
@@ -29,7 +39,7 @@
   width: 180px; /* Increased from 150px */
   height: 180px; /* Increased from 150px */
   margin: 0 auto;
-  background: white;
+  background: var(--bg-elevated);
   border-radius: 50%;
   padding: 15px; /* Added padding */
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
@@ -59,9 +69,8 @@
 
 .welcome-text {
   font-weight: 800;
-  color: #2c3e50;
+  color: var(--text-primary);
   margin-top: 1.5rem;
-  text-shadow: 2px 2px 0px rgba(255, 255, 255, 0.5);
 }
 
 /* Card Styling */
@@ -82,18 +91,18 @@
 }
 
 .info-bubble {
-  background: #f8f9fa;
+  background: var(--bg-inset);
   border-radius: 16px;
   padding: 1rem;
   margin-bottom: 1rem;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-muted);
   display: flex;
   align-items: center;
   transition: all 0.2s ease;
 }
 
 .info-bubble:hover {
-  background: white;
+  background: var(--bg-elevated);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   border-color: var(--cheerful-primary);
 }
@@ -148,9 +157,9 @@
 }
 
 .cheerful-btn-outline {
-  background: white;
+  background: var(--bg-elevated);
   color: var(--cheerful-primary);
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-default);
 }
 
 .cheerful-btn-outline:hover {

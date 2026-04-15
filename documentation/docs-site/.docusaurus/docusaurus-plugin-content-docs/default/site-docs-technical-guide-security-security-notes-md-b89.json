@@ -1,0 +1,19 @@
+{
+  "id": "technical-guide/security/security-notes",
+  "title": "Security Notes",
+  "description": "Current Security Status",
+  "source": "@site/docs/technical-guide/security/security-notes.md",
+  "sourceDirName": "technical-guide/security",
+  "slug": "/technical-guide/security/security-notes",
+  "permalink": "/docs/technical-guide/security/security-notes",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Security Overview",
+    "permalink": "/docs/technical-guide/security/"
+  }
+}

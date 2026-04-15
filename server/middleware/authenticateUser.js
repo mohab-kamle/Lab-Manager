@@ -1,12 +1,13 @@
 const jwt = require('jsonwebtoken');
-const { employee, admin, chemist, receptionist, patient, lab } = require('../models');
+const { employee, admin, chemist, receptionist, patient, lab, doctor } = require('../models');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const isProd = process.env.NODE_ENV === 'production';
 
 const authenticateUser = async (req, res, next) => {
+  // ... (logging remains)
   if (!isProd) {
-    console.log('Authentication middleware - Headers:', {
+    console.log('Authentication middleware (Updated) - Headers:', {
       authorization: req.header("Authorization") ? 'Present' : 'Missing',
       origin: req.header("Origin"),
       method: req.method,
@@ -47,6 +48,9 @@ const authenticateUser = async (req, res, next) => {
         userRecord = await patient.findByPk(decoded.id, {
           include: [{ model: lab, as: 'lab' }]
         });
+        break;
+      case 'doctor':
+        userRecord = await doctor.findByPk(decoded.id);
         break;
       default:
         userRecord = await employee.findByPk(decoded.id);

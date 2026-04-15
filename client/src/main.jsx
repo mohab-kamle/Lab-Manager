@@ -10,13 +10,16 @@ import App from './App.jsx'
 import './custom.scss';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { LabProvider } from './context/LabContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider>
-      <LabProvider>
-        <App />
-      </LabProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <LabProvider>
+          <App />
+        </LabProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

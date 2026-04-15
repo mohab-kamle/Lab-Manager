@@ -1,0 +1,27 @@
+{
+  "id": "technical-guide/deployment/index",
+  "title": "Deployment Overview",
+  "description": "This section covers how to deploy the LabManager system to production, including CI/CD pipelines, infrastructure checklists, process management with PM2, and step-by-step deployment procedures.",
+  "source": "@site/docs/technical-guide/deployment/index.md",
+  "sourceDirName": "technical-guide/deployment",
+  "slug": "/technical-guide/deployment/",
+  "permalink": "/docs/technical-guide/deployment/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Deployment Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Error Boundary System",
+    "permalink": "/docs/technical-guide/frontend/error-boundary"
+  },
+  "next": {
+    "title": "Professional CI/CD Pipeline Implementation Plan",
+    "permalink": "/docs/technical-guide/deployment/ci-cd-plan"
+  }
+}
