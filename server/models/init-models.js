@@ -56,6 +56,11 @@ var _lab_payment = require("./lab_payment");
 var _subscription = require("./subscription");
 var _test_comments = require("./test_comments");
 var _comment_images = require("./comment_images");
+var _supplier = require("./supplier");
+var _inventory_item = require("./inventory_item");
+var _inventory_batch = require("./inventory_batch");
+var _inventory_transaction = require("./inventory_transaction");
+var _inventory_notification = require("./inventory_notification");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -110,6 +115,11 @@ function initModels(sequelize) {
   var subscription = _subscription(sequelize, DataTypes);
   var test_comments = _test_comments(sequelize, DataTypes);
   var comment_images = _comment_images(sequelize, DataTypes);
+  var supplier = _supplier(sequelize, DataTypes);
+  var inventory_item = _inventory_item(sequelize, DataTypes);
+  var inventory_batch = _inventory_batch(sequelize, DataTypes);
+  var inventory_transaction = _inventory_transaction(sequelize, DataTypes);
+  var inventory_notification = _inventory_notification(sequelize, DataTypes);
 
   // Add many-to-many association between test and question
   test.belongsToMany(question, {

@@ -184,7 +184,7 @@ router.get(
       // Note: Test and culture counts are now calculated from the actual associations
       // instead of separate count queries for better accuracy and performance
 
-      // Then get all medical reports with their associations
+      // First fetch reports filtered by lab_id
       const reports = await db.medical_report.findAll({
         where: whereClause,
         include: [
@@ -244,9 +244,73 @@ router.get(
         ],
       });
 
+      // Collect report IDs for fetching related tests and cultures
+      const medicalReportIds = reports.map(r => r.id);
+
+      // Fetch tests and cultures in parallel using the collected report IDs
+      const [tests, cultures] = await Promise.all([
+        // Fetch tests for these reports
+        medicalReportIds.length > 0 ? db.medical_report_has_test.findAll({
+          where: {
+            medical_report_id: {
+              [Op.in]: medicalReportIds
+            }
+          },
+          include: [{
+            model: db.test,
+            as: 'test',
+            attributes: ['id', 'name']
+          }]
+        }) : [],
+        // Fetch cultures for these reports
+        medicalReportIds.length > 0 ? db.medical_report_has_culture.findAll({
+          where: {
+            medical_report_id: {
+              [Op.in]: medicalReportIds
+            }
+          },
+          include: [{
+            model: db.culture,
+            as: 'culture',
+            attributes: ['id', 'name']
+          }]
+        }) : []
+      ]);
+
+      // Group tests and cultures by medical_report_id
+      const testsMap = {};
+      const culturesMap = {};
+
+      if (tests) {
+        tests.forEach(item => {
+          if (!testsMap[item.medical_report_id]) testsMap[item.medical_report_id] = [];
+          if (item.test) { // Ensure test object exists
+            testsMap[item.medical_report_id].push({
+              id: item.test.id,
+              name: item.test.name
+            });
+          }
+        });
+      }
+
+      if (cultures) {
+        cultures.forEach(item => {
+          if (!culturesMap[item.medical_report_id]) culturesMap[item.medical_report_id] = [];
+          if (item.culture) {
+            culturesMap[item.medical_report_id].push({
+              id: item.culture.id,
+              name: item.culture.name
+            });
+          }
+        });
+      }
+
       // Add patient_name, counts, and test group counts to each report for easier access
       const reportsWithPatientName = reports.map((report) => {
         const reportData = report.get({ plain: true });
+        const reportTests = testsMap[reportData.id] || [];
+        const reportCultures = culturesMap[reportData.id] || [];
+
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
@@ -1833,13 +1897,13 @@ router.post(
 
       // 1. Save test results (for tests without components)
       if (test_results.length > 0) {
-        for (const result of test_results) {
+        const testPromises = test_results.map(async (result) => {
           if (result.result && result.result.toString().trim() !== "") {
             hasAnyResults = true;
             // For tests without components, status is 'done' if result exists, 'pending' if empty
             const status = result.result && result.result.toString().trim() !== '' ? 'done' : 'pending';
 
-            await db.medical_report_has_test.update(
+            return db.medical_report_has_test.update(
               {
                 result: result.result,
                 status: status,
@@ -1854,7 +1918,8 @@ router.post(
               }
             );
           }
-        }
+        });
+        await Promise.all(testPromises);
       }
 
       // 2. Save test component results
@@ -1868,9 +1933,7 @@ router.post(
 
           const componentResultsToSave = [];
 
-          for (const [componentId, componentData] of Object.entries(
-            components
-          )) {
+          for (const [componentId, componentData] of Object.entries(components)) {
             if (
               componentData.result &&
               componentData.result.toString().trim() !== ""
@@ -1921,68 +1984,69 @@ router.post(
               );
             }
           }
+        });
+await Promise.all(culturePromises);
+      }
+
+
+// 4. Save test group values
+if (Object.keys(test_group_values).length > 0) {
+  for (const [groupId, components] of Object.entries(test_group_values)) {
+    const valuesPayload = {};
+    let hasGroupValues = false;
+
+    Object.entries(components).forEach(([componentId, fields]) => {
+      valuesPayload[componentId] = {};
+      Object.entries(fields).forEach(([fieldId, value]) => {
+        valuesPayload[componentId][fieldId] = value;
+        if (value && value.toString().trim() !== "") {
+          hasGroupValues = true;
+          hasAnyResults = true;
         }
-      }
+      });
+    });
 
-
-      // 4. Save test group values
-      if (Object.keys(test_group_values).length > 0) {
-        for (const [groupId, components] of Object.entries(test_group_values)) {
-          const valuesPayload = {};
-          let hasGroupValues = false;
-
-          Object.entries(components).forEach(([componentId, fields]) => {
-            valuesPayload[componentId] = {};
-            Object.entries(fields).forEach(([fieldId, value]) => {
-              valuesPayload[componentId][fieldId] = value;
-              if (value && value.toString().trim() !== "") {
-                hasGroupValues = true;
-                hasAnyResults = true;
-              }
-            });
-          });
-
-          if (hasGroupValues) {
-            await saveTestGroupValuesWithRetry(
-              reportId,
-              parseInt(groupId, 10),
-              valuesPayload,
-              t
-            );
-          }
-        }
-      }
-
-      // Update received_at date if any results were saved
-      if (hasAnyResults) {
-        await updateMedicalReportDates(reportId, "received", t);
-      }
-
-      await t.commit();
-      console.log(
-        `Successfully bulk saved results for medical report ${reportId}`
+    if (hasGroupValues) {
+      await saveTestGroupValuesWithRetry(
+        reportId,
+        parseInt(groupId, 10),
+        valuesPayload,
+        t
       );
-
-      res.json({
-        success: true,
-        message: "All results saved successfully",
-        hasResults: hasAnyResults,
-      });
-    } catch (error) {
-      if (t && !t.finished) {
-        try {
-          await t.rollback();
-        } catch (rollbackError) {
-          console.error("Error rolling back transaction:", rollbackError);
-        }
-      }
-      console.error("Error bulk saving results:", error);
-      res.status(500).json({
-        error: "Failed to save results",
-        details:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
-      });
     }
+  }
+}
+
+// Update received_at date if any results were saved
+if (hasAnyResults) {
+  await updateMedicalReportDates(reportId, "received", t);
+}
+
+await t.commit();
+console.log(
+  `Successfully bulk saved results for medical report ${reportId}`
+);
+
+res.json({
+  success: true,
+  message: "All results saved successfully",
+  hasResults: hasAnyResults,
+});
+    } catch (error) {
+  if (t && !t.finished) {
+    try {
+      await t.rollback();
+    } catch (rollbackError) {
+      console.error("Error rolling back transaction:", rollbackError);
+    }
+  }
+  console.error("Error bulk saving results:", error);
+  res.status(500).json({
+    error: "Failed to save results",
+    details:
+      process.env.NODE_ENV === "development" ? error.message : undefined,
+  });
+}
   }
 );
 
