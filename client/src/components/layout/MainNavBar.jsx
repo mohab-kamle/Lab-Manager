@@ -40,8 +40,7 @@ import VersionBadge from "../ui/VersionBadge";
 import "../../styles/MainNavBar.css";
 
 export const defaultTitles = {
-  testGroups: "Test Groups",
-  tests_C: "Tests & Cultures",
+  tests_C: "Tests Catalog",
   Rec: "Reception",
   MedicalReports: "Medical Reports",
   Accounting: "Accounting",
@@ -426,6 +425,7 @@ const MainNavBar = () => {
                   {/* {prefix ? 'Patient Dashboard' : 'Loading...'} */}
                 </Nav.Link>
               ) : null}
+
               {/* Employee Links - Different access based on role */}
               {(user?.role === "admin" ||
                 user?.role === "receptionist" ||
@@ -441,17 +441,15 @@ const MainNavBar = () => {
                           <Dropdown.Toggle
                             id="dropdown-basic"
                             className={`nav-button ${[
-                              "categories-tests",
-                              "tests-tests",
-                              "sample-types-tests",
-                              "culture-options-tests",
-                              "antibiotics-tests",
-                              "packages-offers",
-                              "culture-tests",
-                              "diseases-tests",
-                            ].includes(activeItem)
-                              ? "active-dropdown"
-                              : ""
+                                "categories-tests",
+                                "tests-tests",
+                                "sample-types-tests",
+                                "packages-offers",
+
+                                "diseases-tests",
+                              ].includes(activeItem)
+                                ? "active-dropdown"
+                                : ""
                               }`}
                           >
                             <Database size={18} className="me-1 mb-1" />
@@ -493,13 +491,13 @@ const MainNavBar = () => {
                                 </Dropdown.Item>
                                 <Dropdown.Item
                                   as={Link}
-                                  to={`/${user?.role}/culture-options`}
+                                  to={`/${user?.role}/packages-and-offers`}
                                   data-dropdown-key="tests_C"
-                                  data-title="culture options"
-                                  data-id="culture-options-tests"
-                                  active={activeItem === "culture-options-tests"}
+                                  data-title="packages & offers"
+                                  data-id="packages-offers" // 👈 Add this
+                                  active={activeItem === "packages-offers"} // 👈 Add this
                                 >
-                                  culture options
+                                  packages & offers
                                 </Dropdown.Item>
                                 <Dropdown.Item
                                   as={Link}
@@ -510,16 +508,6 @@ const MainNavBar = () => {
                                   active={activeItem === "antibiotics-tests"}
                                 >
                                   antibiotics
-                                </Dropdown.Item>
-                                <Dropdown.Item
-                                  as={Link}
-                                  to={`/${user?.role}/packages-and-offers`}
-                                  data-dropdown-key="tests_C"
-                                  data-title="packages & offers"
-                                  data-id="packages-offers" // 👈 Add this
-                                  active={activeItem === "packages-offers"} // 👈 Add this
-                                >
-                                  packages & offers
                                 </Dropdown.Item>
                               </>
                             )}
@@ -558,13 +546,11 @@ const MainNavBar = () => {
                                   </Dropdown.Item>
                                   <Dropdown.Item
                                     as={Link}
-                                    to={`/${user?.role}/culture-options`}
+                                    to={`/${user?.role}/packages-and-offers`}
                                     data-dropdown-key="tests_C"
-                                    data-title="culture options"
-                                    data-id="culture-options-tests"
-                                    active={activeItem === "culture-options-tests"}
+                                    data-title="packages & offers"
                                   >
-                                    culture options
+                                    packages & offers
                                   </Dropdown.Item>
                                   <Dropdown.Item
                                     as={Link}
@@ -576,16 +562,9 @@ const MainNavBar = () => {
                                   >
                                     antibiotics
                                   </Dropdown.Item>
-                                  <Dropdown.Item
-                                    as={Link}
-                                    to={`/${user?.role}/packages-and-offers`}
-                                    data-dropdown-key="tests_C"
-                                    data-title="packages & offers"
-                                  >
-                                    packages & offers
-                                  </Dropdown.Item>
                                 </>
                               )}
+
                             <Dropdown.Item
                               as={Link}
                               to={`/${user?.role}/diseases`}
@@ -705,6 +684,33 @@ const MainNavBar = () => {
                         </Dropdown>
                       )}
 
+                    {/* Employee View Only Section */}
+                    {user?.role === "employee" && (
+                      <Dropdown className="mx-1 mb-1">
+                        <Dropdown.Toggle
+                          variant="outline-light"
+                          id="dropdown-employee-view"
+                          className={`nav-button`}
+                        >
+                          <Eye size={16} className="me-1" />
+                          View Only
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/admin/invoices`}
+                          >
+                            Invoices
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/payment-methods`}
+                          >
+                            Payment Methods
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    )}
                     {/* Employee View Only Section */}
                     {user?.role === "employee" && (
                       <Dropdown className="mx-1 mb-1">

@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/deployment/deployment-checklist",
+  "title": "Multi-Tenant SaaS Deployment Checklist",
+  "description": "🚨 PRE-DEPLOYMENT CHECKLIST",
+  "source": "@site/docs/technical-guide/deployment/deployment-checklist.md",
+  "sourceDirName": "technical-guide/deployment",
+  "slug": "/technical-guide/deployment/deployment-checklist",
+  "permalink": "/docs/technical-guide/deployment/deployment-checklist",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Professional CI/CD Pipeline Implementation Plan",
+    "permalink": "/docs/technical-guide/deployment/ci-cd-plan"
+  },
+  "next": {
+    "title": "PM2 Cluster Mode Setup for LabManager Server",
+    "permalink": "/docs/technical-guide/deployment/pm2-cluster-setup"
+  }
+}
