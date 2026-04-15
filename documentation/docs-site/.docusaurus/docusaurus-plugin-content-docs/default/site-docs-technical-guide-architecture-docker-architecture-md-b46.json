@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/architecture/docker-architecture",
+  "title": "Docker & PNPM Architecture",
+  "description": "This README is designed to be dropped directly into your project root (e.g., as MIGRATION_GUIDE.md or appended to your main README.md). It explains the why, the how, and the what now for your team.",
+  "source": "@site/docs/technical-guide/architecture/docker-architecture.md",
+  "sourceDirName": "technical-guide/architecture",
+  "slug": "/technical-guide/architecture/docker-architecture",
+  "permalink": "/docs/technical-guide/architecture/docker-architecture",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Project Structure",
+    "permalink": "/docs/technical-guide/architecture/project-structure"
+  },
+  "next": {
+    "title": "Codebase Structure Review",
+    "permalink": "/docs/technical-guide/architecture/structure-review"
+  }
+}

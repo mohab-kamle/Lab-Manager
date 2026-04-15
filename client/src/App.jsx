@@ -28,7 +28,6 @@ function App() {
   const subdomain = getSubdomain();
   const { user, loading } = useAuth();
 
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('auth_token');
@@ -46,7 +45,6 @@ function App() {
   if (loading) {
     return <LoadingSpinner />;
   }
-
 
   return (
     <ToastProvider>

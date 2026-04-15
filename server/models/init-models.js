@@ -48,6 +48,8 @@ var _test_has_question = require("./test_has_question");
 
 
 
+var _lab_settings = require("./lab_settings");
+var _lab_activity_log = require("./lab_activity_log");
 var _lab_payment = require("./lab_payment");
 var _subscription = require("./subscription");
 var _test_comments = require("./test_comments");
@@ -506,46 +508,8 @@ function initModels(sequelize) {
   doctor.belongsTo(lab, { as: "doctor_lab", foreignKey: "lab_id" });
   lab.hasMany(doctor, { as: "doctors", foreignKey: "lab_id" });
 
-chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
-lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
-
-  // Inventory & Stock Management Associations
-  supplier.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(supplier, { as: "suppliers", foreignKey: "lab_id" });
-
-  inventory_item.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(inventory_item, { as: "inventory_items", foreignKey: "lab_id" });
-
-  inventory_batch.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(inventory_batch, { as: "inventory_batches", foreignKey: "lab_id" });
-
-  inventory_transaction.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(inventory_transaction, { as: "inventory_transactions", foreignKey: "lab_id" });
-
-  inventory_batch.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id" });
-  supplier.hasMany(inventory_batch, { as: "batches", foreignKey: "supplier_id" });
-
-  inventory_batch.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
-  inventory_item.hasMany(inventory_batch, { as: "batches", foreignKey: "item_id" });
-
-  inventory_transaction.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
-  inventory_item.hasMany(inventory_transaction, { as: "transactions", foreignKey: "item_id" });
-
-  inventory_transaction.belongsTo(inventory_batch, { as: "batch", foreignKey: "batch_id" });
-  inventory_batch.hasMany(inventory_transaction, { as: "transactions", foreignKey: "batch_id" });
-
-  inventory_transaction.belongsTo(employee, { as: "employee", foreignKey: "employee_id" });
-  employee.hasMany(inventory_transaction, { as: "inventory_transactions", foreignKey: "employee_id" });
-  
-  // Inventory Notifications
-  inventory_notification.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(inventory_notification, { as: "inventory_notifications", foreignKey: "lab_id" });
-
-  inventory_notification.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
-  inventory_item.hasMany(inventory_notification, { as: "notifications", foreignKey: "item_id" });
-
-  inventory_notification.belongsTo(inventory_batch, { as: "batch", foreignKey: "batch_id" });
-  inventory_batch.hasMany(inventory_notification, { as: "notifications", foreignKey: "batch_id" });
+  chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
+  lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
 
   // Lab Payment relationships
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
@@ -614,27 +578,23 @@ lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
     branch_has_employee,
     categories_test_and_culture,
     chemist,
-    comment_images,
     company,
     contract,
     contract_has_test,
     diseases,
     doctor,
     employee,
-    global_test_catalog,
-    inventory_batch,
-    inventory_item,
-    inventory_notification,
-    inventory_transaction,
     lab,
     lab_activity_log,
     lab_contracts_company,
     lab_payment,
     lab_samples,
+    lab_contracts_doctor,
     lab_settings,
     medical_report,
     medical_report_has_test,
     medical_report_results,
+    lab_samples,
     packages_and_offers,
     pao_has_test,
     patient,
@@ -646,10 +606,13 @@ lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
     sample_type,
     status,
     subscription,
-    supplier,
+    lab_payment,
+    global_test_catalog,
     test,
-    test_comments,
     test_has_question,
+    test_comments,
+    comment_images,
+    supplier
   };
 }
 module.exports = initModels;
