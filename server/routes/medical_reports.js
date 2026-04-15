@@ -142,6 +142,8 @@ router.get(
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
     try {
+      // Optimized: Fetch tests and cultures separately to avoid N+M Cartesian product in the main query
+      // This is "Application-Side Join" which is often faster for complex includes
       // Safety check for tenant context
       // For doctors, tenant context might not have lab_id, which is expected
       if (!req.tenant && req.user.role !== 'doctor') {
@@ -188,20 +190,7 @@ router.get(
           {
             model: db.patient,
             as: "patient",
-            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
-              },
-            ],
+            attributes: ["id", "name", "patientcode", "birth_date", "gender"]
           },
           {
             model: db.test,
@@ -255,25 +244,11 @@ router.get(
             as: 'test',
             attributes: ['id', 'name']
           }]
-        }) : [],
-        // Fetch cultures for these reports
-        medicalReportIds.length > 0 ? db.medical_report_has_culture.findAll({
-          where: {
-            medical_report_id: {
-              [Op.in]: medicalReportIds
-            }
-          },
-          include: [{
-            model: db.culture,
-            as: 'culture',
-            attributes: ['id', 'name']
-          }]
         }) : []
       ]);
 
       // Group tests and cultures by medical_report_id
       const testsMap = {};
-      const culturesMap = {};
 
       if (tests) {
         tests.forEach(item => {
@@ -287,29 +262,16 @@ router.get(
         });
       }
 
-      if (cultures) {
-        cultures.forEach(item => {
-          if (!culturesMap[item.medical_report_id]) culturesMap[item.medical_report_id] = [];
-          if (item.culture) {
-            culturesMap[item.medical_report_id].push({
-              id: item.culture.id,
-              name: item.culture.name
-            });
-          }
-        });
-      }
-
       // Add patient_name, counts, and test group counts to each report for easier access
       const reportsWithPatientName = reports.map((report) => {
         const reportData = report.get({ plain: true });
         const reportTests = testsMap[reportData.id] || [];
-        const reportCultures = culturesMap[reportData.id] || [];
 
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
-          tests: reportData.tests || [],
-          tests_count: (reportData.tests || []).length,
+          tests: reportTests,
+          tests_count: reportTests.length,
           invoice_id: reportData.bill?.id || null,
         };
       });
@@ -2286,3 +2248,4 @@ router.post(
 );
 
 module.exports = router;
+

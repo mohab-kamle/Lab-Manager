@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, lab, lab_settings, status, sequelize } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, test_group, branch, status, sequelize, doctor, lab_settings } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -27,6 +27,11 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     model: patient,
                     as: "patient",
                     attributes: ['id', 'name', 'patientcode']
+                },
+                {
+                    model: doctor,
+                    as: "referred_doctor",
+                    attributes: ['id', 'name']
                 },
                 {
                     model: status,
@@ -111,6 +116,8 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 patient_id: billData.patient_id,
                 patient_name: billData.patient?.name,
                 patientcode: billData.patient?.patientcode,
+                referred_doctor_id: billData.referred_doctor_id,
+                referred_doctor_name: billData.referred_doctor?.name,
                 branch_id: billData.branch_id,
                 branch_name: billData.branch?.name,
 
@@ -180,6 +187,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             status_id,
             receptionist_id,
             branch_id, // <-- add branch_id here
+            referred_doctor_id,
             date
         } = req.body;
 
@@ -218,7 +226,8 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             patient_id,
             status_id,
             lab_id: req.user.lab_id || patientExists.lab_id,
-            branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null // <-- robust handling of branch_id
+            branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null, // <-- robust handling of branch_id
+            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null
         }, { transaction });
 
         // Update patient's financial information
@@ -277,6 +286,27 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                 new: { total: newTotal, paid: newPaid, due: newDue },
                 invoice: { total, paid, due }
             });
+        }
+
+        // Update referring doctor's financial information
+        if (referred_doctor_id) {
+            const referredDoctor = await doctor.findByPk(referred_doctor_id, { transaction });
+            if (referredDoctor) {
+                const commissionPercent = parseFloat(referredDoctor.commission || 0);
+                const commissionValue = parseFloat(total) * (commissionPercent / 100);
+
+                const currentDocTotalGain = parseFloat(referredDoctor.total_gain || 0);
+                const currentDocDue = parseFloat(referredDoctor.due || 0);
+                const currentDocPatientCount = parseInt(referredDoctor.patient_count || 0, 10);
+
+                await referredDoctor.update({
+                    total_gain: currentDocTotalGain + commissionValue,
+                    due: currentDocDue + commissionValue, // Assuming commission adds to doctor's due amount
+                    patient_count: currentDocPatientCount + 1
+                }, { transaction });
+
+                console.log(`Updated doctor ${referred_doctor_id} financials: gained ${commissionValue} from invoice subtotal ${subtotal}`);
+            }
         }
 
         // Add tests with their current prices
@@ -392,6 +422,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                         attributes: ['id', 'name', 'patientcode']
                     },
                     {
+                        model: doctor,
+                        as: "referred_doctor",
+                        attributes: ['id', 'name']
+                    },
+                    {
                         model: test,
                         as: "test_id_tests",
                         through: { attributes: ['price'] },
@@ -419,6 +454,8 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
                 patient_id: completeBill.patient_id,
                 patient_name: completeBill.patient.name,
                 patientcode: completeBill.patient.patientcode,
+                referred_doctor_id: completeBill.referred_doctor_id,
+                referred_doctor_name: completeBill.referred_doctor?.name,
                 status_id: completeBill.status_id,
                 subtotal: completeBill.subtotal,
                 discount: completeBill.discount,
@@ -563,6 +600,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
         tax = 0,
         total = 0,
         status_id,
+        referred_doctor_id,
         tests,
         cultures,
         packages,
@@ -578,6 +616,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
         const oldTotal = parseFloat(existingBill.total || 0);
         const oldPaid = parseFloat(existingBill.paid || 0);
         const oldDue = parseFloat(existingBill.due || 0);
+        const oldDocId = existingBill.referred_doctor_id;
         const patientId = existingBill.patient_id;
 
         await existingBill.update({
@@ -588,7 +627,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
             discount,
             tax,
             total,
-            status_id
+            status_id,
+            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null
         });
 
         // Update patient's financial information
@@ -613,8 +653,37 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
                 oldInvoice: { total: oldTotal, paid: oldPaid, due: oldDue },
                 newInvoice: { total, paid, due },
                 oldPatient: { total: currentTotal, paid: currentPaid, due: currentDue },
-                newPatient: { total: newTotal, paid: newPaid, due: newDue }
+                newPatient: { total: newTotal, paid: newPaid, newDue: newDue }
             });
+        }
+
+        // Update referring doctor's financial information
+        if (oldDocId && oldDocId !== referred_doctor_id) {
+            const oldDoctor = await doctor.findByPk(oldDocId);
+            if (oldDoctor) {
+                const commissionPercent = parseFloat(oldDoctor.commission || 0);
+                const popCommissionValue = oldTotal * (commissionPercent / 100);
+                await oldDoctor.update({
+                    total_gain: parseFloat(oldDoctor.total_gain || 0) - popCommissionValue,
+                    due: Math.max(0, parseFloat(oldDoctor.due || 0) - popCommissionValue),
+                    patient_count: Math.max(0, parseInt(oldDoctor.patient_count || 1, 10) - 1)
+                });
+            }
+        }
+
+        if (referred_doctor_id) {
+            const newDoc = await doctor.findByPk(referred_doctor_id);
+            if (newDoc) {
+                const commissionPercent = parseFloat(newDoc.commission || 0);
+                const oldCommissionValue = oldDocId === referred_doctor_id ? (oldTotal * (commissionPercent / 100)) : 0;
+                const newCommissionValue = parseFloat(total) * (commissionPercent / 100);
+
+                await newDoc.update({
+                    total_gain: parseFloat(newDoc.total_gain || 0) - oldCommissionValue + newCommissionValue,
+                    due: parseFloat(newDoc.due || 0) - oldCommissionValue + newCommissionValue,
+                    patient_count: oldDocId === referred_doctor_id ? newDoc.patient_count : parseInt(newDoc.patient_count || 0, 10) + 1
+                });
+            }
         }
 
         if (tests) {
@@ -797,6 +866,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), invalidateInvoi
         const billPaid = parseFloat(existingBill.paid || 0);
         const billDue = parseFloat(existingBill.due || 0);
         const patientId = existingBill.patient_id;
+        const refDocId = existingBill.referred_doctor_id;
 
         // Delete all associated records first
         await bill_has_test.destroy({ where: { bill_id: id }, transaction });
@@ -838,6 +908,20 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), invalidateInvoi
                 oldPatient: { total: currentTotal, paid: currentPaid, due: currentDue },
                 newPatient: { total: newTotal, paid: newPaid, due: newDue }
             });
+        }
+
+        // Remove gain from referred doctor
+        if (refDocId) {
+            const refDoc = await doctor.findByPk(refDocId, { transaction });
+            if (refDoc) {
+                const commissionPercent = parseFloat(refDoc.commission || 0);
+                const popCommissionValue = billTotal * (commissionPercent / 100);
+                await refDoc.update({
+                    total_gain: parseFloat(refDoc.total_gain || 0) - popCommissionValue,
+                    due: Math.max(0, parseFloat(refDoc.due || 0) - popCommissionValue),
+                    patient_count: Math.max(0, parseInt(refDoc.patient_count || 1, 10) - 1)
+                }, { transaction });
+            }
         }
 
         // Commit the transaction
