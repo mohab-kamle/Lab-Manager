@@ -68,10 +68,6 @@ const LabManagement = () => {
     currency: 'USD',
     tax_rate: 0,
     allow_partial_payments: true,
-    // Payment Settings
-    currency: 'USD',
-    tax_rate: 0,
-    allow_partial_payments: true,
     payment_reminder_days: 7,
     patient_due_limit: 0
   });
