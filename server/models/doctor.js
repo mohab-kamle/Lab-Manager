@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-module.exports = function(sequelize, DataTypes) {
+module.exports = function (sequelize, DataTypes) {
   return sequelize.define('doctor', {
     id: {
       autoIncrement: true,
@@ -7,13 +7,14 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       primaryKey: true
     },
-    lab_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'lab',
-        key: 'id'
-      }
+    username: {
+      type: DataTypes.STRING(45),
+      allowNull: true,
+      unique: "username_UNIQUE"
+    },
+    password: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     },
     name: {
       type: DataTypes.STRING(45),
@@ -24,7 +25,7 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: true
     },
     gender: {
-      type: DataTypes.ENUM('Male','Female'),
+      type: DataTypes.ENUM('Male', 'Female'),
       allowNull: true
     },
     birth_date: {
@@ -44,11 +45,67 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(45),
       allowNull: true,
       unique: "passport_no_UNIQUE"
+    },
+    specialization: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    phone: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
+    is_contracted: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false
+    },
+    commission: {
+      type: DataTypes.DECIMAL(10,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    due: {
+      type: DataTypes.DECIMAL(10,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    collected: {
+      type: DataTypes.DECIMAL(10,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    total_gain: {
+      type: DataTypes.DECIMAL(10,2),
+      allowNull: true,
+      defaultValue: 0.00
+    },
+    patient_count: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 0
+    },
+    created_at: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    updated_at: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    contract_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'contract',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
     tableName: 'doctor',
-    timestamps: false,
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       {
         name: "PRIMARY",
@@ -56,6 +113,14 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "id" },
+        ]
+      },
+      {
+        name: "username_UNIQUE",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "username" },
         ]
       },
       {
@@ -67,30 +132,13 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "unique_national_id_per_lab",
+        name: "passport_no_UNIQUE",
         unique: true,
         using: "BTREE",
         fields: [
-          { name: "lab_id" },
-          { name: "national_id" },
-        ]
-      },
-      {
-        name: "unique_passport_per_lab",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "lab_id" },
           { name: "passport_no" },
         ]
-      },
-      {
-        name: "idx_doctor_lab",
-        using: "BTREE",
-        fields: [
-          { name: "lab_id" },
-        ]
-      },
+      }
     ]
   });
 };

@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/architecture/project-structure",
+  "title": "Project Structure",
+  "description": "Overview",
+  "source": "@site/docs/technical-guide/architecture/project-structure.md",
+  "sourceDirName": "technical-guide/architecture",
+  "slug": "/technical-guide/architecture/project-structure",
+  "permalink": "/docs/technical-guide/architecture/project-structure",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Architecture Overview",
+    "permalink": "/docs/technical-guide/architecture/"
+  },
+  "next": {
+    "title": "Docker & PNPM Architecture",
+    "permalink": "/docs/technical-guide/architecture/docker-architecture"
+  }
+}

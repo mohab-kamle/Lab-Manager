@@ -1,0 +1,27 @@
+{
+  "id": "technical-guide/architecture/index",
+  "title": "Architecture Overview",
+  "description": "This section describes the high-level architecture of the LabManager system — how the different layers are organized, how they communicate, and how the project is structured.",
+  "source": "@site/docs/technical-guide/architecture/index.md",
+  "sourceDirName": "technical-guide/architecture",
+  "slug": "/technical-guide/architecture/",
+  "permalink": "/docs/technical-guide/architecture/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Architecture Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Technical Guide",
+    "permalink": "/docs/technical-guide/"
+  },
+  "next": {
+    "title": "Project Structure",
+    "permalink": "/docs/technical-guide/architecture/project-structure"
+  }
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import './TenantNotFound.css';
+import './TenantNotFound.module.css';
 
 const TenantNotFound = ({ error }) => {
   return (
@@ -12,7 +12,7 @@ const TenantNotFound = ({ error }) => {
         </p>
         <div className="error-actions">
           <p>Please check the URL or contact your administrator.</p>
-          <button 
+          <button
             className="btn-primary"
             onClick={() => window.location.href = 'https://labmanager.com'}
           >
