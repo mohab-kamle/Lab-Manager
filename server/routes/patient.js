@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { medical_report, patient, admin, chemist, phone, diseases, patient_has_diseases } = require("../models");
+const { medical_report, patient, admin, chemist, phone, diseases, patient_has_diseases, contract, lab_contracts_doctor, bill } = require("../models");
 const { sign } = require("jsonwebtoken");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
@@ -42,24 +42,24 @@ const generatePatientCode = async (labId) => {
 };
 
 router.post("/login", loginLimiter, async (req, res) => {
-  const { patientcode} = req.body;
+    const { patientcode } = req.body;
 
-  // Validate patientcode to prevent object injection
-  if (!patientcode || typeof patientcode === 'object') {
-    return res.status(400).json({ error: "Invalid patient code format" });
-  }
-
-  try {
-    // 🛡️ Sentinel: Validate input to prevent Object Injection
-    if (!patientcode || (typeof patientcode !== 'string' && typeof patientcode !== 'number')) {
-      return res.status(400).json({ error: "Invalid patient code format" });
+    // Validate patientcode to prevent object injection
+    if (!patientcode || typeof patientcode === 'object') {
+        return res.status(400).json({ error: "Invalid patient code format" });
     }
 
-    const Patient = await patient.findOne({ 
-      where: { 
-        patientcode: String(patientcode) // Explicitly cast to string/value to prevent object injection
-      } 
-    });
+    try {
+        // 🛡️ Sentinel: Validate input to prevent Object Injection
+        if (!patientcode || (typeof patientcode !== 'string' && typeof patientcode !== 'number')) {
+            return res.status(400).json({ error: "Invalid patient code format" });
+        }
+
+        const Patient = await patient.findOne({
+            where: {
+                patientcode: String(patientcode) // Explicitly cast to string/value to prevent object injection
+            }
+        });
 
         if (!Patient) {
             return res.status(401).json({ error: "Invalid patient code or lab" });
@@ -241,7 +241,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 
             if (req.user.role === 'doctor') {
                 // Fetch all labs associated with this doctor
-                const contracts = await sequelize.models.lab_contracts_doctor.findAll({
+                const contracts = await lab_contracts_doctor.findAll({
                     where: { doctor_id: req.user.id },
                     attributes: ['lab_id']
                 });
@@ -257,7 +257,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 
             const patients = await patient.findAll({
                 where: whereClause,
-                attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address', 'total', 'paid', 'due', 'contract_id', 'referral_id', 'createdAt'],
+                attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address', 'total', 'paid', 'due', 'contract_id', 'createdAt'],
                 include: [
                     {
                         model: phone,
@@ -265,21 +265,15 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                         attributes: ['phone_number', 'type']
                     },
                     {
-                        model: sequelize.models.diseases,
+                        model: diseases,
                         as: 'diseases_id_diseases',
                         through: { attributes: [] },
                         attributes: ['id', 'name', 'details']
                     },
                     {
-                        model: sequelize.models.contract,
+                        model: contract,
                         as: 'contract',
                         attributes: ['id', 'name'],
-                        required: false
-                    },
-                    {
-                        model: sequelize.models.referral,
-                        as: 'referral',
-                        attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email'],
                         required: false
                     }
                 ],
@@ -315,7 +309,6 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             paid,
             due,
             contract_id,
-            referral_id,
             diseases = [] // Array of disease IDs
         } = req.body;
 
@@ -369,7 +362,6 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             paid: paid || 0.00,
             due: due || 0.00,
             contract_id: contract_id || null,
-            referral_id: referral_id || null,
             lab_id: req.tenant.lab_id
         });
 
@@ -407,19 +399,14 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                     as: 'phones'
                 },
                 {
-                    model: sequelize.models.diseases,
+                    model: diseases,
                     as: 'diseases_id_diseases',
                     through: { attributes: [] }
                 },
                 {
-                    model: sequelize.models.contract,
+                    model: contract,
                     as: 'contract',
                     attributes: ['id', 'name']
-                },
-                {
-                    model: sequelize.models.referral,
-                    as: 'referral',
-                    attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']
                 }
             ]
         });
@@ -453,7 +440,6 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             paid,
             due,
             contract_id,
-            referral_id,
             diseases = [] // Array of disease IDs
         } = req.body;
 
@@ -505,7 +491,6 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             paid: paid !== undefined ? paid : existingPatient.paid,
             due: due !== undefined ? due : existingPatient.due,
             contract_id: contract_id !== undefined ? contract_id : existingPatient.contract_id,
-            referral_id: referral_id !== undefined ? referral_id : existingPatient.referral_id
         }, { where: { id: patientId } });
 
         // Update phone numbers
@@ -549,20 +534,15 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                     as: 'phones'
                 },
                 {
-                    model: sequelize.models.diseases,
+                    model: diseases,
                     as: 'diseases_id_diseases',
                     through: { attributes: [] },
                     attributes: ['id', 'name', 'details']
                 },
                 {
-                    model: sequelize.models.contract,
+                    model: contract,
                     as: 'contract',
                     attributes: ['id', 'name']
-                },
-                {
-                    model: sequelize.models.referral,
-                    as: 'referral',
-                    attributes: ['id', 'doctor_name', 'specialization', 'phone', 'email']
                 }
             ]
         });
@@ -595,12 +575,12 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
         }
 
         // Check if patient has any related records (bills, medical reports, etc.)
-        const hasBills = await sequelize.models.bill.findOne({ where: { patient_id: patientId } });
+        const hasBills = await bill.findOne({ where: { patient_id: patientId } });
         if (hasBills) {
-            return res.status(400).json({ error: "Cannot delete patient with existing bills" });
+            return res.status(400).json({ error: "Cannot delete patient with associated bills" });
         }
 
-        const hasMedicalReports = await sequelize.models.medical_report.findOne({ where: { patient_id: patientId } });
+        const hasMedicalReports = await medical_report.findOne({ where: { patient_id: patientId } });
         if (hasMedicalReports) {
             return res.status(400).json({ error: "Cannot delete patient with existing medical reports" });
         }
@@ -632,7 +612,7 @@ router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist"
     },
     async (req, res) => {
         try {
-            const diseasesList = await sequelize.models.diseases.findAll({
+            const diseasesList = await diseases.findAll({
                 attributes: ['id', 'name', 'details'],
                 order: [['name', 'ASC']]
             });
@@ -680,8 +660,8 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                 }
 
                 // Check if patient already exists by phone number within the current lab
-                const existingPhone = await phone.findOne({ 
-                    where: { 
+                const existingPhone = await phone.findOne({
+                    where: {
                         phone_number: row['Primary Phone'].toString()
                     },
                     include: [{
@@ -715,7 +695,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                     const contractParts = row.Contract.split(' - ');
                     if (contractParts.length === 2) {
                         const [region, governorate] = contractParts;
-                        const existingContract = await sequelize.models.contract.findOne({
+                        const existingContract = await contract.findOne({
                             where: { region: region.trim(), governorate: governorate.trim() }
                         });
                         if (existingContract) {
@@ -761,7 +741,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                 if (row.Diseases) {
                     const diseaseNames = row.Diseases.split(',').map(d => d.trim());
                     for (const diseaseName of diseaseNames) {
-                        const disease = await sequelize.models.diseases.findOne({
+                        const disease = await diseases.findOne({
                             where: { name: diseaseName }
                         });
                         if (disease) {
@@ -821,13 +801,13 @@ router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist")
                 }
 
                 // Check if patient has any related records
-                const hasBills = await sequelize.models.bill.findOne({ where: { patient_id: patientId } });
+                const hasBills = await bill.findOne({ where: { patient_id: patientId } });
                 if (hasBills) {
                     errors.push(`Patient ID ${patientId}: Cannot delete patient with existing bills`);
                     continue;
                 }
 
-                const hasMedicalReports = await sequelize.models.medical_report.findOne({ where: { patient_id: patientId } });
+                const hasMedicalReports = await medical_report.findOne({ where: { patient_id: patientId } });
                 if (hasMedicalReports) {
                     errors.push(`Patient ID ${patientId}: Cannot delete patient with existing medical reports`);
                     continue;
@@ -971,49 +951,49 @@ router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (r
 
 // Get patient count
 router.get('/count', authenticateUser, authorizeRoles('admin'), tenantContext,
-  // Add cache headers for 1 minute
-  (req, res, next) => {
-    res.set({
-      'Cache-Control': 'public, max-age=60', // 1 minute
+    // Add cache headers for 1 minute
+    (req, res, next) => {
+        res.set({
+            'Cache-Control': 'public, max-age=60', // 1 minute
+        });
+        next();
+    },
+    async (req, res) => {
+        try {
+            const count = await patient.count({
+                where: {
+                    lab_id: req.tenant.lab_id
+                }
+            });
+            res.json({ count });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to get patient count' });
+        }
     });
-    next();
-  },
-  async (req, res) => {
-  try {
-    const count = await patient.count({
-      where: {
-        lab_id: req.tenant.lab_id
-      }
-    });
-    res.json({ count });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get patient count' });
-  }
-});
 
 // Get recent patients
 router.get('/recent', authenticateUser, authorizeRoles('admin'), tenantContext,
-  // Add cache headers for 2 minutes
-  (req, res, next) => {
-    res.set({
-      'Cache-Control': 'public, max-age=120', // 2 minutes
+    // Add cache headers for 2 minutes
+    (req, res, next) => {
+        res.set({
+            'Cache-Control': 'public, max-age=120', // 2 minutes
+        });
+        next();
+    },
+    async (req, res) => {
+        try {
+            const patients = await patient.findAll({
+                where: {
+                    lab_id: req.tenant.lab_id
+                },
+                order: [['id', 'DESC']],
+                limit: 5,
+                attributes: ['id', 'name', 'birth_date']
+            });
+            res.json(patients);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to get recent patients' });
+        }
     });
-    next();
-  },
-  async (req, res) => {
-  try {
-    const patients = await patient.findAll({
-      where: {
-        lab_id: req.tenant.lab_id
-      },
-      order: [['id', 'DESC']],
-      limit: 5,
-      attributes: ['id', 'name', 'birth_date']
-    });
-    res.json(patients);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to get recent patients' });
-  }
-});
 
 module.exports = router;

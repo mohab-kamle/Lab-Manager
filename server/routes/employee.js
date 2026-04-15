@@ -5,7 +5,7 @@ require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { loginLimiter } = require('../middleware/rateLimiters');
 
-const { employee, admin, sequelize } = require('../models');
+const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor } = require('../models'); 
 const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
@@ -168,11 +168,11 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
             attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
             include: [
                 {
-                    model: sequelize.models.branch_has_employee,
+                    model: branch_has_employee,
                     as: 'branch_has_employees',
                     include: [
                         {
-                            model: sequelize.models.branch,
+                            model: branch,
                             as: 'branch',
                             attributes: ['id', 'name']
                         }
@@ -297,38 +297,40 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
         });
 
         // Assign employee to branch
-        await sequelize.models.branch_has_employee.create({
-            branch_id: branch_id,
+        await branch_has_employee.create({
+            branch_id,
             employee_id: newEmployee.id
         });
 
-        // Create role-specific record based on the role
-        switch (role) {
-            case 'admin':
-                await sequelize.models.admin.create({
-                    id: newEmployee.id,
-                    lab_id: req.tenant.lab_id
-                });
-                break;
-            case 'chemist':
-                await sequelize.models.chemist.create({
-                    id: newEmployee.id,
-                    no_of_reports: 0,
-                    lab_id: req.tenant.lab_id
-                });
-                break;
-            case 'receptionist':
-                await sequelize.models.receptionist.create({
-                    id: newEmployee.id,
-                    no_of_bills: 0,
-                    lab_id: req.tenant.lab_id
-                });
-                break;
-            case 'employee':
-                // Basic employee doesn't need additional table
-                break;
-            default:
-                console.warn(`Unknown role: ${role}`);
+        if (role === "admin") {
+            await admin.create({
+                id: newEmployee.id,
+                isFirstTimeLogin: true,
+                lab_id: req.tenant.lab_id
+            });
+        } else if (role === "chemist") {
+            await chemist.create({
+                id: newEmployee.id,
+                no_of_reports: 0,
+                lab_id: req.tenant.lab_id
+            });
+        } else if (role === "receptionist") {
+            await receptionist.create({
+                id: newEmployee.id,
+                no_of_bills: 0,
+                lab_id: req.tenant.lab_id
+            });
+        } else if (role === "doctor") {
+            await doctor.create({
+                name: newEmployee.name,
+                email: newEmployee.email,
+                gender: newEmployee.gender,
+                birth_date: newEmployee.birth_date,
+                national_id: newEmployee.national_id,
+                nationality: newEmployee.nationality,
+                passport_no: newEmployee.passport_no,
+                lab_id: req.tenant.lab_id
+            });
         }
 
         // Return employee without password
@@ -418,9 +420,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
 
         // Update branch assignment if branch_id is provided
         if (branch_id) {
-            const BranchHasEmployee = sequelize.models.branch_has_employee;
-            await BranchHasEmployee.destroy({ where: { employee_id: emp.id } });
-            await BranchHasEmployee.create({ branch_id: branch_id, employee_id: emp.id });
+            await branch_has_employee.destroy({ where: { employee_id: emp.id } });
+            await branch_has_employee.create({ branch_id: branch_id, employee_id: emp.id });
         }
 
         // Handle role changes - delete old role record and create new one
@@ -429,18 +430,18 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             const oldRole = emp.role;
             switch (oldRole) {
                 case 'admin':
-                    await sequelize.models.admin.destroy({ where: { id: emp.id } });
+                    await admin.destroy({ where: { id: emp.id } });
                     break;
                 case 'chemist':
-                    await sequelize.models.chemist.destroy({ where: { id: emp.id } });
+                    await chemist.destroy({ where: { id: emp.id } });
                     break;
                 case 'receptionist':
-                    await sequelize.models.receptionist.destroy({ where: { id: emp.id } });
+                    await receptionist.destroy({ where: { id: emp.id } });
                     break;
                 case 'doctor':
                     // Find and delete doctor record by matching employee data
-                    await sequelize.models.doctor.destroy({
-                        where: {
+                    await doctor.destroy({ 
+                        where: { 
                             name: emp.name,
                             national_id: emp.national_id
                         }
@@ -451,22 +452,35 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             // Create new role record
             switch (role) {
                 case 'admin':
-                    await sequelize.models.admin.create({
+                    await admin.create({
                         id: emp.id,
+                        isFirstTimeLogin: true,
                         lab_id: req.tenant.lab_id
                     });
                     break;
                 case 'chemist':
-                    await sequelize.models.chemist.create({
+                    await chemist.create({
                         id: emp.id,
                         no_of_reports: 0,
                         lab_id: req.tenant.lab_id
                     });
                     break;
                 case 'receptionist':
-                    await sequelize.models.receptionist.create({
+                    await receptionist.create({
                         id: emp.id,
                         no_of_bills: 0,
+                        lab_id: req.tenant.lab_id
+                    });
+                    break;
+                case 'doctor':
+                    await doctor.create({
+                        name: emp.name,
+                        email: emp.email,
+                        gender: emp.gender,
+                        birth_date: emp.birth_date,
+                        national_id: emp.national_id,
+                        nationality: emp.nationality,
+                        passport_no: emp.passport_no,
                         lab_id: req.tenant.lab_id
                     });
                     break;
@@ -501,31 +515,24 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
         }
 
         // Delete role-specific record first
-        const role = emp.role;
-        switch (role) {
-            case 'admin':
-                await sequelize.models.admin.destroy({ where: { id: emp.id } });
-                break;
-            case 'chemist':
-                await sequelize.models.chemist.destroy({ where: { id: emp.id } });
-                break;
-            case 'receptionist':
-                await sequelize.models.receptionist.destroy({ where: { id: emp.id } });
-                break;
-            case 'doctor':
-                // Find and delete doctor record by matching employee data
-                await sequelize.models.doctor.destroy({
-                    where: {
-                        name: emp.name,
-                        national_id: emp.national_id
-                    }
-                });
-                break;
+        if (emp.role === 'admin') {
+            await admin.destroy({ where: { id: emp.id } });
+        } else if (emp.role === 'chemist') {
+            await chemist.destroy({ where: { id: emp.id } });
+        } else if (emp.role === 'receptionist') {
+            await receptionist.destroy({ where: { id: emp.id } });
+        } else if (emp.role === 'doctor') {
+            await doctor.destroy({ 
+                where: { 
+                    name: emp.name,
+                    lab_id: emp.lab_id
+                } 
+            });
         }
 
-        // Delete from branch_has_employee
-        await sequelize.models.branch_has_employee.destroy({
-            where: { employee_id: emp.id }
+        // Delete branch assignment
+        await branch_has_employee.destroy({
+            where: { employee_id: id }
         });
 
         // Delete employee record
