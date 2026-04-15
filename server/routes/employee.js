@@ -16,30 +16,35 @@ const { validatePassword } = require('../utils/passwordValidator');
 router.post("/login", loginLimiter, async (req, res) => {
     const { username, password, lab_id } = req.body;
 
-    // Validate inputs to prevent object injection
+    // 🛡️ Validate username
     if (!username || typeof username !== 'string') {
         return res.status(400).json({ error: "Invalid username format" });
     }
 
-    if (lab_id && typeof lab_id === 'object') {
-        return res.status(400).json({ error: "Invalid lab ID format" });
+    // 🛡️ Validate lab_id
+    let safeLabId = null;
+    if (lab_id !== undefined && lab_id !== null) {
+        if (typeof lab_id !== 'string' && typeof lab_id !== 'number') {
+            return res.status(400).json({ error: "Invalid lab ID format" });
+        }
+
+        safeLabId = Number(lab_id);
+        if (isNaN(safeLabId)) {
+            return res.status(400).json({ error: "Invalid lab_id format" });
+        }
     }
 
     try {
-        // For login, we need to check if the employee exists in the specified lab
-        // or find them across all labs if lab_id is not provided
         let emp;
 
-        if (lab_id) {
-            // If lab_id is provided, check in that specific lab
+        if (safeLabId !== null) {
             emp = await employee.findOne({
                 where: {
                     username: username,
-                    lab_id: lab_id
+                    lab_id: safeLabId
                 }
             });
         } else {
-            // If no lab_id provided, find the employee 
             emp = await employee.findOne({
                 where: { username: username }
             });
@@ -54,25 +59,25 @@ router.post("/login", loginLimiter, async (req, res) => {
             return res.status(401).json({ error: "Incorrect password" });
         }
 
-        // Generate token with lab_id included
+        // 🔐 Generate JWT
         const token = sign({
             id: emp.id,
             role: emp.role,
             lab_id: emp.lab_id
         }, SECRET_KEY, { expiresIn: "6h" });
 
-        // Exclude sensitive fields before sending the user object
-        const { password: _password, ...safeUser } = emp.get({ plain: true });
+        // 🧼 Remove password
+        const { password: _, ...safeUser } = emp.get({ plain: true });
 
         if (emp.role !== "admin") {
-            res.json({ token, user: safeUser });
-        } else {
-            console.log("isFirstTimeLogin");
-
-            let adminObj = await admin.findByPk(emp.id)
-            let isFirstTimeLogin = adminObj.isFirstTimeLogin;
-            res.json({ token, user: safeUser, isFirstTimeLogin });
+            return res.json({ token, user: safeUser });
         }
+
+        // 👑 Admin extra logic
+        const adminObj = await admin.findByPk(emp.id);
+        const isFirstTimeLogin = adminObj?.isFirstTimeLogin ?? false;
+
+        return res.json({ token, user: safeUser, isFirstTimeLogin });
 
     } catch (error) {
         console.error(error);

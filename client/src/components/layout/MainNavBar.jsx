@@ -14,15 +14,12 @@ import { toast } from "react-toastify";
 import ThemeToggle from "../ui/ThemeToggle";
 
 import {
-  Moon,
-  Sun,
   DoorClosed,
   DoorOpen,
   House,
   Users,
   FileText,
   User,
-  FlaskConical,
   Eye,
   Database,
   DollarSignIcon,
