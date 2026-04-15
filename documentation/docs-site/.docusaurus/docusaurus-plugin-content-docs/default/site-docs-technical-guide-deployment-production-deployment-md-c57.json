@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/deployment/production-deployment",
+  "title": "Production Deployment Guide",
+  "description": "Upload Directory Persistence",
+  "source": "@site/docs/technical-guide/deployment/production-deployment.md",
+  "sourceDirName": "technical-guide/deployment",
+  "slug": "/technical-guide/deployment/production-deployment",
+  "permalink": "/docs/technical-guide/deployment/production-deployment",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "PM2 Cluster Mode Setup for LabManager Server",
+    "permalink": "/docs/technical-guide/deployment/pm2-cluster-setup"
+  },
+  "next": {
+    "title": "Security Overview",
+    "permalink": "/docs/technical-guide/security/"
+  }
+}

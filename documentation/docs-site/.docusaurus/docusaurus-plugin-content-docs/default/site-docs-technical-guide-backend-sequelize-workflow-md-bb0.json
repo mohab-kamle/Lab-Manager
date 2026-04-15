@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/backend/sequelize-workflow",
+  "title": "🧩 Sequelize Models & Migrations Workflow",
+  "description": "---",
+  "source": "@site/docs/technical-guide/backend/sequelize-workflow.md",
+  "sourceDirName": "technical-guide/backend",
+  "slug": "/technical-guide/backend/sequelize-workflow",
+  "permalink": "/docs/technical-guide/backend/sequelize-workflow",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Database Synchronization Guide",
+    "permalink": "/docs/technical-guide/backend/database-sync"
+  },
+  "next": {
+    "title": "Fix Summary: Test Group Result JSON Field Storage Issue",
+    "permalink": "/docs/technical-guide/backend/fix-summary"
+  }
+}
