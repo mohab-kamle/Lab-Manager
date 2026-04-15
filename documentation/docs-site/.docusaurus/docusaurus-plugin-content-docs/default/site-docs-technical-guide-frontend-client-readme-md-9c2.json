@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/frontend/client-readme",
+  "title": "LabManager Client Documentation",
+  "description": "Overview",
+  "source": "@site/docs/technical-guide/frontend/client-readme.md",
+  "sourceDirName": "technical-guide/frontend",
+  "slug": "/technical-guide/frontend/client-readme",
+  "permalink": "/docs/technical-guide/frontend/client-readme",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Frontend Overview",
+    "permalink": "/docs/technical-guide/frontend/"
+  },
+  "next": {
+    "title": "Error Boundary System",
+    "permalink": "/docs/technical-guide/frontend/error-boundary"
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "/__docusaurus/debug-5ff": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/config-5ba": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/content-a2b": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    },
+    "__props": "__props---docusaurus-debug-content-3-c-0-be2"
+  },
+  "/__docusaurus/debug/globalData-c3c": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/metadata-156": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/registry-88c": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/__docusaurus/debug/routes-000": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
+  },
+  "/docs-b75": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---docsaba-d7c"
+    }
+  },
+  "/docs-427": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "__props": "__props---docs-005-788"
+  },
+  "/docs-a94": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
+  },
+  "/docs/technical-guide/-552": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-248-7cb"
+  },
+  "/docs/technical-guide/architecture/-cfb": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-architecture-215-e6b"
+  },
+  "/docs/technical-guide/architecture/docker-architecture-a06": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-architecture-docker-architectureb-46-179"
+  },
+  "/docs/technical-guide/architecture/project-structure-fc4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-architecture-project-structurecfa-310"
+  },
+  "/docs/technical-guide/architecture/structure-review-1c0": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-architecture-structure-reviewb-3-f-954"
+  },
+  "/docs/technical-guide/backend/-016": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-backend-f-09-ce1"
+  },
+  "/docs/technical-guide/backend/database-sync-8f6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-backend-database-synceb-8-b94"
+  },
+  "/docs/technical-guide/backend/fix-summary-195": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-backend-fix-summaryc-4-c-fd8"
+  },
+  "/docs/technical-guide/backend/index-fix-summary-15c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-backend-index-fix-summaryf-3-e-0c2"
+  },
+  "/docs/technical-guide/backend/sequelize-workflow-0d0": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-backend-sequelize-workflowbb-0-0bd"
+  },
+  "/docs/technical-guide/backend/server-readme-87a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-backend-server-readme-9-b-0-b8b"
+  },
+  "/docs/technical-guide/deployment/-cf6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-deployment-916-24c"
+  },
+  "/docs/technical-guide/deployment/ci-cd-plan-391": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-deployment-ci-cd-plan-994-b42"
+  },
+  "/docs/technical-guide/deployment/deployment-checklist-2e9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-deployment-deployment-checklist-453-1f7"
+  },
+  "/docs/technical-guide/deployment/pm2-cluster-setup-2cd": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-deployment-pm-2-cluster-setup-903-6bf"
+  },
+  "/docs/technical-guide/deployment/production-deployment-ea8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-deployment-production-deploymentc-57-2ce"
+  },
+  "/docs/technical-guide/frontend/-d1e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-frontend-b-9-b-de8"
+  },
+  "/docs/technical-guide/frontend/client-readme-2e5": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-frontend-client-readme-9-c-2-47e"
+  },
+  "/docs/technical-guide/frontend/error-boundary-b7c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-frontend-error-boundary-8-bb-2f5"
+  },
+  "/docs/technical-guide/security/-668": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-security-158-1e4"
+  },
+  "/docs/technical-guide/security/security-notes-9a6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-technical-guide-security-security-notesb-89-208"
+  },
+  "/docs/user-guide/overview-128": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-user-guide-overview-245-72a"
+  },
+  "/docs/user-guide/roles/admin-ef6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-user-guide-roles-admine-99-77f"
+  },
+  "/docs/user-guide/roles/chemist-080": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-user-guide-roles-chemiste-12-f93"
+  },
+  "/docs/user-guide/roles/doctor-5dd": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-user-guide-roles-doctora-5-a-41e"
+  },
+  "/docs/user-guide/roles/employee-449": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-user-guide-roles-employee-261-f0a"
+  },
+  "/docs/user-guide/roles/patient-400": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-user-guide-roles-patient-19-d-ad2"
+  },
+  "/docs/user-guide/roles/receptionist-820": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-user-guide-roles-receptionistc-07-b62"
+  },
+  "/-2e1": {
+    "__comp": "__comp---site-src-pages-index-jsc-4-f-f99",
+    "__context": {
+      "plugin": "plugin---a-74-9d6"
+    },
+    "config": "config---5-e-9-4f3"
+  }
+}

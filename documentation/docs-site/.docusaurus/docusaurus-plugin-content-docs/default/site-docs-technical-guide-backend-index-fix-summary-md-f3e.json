@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/backend/index-fix-summary",
+  "title": "MySQL 64-Key Limit Fix Summary",
+  "description": "Problem Identified",
+  "source": "@site/docs/technical-guide/backend/index-fix-summary.md",
+  "sourceDirName": "technical-guide/backend",
+  "slug": "/technical-guide/backend/index-fix-summary",
+  "permalink": "/docs/technical-guide/backend/index-fix-summary",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Fix Summary: Test Group Result JSON Field Storage Issue",
+    "permalink": "/docs/technical-guide/backend/fix-summary"
+  },
+  "next": {
+    "title": "Frontend Overview",
+    "permalink": "/docs/technical-guide/frontend/"
+  }
+}
