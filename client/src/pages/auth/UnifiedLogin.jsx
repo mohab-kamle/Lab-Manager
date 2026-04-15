@@ -20,6 +20,16 @@ const UnifiedLogin = () => {
     password: ""
   });
   const [patientCode, setPatientCode] = useState("");
+  const [isSignup, setIsSignup] = useState(false);
+  const [signupData, setSignupData] = useState({
+    name: "",
+    username: "",
+    password: "",
+    email: "",
+    phone: "",
+    national_id: "",
+    gender: "male"
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -32,14 +42,14 @@ const UnifiedLogin = () => {
   React.useEffect(() => {
     if (!authLoading && user) {
       const currentSubdomain = getSubdomain();
-      
+
       // If user has a lab (is not a patient without lab context, though patients usually have lab associations)
       // And we are on a subdomain
       if (currentSubdomain) {
-         // Optionally, we could verify if currentSubdomain matches user.lab?.subdomain
-         // But for now, if they are logged in on a subdomain, assume it's valid and redirect
-         // The router/API will handle access denied if it's the wrong lab
-         navigate(`/${user.role}/dashboard`);
+        // Optionally, we could verify if currentSubdomain matches user.lab?.subdomain
+        // But for now, if they are logged in on a subdomain, assume it's valid and redirect
+        // The router/API will handle access denied if it's the wrong lab
+        navigate(`/${user.role}/dashboard`);
       }
     }
   }, [user, authLoading, navigate]);
@@ -54,7 +64,7 @@ const UnifiedLogin = () => {
       bgColor: "rgba(220, 53, 69, 0.1)"
     },
     {
-      value: "receptionist", 
+      value: "receptionist",
       label: "Receptionist",
       description: "Patient management & invoices",
       color: "primary",
@@ -65,7 +75,7 @@ const UnifiedLogin = () => {
       value: "chemist",
       label: "Chemist",
       description: "Lab work & test results",
-      color: "success", 
+      color: "success",
       icon: "🧪",
       bgColor: "rgba(25, 135, 84, 0.1)"
     },
@@ -94,7 +104,7 @@ const UnifiedLogin = () => {
       bgColor: "rgba(255, 193, 7, 0.1)"
     }
   ];
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -106,6 +116,15 @@ const UnifiedLogin = () => {
         response = await axios.post(`${apiUrl}/patient/login`, {
           patientcode: patientCode
         });
+      } else if (userType === "doctor") {
+        if (isSignup) {
+            response = await axios.post(`${apiUrl}/doctor/signup`, signupData);
+        } else {
+            response = await axios.post(`${apiUrl}/doctor/login`, {
+                username: credentials.username,
+                password: credentials.password
+            });
+        }
       } else {
         response = await axios.post(`${apiUrl}/emp/login`, {
           username: credentials.username,
@@ -114,23 +133,23 @@ const UnifiedLogin = () => {
       }
 
       const { token, user, isFirstTimeLogin } = response.data;
-      
+
       // 1. Fetch Lab Info if missing (needed for subdomain check)
       let labInfo = user.lab;
       if (!labInfo && user.lab_id) {
         try {
-           // We use the token to authorized this fetch
-           const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
-             headers: { 'Authorization': `Bearer ${token}` }
-           });
-           labInfo = labResponse.data;
+          // We use the token to authorized this fetch
+          const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          labInfo = labResponse.data;
         } catch (err) {
-            console.error("Failed to fetch lab info for redirection check", err);
+          console.error("Failed to fetch lab info for redirection check", err);
         }
       }
 
       if (!labInfo) {
-          throw new Error("Unable to identify your workspace (Lab Info missing).");
+        throw new Error("Unable to identify your workspace (Lab Info missing).");
       }
 
       const userLabSubdomain = labInfo.subdomain;
@@ -139,9 +158,9 @@ const UnifiedLogin = () => {
       // SCENARIO 1: Login from Public/Main Site -> Redirect to Subdomain
       if (!currentSubdomain) {
         const protocol = window.location.protocol;
-        let mainDomain = window.location.host; 
+        let mainDomain = window.location.host;
         if (mainDomain.startsWith('www.')) mainDomain = mainDomain.substring(4);
-        
+
         // Redirect to tenant subdomain with token
         window.location.href = `${protocol}//${userLabSubdomain}.${mainDomain}/${user.role}/dashboard?auth_token=${token}`;
         return;
@@ -152,16 +171,16 @@ const UnifiedLogin = () => {
         // Correct Workspace
         localStorage.setItem("token", token);
         await login(token);
-        
+
         // Ensure context is updated
         await fetchLabInfo();
 
         // Navigate based on role
         if (user.role === 'admin' && isFirstTimeLogin) {
-            navigate('/change-password');
+          navigate('/change-password');
         } else {
-            // Navigate to role dashboard (no lab prefix needed now)
-            navigate(`/${user.role}/dashboard`);
+          // Navigate to role dashboard (no lab prefix needed now)
+          navigate(`/${user.role}/dashboard`);
         }
       } else {
         // Wrong Workspace
@@ -182,6 +201,7 @@ const UnifiedLogin = () => {
     setError(null);
     setCredentials({ username: "", password: "" });
     setPatientCode("");
+    setIsSignup(false);
   };
 
   const selectedUserType = userTypes.find(t => t.value === userType);
@@ -194,9 +214,9 @@ const UnifiedLogin = () => {
       <Container>
         <Row className="justify-content-center">
           <Col lg={8} md={10} sm={12}>
-            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden' , border: '1px solid var(--border)' }}>
+            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)' }}>
               {/* Header */}
-              <div className="text-center pt-4" style={{
+              <div className="text-center pt-4 pb-3" style={{
                 background: 'var(--bg)',
                 color: 'var(--text)'
               }}>
@@ -220,7 +240,7 @@ const UnifiedLogin = () => {
                 <p className="mb-0 opacity-75">Please select your role and sign in</p>
               </div>
 
-              <Card.Body className="px-5">
+              <Card.Body className="px-5 bg-theme-surface">
                 {/* User Type Selection */}
                 <div className="mb-4">
                   <h6 className="text-muted mb-3 fw-semibold">
@@ -251,29 +271,28 @@ const UnifiedLogin = () => {
 
                 {/* Selected Role Info */}
                 <motion.div
-                key={selectedUserType?.label || "default-key"}
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
+                  key={selectedUserType?.label || "default-key"}
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{
                     duration: 1,
-                    scale: { type: "smooth", visualDuration: 0.7},
-                }}
+                    scale: { type: "smooth", visualDuration: 0.7 },
+                  }}
                 >
                   <Alert variant="light" className="mb-4 border-0" style={{
-                  backgroundColor: selectedUserType?.bgColor,
-                  borderLeft: `4px solid var(--bs-${selectedUserType?.color})`
-                }}>
-                  <div className="d-flex align-items-center">
-                    <span style={{ fontSize: '1.5em', marginRight: '12px' }}>{selectedUserType?.icon}</span>
-                    <div>
-                      <strong className="text-dark">{selectedUserType?.label}</strong>
-                      <br />
-                      <small className="text-muted">{selectedUserType?.description}</small>
+                    backgroundColor: selectedUserType?.bgColor,
+                    borderLeft: `4px solid var(--bs-${selectedUserType?.color})`
+                  }}>
+                    <div className="d-flex align-items-center">
+                      <span style={{ fontSize: '1.5em', marginRight: '12px' }}>{selectedUserType?.icon}</span>
+                      <div>
+                        <strong className="text-theme d-block">{selectedUserType?.label}</strong>
+                        <small className="text-muted">{selectedUserType?.description}</small>
+                      </div>
                     </div>
-                  </div>
-                </Alert>
+                  </Alert>
                 </motion.div>
-                
+
 
                 {error && (
                   <Alert variant="danger" className="mb-4 border-0" style={{ borderRadius: '12px' }} aria-live="assertive">
@@ -288,7 +307,7 @@ const UnifiedLogin = () => {
                   {userType === "patient" ? (
                     /* Patient Login Form */
                     <Form.Group className="mb-4">
-                      <Form.Label className="fw-semibold text-dark">
+                      <Form.Label className="fw-semibold text-theme">
                         <User size={18} className="me-2" />
                         Patient Code
                       </Form.Label>
@@ -298,9 +317,8 @@ const UnifiedLogin = () => {
                         value={patientCode}
                         onChange={(e) => setPatientCode(e.target.value)}
                         required
-                        className="py-3 px-4 border-0"
+                        className="py-3 px-4 border-1 bg-theme-surface text-theme"
                         style={{
-                          backgroundColor: '#f8f9fa',
                           borderRadius: '12px',
                           fontSize: '1.1em'
                         }}
@@ -310,11 +328,81 @@ const UnifiedLogin = () => {
                         Enter the patient code provided by your healthcare provider
                       </Form.Text>
                     </Form.Group>
+                  ) : (userType === 'doctor' && isSignup) ? (
+                    /* Doctor Signup Form */
+                    <>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Full Name</Form.Label>
+                            <Form.Control 
+                                type="text" 
+                                required 
+                                value={signupData.name}
+                                onChange={e => setSignupData({...signupData, name: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Email</Form.Label>
+                            <Form.Control 
+                                type="email" 
+                                required 
+                                value={signupData.email}
+                                onChange={e => setSignupData({...signupData, email: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Username</Form.Label>
+                             <Form.Control 
+                                type="text" 
+                                required 
+                                value={signupData.username}
+                                onChange={e => setSignupData({...signupData, username: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Password</Form.Label>
+                             <Form.Control 
+                                type="password" 
+                                required 
+                                value={signupData.password}
+                                onChange={e => setSignupData({...signupData, password: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>National ID</Form.Label>
+                             <Form.Control 
+                                type="text" 
+                                value={signupData.national_id}
+                                onChange={e => setSignupData({...signupData, national_id: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            />
+                         </Form.Group>
+                         <Form.Group className="mb-3">
+                            <Form.Label>Gender</Form.Label>
+                            <Form.Select
+                                value={signupData.gender}
+                                onChange={e => setSignupData({...signupData, gender: e.target.value})}
+                                className="py-2 px-3 border-0"
+                                style={{ backgroundColor: '#f8f9fa', borderRadius: '8px' }}
+                            >
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </Form.Select>
+                         </Form.Group>
+                    </>
                   ) : (
                     /* Employee Login Form */
                     <>
                       <Form.Group className="mb-4">
-                        <Form.Label className="fw-semibold text-dark">
+                        <Form.Label className="fw-semibold text-theme">
                           <User size={18} className="me-2" />
                           Username
                         </Form.Label>
@@ -324,9 +412,8 @@ const UnifiedLogin = () => {
                           value={credentials.username}
                           onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                           required
-                          className="py-3 px-4 border-0"
+                          className="py-3 px-4 border-1 bg-theme-surface text-theme"
                           style={{
-                            backgroundColor: '#f8f9fa',
                             borderRadius: '12px',
                             fontSize: '1.1em'
                           }}
@@ -334,7 +421,7 @@ const UnifiedLogin = () => {
                       </Form.Group>
 
                       <Form.Group className="mb-4">
-                        <Form.Label className="fw-semibold text-dark">
+                        <Form.Label className="fw-semibold text-theme">
                           <Lock size={18} className="me-2" />
                           Password
                         </Form.Label>
@@ -345,9 +432,8 @@ const UnifiedLogin = () => {
                             value={credentials.password}
                             onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                             required
-                            className="py-3 px-4 border-0"
+                            className="py-3 px-4 border-1 bg-theme-surface text-theme"
                             style={{
-                              backgroundColor: '#f8f9fa',
                               borderRadius: '12px',
                               fontSize: '1.1em',
                               paddingRight: '50px'
@@ -366,10 +452,19 @@ const UnifiedLogin = () => {
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                           </Button>
                         </div>
+                        <div className="text-end mt-2">
+                          <Button
+                            variant="link"
+                            className="p-0 text-decoration-none"
+                            style={{ fontSize: '0.9em' }}
+                            onClick={() => navigate('/otp-verify')}
+                          >
+                            Forgot Password?
+                          </Button>
+                        </div>
                       </Form.Group>
                     </>
                   )}
-                  
                   <Button
                     type="submit"
                     variant={loading ? "outline-primary" : "primary"}
@@ -382,17 +477,17 @@ const UnifiedLogin = () => {
                       transition: 'all 0.3s ease'
                     }}
                   >{loading ? (
-                      <div className="d-flex align-items-center flex-row p-0 justify-content-center">
-                        <LoadingSpinner size={50} containerClassName="m-0 d-flex align-items-center justify-content-center" />
-                          <span className="ms-2">Signing In...</span>
-                        </div>
-                    ) : (
-                      <>
-                        <Shield size={18} className="me-2 mb-1" />
-                        Sign In
-                        <ArrowRight size={18} className="ms-2" />
-                      </>
-                    )}
+                    <div className="d-flex align-items-center flex-row p-0 justify-content-center">
+                      <LoadingSpinner size={50} containerClassName="m-0 d-flex align-items-center justify-content-center" />
+                      <span className="ms-2">Signing In...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Shield size={18} className="me-2 mb-1" />
+                      Sign In
+                      <ArrowRight size={18} className="ms-2" />
+                    </>
+                  )}
                   </Button>
                 </Form>
 
@@ -404,7 +499,7 @@ const UnifiedLogin = () => {
                   </h6>
                   <div className="row">
                     <div className="col-md-4 mb-3">
-                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded border bg-theme-surface">
                         <strong className="text-primary">Patients</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact your healthcare provider for your patient code
@@ -412,7 +507,7 @@ const UnifiedLogin = () => {
                       </div>
                     </div>
                     <div className="col-md-4 mb-3">
-                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded border bg-theme-surface">
                         <strong className="text-success">Employees</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact your system administrator for login credentials
@@ -420,7 +515,7 @@ const UnifiedLogin = () => {
                       </div>
                     </div>
                     <div className="col-md-4 mb-3">
-                      <div className="p-2 rounded" style={{ backgroundColor: '#f8f9fa' }}>
+                      <div className="p-2 rounded border bg-theme-surface">
                         <strong className="text-info">Technical Support</strong>
                         <p className="mb-0 small text-muted mt-1">
                           Contact IT department for assistance

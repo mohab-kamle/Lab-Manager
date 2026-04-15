@@ -87,7 +87,6 @@ client/
 │   │   ├── CultureOptions.jsx
 │   │   ├── Cultures.jsx
 │   │   ├── Diseases.jsx
-│   │   ├── DoctorDashboard.jsx
 │   │   ├── EmployeeDashboard.jsx
 │   │   ├── EmployeeManagement.jsx
 │   │   ├── HomePage.jsx

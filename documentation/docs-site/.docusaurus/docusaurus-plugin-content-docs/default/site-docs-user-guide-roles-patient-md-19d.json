@@ -1,0 +1,27 @@
+{
+  "id": "user-guide/roles/patient",
+  "title": "Patient Guide",
+  "description": "As a Patient, you use LabManager to stay updated on your medical reports, view past invoices, and securely interact with the laboratory.",
+  "source": "@site/docs/user-guide/roles/patient.md",
+  "sourceDirName": "user-guide/roles",
+  "slug": "/user-guide/roles/patient",
+  "permalink": "/docs/user-guide/roles/patient",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Patient Guide"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Receptionist Guide",
+    "permalink": "/docs/user-guide/roles/receptionist"
+  },
+  "next": {
+    "title": "Technical Guide",
+    "permalink": "/docs/technical-guide/"
+  }
+}

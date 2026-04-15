@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX } from "lucide-react";
+import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
@@ -23,15 +23,14 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
   const [patients, setPatients] = useState([]);
   const [tests, setTests] = useState([]);
-  const [cultures, setCultures] = useState([]);
+
   const [packages, setPackages] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [receptionists, setReceptionists] = useState([]);
-  const [testGroups, setTestGroups] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [diseases, setDiseases] = useState([]);
-  const [referrals, setReferrals] = useState([]); // Add referrals state
+  const [doctors, setDoctors] = useState([]); // Doctors replacing referrals
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,7 +55,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     patient_id: "",
     date: new Date(),
     tests: [],
-    cultures: [],
     packages: [],
     payments: [],
     subtotal: 0,
@@ -67,8 +65,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     due: 0,
     status_id: "",
     receptionist_id: "",
-    test_groups: [],
-    branch_id: ""
+    branch_id: "",
+    referred_doctor_id: ""
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -79,9 +77,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredPatients, setFilteredPatients] = useState([]);
   const [testSearchTerm, setTestSearchTerm] = useState("");
-  const [cultureSearchTerm, setCultureSearchTerm] = useState("");
+
   const [packageSearchTerm, setPackageSearchTerm] = useState("");
-  const [testGroupSearchTerm, setTestGroupSearchTerm] = useState("");
   const [diseaseSearchTerm, setDiseaseSearchTerm] = useState("");
 
   // Status management states
@@ -94,6 +91,10 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [statusDetectionError, setStatusDetectionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [modalSuccessMessage, setModalSuccessMessage] = useState("");
+
+  // Limit warning modal support
+  const [limitWarningModal, setLimitWarningModal] = useState(false);
+  const [limitWarningData, setLimitWarningData] = useState(null);
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -122,44 +123,38 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         invoicesRes,
         patientsRes,
         testsRes,
-        culturesRes,
         packagesRes,
         paymentMethodsRes,
         statusesRes,
         receptionistsRes,
-        testGroupsRes,
         contractsRes,
         diseasesRes,
-        referralsRes,
+        doctorsRes,
         branchesRes
       ] = await Promise.all([
         axios.get(`${apiUrl}/invoices`, { headers }),
         axios.get(`${apiUrl}/patient`, { headers }),
         axios.get(`${apiUrl}/tests`, { headers }),
-        axios.get(`${apiUrl}/cultures`, { headers }),
         axios.get(`${apiUrl}/packages-and-offers`, { headers }),
         axios.get(`${apiUrl}/payment-methods`, { headers }),
         axios.get(`${apiUrl}/statuses`, { headers }),
         user?.role === 'admin' ? axios.get(`${apiUrl}/receptionists`, { headers }) : Promise.resolve({ data: [] }),
-        axios.get(`${apiUrl}/test-groups?includeDeleted=false`, { headers }),
         axios.get(`${apiUrl}/contracts`, { headers }),
         axios.get(`${apiUrl}/patient/diseases`, { headers }),
-        axios.get(`${apiUrl}/referrals`, { headers }), // Add referrals fetching
+        axios.get(`${apiUrl}/doctor`, { headers }), // Fetch doctors
         axios.get(`${apiUrl}/branches`, { headers })
       ]);
 
       setInvoices(invoicesRes.data || []);
       setPatients(patientsRes.data || []);
       setTests(testsRes.data || []);
-      setCultures(culturesRes.data || []);
       setPackages(packagesRes.data || []);
       setPaymentMethods(paymentMethodsRes.data || []);
       setStatuses(statusesRes.data || []);
       setReceptionists(receptionistsRes.data || []);
-      setTestGroups(testGroupsRes.data || []);
       setContracts(contractsRes.data || []);
       setDiseases(diseasesRes.data || []);
-      setReferrals(referralsRes.data.referrals || []); // Set referrals data
+      setDoctors(doctorsRes.data || []); // Set doctors data
       setBranches(branchesRes.data || []);
       setLoading(false);
     } catch (error) {
@@ -168,15 +163,13 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       setInvoices([]);
       setPatients([]);
       setTests([]);
-      setCultures([]);
       setPackages([]);
       setPaymentMethods([]);
       setStatuses([]);
       setReceptionists([]);
-      setTestGroups([]);
       setContracts([]);
       setDiseases([]);
-      setReferrals([]); // Set empty referrals array on error
+      setDoctors([]); // Set empty doctors array on error
       setBranches([]);
       setLoading(false);
     }
@@ -253,8 +246,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     primaryPhone: "",
     secondaryPhone: "",
     diseases: [], // This will store disease IDs
-    contract_id: "",
-    referral_id: "" // Add referral_id to patient form
+    contract_id: ""
   });
   const [patientFormErrors, setPatientFormErrors] = useState({});
   const [showDiseaseCreateModal, setShowDiseaseCreateModal] = useState(false);
@@ -291,14 +283,15 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       year: date.getFullYear().toString()
     };
   };
-  // Referral modal states
-  const [showReferralModal, setShowReferralModal] = useState(false);
-  const [newReferral, setNewReferral] = useState({
-    doctor_name: "",
+
+  // Doctor modal states
+  const [showDoctorModal, setShowDoctorModal] = useState(false);
+  const [newDoctor, setNewDoctor] = useState({
+    name: "",
     specialization: "",
     phone: "",
     email: "",
-    address: ""
+    commission: 0
   });
 
   const handleCreatePatient = async () => {
@@ -325,8 +318,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         primaryPhone: patientForm.primaryPhone || null,
         secondaryPhone: patientForm.secondaryPhone || null,
         diseases: patientForm.diseases || [], // This should be an array of disease IDs
-        contract_id: patientForm.contract_id || null,
-        referral_id: patientForm.referral_id || null // Include referral_id in patient creation
+        contract_id: patientForm.contract_id || null
       };
       const response = await axios.post(`${apiUrl}/patient`, cleanedPatient, {
         headers: { Authorization: `Bearer ${token}` },
@@ -364,8 +356,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         primaryPhone: "",
         secondaryPhone: "",
         diseases: [],
-        contract_id: "",
-        referral_id: "" // Reset referral_id
+        contract_id: ""
       });
       setDiseaseSearchTerm("");
       setPatientFormErrors({});
@@ -427,59 +418,88 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     }
   };
 
-  // Handle adding new referral
-  const handleAddReferral = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      setLoading(true);
-      setError(null);
+  const updateAutoDiscount = (patientId, doctorId, currentInvoice) => {
+    let patientDiscount = 0;
+    let doctorDiscount = 0;
 
-      const response = await axios.post(`${apiUrl}/referrals`, newReferral, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      // Add new referral to the list
-      setReferrals(prevReferrals => [...prevReferrals, response.data]);
-      
-      // Set the new referral as selected
-      setPatientForm(prev => ({ ...prev, referral_id: response.data.id }));
-      
-      setShowReferralModal(false);
-      setNewReferral({
-        doctor_name: "",
-        specialization: "",
-        phone: "",
-        email: "",
-        address: ""
-      });
-      
-      // Show success message
-      setModalSuccessMessage(`Referral "${response.data.doctor_name}" created successfully and selected!`);
-      setTimeout(() => setModalSuccessMessage(""), 3000);
-    } catch (error) {
-      console.error('Error creating referral:', error);
-      setError(error.response?.data?.error || 'Failed to create referral');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePatientSelect = (selectedOption) => {
-    setInvoice(prev => ({
-      ...prev,
-      patient_id: selectedOption?.value || "",
-      patient_name: selectedOption?.label.split(" (")[0] || ""
-    }));
-    // Find the selected patient and apply contract discount if exists
-    const selectedPatient = patients.find(p => p.id === selectedOption?.value);
+    const selectedPatient = patients.find(p => p.id === patientId);
     if (selectedPatient && selectedPatient.contract_id) {
       const patientContract = contracts.find(c => c.id === selectedPatient.contract_id);
       if (patientContract && patientContract.discount_type === 'percentage' && patientContract.discount_amount > 0) {
-        setDiscountPercentage(patientContract.discount_amount);
+        patientDiscount = patientContract.discount_amount;
       }
-    } else {
-      setDiscountPercentage(0);
     }
+
+    const selectedDoctor = doctors.find(d => d.id === doctorId);
+    if (selectedDoctor && selectedDoctor.contract_id) {
+      const doctorContract = contracts.find(c => c.id === selectedDoctor.contract_id);
+      if (doctorContract && doctorContract.discount_type === 'percentage' && doctorContract.discount_amount > 0) {
+        doctorDiscount = doctorContract.discount_amount;
+      }
+    }
+    
+    // Higher discount applies
+    const bestDiscount = Math.max(patientDiscount, doctorDiscount);
+    setDiscountPercentage(bestDiscount);
+    setInvoice(prev => {
+      const workingInvoice = currentInvoice || prev;
+      const { subtotal, discount, total, due, paid } = calculateTotals(workingInvoice, [], bestDiscount);
+      return {
+        ...workingInvoice,
+        subtotal,
+        discount,
+        total,
+        due,
+        paid
+      };
+    });
+  };
+
+  const handlePatientSelect = (selectedOption) => {
+    const pId = selectedOption?.value || "";
+    setInvoice(prev => {
+      const updatedInvoice = {
+        ...prev,
+        patient_id: pId,
+        patient_name: selectedOption?.label.split(" (")[0] || ""
+      };
+      
+      // Update discount based on new patient and existing doctor
+      updateAutoDiscount(pId, updatedInvoice.referred_doctor_id, updatedInvoice);
+      return updatedInvoice;
+    });
+  };
+  const handleAddDoctor = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${apiUrl}/doctor`, newDoctor, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDoctors([...doctors, res.data]);
+      handleDoctorSelect(res.data.id);
+      setShowDoctorModal(false);
+      setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+    } catch (err) {
+      console.error("Error creating doctor:", err);
+      // Optional: Handle error display
+    }
+  };
+
+  const handleDoctorSelect = (val) => {
+    const dId = val && !isNaN(Number(val)) ? Number(val) : "";
+    setInvoice(prev => {
+      const updatedInvoice = {
+        ...prev,
+        referred_doctor_id: dId
+      };
+      if (formErrors.referred_doctor_id) {
+        setFormErrors({ ...formErrors, referred_doctor_id: null });
+      }
+      
+      // Update discount based on existing patient and new doctor
+      updateAutoDiscount(updatedInvoice.patient_id, dId, updatedInvoice);
+      return updatedInvoice;
+    });
   };
 
   const calculateTotals = (items, selectedPackages = [], customDiscountPercentage = null) => {
@@ -501,22 +521,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       }
     });
 
-    // Calculate cultures total
-    items.cultures.forEach(cultureId => {
-      const culture = cultures.find(c => c.id === parseInt(cultureId));
-      if (culture) {
-        // Check if culture is part of an offer
-        const hasOffer = selectedPackages.some(pkg => 
-          pkg.type === 'offer' && 
-          pkg.item_type === 'culture' && 
-          pkg.item_id === culture.id
-        );
-        if (!hasOffer) {
-          subtotal += culture.price;
-        }
-      }
-    });
-
     // Add packages and offers
     items.packages.forEach(packageId => {
       const pkg = packages.find(p => p.id === parseInt(packageId));
@@ -524,14 +528,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         subtotal += pkg.price;
       }
     });
-
-    // Add test groups
-    if (items.test_groups && Array.isArray(items.test_groups)) {
-      items.test_groups.forEach(tgId => {
-        const tg = testGroups.find(tg => tg.id === parseInt(tgId));
-        if (tg) subtotal += Number(tg.price) || 0;
-      });
-    }
 
     // Calculate discount amount from percentage (use custom percentage if provided, otherwise use state)
     const currentDiscountPercentage = customDiscountPercentage !== null ? customDiscountPercentage : discountPercentage;
@@ -584,8 +580,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     return updateInvoiceCalculations(updatedInvoice);
   };
 
-  const handleAddInvoice = async (e) => {
-    e.preventDefault();
+  const handleAddInvoice = async (e, bypass = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     try {
       setStatusDetectionError("");
       const token = localStorage.getItem("token");
@@ -605,13 +601,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       }
       setShowFormErrorAlert(false);
 
-      // Filter out invalid IDs before sending
+      // Filter out invalid numbers
       const filteredTests = (invoice.tests || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-      const filteredCultures = (invoice.cultures || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredPackages = (invoice.packages || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-      const filteredTestGroups = (invoice.test_groups || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       
-      // Determine automatic status if not manually set
+      // Determine automatic status
       let finalStatusId = invoice.status_id;
       if (!finalStatusId) {
         const { due } = calculateTotals(invoice);
@@ -625,9 +619,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       const invoiceData = {
         ...invoice,
         tests: filteredTests,
-        cultures: filteredCultures,
         packages: filteredPackages,
-        test_groups: filteredTestGroups,
         subtotal: invoice.subtotal,
         discount: invoice.discount,
         total: invoice.total,
@@ -635,7 +627,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         due: invoice.due,
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
-        branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined
+        branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined,
+        bypass_due_limit: bypass
       };
 
       // Only add receptionist_id if it's a valid number
@@ -675,13 +668,19 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
       setShowAddModal(false);
       resetForm();
-      // Refresh patient data to show updated financial information
       await refreshPatientData();
-      // Show success message as a toast
       const action = editingInvoice ? "updated" : "created";
       toast.success(`Invoice ${action} successfully! Patient financial information has been updated.`, { autoClose: 5000 });
     } catch (error) {
       console.error("Error saving invoice:", error);
+      
+      // Handle Patient Due Limit Logic
+      if (error.response?.status === 403 && error.response?.data?.requires_bypass) {
+        setLimitWarningData(error.response.data);
+        setLimitWarningModal(true);
+        return;
+      }
+
       if (error.response?.data?.error && error.response.data.error.toLowerCase().includes('status')) {
         setStatusDetectionError("Invoice could not be saved due to a status error. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
       } else {
@@ -835,11 +834,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     if (!data.receptionist_id) errors.receptionist_id = "Receptionist is required";
     if (
       (!data.tests || data.tests.length === 0) &&
-      (!data.cultures || data.cultures.length === 0) &&
-      (!data.packages || data.packages.length === 0) &&
-      (!data.test_groups || data.test_groups.length === 0)
+      (!data.packages || data.packages.length === 0)
     ) {
-      errors.items = "At least one test, culture, package, or test group is required";
+      errors.items = "At least one test, culture, or package is required";
     }
     if (!data.payments || data.payments.length === 0) errors.payments = "At least one payment method is required";
     return errors;
@@ -850,7 +847,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       patient_id: "",
       date: new Date(),
       tests: [],
-      cultures: [],
       packages: [],
       payments: [],
       subtotal: 0,
@@ -861,7 +857,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       due: 0,
       status_id: "",
       receptionist_id: "",
-      test_groups: [],
       branch_id: ""
     });
     setFormErrors({});
@@ -991,56 +986,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
           </div>
         );
         
-      case 'cultures':
-        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No cultures</span>;
-        
-        const culturesExpanded = expandedCells[`${rowData.id}-cultures`];
-        
-        if (value.length <= 3 || culturesExpanded) {
-          return (
-            <div className="d-flex flex-wrap">
-              {value.length > 3 && (
-                <div className="mt-2">
-                  <Button 
-                    variant="outline-info" 
-                    size="sm" 
-                    onClick={() => toggleCellExpansion(rowData.id, 'cultures')}
-                    style={{fontSize: '0.7em', padding: '2px 6px'}}
-                  >
-                    {culturesExpanded ? '▲ Show Less' : '▼ Show All'}
-                  </Button>
-                </div>
-              )}
-              {value.map((culture, index) => (
-                <Badge key={index} bg="info" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
-                  {culture.name} (EGP {culture.price})
-                </Badge>
-              ))}
-              
-            </div>
-          );
-        }
-        
-        return (
-          <div>
-            <Badge bg="info" className="me-2" style={{fontSize: '0.8em'}}>
-              🦠 {value.length} Cultures
-            </Badge>
-            <Button 
-              variant="outline-info" 
-              size="sm" 
-              onClick={() => toggleCellExpansion(rowData.id, 'cultures')}
-              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
-            >
-              ▼ Expand
-            </Button>
-            <br />
-            <small className="text-muted">
-              Total: EGP {value.reduce((sum, culture) => sum + parseFloat(culture.price || 0), 0).toFixed(2)}
-            </small>
-          </div>
-        );
-        
+
       case 'packages':
         if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No packages</span>;
         
@@ -1086,55 +1032,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             <br />
             <small className="text-muted">
               Total: EGP {value.reduce((sum, pkg) => sum + parseFloat(pkg.price || 0), 0).toFixed(2)}
-            </small>
-          </div>
-        );
-        
-      case 'test_groups':
-        if (!Array.isArray(value) || value.length === 0) return <span className="text-muted">No test groups</span>;
-        
-        const testGroupsExpanded = expandedCells[`${rowData.id}-test_groups`];
-        
-        if (value.length <= 3 || testGroupsExpanded) {
-          return (
-            <div>
-              {value.map((tg, index) => (
-                <Badge key={index} bg="secondary" className="me-1 mb-1" style={{fontSize: '0.75em'}}>
-                  {tg.name} (EGP {tg.price})
-                </Badge>
-              ))}
-              {value.length > 3 && (
-                <div className="mt-2">
-                  <Button 
-                    variant="outline-secondary" 
-                    size="sm" 
-                    onClick={() => toggleCellExpansion(rowData.id, 'test_groups')}
-                    style={{fontSize: '0.7em', padding: '2px 6px'}}
-                  >
-                    {testGroupsExpanded ? '▲ Show Less' : '▼ Show All'}
-                  </Button>
-                </div>
-              )}
-            </div>
-          );
-        }
-        
-        return (
-          <div>
-            <Badge bg="secondary" className="me-2" style={{fontSize: '0.8em'}}>
-              🔬 {value.length} Test Groups
-            </Badge>
-            <Button 
-              variant="outline-secondary" 
-              size="sm" 
-              onClick={() => toggleCellExpansion(rowData.id, 'test_groups')}
-              style={{fontSize: '0.7em', padding: '2px 6px', marginLeft: '5px'}}
-            >
-              ▼ Expand
-            </Button>
-            <br />
-            <small className="text-muted">
-              Total: EGP {value.reduce((sum, tg) => sum + parseFloat(tg.price || 0), 0).toFixed(2)}
             </small>
           </div>
         );
@@ -1193,9 +1090,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
           setEditingInvoice(rowData);
           // Extract IDs from the nested objects for editing
           const testIds = rowData.tests ? rowData.tests.map(t => String(t.id)) : [];
-          const cultureIds = rowData.cultures ? rowData.cultures.map(c => String(c.id)) : [];
           const packageIds = rowData.packages ? rowData.packages.map(p => String(p.id)) : [];
-          const testGroupIds = rowData.test_groups ? rowData.test_groups.map(tg => String(tg.id)) : [];
           const paymentMethods = rowData.payments ? rowData.payments.map(p => ({
             payment_method_id: String(p.payment_method_id),
             paid_amount: String(p.paid_amount)
@@ -1209,9 +1104,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
           setInvoice({
             ...rowData,
             tests: testIds,
-            cultures: cultureIds,
             packages: packageIds,
-            test_groups: testGroupIds,
             payments: paymentMethods,
             subtotal: Number(rowData.subtotal) || 0,
             discount: Number(rowData.discount) || 0,
@@ -1326,9 +1219,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               "date",
               "patient_name",
               "tests",
-              "cultures",
               "packages",
-              "test_groups",
               "discount",
               "tax",
               "subtotal",
@@ -1705,34 +1596,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                </Alert>
                              )}
                             
-                            {/* Referral Selection */}
-                            <Form.Group className="mb-3">
-                              <Form.Label>Referral (Optional)</Form.Label>
-                              <div className="d-flex gap-2">
-                                <Form.Select
-                                  value={patientForm.referral_id || ""}
-                                  onChange={(e) => setPatientForm({ ...patientForm, referral_id: e.target.value || null })}
-                                >
-                                  <option value="">Select Referral</option>
-                                  {Array.isArray(referrals) && referrals.map(referral => (
-                                    <option key={referral.id} value={referral.id}>
-                                      {referral.doctor_name} - {referral.specialization}
-                                    </option>
-                                  ))}
-                                </Form.Select>
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={() => setShowReferralModal(true)}
-                                  title="Add New Referral"
-                                >
-                                  <Plus size={16} />
-                                </Button>
-                              </div>
-                              <Form.Text className="text-muted">
-                                Select an existing referral or add a new one
-                              </Form.Text>
-                            </Form.Group>
+
                             
                             <Button 
                               type="button" 
@@ -1810,6 +1674,40 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                   </Col>
                 </Row>
 
+                {/* Referring Doctor Selection */}
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Referring Doctor (Optional)</Form.Label>
+                      <div className="d-flex gap-2">
+                        <Form.Select
+                          value={invoice.referred_doctor_id || ''}
+                          onChange={(e) => handleDoctorSelect(e.target.value)}
+                          isInvalid={!!formErrors.referred_doctor_id}
+                        >
+                          <option value="">No Referring Doctor</option>
+                          {doctors.map(doctor => (
+                            <option key={doctor.id} value={doctor.id}>
+                              {doctor.name} {doctor.specialization ? `- ${doctor.specialization}` : ''}
+                            </option>
+                          ))}
+                        </Form.Select>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          title="Add New Doctor"
+                          onClick={() => setShowDoctorModal(true)}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                      </div>
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.referred_doctor_id}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
                 {/* Branch and Date Selection */}
 
                 <Row>
@@ -1861,7 +1759,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                 {/* Tests, Cultures, Packages, and Test Groups Selection */}
 
                 <Row>
-                  <Col md={4}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Tests</Form.Label>
                       <Form.Control
@@ -1895,41 +1793,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       </div>
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Cultures</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Search cultures..."
-                        value={cultureSearchTerm}
-                        onChange={e => setCultureSearchTerm(e.target.value)}
-                        className="mb-2"
-                      />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
-                        {cultures
-                          .filter(culture => culture.name.toLowerCase().includes(cultureSearchTerm.toLowerCase()))
-                          .map(culture => (
-                            <Form.Check
-                              key={culture.id}
-                              type="checkbox"
-                              label={`${culture.name} (EGP ${culture.price})`}
-                              checked={invoice.cultures.includes(String(culture.id))}
-                              onChange={e => {
-                                const selected = invoice.cultures.includes(String(culture.id))
-                                  ? invoice.cultures.filter(id => id !== String(culture.id))
-                                  : [...invoice.cultures, String(culture.id)];
-                                setInvoice(prev => {
-                                  const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-                                  const newInvoice = { ...prev, cultures: filtered };
-                                  return updateInvoiceCalculations(newInvoice);
-                                });
-                              }}
-                            />
-                          ))}
-                      </div>
-                    </Form.Group>
-                  </Col>
-                  <Col md={4}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Packages & Offers</Form.Label>
                       <Form.Control
@@ -1965,46 +1829,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                   </Col>
                 </Row>
 
-                <Row>
-                  <Col md={12}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Test Groups</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Search test groups..."
-                        value={testGroupSearchTerm}
-                        onChange={e => setTestGroupSearchTerm(e.target.value)}
-                        className="mb-2"
-                      />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
-                        {testGroups
-                          .filter(tg => tg.name.toLowerCase().includes(testGroupSearchTerm.toLowerCase()))
-                          .map(tg => (
-                            <Form.Check
-                              key={tg.id}
-                              type="checkbox"
-                              label={`${tg.name} (EGP ${tg.price})`}
-                              checked={invoice.test_groups.includes(String(tg.id))}
-                              onChange={e => {
-                                const selected = invoice.test_groups.includes(String(tg.id))
-                                  ? invoice.test_groups.filter(id => id !== String(tg.id))
-                                  : [...invoice.test_groups, String(tg.id)];
-                                // Filter out any accidental NaN/empty/null values
-                                setInvoice(prev => {
-                                  const filtered = selected.filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
-                                  const newInvoice = { ...prev, test_groups: filtered };
-                                  return updateInvoiceCalculations(newInvoice);
-                                });
-                              }}
-                            />
-                          ))}
-                      </div>
-                    </Form.Group>
-                  </Col>
-                </Row>
-
                 {/* Selected Items Summary - Restructured with two rows for better visual layout */}
-                {(invoice.tests.length > 0 || invoice.cultures.length > 0 || invoice.packages.length > 0 || invoice.test_groups.length > 0) && (
+                {(invoice.tests.length > 0 || invoice.packages.length > 0) && (
                   <Row className="mb-4">
                     <Col md={12}>
                       <div className="border rounded p-3 bg-light">
@@ -2041,35 +1867,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                               </div>
                             </Col>
                           )}
-                          {invoice.cultures.length > 0 && (
-                            <Col md={6}>
-                              <div className="mb-3">
-                                <strong className="text-info">🦠 Cultures ({invoice.cultures.length})</strong>
-                                <div className="mt-2">
-                                  {invoice.cultures.map(cultureId => {
-                                    const culture = cultures.find(c => c.id === parseInt(cultureId));
-                                    return culture ? (
-                                      <Badge key={cultureId} bg="info" className="me-1 mb-1 d-inline-flex align-items-center">
-                                        {culture.name} (EGP {culture.price})
-                                        <button 
-                                          type="button" 
-                                          className="btn-close btn-close-white ms-2" 
-                                          style={{fontSize: '0.6em'}}
-                                          onClick={() => {
-                                            const filtered = invoice.cultures.filter(id => id !== String(culture.id));
-                                            setInvoice(prev => {
-                                              const newInvoice = { ...prev, cultures: filtered };
-                                              return updateInvoiceCalculations(newInvoice);
-                                            });
-                                          }}
-                                        ></button>
-                                      </Badge>
-                                    ) : null;
-                                  })}
-                                </div>
-                              </div>
-                            </Col>
-                          )}
+
                         </Row>
                         
                         {/* Second Row: Packages and Test Groups */}
@@ -2092,35 +1890,6 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                             const filtered = invoice.packages.filter(id => id !== String(pkg.id));
                                             setInvoice(prev => {
                                               const newInvoice = { ...prev, packages: filtered };
-                                              return updateInvoiceCalculations(newInvoice);
-                                            });
-                                          }}
-                                        ></button>
-                                      </Badge>
-                                    ) : null;
-                                  })}
-                                </div>
-                              </div>
-                            </Col>
-                          )}
-                          {invoice.test_groups.length > 0 && (
-                            <Col md={6}>
-                              <div className="mb-3">
-                                <strong className="text-secondary">🔬 Test Groups ({invoice.test_groups.length})</strong>
-                                <div className="mt-2">
-                                  {invoice.test_groups.map(tgId => {
-                                    const tg = testGroups.find(t => t.id === parseInt(tgId));
-                                    return tg ? (
-                                      <Badge key={tgId} bg="secondary" className="me-1 mb-1 d-inline-flex align-items-center">
-                                        {tg.name} (EGP {tg.price})
-                                        <button 
-                                          type="button" 
-                                          className="btn-close btn-close-white ms-2" 
-                                          style={{fontSize: '0.6em'}}
-                                          onClick={() => {
-                                            const filtered = invoice.test_groups.filter(id => id !== String(tg.id));
-                                            setInvoice(prev => {
-                                              const newInvoice = { ...prev, test_groups: filtered };
                                               return updateInvoiceCalculations(newInvoice);
                                             });
                                           }}
@@ -2686,97 +2455,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             </Modal.Footer>
           </Modal>
 
-          {/* Add Referral Modal */}
-          <Modal
-            show={showReferralModal}
-            onHide={() => {
-              setShowReferralModal(false);
-              setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
-            }}
-            size="lg"
-          >
-            <Modal.Header>
-              <Modal.Title>Add New Referral</Modal.Title>
-              <button className="modal-close-btn" onClick={() => {
-                setShowReferralModal(false);
-                setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
-              }}>
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              <Form>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Doctor Name *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter doctor name"
-                        value={newReferral.doctor_name}
-                        onChange={(e) => setNewReferral({ ...newReferral, doctor_name: e.target.value })}
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Specialization *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter specialization"
-                        value={newReferral.specialization}
-                        onChange={(e) => setNewReferral({ ...newReferral, specialization: e.target.value })}
-                        required
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Phone (Optional)</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter phone number"
-                        value={newReferral.phone}
-                        onChange={(e) => setNewReferral({ ...newReferral, phone: e.target.value })}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Email (Optional)</Form.Label>
-                      <Form.Control
-                        type="email"
-                        placeholder="Enter email address"
-                        value={newReferral.email}
-                        onChange={(e) => setNewReferral({ ...newReferral, email: e.target.value })}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Form>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button 
-                variant="secondary" 
-                onClick={() => {
-                  setShowReferralModal(false);
-                  setNewReferral({ doctor_name: "", specialization: "", phone: "", email: "" });
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={handleAddReferral}
-                disabled={loading || !newReferral.doctor_name.trim() || !newReferral.specialization.trim()}
-              >
-                {loading ? "Creating..." : "Create Referral"}
-              </Button>
-            </Modal.Footer>
-          </Modal>
+
 
           {/* PDF Preview Modal */}
           <Modal
@@ -2813,6 +2492,169 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               </Button>
             </Modal.Footer>
           </Modal>
+
+          {/* Add Doctor Modal */}
+          <Modal
+            show={showDoctorModal}
+            onHide={() => {
+              setShowDoctorModal(false);
+              setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+            }}
+            size="lg"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Add New Referring Doctor</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Form onSubmit={(e) => e.preventDefault()}>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Doctor Name *</Form.Label>
+                      <Form.Control
+                        type="text"
+                        required
+                        value={newDoctor.name}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, name: e.target.value })}
+                        placeholder="Enter doctor's name"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Specialization</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={newDoctor.specialization}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })}
+                        placeholder="Enter specialization"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Commission (%)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={newDoctor.commission}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, commission: e.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Phone</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={newDoctor.phone}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, phone: e.target.value })}
+                        placeholder="Enter phone number"
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        value={newDoctor.email}
+                        onChange={(e) => setNewDoctor({ ...newDoctor, email: e.target.value })}
+                        placeholder="Enter email address"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Form>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowDoctorModal(false)}>Cancel</Button>
+              <Button 
+                variant="primary" 
+                onClick={handleAddDoctor}
+                disabled={!newDoctor.name.trim()}
+              >
+                Create Doctor
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Due Limit Warning Modal */}
+          <Modal
+            show={limitWarningModal}
+            onHide={() => {
+              setLimitWarningModal(false);
+              setLimitWarningData(null);
+            }}
+            backdrop="static"
+            keyboard={false}
+            centered
+          >
+            <Modal.Header className="border-0 pb-0 bg-white justify-content-center">
+              <Modal.Title className="d-flex align-items-center text-danger">
+                <AlertTriangle size={24} className="me-2" />
+                Limit Exceeded
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="pt-0 px-4 pb-4">
+              {limitWarningData && (
+                <div className="text-center">
+                  <p className="text-muted mb-4">
+                    This action will increase the patient's due balance beyond the allowed limit.
+                  </p>
+                  
+                  <div className="bg-light rounded-3 p-3 mb-4">
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Current Due</span>
+                      <span className="fw-medium">{limitWarningData.current_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">+ New Invoice</span>
+                      <span className="fw-medium text-danger">+{limitWarningData.invoice_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2 border-top pt-2">
+                      <span className="fw-bold">Total New Due</span>
+                      <span className="fw-bold fs-5">{limitWarningData.new_due?.toFixed(2)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-dashed">
+                      <span className="text-muted small">Allowed Limit</span>
+                      <Badge bg="secondary" className="px-3 py-2 fw-normal" style={{ fontSize: '0.9em' }}>
+                        {limitWarningData.limit?.toFixed(2)}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <p className="small text-muted mb-0">
+                    You can bypass this check if necessary. This event will be logged.
+                  </p>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  setLimitWarningModal(false);
+                  setLimitWarningData(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="danger" 
+                onClick={() => {
+                  setLimitWarningModal(false);
+                  handleAddInvoice(null, true); 
+                }}
+              >
+                Bypass & Create Invoice
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
         </>
       )}
     </Container>
@@ -2820,3 +2662,4 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 };
 
 export default Invoices;
+

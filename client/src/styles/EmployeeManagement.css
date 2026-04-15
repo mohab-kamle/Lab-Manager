@@ -368,7 +368,7 @@
 
 /* Cancel Button */
 .confirm-btn.cancel {
-  background: var(--bg-dark);
+  background: var(--bg-inset);
   color: var(--toast-text);
 }
 
