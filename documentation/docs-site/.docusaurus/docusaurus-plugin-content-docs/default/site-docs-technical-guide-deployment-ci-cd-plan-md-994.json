@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/deployment/ci-cd-plan",
+  "title": "Professional CI/CD Pipeline Implementation Plan",
+  "description": "This document outlines the steps to implement a professional CI/CD pipeline using release-it, conventional-changelog, Docker Compose, and GitHub Actions. This setup is designed for a single-developer environment, providing automation for versioning, changelog generation, and deployment.",
+  "source": "@site/docs/technical-guide/deployment/ci-cd-plan.md",
+  "sourceDirName": "technical-guide/deployment",
+  "slug": "/technical-guide/deployment/ci-cd-plan",
+  "permalink": "/docs/technical-guide/deployment/ci-cd-plan",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Deployment Overview",
+    "permalink": "/docs/technical-guide/deployment/"
+  },
+  "next": {
+    "title": "Multi-Tenant SaaS Deployment Checklist",
+    "permalink": "/docs/technical-guide/deployment/deployment-checklist"
+  }
+}
