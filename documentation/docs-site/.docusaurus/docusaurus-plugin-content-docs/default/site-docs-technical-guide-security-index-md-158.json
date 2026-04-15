@@ -1,0 +1,27 @@
+{
+  "id": "technical-guide/security/index",
+  "title": "Security Overview",
+  "description": "This section covers the security measures implemented in the LabManager system — from authentication and authorization to data protection and network-level safeguards.",
+  "source": "@site/docs/technical-guide/security/index.md",
+  "sourceDirName": "technical-guide/security",
+  "slug": "/technical-guide/security/",
+  "permalink": "/docs/technical-guide/security/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "Security Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Production Deployment Guide",
+    "permalink": "/docs/technical-guide/deployment/production-deployment"
+  },
+  "next": {
+    "title": "Security Notes",
+    "permalink": "/docs/technical-guide/security/security-notes"
+  }
+}

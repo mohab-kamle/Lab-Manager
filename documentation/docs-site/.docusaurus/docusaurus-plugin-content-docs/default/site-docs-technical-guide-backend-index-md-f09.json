@@ -1,0 +1,27 @@
+{
+  "id": "technical-guide/backend/index",
+  "title": "Backend Overview",
+  "description": "This section covers the LabManager backend — a Node.js/Express REST API that handles authentication, business logic, and database operations through Sequelize ORM.",
+  "source": "@site/docs/technical-guide/backend/index.md",
+  "sourceDirName": "technical-guide/backend",
+  "slug": "/technical-guide/backend/",
+  "permalink": "/docs/technical-guide/backend/",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Backend Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Codebase Structure Review",
+    "permalink": "/docs/technical-guide/architecture/structure-review"
+  },
+  "next": {
+    "title": "LabManager Server Documentation",
+    "permalink": "/docs/technical-guide/backend/server-readme"
+  }
+}
