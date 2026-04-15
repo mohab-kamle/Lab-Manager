@@ -1,44 +1,44 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import PrivateRoute from './components/auth/PrivateRoute';
 
 // Dashboards
-import AdminDashboard from './pages/admin/AdminDashboard';
-import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
-import ChemistDashboard from './pages/chemist/ChemistDashboard';
-import DoctorDashboard from './pages/doctor/DoctorDashboard';
-import EmployeeDashboard from './pages/employee/EmployeeDashboard';
-import PatientDashboard from './pages/patient/PatientDashboard';
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const ReceptionistDashboard = lazy(() => import('./pages/receptionist/ReceptionistDashboard'));
+const ChemistDashboard = lazy(() => import('./pages/chemist/ChemistDashboard'));
+const DoctorDashboard = lazy(() => import('./pages/doctor/DoctorDashboard'));
+const EmployeeDashboard = lazy(() => import('./pages/employee/EmployeeDashboard'));
+const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
 
 // Patient pages
-import PatientReports from './pages/reports/PatientReports';
-import PatientProfile from './pages/patient/PatientProfile';
-import PatientUpdateProfile from './pages/patient/PatientUpdateProfile';
+const PatientReports = lazy(() => import('./pages/reports/PatientReports'));
+const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
+const PatientUpdateProfile = lazy(() => import('./pages/patient/PatientUpdateProfile'));
 
 // Admin shared pages
-import Categories from './pages/tests/Categories';
-import Tests from './pages/tests/Tests';
-import SampleType from './pages/tests/SampleType';
-import Cultures from './pages/tests/Cultures';
-import CultureOptions from './pages/tests/CultureOptions';
-import Antibiotics from './pages/tests/Antibiotics';
-import Diseases from './pages/tests/Diseases';
-import TestGroups from './pages/tests/TestGroups';
-import TestGroupCategories from './pages/tests/TestGroupCategories';
-import TestGroupComponents from './pages/tests/TestGroupComponents';
-import Invoices from './pages/invoices/Invoices';
-import PaymentMethods from './pages/invoices/PaymentMethods';
-import Branches from './pages/branches/Branches';
-import PackagesAndOffers from './pages/packages/PackagesAndOffers';
-import PatientsAdminView from './pages/admin/PatientsAdminView';
-import PatientsAnalytics from './pages/admin/PatientsAnalytics';
-import KnowUs from './pages/info/KnowUs';
-import MedicalReports from './pages/reports/MedicalReports';
-import EmployeeManagement from './pages/branches/EmployeeManagement';
-import LabManagement from './pages/lab/LabManagement';
-import AdminProfile from './pages/admin/AdminProfile';
-import Vault from './pages/admin/Vault';
-import TurnaroundTime from './pages/admin/TurnaroundTime';
+const Categories = lazy(() => import('./pages/tests/Categories'));
+const Tests = lazy(() => import('./pages/tests/Tests'));
+const SampleType = lazy(() => import('./pages/tests/SampleType'));
+const Cultures = lazy(() => import('./pages/tests/Cultures'));
+const CultureOptions = lazy(() => import('./pages/tests/CultureOptions'));
+const Antibiotics = lazy(() => import('./pages/tests/Antibiotics'));
+const Diseases = lazy(() => import('./pages/tests/Diseases'));
+const TestGroups = lazy(() => import('./pages/tests/TestGroups'));
+const TestGroupCategories = lazy(() => import('./pages/tests/TestGroupCategories'));
+const TestGroupComponents = lazy(() => import('./pages/tests/TestGroupComponents'));
+const Invoices = lazy(() => import('./pages/invoices/Invoices'));
+const PaymentMethods = lazy(() => import('./pages/invoices/PaymentMethods'));
+const Branches = lazy(() => import('./pages/branches/Branches'));
+const PackagesAndOffers = lazy(() => import('./pages/packages/PackagesAndOffers'));
+const PatientsAdminView = lazy(() => import('./pages/admin/PatientsAdminView'));
+const PatientsAnalytics = lazy(() => import('./pages/admin/PatientsAnalytics'));
+const KnowUs = lazy(() => import('./pages/info/KnowUs'));
+const MedicalReports = lazy(() => import('./pages/reports/MedicalReports'));
+const EmployeeManagement = lazy(() => import('./pages/branches/EmployeeManagement'));
+const LabManagement = lazy(() => import('./pages/lab/LabManagement'));
+const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
+const Vault = lazy(() => import('./pages/admin/Vault'));
+const TurnaroundTime = lazy(() => import('./pages/admin/TurnaroundTime'));
 
 import LabLayout from './components/layout/LabLayout';
 
