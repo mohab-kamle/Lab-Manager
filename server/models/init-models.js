@@ -93,8 +93,6 @@ function initModels(sequelize) {
   var lab = _lab(sequelize, DataTypes);
   var lab_contracts_company = _lab_contracts_company(sequelize, DataTypes);
   var lab_contracts_doctor = _lab_contracts_doctor(sequelize, DataTypes);
-  var lab_settings = _lab_settings(sequelize, DataTypes);
-  var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
   var lab_payment = _lab_payment(sequelize, DataTypes);
   var test_group_result = _test_group_result(sequelize, DataTypes);
   var medical_report = _medical_report(sequelize, DataTypes);

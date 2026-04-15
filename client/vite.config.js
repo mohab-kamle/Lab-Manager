@@ -53,9 +53,14 @@ export default defineConfig({
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['bootstrap', 'react-bootstrap', 'lucide-react'],
-          utils: ['axios', 'luxon', 'formik', 'yup']
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['bootstrap', 'react-bootstrap', 'lucide-react', 'react-toastify', 'react-hot-toast'],
+          utils: ['axios', 'luxon', 'formik', 'yup', 'date-fns'],
+          pdf: ['@react-pdf/renderer', 'jspdf', 'html2canvas', 'pdfmake', 'jspdf-autotable', 'jspdf-font', 'react-pdf'],
+          excel: ['exceljs', 'file-saver'],
+          charts: ['recharts'],
+          animations: ['lottie-react', '@lottiefiles/dotlottie-react'],
+          editor: ['react-quill', 'dompurify']
         }
       }
     },
