@@ -611,7 +611,6 @@ function initModels(sequelize) {
     medical_report_has_test,
     medical_report_results,
     lab_samples,
-
     packages_and_offers,
     pao_has_test,
     patient,
@@ -630,6 +629,7 @@ function initModels(sequelize) {
     test_has_question,
     test_comments,
     comment_images,
+    supplier
   };
 }
 module.exports = initModels;
