@@ -1,0 +1,168 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/docs",
+          "mainDocId": "user-guide/overview",
+          "docs": [
+            {
+              "id": "technical-guide/architecture/docker-architecture",
+              "path": "/docs/technical-guide/architecture/docker-architecture",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/architecture/index",
+              "path": "/docs/technical-guide/architecture/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/architecture/project-structure",
+              "path": "/docs/technical-guide/architecture/project-structure",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/architecture/structure-review",
+              "path": "/docs/technical-guide/architecture/structure-review",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/backend/database-sync",
+              "path": "/docs/technical-guide/backend/database-sync",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/backend/fix-summary",
+              "path": "/docs/technical-guide/backend/fix-summary",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/backend/index",
+              "path": "/docs/technical-guide/backend/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/backend/index-fix-summary",
+              "path": "/docs/technical-guide/backend/index-fix-summary",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/backend/sequelize-workflow",
+              "path": "/docs/technical-guide/backend/sequelize-workflow",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/backend/server-readme",
+              "path": "/docs/technical-guide/backend/server-readme",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/deployment/ci-cd-plan",
+              "path": "/docs/technical-guide/deployment/ci-cd-plan",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/deployment/deployment-checklist",
+              "path": "/docs/technical-guide/deployment/deployment-checklist",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/deployment/index",
+              "path": "/docs/technical-guide/deployment/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/deployment/pm2-cluster-setup",
+              "path": "/docs/technical-guide/deployment/pm2-cluster-setup",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/deployment/production-deployment",
+              "path": "/docs/technical-guide/deployment/production-deployment",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/frontend/client-readme",
+              "path": "/docs/technical-guide/frontend/client-readme",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/frontend/error-boundary",
+              "path": "/docs/technical-guide/frontend/error-boundary",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/frontend/index",
+              "path": "/docs/technical-guide/frontend/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/index",
+              "path": "/docs/technical-guide/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/security/index",
+              "path": "/docs/technical-guide/security/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "technical-guide/security/security-notes",
+              "path": "/docs/technical-guide/security/security-notes",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "user-guide/overview",
+              "path": "/docs/user-guide/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "user-guide/roles/admin",
+              "path": "/docs/user-guide/roles/admin",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "user-guide/roles/chemist",
+              "path": "/docs/user-guide/roles/chemist",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "user-guide/roles/doctor",
+              "path": "/docs/user-guide/roles/doctor",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "user-guide/roles/employee",
+              "path": "/docs/user-guide/roles/employee",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "user-guide/roles/patient",
+              "path": "/docs/user-guide/roles/patient",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "user-guide/roles/receptionist",
+              "path": "/docs/user-guide/roles/receptionist",
+              "sidebar": "tutorialSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/docs/user-guide/overview",
+                "label": "user-guide/overview"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

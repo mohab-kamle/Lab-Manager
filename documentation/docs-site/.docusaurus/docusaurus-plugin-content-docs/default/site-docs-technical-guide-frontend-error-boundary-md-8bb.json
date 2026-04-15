@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/frontend/error-boundary",
+  "title": "Error Boundary System",
+  "description": "A comprehensive error handling solution for React applications that provides multiple layers of error protection and recovery mechanisms.",
+  "source": "@site/docs/technical-guide/frontend/error-boundary.md",
+  "sourceDirName": "technical-guide/frontend",
+  "slug": "/technical-guide/frontend/error-boundary",
+  "permalink": "/docs/technical-guide/frontend/error-boundary",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "LabManager Client Documentation",
+    "permalink": "/docs/technical-guide/frontend/client-readme"
+  },
+  "next": {
+    "title": "Deployment Overview",
+    "permalink": "/docs/technical-guide/deployment/"
+  }
+}

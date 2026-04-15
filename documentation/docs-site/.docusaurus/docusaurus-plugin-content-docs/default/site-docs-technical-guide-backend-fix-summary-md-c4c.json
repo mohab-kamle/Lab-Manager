@@ -1,0 +1,23 @@
+{
+  "id": "technical-guide/backend/fix-summary",
+  "title": "Fix Summary: Test Group Result JSON Field Storage Issue",
+  "description": "Problem Description",
+  "source": "@site/docs/technical-guide/backend/fix-summary.md",
+  "sourceDirName": "technical-guide/backend",
+  "slug": "/technical-guide/backend/fix-summary",
+  "permalink": "/docs/technical-guide/backend/fix-summary",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "🧩 Sequelize Models & Migrations Workflow",
+    "permalink": "/docs/technical-guide/backend/sequelize-workflow"
+  },
+  "next": {
+    "title": "MySQL 64-Key Limit Fix Summary",
+    "permalink": "/docs/technical-guide/backend/index-fix-summary"
+  }
+}
