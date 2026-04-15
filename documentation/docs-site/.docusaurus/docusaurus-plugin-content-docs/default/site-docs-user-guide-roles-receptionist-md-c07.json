@@ -1,0 +1,27 @@
+{
+  "id": "user-guide/roles/receptionist",
+  "title": "Receptionist Guide",
+  "description": "As a Receptionist, you manage the front-desk operations of the medical laboratory, interacting with patients, scheduling tests, and handling billing.",
+  "source": "@site/docs/user-guide/roles/receptionist.md",
+  "sourceDirName": "user-guide/roles",
+  "slug": "/user-guide/roles/receptionist",
+  "permalink": "/docs/user-guide/roles/receptionist",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Receptionist Guide"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Employee Guide",
+    "permalink": "/docs/user-guide/roles/employee"
+  },
+  "next": {
+    "title": "Patient Guide",
+    "permalink": "/docs/user-guide/roles/patient"
+  }
+}

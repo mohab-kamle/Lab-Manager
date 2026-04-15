@@ -1,0 +1,27 @@
+{
+  "id": "user-guide/roles/admin",
+  "title": "System Admin Guide",
+  "description": "As an Administrator, you have full access to configure and manage the LabManager system. This includes managing users, laboratories, prices, and system-wide settings.",
+  "source": "@site/docs/user-guide/roles/admin.md",
+  "sourceDirName": "user-guide/roles",
+  "slug": "/user-guide/roles/admin",
+  "permalink": "/docs/user-guide/roles/admin",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "System Admin Guide"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/docs/user-guide/overview"
+  },
+  "next": {
+    "title": "Chemist Guide",
+    "permalink": "/docs/user-guide/roles/chemist"
+  }
+}
