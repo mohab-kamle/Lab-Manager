@@ -9,8 +9,6 @@ const {
   medical_report,
   bill,
   medical_report_has_test,
-  medical_report_has_culture,
-  medical_report_has_tg
 } = require('../models');
 const authenticateUser = require('../middleware/authenticateUser');
 const { tenantContext } = require('../middleware/tenantContext');
@@ -492,30 +490,12 @@ router.get('/:labId/stats', authenticateUser, async (req, res) => {
       patientCount,
       reportCount,
       testCount,
-      cultureCount,
-      tgCount,
       revenue,
       labInfo
     ] = await Promise.all([
       patient.count({ where: { lab_id: labId } }),
       medical_report.count({ where: { lab_id: labId } }),
       medical_report_has_test.count({
-        include: [{
-          model: medical_report,
-          as: 'medical_report',
-          where: { lab_id: labId },
-          required: true
-        }]
-      }),
-      medical_report_has_culture.count({
-        include: [{
-          model: medical_report,
-          as: 'medical_report',
-          where: { lab_id: labId },
-          required: true
-        }]
-      }),
-      medical_report_has_tg.count({
         include: [{
           model: medical_report,
           as: 'medical_report',
@@ -538,7 +518,7 @@ router.get('/:labId/stats', authenticateUser, async (req, res) => {
 
     const stats = {
       totalPatients: patientCount,
-      totalTests: testCount + cultureCount + tgCount,
+      totalTests: testCount,
       totalReports: reportCount,
       monthlyRevenue: revenue || 0,
       activeSubscriptions: isActive
