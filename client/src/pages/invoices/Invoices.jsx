@@ -836,7 +836,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       (!data.tests || data.tests.length === 0) &&
       (!data.packages || data.packages.length === 0)
     ) {
-      errors.items = "At least one test, culture, or package is required";
+      errors.items = "At least one test or package is required";
     }
     if (!data.payments || data.payments.length === 0) errors.payments = "At least one payment method is required";
     return errors;
@@ -1756,7 +1756,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                   </Col>
                 </Row>
 
-                {/* Tests, Cultures, Packages, and Test Groups Selection */}
+                {/* Tests and Packages Selection */}
 
                 <Row>
                   <Col md={6}>
@@ -1836,7 +1836,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       <div className="border rounded p-3 bg-light">
                         <h6 className="mb-3 text-primary">📋 Selected Items Summary</h6>
                         
-                        {/* First Row: Tests and Cultures */}
+                        {/* Tests Selection */}
                         <Row className="mb-3">
                           {invoice.tests.length > 0 && (
                             <Col md={6}>

@@ -409,9 +409,6 @@ router.delete('/:id', authenticateUser, tenantContext, async (req, res) => {
                 transaction
             });
 
-            // Delete from pao_has_culture
-
-
             // Finally delete the package/offer
             await packages_and_offers.destroy({
                 where: { id: req.params.id },
