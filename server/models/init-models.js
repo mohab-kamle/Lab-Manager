@@ -106,8 +106,6 @@ function initModels(sequelize) {
   var global_test_catalog = _global_test_catalog(sequelize, DataTypes);
   var test = _test(sequelize, DataTypes);
   var test_has_question = _test_has_question(sequelize, DataTypes);
-  var lab_settings = _lab_settings(sequelize, DataTypes);
-  var lab_activity_log = _lab_activity_log(sequelize, DataTypes);
   var subscription = _subscription(sequelize, DataTypes);
   var test_comments = _test_comments(sequelize, DataTypes);
   var comment_images = _comment_images(sequelize, DataTypes);
@@ -593,7 +591,6 @@ function initModels(sequelize) {
     medical_report,
     medical_report_has_test,
     medical_report_results,
-    lab_samples,
     packages_and_offers,
     pao_has_test,
     patient,

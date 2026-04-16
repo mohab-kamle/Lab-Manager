@@ -96,26 +96,12 @@ const MedicalReports = () => {
   const [activeTab, setActiveTab] = useState("tests");
   const [resultsData, setResultsData] = useState({
     test_results: [],
-    culture_results: [],
     test_component_results: {}, // { testId: { componentId: { result: '', status: '' } } }
   });
   const [antibiotics, setAntibiotics] = useState([]);
   const [antibioticsLoaded, setAntibioticsLoaded] = useState(false); // Cache flag for antibiotics
-  const [cultureAntibiotics, setCultureAntibiotics] = useState({}); // { cultureResultId: [{ antibiotic_id, sensitivity, zone_size }] }
-  const [expandedSections, setExpandedSections] = useState({}); // { cultureResultId: boolean }
-  const [antibioticSearch, setAntibioticSearch] = useState({}); // { cultureResultId: string }
-  const [showAddAntibioticModal, setShowAddAntibioticModal] = useState({}); // { cultureResultId: boolean }
-  const [newAntibioticData, setNewAntibioticData] = useState({
-    name: "",
-    shortcut: "",
-    commercial_name: "",
-  });
-  // Culture options and sub-options state
+  // Culture and test_group state removed - now using structure_config from tests instead
   const [tests, setTests] = useState([]);
-  const [cultureOptions, setCultureOptions] = useState([]);
-  const [antibioticsList, setAntibioticsList] = useState([]);
-  const [cultureSubOptions, setCultureSubOptions] = useState({});
-  const [selectedCultureOptions, setSelectedCultureOptions] = useState({}); // { cultureId: [{ option_id, sub_option_id, custom_result, result_type, id }] }
   const [formData, setFormData] = useState({
     comment: "",
     done: 0,
@@ -725,9 +711,7 @@ const MedicalReports = () => {
       setResultsData(initialResultsData);
       setActiveTab(activeTabToSet);
 
-      // We clear out culture specific states since they are handled natively by structure_config now
-      setCultureAntibiotics({});
-      setSelectedCultureOptions({});
+      // Culture states cleared - using structure_config from tests instead
 
       // Fetch comments for this medical report
       await fetchComments(rowData.id);
@@ -795,11 +779,8 @@ const MedicalReports = () => {
         // Clear the form data
         setResultsData({
           test_results: [],
-          culture_results: [],
           test_component_results: {},
         });
-        setCultureAntibiotics({});
-        setSelectedCultureOptions({});
         setExpandedSections({});
         setAntibioticSearch({});
         setShowAddAntibioticModal({});
@@ -881,19 +862,6 @@ const MedicalReports = () => {
     }));
   };
 
-  const updateCultureResult = (cultureId, result) => {
-    // For culture results, set status to 'done' if result is entered, 'pending' if empty
-    const status =
-      result && result.toString().trim() !== "" ? "done" : "pending";
-
-    setResultsData((prev) => ({
-      ...prev,
-      culture_results: prev.culture_results.map((cr) =>
-        cr.culture_id === cultureId ? { ...cr, result, status } : cr
-      ),
-    }));
-  };
-
   const getStatusBadgeColor = (status) => {
     switch (status?.toLowerCase()) {
       case "normal":
@@ -913,164 +881,6 @@ const MedicalReports = () => {
       default:
         return "secondary";
     }
-  };
-
-  const updateCultureAntibiotic = (
-    cultureResultId,
-    antibioticId,
-    sensitivity
-  ) => {
-    setCultureAntibiotics((prev) => {
-      const current = prev[cultureResultId] || [];
-      const existingIndex = current.findIndex(
-        (item) => item.antibiotic_id === antibioticId
-      );
-
-      if (existingIndex >= 0) {
-        // Update existing
-        const updated = [...current];
-        updated[existingIndex] = { antibiotic_id: antibioticId, sensitivity };
-        return { ...prev, [cultureResultId]: updated };
-      } else {
-        // Add new
-        return {
-          ...prev,
-          [cultureResultId]: [
-            ...current,
-            { antibiotic_id: antibioticId, sensitivity },
-          ],
-        };
-      }
-    });
-  };
-
-  const removeCultureAntibiotic = (cultureResultId, antibioticId) => {
-    setCultureAntibiotics((prev) => {
-      const current = prev[cultureResultId] || [];
-      const filtered = current.filter(
-        (item) => item.antibiotic_id !== antibioticId
-      );
-      return { ...prev, [cultureResultId]: filtered };
-    });
-  };
-
-  const updateCultureAntibioticZone = (
-    cultureResultId,
-    antibioticId,
-    zoneSize
-  ) => {
-    setCultureAntibiotics((prev) => {
-      const current = prev[cultureResultId] || [];
-      const updated = current.map((item) =>
-        item.antibiotic_id === antibioticId
-          ? { ...item, zone_size: zoneSize }
-          : item
-      );
-      return { ...prev, [cultureResultId]: updated };
-    });
-  };
-
-  const handleAddNewAntibiotic = async (cultureResultId) => {
-    try {
-      const token = localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const response = await axios.post(
-        `${apiUrl}/antibiotics`,
-        newAntibioticData,
-        { headers }
-      );
-      const newAntibiotic = response.data;
-
-      // Add to local antibiotics list
-      setAntibiotics((prev) => [...prev, newAntibiotic]);
-
-      // Add to culture antibiotics
-      updateCultureAntibiotic(cultureResultId, newAntibiotic.id, "moderate");
-
-      // Reset form and close modal
-      setNewAntibioticData({ name: "", shortcut: "", commercial_name: "" });
-      setShowAddAntibioticModal((prev) => ({
-        ...prev,
-        [cultureResultId]: false,
-      }));
-
-      toast.success("Antibiotic added successfully!");
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.error || "Failed to add antibiotic";
-      toast.error(errorMessage);
-    }
-  };
-
-  // Culture options handler functions for multiple selections
-  const addCultureOption = (cultureId) => {
-    setSelectedCultureOptions((prev) => ({
-      ...prev,
-      [cultureId]: [
-        ...(prev[cultureId] || []),
-        {
-          id: Date.now(), // Temporary ID for new entries
-          result_type: "custom",
-          option_id: null,
-          sub_option_id: null,
-          custom_result: "",
-        },
-      ],
-    }));
-  };
-
-  const removeCultureOption = (cultureId, optionIndex) => {
-    setSelectedCultureOptions((prev) => ({
-      ...prev,
-      [cultureId]: (prev[cultureId] || []).filter(
-        (_, index) => index !== optionIndex
-      ),
-    }));
-  };
-
-  const updateCultureOption = (cultureId, optionIndex, field, value) => {
-    setSelectedCultureOptions((prev) => ({
-      ...prev,
-      [cultureId]: (prev[cultureId] || []).map((option, index) =>
-        index === optionIndex ? { ...option, [field]: value } : option
-      ),
-    }));
-  };
-
-  const handleCultureResultTypeChange = (
-    cultureId,
-    optionIndex,
-    resultType
-  ) => {
-    updateCultureOption(cultureId, optionIndex, "result_type", resultType);
-    if (resultType === "custom") {
-      updateCultureOption(cultureId, optionIndex, "option_id", null);
-      updateCultureOption(cultureId, optionIndex, "sub_option_id", null);
-    }
-  };
-
-  const handleCultureOptionChange = (cultureId, optionIndex, optionId) => {
-    updateCultureOption(cultureId, optionIndex, "option_id", optionId);
-    updateCultureOption(cultureId, optionIndex, "sub_option_id", null); // Reset sub-option
-  };
-
-  const handleCultureSubOptionChange = (
-    cultureId,
-    optionIndex,
-    subOptionId
-  ) => {
-    updateCultureOption(cultureId, optionIndex, "sub_option_id", subOptionId);
-  };
-
-  /**
-   * Update the custom result of a culture option in the selected report.
-   * @param {string} cultureId - The ID of the culture.
-   * @param {number} optionIndex - The index of the culture option in the culture.
-   * @param {string} customResult - The custom result text.
-   */
-  const handleCustomResultChange = (cultureId, optionIndex, customResult) => {
-    updateCultureOption(cultureId, optionIndex, "custom_result", customResult);
   };
 
   const filteredReports = reports.filter((report) => {
@@ -1734,10 +1544,8 @@ const MedicalReports = () => {
               setSelectedReportForResults(null);
               setResultsData({
                 test_results: [],
-                culture_results: [],
                 test_component_results: {},
               });
-              setCultureAntibiotics({});
               setExpandedSections({});
               setAntibioticSearch({});
               setShowAddAntibioticModal({});
@@ -1751,14 +1559,11 @@ const MedicalReports = () => {
                 setSelectedReportForResults(null);
                 setResultsData({
                   test_results: [],
-                  culture_results: [],
                   test_component_results: {},
                 });
-                setCultureAntibiotics({});
                 setExpandedSections({});
                 setAntibioticSearch({});
                 setShowAddAntibioticModal({});
-                setSelectedCultureOptions({});
               }}>
                 <CircleX size={24} />
               </button>
@@ -2447,14 +2252,11 @@ const MedicalReports = () => {
                   setSelectedReportForResults(null);
                   setResultsData({
                     test_results: [],
-                    culture_results: [],
                     test_component_results: {},
                   });
-                  setCultureAntibiotics({});
                   setExpandedSections({});
                   setAntibioticSearch({});
                   setShowAddAntibioticModal({});
-                  setSelectedCultureOptions({}); // Reset culture options state
                 }}
               >
                 Cancel
