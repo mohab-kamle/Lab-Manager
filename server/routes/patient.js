@@ -105,10 +105,7 @@ router.get(
     t.name AS test_name,
     t.price,
     mrht.status,
-    mrht.result,
-    tc.unit,
-    tc.normal_from,
-    tc.normal_to
+    mrht.result
     FROM
     medical_report mr
     LEFT JOIN patient p ON p.id = mr.patient_id
@@ -116,10 +113,6 @@ router.get(
     LEFT JOIN admin a ON a.id = mr.signatory_admin_id
     LEFT JOIN medical_report_has_test mrht ON mrht.medical_report_id = mr.id
     INNER JOIN test t ON mrht.test_id = t.id
-    LEFT JOIN test_component tc 
-        ON tc.test_id = t.id 
-        AND TIMESTAMPDIFF(YEAR, p.birth_date, CURDATE()) BETWEEN tc.age_start AND tc.age_end
-        AND (tc.gender = p.gender OR tc.gender IS NULL) -- Handling cases where gender might not be required
     WHERE
     mr.patient_id = :userId
     AND mr.lab_id = :labId;
@@ -159,9 +152,6 @@ router.get(
                     price: row.price,
                     status: row.status,
                     result: row.result,
-                    unit: row.unit,
-                    normal_from: row.normal_from,
-                    normal_to: row.normal_to,
                 });
                 return acc;
             }, []);

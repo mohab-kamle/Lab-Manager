@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_culture, bill_has_package, test, culture, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, test_group, branch, status, sequelize, doctor, lab_settings } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -55,16 +55,6 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     }]
                 },
                 {
-                    model: bill_has_culture,
-                    as: "bill_has_cultures",
-                    separate: true,
-                    include: [{
-                        model: culture,
-                        as: "culture",
-                        attributes: ['id', 'name']
-                    }]
-                },
-                {
                     model: bill_has_package,
                     as: "bill_has_packages",
                     separate: true,
@@ -83,13 +73,6 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                         as: "payment_method",
                         attributes: ['id', 'name']
                     }]
-                },
-                // Use join for test_groups as bill.hasMany(bill_has_tg) is not defined
-                {
-                    model: test_group,
-                    as: "tg_id_test_groups",
-                    attributes: ['id', 'name'],
-                    through: { attributes: ['price'] }
                 }
             ],
             order: [['id', 'DESC']]
@@ -128,12 +111,6 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     price: bht.price
                 })),
 
-                cultures: (billData.bill_has_cultures || []).map(bhc => ({
-                    id: bhc.culture?.id,
-                    name: bhc.culture?.name,
-                    price: bhc.price
-                })),
-
                 packages: (billData.bill_has_packages || []).map(bhp => ({
                     id: bhp.package?.id,
                     name: bhp.package?.name,
@@ -147,12 +124,6 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     paid_amount: bhpm.paid_amount
                 })),
 
-                // Map joined include (belongsToMany)
-                test_groups: (billData.tg_id_test_groups || []).map(tg => ({
-                    id: tg.id,
-                    name: tg.name,
-                    price: tg.bill_has_tg?.price
-                }))
             };
         });
 
@@ -166,7 +137,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 });
 
 /**
- * POST /invoices - Create a new bill with related tests, payment methods, cultures, and packages.
+ * POST /invoices - Create a new bill with related tests, payment methods, and packages.
  */
 router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), invalidateInvoicesList, async (req, res) => {
     const transaction = await sequelize.transaction();
@@ -175,7 +146,6 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
         const {
             patient_id,
             tests = [],
-            cultures = [],
             packages = [],
             payments = [],
             subtotal = 0,
@@ -602,9 +572,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
         status_id,
         referred_doctor_id,
         tests,
-        cultures,
         packages,
-        test_groups,
         payments
     } = req.body;
 
