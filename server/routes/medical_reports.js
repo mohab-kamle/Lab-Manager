@@ -1043,43 +1043,7 @@ router.put(
         }
       }
 
-      // Update culture results
-      if (culture_results) {
-        for (const cultureResult of culture_results) {
-          // First, find the medical_report_has_culture record
-          const cultureRecord = await db.medical_report_has_culture.findOne({
-            where: {
-              medical_report_id: reportId,
-              culture_id: cultureResult.culture_id,
-            },
-          });
-
-          if (cultureRecord) {
-
-            // Check if there are actual culture results in medical_report_culture_result table
-            const actualCultureResults = await db.medical_report_culture_result.findAll({
-              where: {
-                medical_report_has_culture_id: cultureRecord.id,
-              },
-            });
-
-            // Set status based on existence of actual culture results
-            const status = actualCultureResults.length > 0 ? "done" : "pending";
-            await db.medical_report_has_culture.update(
-              {
-                status: status,
-                result: cultureResult.result, // Keep this for backward compatibility
-              },
-              {
-                where: {
-                  medical_report_id: reportId,
-                  culture_id: cultureResult.culture_id,
-                },
-              }
-            );
-          }
-        }
-      }
+      // Update culture results - removed (culture tables no longer exist)
 
       // Fetch the updated report with all associations
       const updatedReport = await db.medical_report.findByPk(reportId, {
@@ -1537,16 +1501,12 @@ router.post(
       const {
         test_results = [],
         test_component_results = {},
-        culture_results = [], // Restored from the merge chaos
-        test_group_values = {},
       } = req.body;
 
       console.log("Bulk save request:", {
         reportId,
         test_results: test_results.length,
         test_component_results: Object.keys(test_component_results).length,
-        culture_results: culture_results.length,
-        test_group_values: Object.keys(test_group_values).length,
       });
 
       // Verify medical report exists
@@ -1681,78 +1641,7 @@ router.post(
         }
       }
 
-      // 3. Save culture results
-      if (culture_results.length > 0) {
-        const culturePromises = culture_results.map(async (result) => {
-          if (result.result && result.result.toString().trim() !== "") {
-            hasAnyResults = true;
-
-            // First, find the medical_report_has_culture record
-            const cultureRecord = await db.medical_report_has_culture.findOne({
-              where: {
-                medical_report_id: reportId,
-                culture_id: result.culture_id,
-              },
-              transaction: t,
-            });
-
-            if (cultureRecord) {
-              // Check if there are actual culture results in medical_report_culture_result table
-              const actualCultureResults = await db.medical_report_culture_result.findAll({
-                where: {
-                  medical_report_has_culture_id: cultureRecord.id,
-                },
-                transaction: t,
-              });
-
-              // Set status based on existence of actual culture results
-              const status = actualCultureResults.length > 0 ? "done" : "pending";
-              return db.medical_report_has_culture.update(
-                {
-                  status: status,
-                  result: result.result,
-                },
-                {
-                  where: {
-                    medical_report_id: reportId,
-                    culture_id: result.culture_id,
-                  },
-                  transaction: t,
-                }
-              );
-            }
-          }
-        });
-        await Promise.all(culturePromises);
-      }
-
-      // 4. Save test group values
-      if (Object.keys(test_group_values).length > 0) {
-        for (const [groupId, components] of Object.entries(test_group_values)) {
-          const valuesPayload = {};
-          let hasGroupValues = false;
-
-          Object.entries(components).forEach(([componentId, fields]) => {
-            valuesPayload[componentId] = {};
-            Object.entries(fields).forEach(([fieldId, value]) => {
-              valuesPayload[componentId][fieldId] = value;
-              if (value && value.toString().trim() !== "") {
-                hasGroupValues = true;
-                hasAnyResults = true;
-              }
-            });
-          });
-
-          if (hasGroupValues) {
-            await saveTestGroupValuesWithRetry(
-              reportId,
-              parseInt(groupId, 10),
-              valuesPayload,
-              t
-            );
-          }
-        }
-      }
+      // 3. Culture results - removed (culture tables no longer exist)
 
       // Update received_at date if any results were saved
       if (hasAnyResults) {
