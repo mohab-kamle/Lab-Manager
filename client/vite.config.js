@@ -76,16 +76,17 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   server: {
-    // Bind to all interfaces so Docker port mapping works
-    host: true,
-    // Keep port explicit to match docker-compose
+    host: "0.0.0.0",
     port: 5173,
-    // Enable polling so file changes on mounted volumes are detected in Docker on Windows/WSL2
-    watch: {
-      usePolling: true,
-      interval: 100,
+    hmr: {
+      // In Docker, the browser connects from the host via localhost
+      clientPort: 5173,
     },
-    // Note: historyApiFallback is a webpack-dev-server option; Vite handles SPA routing internally.
+    watch: {
+      // Use polling for Docker bind mounts on Windows
+      usePolling: true,
+      interval: 1000,
+    },
   },
   css: {
     preprocessorOptions: {

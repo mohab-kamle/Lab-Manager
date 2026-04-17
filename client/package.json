@@ -68,7 +68,7 @@
     "sass-embedded": "^1.83.4",
     "sharp": "^0.34.3",
     "terser": "^5.43.1",
-    "vite": "^6.4.2",
+    "vite": "^6.3.5",
     "vite-plugin-image-optimizer": "^2.0.2",
     "vite-plugin-remove-console": "^2.2.0"
   }
