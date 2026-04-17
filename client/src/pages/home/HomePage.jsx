@@ -188,7 +188,6 @@ const HomePage = () => {
                     src={heroImage}
                     alt="LabManager Dashboard"
                     className="img-fluid rounded-4 shadow-3d glass-image-border"
-                    fetchPriority="high"
                     loading="eager"
                     animate={{ y: [0, -10, 0] }}
                     transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}

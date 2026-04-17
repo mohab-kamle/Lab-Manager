@@ -1,8 +1,6 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { getSubdomain } from './utils/subdomain';
-import { AuthProvider } from './context/AuthContext';
-import { LabProvider } from './context/LabContext';
 import { ToastContainer } from 'react-toastify';
 import { ToastProvider } from './components/ui/ToastContext';
 import 'react-toastify/dist/ReactToastify.css';
