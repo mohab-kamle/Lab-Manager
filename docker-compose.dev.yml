@@ -97,12 +97,13 @@ services:
     volumes:
       - ./client:/app/client      # CHANGED: Mount source to /app/client
       - /app/node_modules         # CHANGED: Preserve root node_modules
-      - /app/client/node_modules  # CHANGED: Preserve client node_modules
+      - /app/client/node_modules  # FIX: Preserve client node_modules from Docker build
 
     networks:
       - labmanager-network
-    # CHANGED: Added 'prefix' to run command in the client workspace
-    command: sh -c "npm run dev -- --host 0.0.0.0 --port 5173"
+    working_dir: /app/client
+    command: sh -c "pnpm run dev -- --host 0.0.0.0 --port 5173"
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
       interval: 30s
