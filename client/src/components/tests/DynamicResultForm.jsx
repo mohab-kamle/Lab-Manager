@@ -214,32 +214,65 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
     };
 
     const getMatchingRange = (field) => {
-        if (!field.reference_ranges || field.reference_ranges.length === 0) return null;
-        const gender = patientInfo?.gender;
-        const age = patientInfo?.age;
+        // ── New format: reference_ranges array ────────────────────────────
+        if (Array.isArray(field.reference_ranges) && field.reference_ranges.length > 0) {
+            const gender = patientInfo?.gender;
+            const age = patientInfo?.age;
 
-        // Priority 1: exact gender + age match
-        if (gender && age != null) {
-            const match = field.reference_ranges.find(r =>
-                (!r.gender || r.gender === gender) &&
-                (r.age_min == null || age >= r.age_min) &&
-                (r.age_max == null || age <= r.age_max)
-            );
-            if (match) return match;
+            // Priority 1: exact gender + age match
+            if (gender && age != null) {
+                const match = field.reference_ranges.find(r =>
+                    (!r.gender || r.gender.toLowerCase() === gender.toLowerCase()) &&
+                    (r.age_min == null || age >= r.age_min) &&
+                    (r.age_max == null || age <= r.age_max)
+                );
+                if (match) return match;
+            }
+
+            // Priority 2: gender match only
+            if (gender) {
+                const match = field.reference_ranges.find(
+                    r => r.gender && r.gender.toLowerCase() === gender.toLowerCase()
+                );
+                if (match) return match;
+            }
+
+            // Priority 3: no gender restriction (universal / empty gender)
+            const universal = field.reference_ranges.find(r => !r.gender);
+            if (universal) return universal;
+
+            // Fallback: first range
+            return field.reference_ranges[0];
         }
 
-        // Priority 2: gender match only
-        if (gender) {
-            const match = field.reference_ranges.find(r => r.gender === gender);
-            if (match) return match;
+        // ── Legacy flat-field format ──────────────────────────────────────
+        // Old structure_config entries stored ranges as direct properties:
+        // normal_from / normal_to / c_low / c_high with optional gender field.
+        if (field.normal_from !== undefined || field.normal_to !== undefined) {
+            // If this legacy entry has a gender restriction, check it
+            const fieldGender = field.gender;  // e.g. 'm', 'f', 'Male', 'Female', or undefined
+            const patGender = patientInfo?.gender;
+            if (fieldGender && patGender) {
+                const fg = fieldGender.toLowerCase();
+                const pg = patGender.toLowerCase();
+                // If genders don't match at all, return null rather than wrong range
+                const isMatch =
+                    fg === pg ||
+                    (fg === 'm' && pg === 'male') ||
+                    (fg === 'f' && pg === 'female') ||
+                    fg === 'all';
+                if (!isMatch) return null;
+            }
+
+            return {
+                min:       field.normal_from != null ? parseFloat(field.normal_from) : null,
+                max:       field.normal_to   != null ? parseFloat(field.normal_to)   : null,
+                panic_min: field.c_low       != null ? parseFloat(field.c_low)       : null,
+                panic_max: field.c_high      != null ? parseFloat(field.c_high)      : null,
+            };
         }
 
-        // Priority 3: no gender restriction (universal)
-        const match = field.reference_ranges.find(r => !r.gender);
-        if (match) return match;
-
-        // Fallback: first range
-        return field.reference_ranges[0];
+        return null;
     };
 
 
@@ -259,7 +292,8 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
         if (field.type === 'header') {
             return (
                 <div key={field.key} className="form-header">
-                    <h2>{field.label}</h2>
+                    {/* Support both 'label' (new format) and 'name' (legacy format) */}
+                    <h2>{field.label ?? field.name ?? field.key}</h2>
                 </div>
             );
         }
@@ -420,26 +454,46 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
         return (
             <div key={field.key} className="form-row">
                 <div className="field-label-wrapper">
-                    <label className="field-label">{field.label}</label>
+                    {/* 'label' is the new format; 'name' is the legacy format — fall back gracefully */}
+                    <label className="field-label">{field.label ?? field.name ?? field.key}</label>
                     {field.loinc && <span className="loinc-badge">LOINC: {field.loinc}</span>}
                 </div>
                 
                 <div className="field-input-wrapper">
                     <div className="input-group">
                         {inputElement}
-                        {field.unit && <span className="unit-label">{field.unit}</span>}
-                    </div>
-
-                    {flag && flag !== 'NORMAL' && (
-                        <span className={`flag-badge badge-${flag.toLowerCase()}`}>{flag}</span>
-                    )}
-
-                    {range && (
-                        <div className="range-hint">
-                            Reference: {range.min !== null ? range.min : '-'} - {range.max !== null ? range.max : '-'} {field.unit}
-                        </div>
-                    )}
+                    {/* Unit badge — shown inline next to input */}
+                    {field.unit && <span className="unit-label">{field.unit}</span>}
                 </div>
+
+                {flag && flag !== 'NORMAL' && (
+                    <span className={`flag-badge badge-${flag.toLowerCase()}`}>{flag}</span>
+                )}
+
+                {/* Reference range hint — patient-specific, shows unit + panic thresholds */}
+                {range && (
+                    <div className="range-hint">
+                        <span style={{ marginRight: 4 }}>Ref:</span>
+                        <strong>
+                            {range.min != null ? range.min : '—'}
+                            {' – '}
+                            {range.max != null ? range.max : '—'}
+                        </strong>
+                        {(field.unit ?? field.unit_of_measure) && (
+                            <span style={{ marginLeft: 4, color: '#64748b' }}>
+                                {field.unit ?? field.unit_of_measure}
+                            </span>
+                        )}
+                        {(range.panic_min != null || range.panic_max != null) && (
+                            <span style={{ marginLeft: 8, color: '#ef4444', fontSize: '0.75rem' }}>
+                                Panic:
+                                {range.panic_min != null ? ` <${range.panic_min}` : ''}
+                                {range.panic_max != null ? ` >${range.panic_max}` : ''}
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
             </div>
         );
     };

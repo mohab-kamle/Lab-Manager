@@ -83,10 +83,6 @@ const LabRoutes = () => (
         element={<PrivateRoute element={<ChemistDashboard />} allowedRoles={["chemist"]} />}
       />
       <Route
-        path="/doctor/dashboard"
-        element={<PrivateRoute element={<DoctorDashboard />} allowedRoles={["doctor"]} />}
-      />
-      <Route
         path="/employee/dashboard"
         element={<PrivateRoute element={<EmployeeDashboard />} allowedRoles={["employee"]} />}
       />
@@ -106,14 +102,14 @@ const LabRoutes = () => (
       <Route path="/:role/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
       <Route path="/:role/patients-analytics" element={<PrivateRoute element={<PatientsAnalytics />} allowedRoles={["admin"]} />} />
       <Route path="/:role/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
-      
+
       {/* Profile routes */}
       <Route path="/admin/profile" element={<PrivateRoute element={<AdminProfile />} allowedRoles={["admin"]} />} />
       <Route path="/doctor/profile" element={<PrivateRoute element={<DoctorProfile />} allowedRoles={["doctor"]} />} />
       <Route path="/chemist/profile" element={<PrivateRoute element={<ChemistProfile />} allowedRoles={["chemist"]} />} />
       <Route path="/employee/profile" element={<PrivateRoute element={<EmployeeProfile />} allowedRoles={["employee"]} />} />
       <Route path="/receptionist/profile" element={<PrivateRoute element={<ReceptionistProfile />} allowedRoles={["receptionist"]} />} />
-      
+
       {/* Management routes */}
       <Route path="/admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
       <Route path="/:role/vault" element={<PrivateRoute element={<Vault />} allowedRoles={["admin"]} />} />

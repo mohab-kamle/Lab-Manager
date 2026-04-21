@@ -3,7 +3,7 @@ const path = require('path');
 const csv = require('csv-parser');
 
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
-const { global_test_catalog } = require(path.join(__dirname, '../models')); 
+const { global_test_catalog, categories_test_and_culture } = require(path.join(__dirname, '../models')); 
 
 const getDataPath = (fileName) => path.join(__dirname, '../data', fileName);
 
@@ -203,6 +203,16 @@ async function runETL() {
       ]
     });
     console.log(`\n✅ Success! Inserted ${finalData.length} records into the Global Catalog.`);
+    
+    // Seed standard categories
+    const uniqueCategories = [...new Set(finalData.map(item => item.global_category).filter(Boolean))];
+    const categoriesData = uniqueCategories.map(name => ({ name }));
+    console.log(`5.5. Ensuring ${categoriesData.length} categories exist...`);
+    if (categories_test_and_culture) {
+      await categories_test_and_culture.bulkCreate(categoriesData, { ignoreDuplicates: true });
+      console.log(`✅ Success! Unique categories secured.`);
+    }
+
   } catch (error) {
     console.error("❌ Database Error:", error);
   }
