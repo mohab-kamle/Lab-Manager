@@ -5,9 +5,92 @@ import PropTypes from 'prop-types';
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, X, Download, Upload, CircleX } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Download, Upload, CircleX, Search } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import GlobalCatalogPickerModal from "./GlobalCatalogPickerModal";
+
+/**
+ * Self-contained inline form for adding a reference range to an existing component.
+ * Each instance manages its own local state so multiple components can have their
+ * own independent "add range" sub-forms without conflicting.
+ * Uses labeled fields in two rows for readability.
+ */
+const RangeAdder = ({ onAdd }) => {
+  const [range, setRange] = useState({
+    gender: "", age_min: "", age_max: "", min: "", max: "", panic_min: "", panic_max: "",
+  });
+  const [error, setError] = useState("");
+
+  const handleAdd = () => {
+    if (!range.min && !range.max) {
+      setError("At least Normal Min or Normal Max is required");
+      return;
+    }
+    setError("");
+    onAdd(range);
+    setRange({ gender: "", age_min: "", age_max: "", min: "", max: "", panic_min: "", panic_max: "" });
+  };
+
+  return (
+    <div className="mt-3 p-3 border rounded" style={{ background: '#f8f9fa' }}>
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <small className="fw-bold text-secondary">Add Reference Range</small>
+      </div>
+      {error && <Alert variant="danger" className="py-1 mb-2 small">{error}</Alert>}
+
+      {/* Row 1: Demographics */}
+      <Row className="g-2 mb-2">
+        <Col md={4}>
+          <Form.Label className="small mb-1">Gender</Form.Label>
+          <Form.Select size="sm" value={range.gender} onChange={e => setRange({ ...range, gender: e.target.value })}>
+            <option value="">Any Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </Form.Select>
+        </Col>
+        <Col md={4}>
+          <Form.Label className="small mb-1">Age Min (years)</Form.Label>
+          <Form.Control size="sm" type="number" placeholder="e.g. 0" value={range.age_min} onChange={e => setRange({ ...range, age_min: e.target.value })} />
+        </Col>
+        <Col md={4}>
+          <Form.Label className="small mb-1">Age Max (years)</Form.Label>
+          <Form.Control size="sm" type="number" placeholder="e.g. 120" value={range.age_max} onChange={e => setRange({ ...range, age_max: e.target.value })} />
+        </Col>
+      </Row>
+
+      {/* Row 2: Reference values */}
+      <Row className="g-2 align-items-end">
+        <Col md={2}>
+          <Form.Label className="small mb-1">Normal Min</Form.Label>
+          <Form.Control size="sm" type="number" step="any" placeholder="—" value={range.min} onChange={e => setRange({ ...range, min: e.target.value })} />
+        </Col>
+        <Col md={2}>
+          <Form.Label className="small mb-1">Normal Max</Form.Label>
+          <Form.Control size="sm" type="number" step="any" placeholder="—" value={range.max} onChange={e => setRange({ ...range, max: e.target.value })} />
+        </Col>
+        <Col md={2}>
+          <Form.Label className="small mb-1">Panic Low</Form.Label>
+          <Form.Control size="sm" type="number" step="any" placeholder="—" value={range.panic_min} onChange={e => setRange({ ...range, panic_min: e.target.value })} />
+        </Col>
+        <Col md={2}>
+          <Form.Label className="small mb-1">Panic High</Form.Label>
+          <Form.Control size="sm" type="number" step="any" placeholder="—" value={range.panic_max} onChange={e => setRange({ ...range, panic_max: e.target.value })} />
+        </Col>
+        <Col md={4} className="d-flex align-items-end">
+          <Button variant="success" size="sm" onClick={handleAdd} className="w-100">
+            <Plus size={14} className="me-1" />Add Range
+          </Button>
+        </Col>
+      </Row>
+    </div>
+  );
+};
+RangeAdder.propTypes = {
+  onAdd: PropTypes.func.isRequired,
+};
+
+
 const Tests = () => {
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -25,6 +108,8 @@ const Tests = () => {
   const [editingTest, setEditingTest] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [testToDelete, setTestToDelete] = useState(null);
+  const [selectedTests, setSelectedTests] = useState([]);
+  const [showGlobalCatalogModal, setShowGlobalCatalogModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
   const [selectedTestComponents, setSelectedTestComponents] = useState([]);
@@ -44,18 +129,24 @@ const Tests = () => {
     questions: [] // Array of question IDs
   });
   const [testComponents, setTestComponents] = useState([]);
+  // Component being built — core identity fields only.
+  // Reference ranges live inside each component's reference_ranges array.
   const [newComponent, setNewComponent] = useState({
     name: "",
     unit: "",
-    normal_from: "",
-    normal_to: "",
-    reference_range: "",
+    result_type: "range",         // range | boolean | culture_panel
+    reference_range: "",          // for boolean result type display text
+    reference_ranges: [],         // array of { gender, age_min, age_max, min, max, panic_min, panic_max }
+  });
+  // State for the "add range" sub-form within a component
+  const [newRange, setNewRange] = useState({
     gender: "",
-    age_start: "",
-    age_end: "",
-    c_low: "",
-    c_high: "",
-    result_type: "range" // Added result_type
+    age_min: "",
+    age_max: "",
+    min: "",
+    max: "",
+    panic_min: "",
+    panic_max: "",
   });
   const [componentError, setComponentError] = useState("");
   const [questionSearchTerm, setQuestionSearchTerm] = useState("");
@@ -158,13 +249,41 @@ const Tests = () => {
     setShowDetailsModal(true);
   }, []);
 
+  const handleSelectAll = useCallback((checked) => {
+    if (checked) {
+      setSelectedTests(currentTests.map(t => t.id));
+    } else {
+      setSelectedTests([]);
+    }
+  }, [currentTests]);
+
+  const handleSelectItem = useCallback((id, checked) => {
+    setSelectedTests(prev => 
+      checked ? [...prev, id] : prev.filter(testId => testId !== id)
+    );
+  }, []);
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${selectedTests.length} tests?`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${apiUrl}/tests/bulk-delete`, { testIds: selectedTests }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSelectedTests([]);
+      fetchTestsAndRelated();
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to bulk delete tests");
+    }
+  };
+
   const formatCellData = useCallback((data, header) => {
     if (header === 'Actions') {
       return null; // This will be handled by ActionComponent
     }
     
-    // Handle components array specifically
-    if (header === 'components' && Array.isArray(data)) {
+    // Handle components/structure_config array specifically
+    if ((header === 'components' || header === 'structure_config' || header === 'Structure Config') && Array.isArray(data)) {
       if (data.length === 0) return "No components";
       
       const ComponentsCell = () => {
@@ -184,18 +303,19 @@ const Tests = () => {
               <div className="mt-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                 {data.map((component, index) => (
                   <div key={index} className="border rounded p-2 mb-1" style={{ fontSize: '0.85em' }}>
-                    <strong>{component.name}</strong>
+                    <strong>{component.name || component.label || 'Unnamed'}</strong>
                     {component.unit && <span className="text-muted"> ({component.unit})</span>}
                     <br />
-                    {component.normal_from && component.normal_to && (
-                      <span className="text-success">Range: {component.normal_from} - {component.normal_to}</span>
-                    )}
-                    {component.reference_range && (
+                    {/* Show nested reference ranges if available */}
+                    {Array.isArray(component.reference_ranges) && component.reference_ranges.length > 0 ? (
+                      <span className="text-success">
+                        {component.reference_ranges.map((r, ri) =>
+                          `${r.gender ? r.gender + ': ' : ''}${r.min ?? '-'}–${r.max ?? '-'}`
+                        ).join(' | ')}
+                      </span>
+                    ) : component.reference_range ? (
                       <span className="text-info">Ref: {component.reference_range}</span>
-                    )}
-                    {component.gender && (
-                      <span className="text-warning"> | Gender: {component.gender === 'm' ? 'Male' : component.gender === 'f' ? 'Female' : component.gender}</span>
-                    )}
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -279,15 +399,18 @@ const Tests = () => {
     setNewComponent({
       name: "",
       unit: "",
-      normal_from: "",
-      normal_to: "",
+      result_type: "range",
       reference_range: "",
+      reference_ranges: [],
+    });
+    setNewRange({
       gender: "",
-      age_start: "",
-      age_end: "",
-      c_low: "",
-      c_high: "",
-      result_type: "range" // Added result_type
+      age_min: "",
+      age_max: "",
+      min: "",
+      max: "",
+      panic_min: "",
+      panic_max: "",
     });
     // Clear search terms
     setCategorySearchTerm("");
@@ -316,17 +439,18 @@ const Tests = () => {
       questions: test.questions ? test.questions.map(q => q.id) : []
     });
     
-    // Fetch test components for this test
+    // Fetch test components for this test — backend now returns the full reference_ranges array
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(`${apiUrl}/tests/${test.id}/components`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Map gender values from database format to frontend format
-      const mappedComponents = (response.data || []).map(component => ({
+      // Components now come with the full reference_ranges array attached
+      const mappedComponents = (response.data || []).map((component, idx) => ({
         ...component,
-        gender: component.gender === 'Male' ? 'm' : component.gender === 'Female' ? 'f' : ''
+        id: component.id || Date.now() + idx, // ensure each component has an id for keying
+        reference_ranges: Array.isArray(component.reference_ranges) ? component.reference_ranges : [],
       }));
       
       setTestComponents(mappedComponents);
@@ -347,6 +471,60 @@ const Tests = () => {
     setShowDeleteModal(true);
   }, []);
 
+  // Adds a reference range entry to the component being built (before it's committed to the list)
+  const addRangeToNewComponent = () => {
+    // Validate: at least min or max should be provided for range type
+    if (newComponent.result_type === 'range' && !newRange.min && !newRange.max) {
+      setComponentError("At least Normal Min or Normal Max is required");
+      return;
+    }
+    setComponentError("");
+    setNewComponent(prev => ({
+      ...prev,
+      reference_ranges: [...prev.reference_ranges, { ...newRange, id: Date.now() }],
+    }));
+    // Reset the range sub-form for the next entry
+    setNewRange({
+      gender: "",
+      age_min: "",
+      age_max: "",
+      min: "",
+      max: "",
+      panic_min: "",
+      panic_max: "",
+    });
+  };
+
+  // Removes a range from the component being built
+  const removeRangeFromNewComponent = (rangeIndex) => {
+    setNewComponent(prev => ({
+      ...prev,
+      reference_ranges: prev.reference_ranges.filter((_, i) => i !== rangeIndex),
+    }));
+  };
+
+  // Adds a reference range entry to an already-committed component in the testComponents list
+  const addRangeToExistingComponent = (componentIndex, range) => {
+    setTestComponents(prev => prev.map((comp, i) => {
+      if (i !== componentIndex) return comp;
+      return {
+        ...comp,
+        reference_ranges: [...(comp.reference_ranges || []), { ...range, id: Date.now() }],
+      };
+    }));
+  };
+
+  // Removes a reference range from an already-committed component
+  const removeRangeFromExistingComponent = (componentIndex, rangeIndex) => {
+    setTestComponents(prev => prev.map((comp, i) => {
+      if (i !== componentIndex) return comp;
+      return {
+        ...comp,
+        reference_ranges: comp.reference_ranges.filter((_, ri) => ri !== rangeIndex),
+      };
+    }));
+  };
+
   const addComponent = () => {
     setComponentError("");
     
@@ -354,48 +532,19 @@ const Tests = () => {
       setComponentError("Component name is required");
       return;
     }
-    if (!newComponent.unit.trim()) {
-      setComponentError("Unit is required");
+    // For range type, at least one reference range should be added
+    if (newComponent.result_type === 'range' && newComponent.reference_ranges.length === 0) {
+      setComponentError("Add at least one reference range for this component");
       return;
     }
-    if (newComponent.result_type === 'range') {
-      if (!newComponent.normal_from.trim()) {
-        setComponentError("Normal from is required for range type");
-        return;
-      }
-      if (!newComponent.normal_to.trim()) {
-        setComponentError("Normal to is required for range type");
-        return;
-      }
-    }
-    // If gender is "both", create two components (male and female)
-    if (newComponent.gender === "both") {
-      const maleComponent = { 
-        ...newComponent, 
-        gender: "m", 
-        id: Date.now() 
-      };
-      const femaleComponent = { 
-        ...newComponent, 
-        gender: "f", 
-        id: Date.now() + 1 
-      };
-      setTestComponents([...testComponents, maleComponent, femaleComponent]);
-    } else {
-      setTestComponents([...testComponents, { ...newComponent, id: Date.now() }]);
-    }
+
+    setTestComponents([...testComponents, { ...newComponent, id: Date.now() }]);
     setNewComponent({
       name: "",
       unit: "",
-      normal_from: "",
-      normal_to: "",
+      result_type: "range",
       reference_range: "",
-      gender: "",
-      age_start: "",
-      age_end: "",
-      c_low: "",
-      c_high: "",
-      result_type: "range" // Added result_type
+      reference_ranges: [],
     });
   };
 
@@ -647,7 +796,16 @@ const Tests = () => {
             Import Excel
             <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleImportXLSX} />
           </Button>
-        <Button variant="primary" onClick={handleAdd}><Plus size={16} className="me-2" />Add Test</Button>
+          <Button variant="info" onClick={() => setShowGlobalCatalogModal(true)}>
+            <Search size={16} className="me-2" />Search Global Catalog
+          </Button>
+          {selectedTests.length > 0 && (
+            <Button variant="danger" onClick={handleBulkDelete}>
+              <Trash2 size={16} className="me-2" />
+              Delete Selected ({selectedTests.length})
+            </Button>
+          )}
+          <Button variant="primary" onClick={handleAdd}><Plus size={16} className="me-2" />Add Test</Button>
         </div>
       </div>
       {loading ? (
@@ -671,6 +829,10 @@ const Tests = () => {
             columns={tableHeaders}
             formatCellData={formatCellData}
             ActionComponent={ActionComponent}
+            showCheckboxes={true}
+            selectedItems={selectedTests}
+            onSelectAll={handleSelectAll}
+            onSelectItem={handleSelectItem}
           />
           <TablePagination
             currentPage={currentPage}
@@ -679,6 +841,15 @@ const Tests = () => {
           />
         </>
       )}
+      
+      <GlobalCatalogPickerModal 
+        show={showGlobalCatalogModal}
+        onHide={() => setShowGlobalCatalogModal(false)}
+        onImportSuccess={() => {
+          setShowGlobalCatalogModal(false);
+          fetchTestsAndRelated();
+        }}
+      />
       
       {/* Test Details Modal */}
       <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">
@@ -716,53 +887,52 @@ const Tests = () => {
               
               <h6>Test Components ({selectedTestComponents.length})</h6>
               {selectedTestComponents.length > 0 ? (
-                <div className="table-responsive">
-                  <table className="table table-sm table-bordered">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Unit</th>
-                        <th>Normal From</th>
-                        <th>Normal To</th>
-                        <th>Reference Range</th>
-                        <th>C Low</th>
-                        <th>C High</th>
-                        <th>Gender</th>
-                        <th>Age Start</th>
-                        <th>Age End</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedTestComponents.map((component, index) => (
-                        <tr key={index}>
-                          <td>{component.name}</td>
-                          <td>{component.unit}</td>
-                          <td>{component.normal_from || 'N/A'}</td>
-                          <td>{component.normal_to || 'N/A'}</td>
-                          <td>{component.reference_range || 'N/A'}</td>
-                          <td>{component.c_low || 'N/A'}</td>
-                          <td>{component.c_high || 'N/A'}</td>
-                          <td>{
-                            component.gender === 'm' || component.gender === 'Male'
-                              ? 'Male'
-                              : component.gender === 'f' || component.gender === 'Female'
-                              ? 'Female'
-                              : 'Any'
-                          }</td>
-                          <td>{
-                            component.age_start !== undefined && component.age_start !== null && component.age_start !== ''
-                              ? component.age_start
-                              : 'Any'
-                          }</td>
-                          <td>{
-                            component.age_end !== undefined && component.age_end !== null && component.age_end !== ''
-                              ? component.age_end
-                              : 'Any'
-                          }</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div>
+                  {selectedTestComponents.map((component, index) => (
+                    <Card key={index} className="mb-2 shadow-sm">
+                      <Card.Header className="py-2 bg-light">
+                        <strong>{component.name}</strong>
+                        {component.unit && <span className="text-muted ms-2">({component.unit})</span>}
+                        <span className="ms-2 badge bg-secondary">{component.result_type === 'boolean' ? 'Boolean' : component.result_type === 'culture_panel' ? 'Culture' : 'Range'}</span>
+                      </Card.Header>
+                      <Card.Body className="py-2">
+                        {component.result_type === 'boolean' ? (
+                          <div><strong>Reference:</strong> {component.reference_range || 'N/A'}</div>
+                        ) : component.result_type === 'culture_panel' ? (
+                          <div className="text-info"><em>Dynamic Culture Inputs</em></div>
+                        ) : component.reference_ranges && component.reference_ranges.length > 0 ? (
+                          <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.85em' }}>
+                            <thead className="table-light">
+                              <tr>
+                                <th>Gender</th>
+                                <th>Age Min</th>
+                                <th>Age Max</th>
+                                <th>Normal Min</th>
+                                <th>Normal Max</th>
+                                <th>Panic Low</th>
+                                <th>Panic High</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {component.reference_ranges.map((range, ri) => (
+                                <tr key={ri}>
+                                  <td>{range.gender || 'Any'}</td>
+                                  <td>{range.age_min ?? '-'}</td>
+                                  <td>{range.age_max ?? '-'}</td>
+                                  <td>{range.min ?? '-'}</td>
+                                  <td>{range.max ?? '-'}</td>
+                                  <td>{range.panic_min ?? '-'}</td>
+                                  <td>{range.panic_max ?? '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <div className="text-muted small">No reference ranges configured.</div>
+                        )}
+                      </Card.Body>
+                    </Card>
+                  ))}
                 </div>
               ) : (
                 <p className="text-muted">No components defined for this test.</p>
@@ -1022,14 +1192,15 @@ const Tests = () => {
                 <h6 className="mb-0">Test Components</h6>
               </Card.Header>
               <Card.Body>
-                {/* Add New Component - Refactored to column layout */}
-                <div className="mb-3">
+                {/* ── Step 1: Component Identity ── */}
+                <div className="mb-3 p-3 border rounded bg-light">
+                  <h6 className="mb-3">Add New Component</h6>
                   <Row className="g-2 align-items-end">
                     <Col md={4}>
                       <Form.Group>
                         <Form.Label>Component Name *</Form.Label>
                         <Form.Control
-                          placeholder="Component Name"
+                          placeholder="e.g. WBC, Hemoglobin"
                           value={newComponent.name}
                           onChange={e => setNewComponent({ ...newComponent, name: e.target.value })}
                         />
@@ -1037,9 +1208,9 @@ const Tests = () => {
                     </Col>
                     <Col md={4}>
                       <Form.Group>
-                        <Form.Label>Unit *</Form.Label>
+                        <Form.Label>Unit</Form.Label>
                         <Form.Control
-                          placeholder="Unit"
+                          placeholder="e.g. 10*3/uL, g/dL"
                           value={newComponent.unit}
                           onChange={e => setNewComponent({ ...newComponent, unit: e.target.value })}
                         />
@@ -1050,20 +1221,22 @@ const Tests = () => {
                         <Form.Label>Result Type</Form.Label>
                         <Form.Select
                           value={newComponent.result_type || 'range'}
-                          onChange={e => setNewComponent({ ...newComponent, result_type: e.target.value })}
+                          onChange={e => setNewComponent({ ...newComponent, result_type: e.target.value, reference_ranges: [] })}
                         >
-                          <option value="range">Range</option>
+                          <option value="range">Range (Numeric)</option>
                           <option value="boolean">Boolean (Positive/Negative)</option>
                           <option value="culture_panel">Culture Panel</option>
                         </Form.Select>
                       </Form.Group>
                     </Col>
                   </Row>
+
+                  {/* ── Step 2: Type-specific sub-forms ── */}
                   {newComponent.result_type === 'boolean' ? (
                     <Row className="g-2 mt-2">
                       <Col md={6}>
                         <Form.Group>
-                          <Form.Label>Reference Range</Form.Label>
+                          <Form.Label>Reference Display</Form.Label>
                           <Form.Control
                             placeholder="e.g., Positive/Negative"
                             value={newComponent.reference_range}
@@ -1081,148 +1254,219 @@ const Tests = () => {
                       </Col>
                     </Row>
                   ) : (
-                    <Row className="g-2 mt-2">
-                      <Col md={4}>
-                        <Form.Group>
-                          <Form.Label>Normal From *</Form.Label>
-                          <Form.Control
-                            placeholder="Normal From"
-                            value={newComponent.normal_from}
-                            onChange={e => setNewComponent({ ...newComponent, normal_from: e.target.value })}
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={4}>
-                        <Form.Group>
-                          <Form.Label>Normal To *</Form.Label>
-                          <Form.Control
-                            placeholder="Normal To"
-                            value={newComponent.normal_to}
-                            onChange={e => setNewComponent({ ...newComponent, normal_to: e.target.value })}
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={4}>
-                        <Form.Group>
-                          <Form.Label>Reference Range</Form.Label>
-                          <Form.Control
-                            placeholder="e.g., 0.22 - 5.1 mg/dL"
-                            value={newComponent.reference_range}
-                            onChange={e => setNewComponent({ ...newComponent, reference_range: e.target.value })}
-                          />
-                        </Form.Group>
-                      </Col>
-                    </Row>
+                    /* ── Range type: Reference Ranges sub-form ── */
+                    <div className="mt-3 p-2 border rounded">
+                      <h6 className="text-primary mb-2">Reference Ranges</h6>
+                      <p className="text-muted small mb-2">
+                        Add one or more normal ranges. Use different genders/ages for demographic-specific normals (e.g., Male 4.5–11, Female 4.0–10.5).
+                      </p>
+                      <Row className="g-2 align-items-end">
+                        <Col md={2}>
+                          <Form.Group>
+                            <Form.Label className="small">Gender</Form.Label>
+                            <Form.Select size="sm" value={newRange.gender} onChange={e => setNewRange({ ...newRange, gender: e.target.value })}>
+                              <option value="">Any</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                            </Form.Select>
+                          </Form.Group>
+                        </Col>
+                        <Col md={1}>
+                          <Form.Group>
+                            <Form.Label className="small">Age Min</Form.Label>
+                            <Form.Control size="sm" type="number" placeholder="0" value={newRange.age_min} onChange={e => setNewRange({ ...newRange, age_min: e.target.value })} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={1}>
+                          <Form.Group>
+                            <Form.Label className="small">Age Max</Form.Label>
+                            <Form.Control size="sm" type="number" placeholder="120" value={newRange.age_max} onChange={e => setNewRange({ ...newRange, age_max: e.target.value })} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={2}>
+                          <Form.Group>
+                            <Form.Label className="small">Normal Min *</Form.Label>
+                            <Form.Control size="sm" type="number" step="any" placeholder="Min" value={newRange.min} onChange={e => setNewRange({ ...newRange, min: e.target.value })} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={2}>
+                          <Form.Group>
+                            <Form.Label className="small">Normal Max *</Form.Label>
+                            <Form.Control size="sm" type="number" step="any" placeholder="Max" value={newRange.max} onChange={e => setNewRange({ ...newRange, max: e.target.value })} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={1}>
+                          <Form.Group>
+                            <Form.Label className="small">Panic Low</Form.Label>
+                            <Form.Control size="sm" type="number" step="any" placeholder="P.Low" value={newRange.panic_min} onChange={e => setNewRange({ ...newRange, panic_min: e.target.value })} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={1}>
+                          <Form.Group>
+                            <Form.Label className="small">Panic High</Form.Label>
+                            <Form.Control size="sm" type="number" step="any" placeholder="P.High" value={newRange.panic_max} onChange={e => setNewRange({ ...newRange, panic_max: e.target.value })} />
+                          </Form.Group>
+                        </Col>
+                        <Col md={2} className="d-flex align-items-end">
+                          <Button variant="outline-success" size="sm" onClick={addRangeToNewComponent} className="w-100">
+                            <Plus size={14} className="me-1" />Add Range
+                          </Button>
+                        </Col>
+                      </Row>
+
+                      {/* Show ranges already added to this new component */}
+                      {newComponent.reference_ranges.length > 0 && (
+                        <div className="mt-2">
+                          <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.8em' }}>
+                            <thead className="table-light">
+                              <tr>
+                                <th>Gender</th>
+                                <th>Age Min</th>
+                                <th>Age Max</th>
+                                <th>Normal Min</th>
+                                <th>Normal Max</th>
+                                <th>Panic Low</th>
+                                <th>Panic High</th>
+                                <th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {newComponent.reference_ranges.map((range, ri) => (
+                                <tr key={range.id || ri}>
+                                  <td>{range.gender || 'Any'}</td>
+                                  <td>{range.age_min || '-'}</td>
+                                  <td>{range.age_max || '-'}</td>
+                                  <td>{range.min ?? '-'}</td>
+                                  <td>{range.max ?? '-'}</td>
+                                  <td>{range.panic_min || '-'}</td>
+                                  <td>{range.panic_max || '-'}</td>
+                                  <td>
+                                    <Button variant="outline-danger" size="sm" onClick={() => removeRangeFromNewComponent(ri)} style={{ padding: '0 4px' }}>
+                                      <X size={12} />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
                   )}
-                  <Row className="g-2 mt-2">
-                    <Col md={3}>
-                      <Form.Group>
-                        <Form.Label>C Low</Form.Label>
-                        <Form.Control
-                          placeholder="C Low"
-                          value={newComponent.c_low}
-                          onChange={e => setNewComponent({ ...newComponent, c_low: e.target.value })}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={3}>
-                      <Form.Group>
-                        <Form.Label>C High</Form.Label>
-                        <Form.Control
-                          placeholder="C High"
-                          value={newComponent.c_high}
-                          onChange={e => setNewComponent({ ...newComponent, c_high: e.target.value })}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={3}>
-                      <Form.Group>
-                        <Form.Label>Gender</Form.Label>
-                        <Form.Select
-                          value={newComponent.gender}
-                          onChange={e => setNewComponent({ ...newComponent, gender: e.target.value })}
-                        >
-                          <option value="">Gender</option>
-                          <option value="m">Male</option>
-                          <option value="f">Female</option>
-                          <option value="both">Both (Male & Female)</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                    <Col md={2}>
-                      <Form.Group>
-                        <Form.Label>Age Start</Form.Label>
-                        <Form.Control
-                          placeholder="Age Start"
-                          type="number"
-                          value={newComponent.age_start}
-                          onChange={e => setNewComponent({ ...newComponent, age_start: e.target.value })}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={2}>
-                      <Form.Group>
-                        <Form.Label>Age End</Form.Label>
-                        <Form.Control
-                          placeholder="Age End"
-                          type="number"
-                          value={newComponent.age_end}
-                          onChange={e => setNewComponent({ ...newComponent, age_end: e.target.value })}
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={1} className="d-flex align-items-end">
-                      <Button variant="outline-primary" size="sm" onClick={addComponent} className="w-100">
-                        <Plus size={16} />
-                      </Button>
-                    </Col>
-                  </Row>
+
+                  {/* ── Final: Add Component Button ── */}
+                  <div className="mt-3 d-flex justify-content-end">
+                    <Button variant="primary" size="sm" onClick={addComponent}>
+                      <Plus size={16} className="me-1" />Add Component
+                    </Button>
+                  </div>
                 </div>
+
                 {componentError && (
-                  <Alert variant="danger" className="mb-3">
+                  <Alert variant="danger" className="mb-3 mt-2">
                     {componentError}
                   </Alert>
                 )}
-                {/* Existing Components - Card layout for clarity */}
+
+                {/* ── Existing Components Display ── */}
                 <div className="mt-4">
                   {testComponents.length === 0 ? (
                     <div className="text-muted">No components added yet.</div>
                   ) : (
                     <Row className="g-3">
                       {testComponents.map((component, index) => (
-                        <Col md={6} lg={4} key={component.id || index}>
-                          <Card className="h-100 shadow-sm">
-                            <Card.Header className="d-flex justify-content-between align-items-center bg-light">
-                              <div>
-                                <strong>{component.name || <span className="text-muted">Unnamed</span>}</strong>
-                                <span className="ms-2 badge bg-secondary">{component.result_type === 'boolean' ? 'Boolean' : component.result_type === 'culture_panel' ? 'Culture Panel' : 'Range'}</span>
-                              </div>
-                              <Button variant="outline-danger" size="sm" onClick={() => removeComponent(index)} title="Remove Component">
-                                <X size={16} />
-                              </Button>
+                        <Col md={12} key={component.id || index}>
+                          <Card className="shadow-sm">
+                            <Card.Header className="bg-light">
+                              {/* Editable identity row: name + unit + type badge + remove */}
+                              <Row className="g-2 align-items-center">
+                                <Col md={4}>
+                                  <Form.Label className="small mb-1">Component Name</Form.Label>
+                                  <Form.Control
+                                    size="sm"
+                                    value={component.name || ''}
+                                    onChange={e => {
+                                      const updated = [...testComponents];
+                                      updated[index] = { ...updated[index], name: e.target.value };
+                                      setTestComponents(updated);
+                                    }}
+                                    placeholder="e.g. WBC"
+                                  />
+                                </Col>
+                                <Col md={3}>
+                                  <Form.Label className="small mb-1">Unit</Form.Label>
+                                  <Form.Control
+                                    size="sm"
+                                    value={component.unit || ''}
+                                    onChange={e => {
+                                      // Allow editing unit directly on the component card
+                                      const updated = [...testComponents];
+                                      updated[index] = { ...updated[index], unit: e.target.value };
+                                      setTestComponents(updated);
+                                    }}
+                                    placeholder="e.g. 10³/µL"
+                                  />
+                                </Col>
+                                <Col md={3} className="d-flex align-items-end">
+                                  <span className="badge bg-secondary ms-1" style={{ fontSize: '0.8em' }}>
+                                    {component.result_type === 'boolean' ? 'Boolean' : component.result_type === 'culture_panel' ? 'Culture Panel' : 'Range'}
+                                  </span>
+                                </Col>
+                                <Col md={2} className="d-flex align-items-end justify-content-end">
+                                  <Button variant="outline-danger" size="sm" onClick={() => removeComponent(index)} title="Remove Component">
+                                    <X size={16} />
+                                  </Button>
+                                </Col>
+                              </Row>
                             </Card.Header>
                             <Card.Body>
-                              <div className="mb-2"><strong>Unit:</strong> {component.unit || <span className="text-muted">N/A</span>}</div>
-                               {component.result_type === 'boolean' ? (
-                                 <>
-                                   <div className="mb-2"><strong>Reference Range:</strong> {component.reference_range || <span className="text-muted">N/A</span>}</div>
-                                 </>
-                               ) : component.result_type === 'culture_panel' ? (
-                                 <>
-                                   <div className="mb-2 text-info"><em>Dynamic Culture Inputs</em></div>
-                                 </>
-                               ) : (
+                              {component.result_type === 'boolean' ? (
+                                <div className="mb-2"><strong>Reference:</strong> {component.reference_range || <span className="text-muted">N/A</span>}</div>
+                              ) : component.result_type === 'culture_panel' ? (
+                                <div className="mb-2 text-info"><em>Dynamic Culture Inputs</em></div>
+                              ) : (
                                 <>
-                                  <div className="mb-2"><strong>Normal From:</strong> {component.normal_from || <span className="text-muted">N/A</span>}</div>
-                                  <div className="mb-2"><strong>Normal To:</strong> {component.normal_to || <span className="text-muted">N/A</span>}</div>
-                                  <div className="mb-2"><strong>Reference Range:</strong> {component.reference_range || <span className="text-muted">N/A</span>}</div>
+                                  {/* Reference Ranges Table */}
+                                  {component.reference_ranges && component.reference_ranges.length > 0 ? (
+                                    <table className="table table-sm table-bordered mb-2" style={{ fontSize: '0.85em' }}>
+                                      <thead className="table-light">
+                                        <tr>
+                                          <th>Gender</th>
+                                          <th>Age Min</th>
+                                          <th>Age Max</th>
+                                          <th>Normal Min</th>
+                                          <th>Normal Max</th>
+                                          <th>Panic Low</th>
+                                          <th>Panic High</th>
+                                          <th></th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {component.reference_ranges.map((range, ri) => (
+                                          <tr key={range.id || ri}>
+                                            <td>{range.gender || 'Any'}</td>
+                                            <td>{range.age_min ?? '-'}</td>
+                                            <td>{range.age_max ?? '-'}</td>
+                                            <td>{range.min ?? '-'}</td>
+                                            <td>{range.max ?? '-'}</td>
+                                            <td>{range.panic_min ?? '-'}</td>
+                                            <td>{range.panic_max ?? '-'}</td>
+                                            <td>
+                                              <Button variant="outline-danger" size="sm" onClick={() => removeRangeFromExistingComponent(index, ri)} style={{ padding: '0 4px' }}>
+                                                <X size={12} />
+                                              </Button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  ) : (
+                                    <div className="text-muted small mb-2">No reference ranges configured yet.</div>
+                                  )}
+                                  {/* Inline Add Range to Existing Component */}
+                                  <RangeAdder onAdd={(range) => addRangeToExistingComponent(index, range)} />
                                 </>
                               )}
-                              <div className="mb-2"><strong>C Low:</strong> {component.c_low || <span className="text-muted">N/A</span>}</div>
-                              <div className="mb-2"><strong>C High:</strong> {component.c_high || <span className="text-muted">N/A</span>}</div>
-                              <div className="mb-2"><strong>Gender:</strong> {component.gender === 'm' ? 'Male' : component.gender === 'f' ? 'Female' : <span className="text-muted">Any</span>}</div>
-                              <div className="mb-2"><strong>Age Start:</strong> {component.age_start || <span className="text-muted">Any</span>}</div>
-                              <div className="mb-2"><strong>Age End:</strong> {component.age_end || <span className="text-muted">Any</span>}</div>
                             </Card.Body>
                           </Card>
                         </Col>

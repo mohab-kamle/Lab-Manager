@@ -348,6 +348,7 @@ app.use("/emp", require("./routes/employee"));
 app.use("/doctor", require("./routes/doctor"));
 app.use("/categories", require("./routes/categories"));
 app.use("/tests", require("./routes/tests"));
+app.use("/global-catalog", require("./routes/globalTestCatalog"));
 app.use("/samples", require("./routes/samples"));
 app.use("/payment-methods", require("./routes/paymentMethods"));
 app.use("/subscriptions", require("./routes/subscriptions"));

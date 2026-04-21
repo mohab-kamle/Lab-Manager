@@ -204,7 +204,7 @@ const MedicalReports = () => {
 
       setReports(reportsRes.data);
       setPatients(patientsRes.data);
-      setAntibioticsList(antibioticsRes.data || []);
+      setAntibiotics(antibioticsRes.data || []);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -677,9 +677,16 @@ const MedicalReports = () => {
         transformedTestComponentResults[test.id] = {};
         if (test.results) {
           Object.entries(test.results).forEach(([key, data]) => {
+            // data.value may be a plain scalar (new format) OR a JSON-wrapped
+            // object like { result, status } (legacy bulk-save format).
+            // Safely unwrap either case so DynamicResultForm receives a plain value.
+            let resolvedVal = data.value;
+            if (resolvedVal && typeof resolvedVal === 'object' && resolvedVal.result !== undefined) {
+              resolvedVal = resolvedVal.result; // unwrap legacy format
+            }
             transformedTestComponentResults[test.id][key] = {
-              result: data.value,
-              status: data.clinical_flag || "pending",
+              result: resolvedVal,
+              status: data.clinical_flag || 'pending',
             };
           });
         }
@@ -781,9 +788,7 @@ const MedicalReports = () => {
           test_results: [],
           test_component_results: {},
         });
-        setExpandedSections({});
-        setAntibioticSearch({});
-        setShowAddAntibioticModal({});
+        // Note: setExpandedSections / setAntibioticSearch are not used in current architecture
 
         // Refresh the reports list
         await fetchData();
@@ -1833,7 +1838,7 @@ const MedicalReports = () => {
                                                 age: patientAge,
                                                 age_unit: "years"
                                             }}
-                                            antibioticsList={antibioticsList}
+                                            antibioticsList={antibiotics}
                                             value={Object.entries(
                                               resultsData.test_component_results[test.id] || {}
                                             ).reduce((acc, [k, data]) => {

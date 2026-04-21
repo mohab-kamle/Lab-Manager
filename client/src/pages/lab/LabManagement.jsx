@@ -7,7 +7,7 @@ import {
   Palette, Settings, CreditCard, Upload, Eye, EyeOff,
   Save, RefreshCw, AlertTriangle, CheckCircle, Info
 } from 'lucide-react';
-import '../../styles/LabManagement.module.css';
+import styles from '../../styles/LabManagement.module.css';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const LabManagement = () => {
@@ -352,13 +352,13 @@ const LabManagement = () => {
   // Show error if user is not logged in or lab info is not available
   if (!user) {
     return (
-      <div className="lab-management">
-        <div className="container">
-          <div className="error-message">
+      <div className={styles.labManagement}>
+        <div className={styles.container}>
+          <div className={styles.errorMessage}>
             <AlertTriangle size={24} />
             <h3>Authentication Required</h3>
             <p>Please log in to access lab management features.</p>
-            <button onClick={() => window.location.href = '/login'} className="btn-primary">
+            <button onClick={() => window.location.href = '/login'} className={styles.btnPrimary}>
               Go to Login
             </button>
           </div>
@@ -369,13 +369,13 @@ const LabManagement = () => {
 
   if (!labInfo) {
     return (
-      <div className="lab-management">
-        <div className="container">
-          <div className="error-message">
+      <div className={styles.labManagement}>
+        <div className={styles.container}>
+          <div className={styles.errorMessage}>
             <AlertTriangle size={24} />
             <h3>Lab Information Unavailable</h3>
             <p>Unable to load lab information. Please try refreshing the page.</p>
-            <button onClick={() => window.location.reload()} className="btn-primary">
+            <button onClick={() => window.location.reload()} className={styles.btnPrimary}>
               Refresh Page
             </button>
           </div>
@@ -385,14 +385,14 @@ const LabManagement = () => {
   }
 
   return (
-    <div className="lab-management">
-      <div className="container">
-        <h1 className="page-title">Lab Management</h1>
+    <div className={styles.labManagement}>
+      <div className={styles.container}>
+        <h1 className={styles.pageTitle}>Lab Management</h1>
         <h4>Settings are under construction (update coming soon)</h4>
         {/* Subscription Status Banner */}
         {subscriptionStatus && (
-          <div className={`subscription-banner ${isSubscriptionActive() ? 'active' : 'expired'}`}>
-            <div className="subscription-info">
+          <div className={`${styles.subscriptionBanner} ${isSubscriptionActive() ? styles.active : styles.expired}`}>
+            <div className={styles.subscriptionInfo}>
               <h3>
                 {isSubscriptionActive() ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
                 Subscription Status
@@ -403,40 +403,40 @@ const LabManagement = () => {
                 <p><strong>End Date:</strong> {new Date(subscriptionStatus.subscriptionEndDate).toLocaleDateString('en-GB')}</p>
               )}
               {isTrialExpired() && (
-                <p className="trial-warning">⚠️ Trial expired. Please upgrade to continue.</p>
+                <p className={styles.trialWarning}>⚠️ Trial expired. Please upgrade to continue.</p>
               )}
               {!isTrialExpired() && subscriptionStatus.status === 'trial' && (
-                <p className="trial-info">🕒 {getTrialDaysRemaining()} days remaining in trial</p>
+                <p className={styles.trialInfo}>🕒 {getTrialDaysRemaining()} days remaining in trial</p>
               )}
             </div>
           </div>
         )}
 
         {/* Navigation Tabs */}
-        <div className="tab-navigation">
+        <div className={styles.tabNavigation}>
           <button
-            className={`tab-button ${activeTab === 'branding' ? 'active' : ''}`}
+            className={`${styles.tabButton} ${activeTab === 'branding' ? styles.active : ''}`}
             onClick={() => setActiveTab('branding')}
           >
             <Palette size={20} />
             Branding
           </button>
           <button
-            className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
+            className={`${styles.tabButton} ${activeTab === 'settings' ? styles.active : ''}`}
             onClick={() => setActiveTab('settings')}
           >
             <Settings size={20} />
             Settings
           </button>
           <button
-            className={`tab-button ${activeTab === 'subscription' ? 'active' : ''}`}
+            className={`${styles.tabButton} ${activeTab === 'subscription' ? styles.active : ''}`}
             onClick={() => setActiveTab('subscription')}
           >
             <CreditCard size={20} />
             Subscription
           </button>
           <button
-            className={`tab-button ${activeTab === 'activity' ? 'active' : ''}`}
+            className={`${styles.tabButton} ${activeTab === 'activity' ? styles.active : ''}`}
             onClick={() => setActiveTab('activity')}
           >
             <Eye size={20} />
@@ -445,14 +445,14 @@ const LabManagement = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="tab-content">
+        <div className={styles.tabContent}>
           {/* Branding Tab */}
           {activeTab === 'branding' && (
-            <div className="tab-panel">
+            <div className={styles.tabPanel}>
               <h2>Lab Branding</h2>
               <form onSubmit={handleBrandingSubmit}>
-                <div className="form-grid">
-                  <div className="form-group">
+                <div className={styles.formGrid}>
+                  <div className={styles.formGroup}>
                     <label>Lab Name *</label>
                     <input
                       type="text"
@@ -463,27 +463,27 @@ const LabManagement = () => {
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Logo</label>
-                    <div className="logo-upload-container">
+                    <div className={styles.logoUploadContainer}>
                       <input
                         type="file"
                         accept="image/*"
                         onChange={handleLogoUpload}
                         id="logo-upload"
-                        className="logo-upload-input"
+                        className={styles.logoUploadInput}
                       />
-                      <label htmlFor="logo-upload" className="logo-upload-label">
+                      <label htmlFor="logo-upload" className={styles.logoUploadLabel}>
                         <Upload size={20} />
                         Choose Logo
                       </label>
                     </div>
                     {logoPreview && (
-                      <div className="logo-preview-container">
-                        <img src={logoPreview} alt="Lab Logo" className="logo-preview" />
+                      <div className={styles.logoPreviewContainer}>
+                        <img src={logoPreview} alt="Lab Logo" className={styles.logoPreview} />
                         <button
                           type="button"
-                          className="remove-logo"
+                          className={styles.removeLogo}
                           onClick={() => {
                             setLogoPreview('');
                             setBranding(prev => ({ ...prev, logo_url: '' }));
@@ -495,43 +495,43 @@ const LabManagement = () => {
                     )}
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Primary Color</label>
-                    <div className="color-input-container">
+                    <div className={styles.colorInputContainer}>
                       <input
                         type="color"
                         value={branding.primary_color}
                         onChange={(e) => setBranding(prev => ({ ...prev, primary_color: e.target.value }))}
                       />
-                      <span className="color-preview" style={{ backgroundColor: branding.primary_color }}></span>
+                      <span className={styles.colorPreview} style={{ backgroundColor: branding.primary_color }}></span>
                     </div>
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Secondary Color</label>
-                    <div className="color-input-container">
+                    <div className={styles.colorInputContainer}>
                       <input
                         type="color"
                         value={branding.secondary_color}
                         onChange={(e) => setBranding(prev => ({ ...prev, secondary_color: e.target.value }))}
                       />
-                      <span className="color-preview" style={{ backgroundColor: branding.secondary_color }}></span>
+                      <span className={styles.colorPreview} style={{ backgroundColor: branding.secondary_color }}></span>
                     </div>
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Accent Color</label>
-                    <div className="color-input-container">
+                    <div className={styles.colorInputContainer}>
                       <input
                         type="color"
                         value={branding.accent_color}
                         onChange={(e) => setBranding(prev => ({ ...prev, accent_color: e.target.value }))}
                       />
-                      <span className="color-preview" style={{ backgroundColor: branding.accent_color }}></span>
+                      <span className={styles.colorPreview} style={{ backgroundColor: branding.accent_color }}></span>
                     </div>
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Lab Name (Invoices)</label>
                     <input
                       type="text"
@@ -541,7 +541,7 @@ const LabManagement = () => {
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Phone</label>
                     <input
                       type="tel"
@@ -551,7 +551,7 @@ const LabManagement = () => {
                     />
                   </div>
 
-                  <div className="form-group full-width">
+                  <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                     <label>Address</label>
                     <textarea
                       value={branding.lab_address}
@@ -561,7 +561,7 @@ const LabManagement = () => {
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Email</label>
                     <input
                       type="email"
@@ -571,7 +571,7 @@ const LabManagement = () => {
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className={styles.formGroup}>
                     <label>Website</label>
                     <input
                       type="url"
@@ -584,7 +584,7 @@ const LabManagement = () => {
 
                 </div>
 
-                <button type="submit" className="btn-primary" disabled={loading}>
+                <button type="submit" className={styles.btnPrimary} disabled={loading}>
                   <Save size={20} />
                   {loading ? 'Updating...' : 'Update Branding'}
                 </button>
@@ -594,13 +594,13 @@ const LabManagement = () => {
 
           {/* Settings Tab */}
           {activeTab === 'settings' && (
-            <div className="tab-panel">
+            <div className={styles.tabPanel}>
               <h2>Lab Settings</h2>
               <form onSubmit={handleSettingsSubmit}>
-                <div className="settings-section">
+                <div className={styles.settingsSection}>
                   <h3>Notification Settings</h3>
-                  <div className="form-grid">
-                    <div className="form-group checkbox-group">
+                  <div className={styles.formGrid}>
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -611,7 +611,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -622,7 +622,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -633,7 +633,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -646,10 +646,10 @@ const LabManagement = () => {
                   </div>
                 </div>
 
-                <div className="settings-section">
+                <div className={styles.settingsSection}>
                   <h3>Template Settings</h3>
-                  <div className="form-grid">
-                    <div className="form-group">
+                  <div className={styles.formGrid}>
+                    <div className={styles.formGroup}>
                       <label>Invoice Template</label>
                       <select
                         value={settings.invoice_template}
@@ -662,7 +662,7 @@ const LabManagement = () => {
                       </select>
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <label>Report Template</label>
                       <select
                         value={settings.report_template}
@@ -675,7 +675,7 @@ const LabManagement = () => {
                       </select>
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <label>Receipt Template</label>
                       <select
                         value={settings.receipt_template}
@@ -689,10 +689,10 @@ const LabManagement = () => {
                   </div>
                 </div>
 
-                <div className="settings-section">
+                <div className={styles.settingsSection}>
                   <h3>System Settings</h3>
-                  <div className="form-grid">
-                    <div className="form-group checkbox-group">
+                  <div className={styles.formGrid}>
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -703,7 +703,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <label>Backup Frequency</label>
                       <select
                         value={settings.backup_frequency}
@@ -716,7 +716,7 @@ const LabManagement = () => {
                       </select>
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <label>Data Retention (Days)</label>
                       <input
                         type="number"
@@ -727,7 +727,7 @@ const LabManagement = () => {
                       />
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <label>Session Timeout (Minutes)</label>
                       <input
                         type="number"
@@ -740,10 +740,10 @@ const LabManagement = () => {
                   </div>
                 </div>
 
-                <div className="settings-section">
+                <div className={styles.settingsSection}>
                   <h3>Lab Specific Settings</h3>
-                  <div className="form-grid">
-                    <div className="form-group checkbox-group">
+                  <div className={styles.formGrid}>
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -754,7 +754,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -765,7 +765,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -776,7 +776,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -787,7 +787,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -800,10 +800,10 @@ const LabManagement = () => {
                   </div>
                 </div>
 
-                <div className="settings-section">
+                <div className={styles.settingsSection}>
                   <h3>Payment Settings</h3>
-                  <div className="form-grid">
-                    <div className="form-group">
+                  <div className={styles.formGrid}>
+                    <div className={styles.formGroup}>
                       <label>Currency</label>
                       <select
                         value={settings.currency}
@@ -817,7 +817,7 @@ const LabManagement = () => {
                       </select>
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <label>Tax Rate (%)</label>
                       <input
                         type="number"
@@ -829,7 +829,7 @@ const LabManagement = () => {
                       />
                     </div>
 
-                    <div className="form-group checkbox-group">
+                    <div className={`${styles.formGroup} ${styles.checkboxGroup}`}>
                       <label>
                         <input
                           type="checkbox"
@@ -840,7 +840,7 @@ const LabManagement = () => {
                       </label>
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <input
                         type="number"
                         value={settings.payment_reminder_days}
@@ -850,7 +850,7 @@ const LabManagement = () => {
                       />
                     </div>
 
-                    <div className="form-group">
+                    <div className={styles.formGroup}>
                       <label>
                         Max Due Limit (Patient)
                         <span className="info-tooltip" title="Maximum allowed debt for a patient. Set to 0 to disable limit.">
@@ -869,7 +869,7 @@ const LabManagement = () => {
                   </div>
                 </div>
 
-                <button type="submit" className="btn-primary" disabled={loading}>
+                <button type="submit" className={styles.btnPrimary} disabled={loading}>
                   <Save size={20} />
                   {loading ? 'Updating...' : 'Update Settings'}
                 </button>
@@ -879,7 +879,7 @@ const LabManagement = () => {
 
           {/* Subscription Tab */}
           {activeTab === 'activity' && (
-            <div className="tab-panel">
+            <div className={styles.tabPanel}>
               <h2>Recent Activity</h2>
               {activityLog.loading ? (
                 <LoadingSpinner message="Loading activity log..." />
@@ -938,10 +938,10 @@ const LabManagement = () => {
           )}
 
           {activeTab === 'subscription' && (
-            <div className="tab-panel">
+            <div className={styles.tabPanel}>
               <h2>Upgrade Subscription</h2>
               <form onSubmit={handleSubscriptionUpgrade}>
-                <div className="form-group">
+                <div className={styles.formGroup}>
                   <label>Subscription Duration</label>
                   <select
                     value={subscription.duration}
@@ -955,7 +955,7 @@ const LabManagement = () => {
                   </select>
                 </div>
 
-                <div className="form-group mb-3">
+                <div className={`${styles.formGroup} mb-3`}>
                   <label>Amount</label>
                   <input
                     type="text"
@@ -965,7 +965,7 @@ const LabManagement = () => {
                   />
                 </div>
 
-                <button type="submit" className="btn-primary" disabled={loading || isSubscriptionActive()}>
+                <button type="submit" className={styles.btnPrimary} disabled={loading || isSubscriptionActive()}>
                   <CreditCard size={20} />
                   {loading ? 'Processing...' : (isSubscriptionActive() ? 'Already Subscribed' : 'Upgrade Now')}
                 </button>

@@ -334,13 +334,7 @@ router.get(
               model: db.patient,
               as: "patient",
               attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-              include: [
-                {
-                  model: db.referral,
-                  as: "referral",
-                  attributes: ["doctor_name", "specialization"],
-                },
-              ],
+              // db.referral has no registered association — omitted
             },
             {
               model: db.test,
@@ -356,30 +350,8 @@ router.get(
               as: "lab",
               attributes: ["id", "name", "lab_address", "lab_phone", "lab_email"],
             },
-            {
-              model: db.admin,
-              as: "signatory_admin",
-              attributes: [],
-              include: [
-                {
-                  model: db.employee,
-                  as: "id_employee",
-                  attributes: ["name"],
-                },
-              ],
-            },
-            {
-              model: db.chemist,
-              as: "signatory",
-              attributes: [],
-              include: [
-                {
-                  model: db.employee,
-                  as: "id_employee",
-                  attributes: ["name"],
-                },
-              ],
-            },
+            // db.admin (signatory_admin) and db.chemist (signatory) have no registered
+            // associations in init-models.js — use signatory_name string field instead
           ],
         });
 
@@ -403,13 +375,8 @@ router.get(
         const testComponentResultsMap = {};
         componentResults.forEach((row) => {
           if (!testComponentResultsMap[row.test_id]) testComponentResultsMap[row.test_id] = {};
-          let result = ""; let status = row.clinical_flag || "pending";
-          try {
-            if (row.result_value) {
-              const parsed = typeof row.result_value === 'string' ? JSON.parse(row.result_value) : row.result_value;
-              result = parsed.result || ""; status = parsed.status || status;
-            }
-          } catch (e) { }
+          let result = row.result_value;
+          let status = row.clinical_flag || "pending";
           testComponentResultsMap[row.test_id][row.parameter_key] = { result, status };
         });
 
@@ -422,20 +389,36 @@ router.get(
                   const firstRange = (item.reference_ranges && item.reference_ranges.length > 0) ? item.reference_ranges[0] : {};
                   const compIdStr = (item.key || `key_${index}`).toString();
                   const resObj = testComponentResultsMap[t.id]?.[compIdStr];
+
+                  let finalResult = resObj ? resObj.result : null;
+                  let finalStatus = resObj ? resObj.status : "pending";
+
+                  if (item.type !== 'culture_panel' && typeof finalResult === 'string') {
+                    try {
+                      if (finalResult.trim().startsWith('{')) {
+                        const parsed = JSON.parse(finalResult);
+                        if (parsed && typeof parsed === 'object' && parsed.result !== undefined) {
+                          finalResult = parsed.result;
+                          if (parsed.status) finalStatus = parsed.status;
+                        }
+                      }
+                    } catch (e) { }
+                  }
+
                   return {
                     id: compIdStr,
                     name: item.label || item.name || item.key,
                     unit: item.unit || "",
-                    normal_from: firstRange.min !== undefined ? firstRange.min : null,
-                    normal_to: firstRange.max !== undefined ? firstRange.max : null,
-                    c_low: firstRange.panic_min !== undefined ? firstRange.panic_min : null,
-                    c_high: firstRange.panic_max !== undefined ? firstRange.panic_max : null,
-                    gender: firstRange.gender || null,
+                    normal_from: item.normal_from !== undefined ? item.normal_from : (firstRange.min !== undefined ? firstRange.min : null),
+                    normal_to: item.normal_to !== undefined ? item.normal_to : (firstRange.max !== undefined ? firstRange.max : null),
+                    c_low: item.c_low !== undefined ? item.c_low : (firstRange.panic_min !== undefined ? firstRange.panic_min : null),
+                    c_high: item.c_high !== undefined ? item.c_high : (firstRange.panic_max !== undefined ? firstRange.panic_max : null),
+                    gender: item.gender || firstRange.gender || null,
                     age_start: item.age_start || null,
                     age_end: item.age_end || null,
                     reference_range: item.reference_range || "",
                     result_type: item.type === 'calculated' ? 'header' : (item.result_type || 'numeric'),
-                    results: resObj ? [{ result: resObj.result, status: resObj.status }] : []
+                    results: resObj ? [{ result: finalResult, status: finalStatus }] : []
                   };
                 });
             } else {
@@ -487,19 +470,7 @@ router.get(
             model: db.patient,
             as: "patient",
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
-              },
-            ],
+            // db.referral has no registered association in init-models.js — omitted
           },
           {
             model: db.test,
@@ -515,30 +486,8 @@ router.get(
             as: "bill",
             attributes: ["id", "date"],
           },
-          {
-            model: db.admin,
-            as: "signatory_admin",
-            attributes: [],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-          {
-            model: db.chemist,
-            as: "signatory",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
+          // db.admin (signatory_admin) and db.chemist (signatory) have no registered
+          // associations in init-models.js — use signatory_name string field instead
         ],
       });
       if (!report) {
@@ -583,10 +532,12 @@ router.get(
 
                 if (item.type !== 'culture_panel' && typeof finalResult === 'string') {
                   try {
-                    const parsed = JSON.parse(finalResult);
-                    if (parsed && typeof parsed === 'object' && parsed.result !== undefined) {
-                      finalResult = parsed.result;
-                      if (parsed.status) finalStatus = parsed.status;
+                    if (finalResult.trim().startsWith('{')) {
+                      const parsed = JSON.parse(finalResult);
+                      if (parsed && typeof parsed === 'object' && parsed.result !== undefined) {
+                        finalResult = parsed.result;
+                        if (parsed.status) finalStatus = parsed.status;
+                      }
                     }
                   } catch (e) { }
                 }
@@ -596,11 +547,11 @@ router.get(
                   name: item.label || item.name || item.key,
                   type: item.type || "numeric",
                   unit: item.unit || "",
-                  normal_from: firstRange.min !== undefined ? firstRange.min : null,
-                  normal_to: firstRange.max !== undefined ? firstRange.max : null,
-                  c_low: firstRange.panic_min !== undefined ? firstRange.panic_min : null,
-                  c_high: firstRange.panic_max !== undefined ? firstRange.panic_max : null,
-                  gender: firstRange.gender || null,
+                  normal_from: item.normal_from !== undefined ? item.normal_from : (firstRange.min !== undefined ? firstRange.min : null),
+                  normal_to: item.normal_to !== undefined ? item.normal_to : (firstRange.max !== undefined ? firstRange.max : null),
+                  c_low: item.c_low !== undefined ? item.c_low : (firstRange.panic_min !== undefined ? firstRange.panic_min : null),
+                  c_high: item.c_high !== undefined ? item.c_high : (firstRange.panic_max !== undefined ? firstRange.panic_max : null),
+                  gender: item.gender || firstRange.gender || null,
                   age_start: item.age_start || null,
                   age_end: item.age_end || null,
                   reference_range: item.reference_range || "",
@@ -2057,44 +2008,66 @@ router.post(
       const resultsToSave = [];
 
       for (const [parameterKey, resultVal] of Object.entries(results)) {
-        // Find matching structural parameter (JSON config can have key, name or label)
-        const paramDef = structureConfig.find(p => p.key === parameterKey || p.name === parameterKey || p.label === parameterKey);
+        // Find matching structural parameter by key, name, or label
+        const paramDef = structureConfig.find(
+          p => p.key === parameterKey || p.name === parameterKey || p.label === parameterKey
+        );
         let clinical_flag = "normal";
 
-        if (paramDef && paramDef.type !== 'header' && paramDef.reference_ranges) {
-          // Find applicable range based on age and gender
+        if (paramDef && paramDef.type !== 'header' && paramDef.reference_ranges && paramDef.reference_ranges.length > 0) {
+          // Find the most applicable range based on patient gender AND age.
           const applicableRange = paramDef.reference_ranges.find(r => {
-            const genderMatch = !r.gender || r.gender.toLowerCase() === 'all' || r.gender.toLowerCase() === (patientGender || '').toLowerCase();
-            const ageMatch = true; // Further refine age_start and age_end logic here if needed
+            // Gender match: empty / null / 'all' means any gender
+            const rangeGender = (r.gender || '').toLowerCase();
+            const genderMatch =
+              !rangeGender ||
+              rangeGender === 'all' ||
+              rangeGender === (patientGender || '').toLowerCase();
+
+            // Age match: age_min / age_max are optional bounds in years
+            const ageMin = r.age_min !== undefined && r.age_min !== null ? Number(r.age_min) : null;
+            const ageMax = r.age_max !== undefined && r.age_max !== null ? Number(r.age_max) : null;
+            const ageMatch =
+              (ageMin === null || patientAge === null || patientAge >= ageMin) &&
+              (ageMax === null || patientAge === null || patientAge <= ageMax);
+
             return genderMatch && ageMatch;
           });
 
           if (applicableRange) {
-            let numVal = parseFloat(resultVal);
-            // If resultVal is an object like { value: 5.5 }, extract it
+            // Extract numeric value — resultVal may be a plain scalar or object
+            let numVal;
             if (typeof resultVal === 'object' && resultVal !== null && resultVal.value !== undefined) {
               numVal = parseFloat(resultVal.value);
+            } else {
+              numVal = parseFloat(resultVal);
             }
 
             if (!isNaN(numVal)) {
-              if (applicableRange.panic_min !== undefined && applicableRange.panic_min !== null && numVal <= applicableRange.panic_min) {
-                clinical_flag = "panic_low";
-              } else if (applicableRange.panic_max !== undefined && applicableRange.panic_max !== null && numVal >= applicableRange.panic_max) {
-                clinical_flag = "panic_high";
-              } else if (applicableRange.min !== undefined && applicableRange.min !== null && numVal < applicableRange.min) {
-                clinical_flag = "low";
-              } else if (applicableRange.max !== undefined && applicableRange.max !== null && numVal > applicableRange.max) {
-                clinical_flag = "high";
-              }
+              const panicMin = applicableRange.panic_min != null ? Number(applicableRange.panic_min) : null;
+              const panicMax = applicableRange.panic_max != null ? Number(applicableRange.panic_max) : null;
+              const rangeMin = applicableRange.min        != null ? Number(applicableRange.min)        : null;
+              const rangeMax = applicableRange.max        != null ? Number(applicableRange.max)        : null;
+
+              if      (panicMin !== null && numVal <= panicMin) clinical_flag = "panic_low";
+              else if (panicMax !== null && numVal >= panicMax) clinical_flag = "panic_high";
+              else if (rangeMin !== null && numVal < rangeMin)  clinical_flag = "low";
+              else if (rangeMax !== null && numVal > rangeMax)  clinical_flag = "high";
+              // else: within normal range — flag stays "normal"
             }
           }
         }
+
+        // Store result_value as a plain scalar string for consistency
+        const plainValue = (typeof resultVal === 'object' && resultVal !== null && resultVal.value !== undefined)
+          ? String(resultVal.value)
+          : String(resultVal ?? '');
 
         resultsToSave.push({
           medical_report_id: report.id,
           test_id: test.id,
           parameter_key: parameterKey,
-          result_value: resultVal,
+          result_value: plainValue,
           clinical_flag: clinical_flag,
           workflow_status: "analyzed"
         });
@@ -2114,6 +2087,11 @@ router.post(
         });
 
         await db.medical_report_results.bulkCreate(resultsToSave, { transaction: t });
+
+        // Stamp received_at now that results have been entered
+        if (resultsToSave.length > 0) {
+          await updateMedicalReportDates(report.id, "received", t);
+        }
 
         await t.commit();
         res.json({ success: true, message: "Results saved successfully", results: resultsToSave });

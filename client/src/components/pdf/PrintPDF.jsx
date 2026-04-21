@@ -1384,6 +1384,15 @@ function transformReportForPDF(report, patient) {
            if (matchingRange?.min != null && matchingRange?.max != null) {
                derivedRange = `${matchingRange.min} - ${matchingRange.max}`;
            }
+        } else if (!derivedRange && (field.normal_from !== undefined || field.normal_to !== undefined)) {
+           // Fallback to legacy ranges
+           if (field.normal_from != null && field.normal_to != null) {
+               derivedRange = `${field.normal_from} - ${field.normal_to}`;
+           } else if (field.normal_from != null) {
+               derivedRange = `>= ${field.normal_from}`;
+           } else if (field.normal_to != null) {
+               derivedRange = `<= ${field.normal_to}`;
+           }
         }
 
         // Result value: try both forms
@@ -1391,7 +1400,7 @@ function transformReportForPDF(report, patient) {
         
         return {
           id: field.key,
-          name: field.label || field.key,
+          name: field.label || field.name || field.key,
           unit: field.unit || "",
           reference_range: derivedRange,
           type: field.type || "text",

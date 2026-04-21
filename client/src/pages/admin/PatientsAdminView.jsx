@@ -19,6 +19,7 @@ const PatientsAdminView = () => {
   const [patients, setPatients] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [contracts, setContracts] = useState([]);
+  const [referrals, setReferrals] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   // const [error, setError] = useState(null); // Removed blocking error state
@@ -52,7 +53,8 @@ const PatientsAdminView = () => {
     total: "",
     paid: "",
     due: "",
-    contract_id: ""
+    contract_id: "",
+    referral_id: null
   });
 
   // Helper function to calculate birth date from age
@@ -97,6 +99,7 @@ const PatientsAdminView = () => {
   const [showDiseaseModal, setShowDiseaseModal] = useState(false);
   const [selectedDisease, setSelectedDisease] = useState(null);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
   const [showDiseaseCreateModal, setShowDiseaseCreateModal] = useState(false);
   const [newContract, setNewContract] = useState({
     name: "",
@@ -110,6 +113,13 @@ const PatientsAdminView = () => {
     name: "",
     details: ""
   });
+  const [newReferral, setNewReferral] = useState({
+    doctor_name: "",
+    specialization: "",
+    phone: "",
+    email: "",
+    address: ""
+  });
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -117,7 +127,7 @@ const PatientsAdminView = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const [patientsRes, diseasesRes, contractsRes] = await Promise.all([
+        const [patientsRes, diseasesRes, contractsRes, referralsRes] = await Promise.all([
           axios.get(`${apiUrl}/patient`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
@@ -126,12 +136,16 @@ const PatientsAdminView = () => {
           }),
           axios.get(`${apiUrl}/contracts`, {
             headers: { Authorization: `Bearer ${token}` }
+          }),
+          axios.get(`${apiUrl}/doctor`, {
+            headers: { Authorization: `Bearer ${token}` }
           })
         ]);
 
         setPatients(Array.isArray(patientsRes.data) ? patientsRes.data : []);
         setDiseases(Array.isArray(diseasesRes.data) ? diseasesRes.data : []);
         setContracts(Array.isArray(contractsRes.data) ? contractsRes.data : []);
+        setReferrals(Array.isArray(referralsRes.data) ? referralsRes.data : []);
 
         // Set up table headers
         const headers = [
@@ -234,6 +248,52 @@ const PatientsAdminView = () => {
 
   // handleRetry removed
 
+
+  const handleAddReferral = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      if (!newReferral.doctor_name.trim() || !newReferral.specialization.trim()) {
+        toast.error('Doctor name and specialization are required');
+        return;
+      }
+      const token = localStorage.getItem("token");
+      setLoading(true);
+      
+      const payload = {
+        name: newReferral.doctor_name,
+        specialization: newReferral.specialization,
+        phone: newReferral.phone,
+        email: newReferral.email
+      };
+
+      const response = await axios.post(`${apiUrl}/doctor`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Backend returns a doctor object, frontend maps it to referral keys if needed
+      const addedReferral = {
+        ...response.data,
+        doctor_name: response.data.name
+      };
+
+      setReferrals(prev => [...prev, addedReferral]);
+      setPatient(prev => ({ ...prev, referral_id: response.data.id }));
+      setShowReferralModal(false);
+      setNewReferral({
+        doctor_name: "",
+        specialization: "",
+        phone: "",
+        email: "",
+        address: ""
+      });
+      toast.success("Referral added successfully");
+    } catch (error) {
+      console.error('Error creating referral:', error);
+      toast.error(error.response?.data?.error || 'Failed to create referral');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDelete = async (id) => {
     try {
