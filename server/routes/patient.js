@@ -389,7 +389,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                     as: 'phones'
                 },
                 {
-                    model: diseases,
+                    model: db.diseases,
                     as: 'diseases_id_diseases',
                     through: { attributes: [] }
                 },
@@ -524,7 +524,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                     as: 'phones'
                 },
                 {
-                    model: diseases,
+                    model: db.diseases,
                     as: 'diseases_id_diseases',
                     through: { attributes: [] },
                     attributes: ['id', 'name', 'details']

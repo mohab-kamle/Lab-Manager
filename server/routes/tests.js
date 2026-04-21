@@ -31,6 +31,68 @@ router.use((req, res, next) => {
   next();
 });
 
+/**
+ * Converts the frontend component array into the structure_config JSON format
+ * that is stored in the database and consumed by DynamicResultForm.
+ * 
+ * Each component can carry a full reference_ranges array with multiple
+ * demographic-specific entries (gender, age_min, age_max, min, max, panic_min, panic_max).
+ * This enables a single "WBC" component to have separate normal ranges for
+ * males vs females, adults vs children, etc.
+ */
+function buildStructureConfig(components) {
+  const structureConfig = [];
+  let idCounter = 1;
+
+  for (const component of components) {
+    // Determine the internal type key used by DynamicResultForm
+    let type = 'numeric';
+    if (component.result_type === 'boolean') type = 'boolean';
+    else if (component.result_type === 'culture_panel') type = 'culture_panel';
+
+    // If the frontend already sends a reference_ranges array, use it directly.
+    // Otherwise, fall back to the legacy flat fields for backward compatibility.
+    let referenceRanges = [];
+    if (Array.isArray(component.reference_ranges) && component.reference_ranges.length > 0) {
+      referenceRanges = component.reference_ranges.map(r => ({
+        gender: r.gender || null,
+        age_min: r.age_min != null && r.age_min !== '' ? parseInt(r.age_min) : null,
+        age_max: r.age_max != null && r.age_max !== '' ? parseInt(r.age_max) : null,
+        min: r.min != null && r.min !== '' ? parseFloat(r.min) : null,
+        max: r.max != null && r.max !== '' ? parseFloat(r.max) : null,
+        panic_min: r.panic_min != null && r.panic_min !== '' ? parseFloat(r.panic_min) : null,
+        panic_max: r.panic_max != null && r.panic_max !== '' ? parseFloat(r.panic_max) : null,
+      }));
+    } else if (component.normal_from !== undefined || component.normal_to !== undefined) {
+      // Legacy flat-field fallback: construct a single reference_range entry
+      let genderValue = null;
+      if (component.gender === 'm' || component.gender === 'Male') genderValue = 'Male';
+      else if (component.gender === 'f' || component.gender === 'Female') genderValue = 'Female';
+
+      referenceRanges = [{
+        gender: genderValue,
+        age_min: component.age_start ? parseInt(component.age_start) : null,
+        age_max: component.age_end ? parseInt(component.age_end) : null,
+        min: component.normal_from !== undefined && component.normal_from !== '' ? parseFloat(component.normal_from) : null,
+        max: component.normal_to !== undefined && component.normal_to !== '' ? parseFloat(component.normal_to) : null,
+        panic_min: component.c_low !== undefined && component.c_low !== '' ? parseFloat(component.c_low) : null,
+        panic_max: component.c_high !== undefined && component.c_high !== '' ? parseFloat(component.c_high) : null,
+      }];
+    }
+
+    structureConfig.push({
+      key: `comp_${Date.now()}_${idCounter++}`,
+      type,
+      label: component.name,
+      unit: component.unit || '',
+      reference_ranges: referenceRanges,
+      reference_range: component.reference_range || null,
+    });
+  }
+
+  return structureConfig;
+}
+
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
   try {
     console.log('Tests route accessed by user:', req.user.id, 'with role:', req.user.role);
@@ -130,6 +192,27 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
     }
 
     res.status(500).json({ error: 'Failed to create test' });
+  }
+});
+
+// Bulk Delete tests
+router.post('/bulk-delete', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const { testIds } = req.body;
+    if (!testIds || !Array.isArray(testIds) || testIds.length === 0) {
+      return res.status(400).json({ error: 'No valid test IDs provided' });
+    }
+
+    const deletedCount = await db.test.destroy({
+      where: {
+        id: testIds
+      }
+    });
+
+    res.json({ message: `Successfully deleted ${deletedCount} tests`, deletedCount });
+  } catch (error) {
+    console.error('Error in bulk delete:', error);
+    res.status(500).json({ error: 'Failed to delete tests in bulk' });
   }
 });
 
@@ -304,19 +387,14 @@ router.get('/:id/components', authenticateUser, authorizeRoles('admin', 'chemist
       mappedComponents = test.structure_config
         .filter(c => c.type !== 'header')
         .map(c => {
-          const firstRange = (c.reference_ranges && c.reference_ranges.length > 0) ? c.reference_ranges[0] : {};
+          // Return the full reference_ranges array so the frontend can display/edit all demographic-specific ranges
+          const referenceRanges = Array.isArray(c.reference_ranges) ? c.reference_ranges : [];
           return {
             name: c.label || c.name || '',
             unit: c.unit || '',
-            normal_from: firstRange.min !== null && firstRange.min !== undefined ? firstRange.min : '',
-            normal_to: firstRange.max !== null && firstRange.max !== undefined ? firstRange.max : '',
-            c_low: '',
-            c_high: '',
-            gender: firstRange.gender === 'Male' ? 'Male' : firstRange.gender === 'Female' ? 'Female' : 'Any',
-            age_start: c.age_start || '',
-            age_end: c.age_end || '',
+            result_type: c.type === 'boolean' ? 'boolean' : c.type === 'culture_panel' ? 'culture_panel' : 'range',
             reference_range: c.reference_range || '',
-            result_type: c.type === 'boolean' ? 'boolean' : 'range',
+            reference_ranges: referenceRanges,
           };
         });
     }
@@ -329,6 +407,7 @@ router.get('/:id/components', authenticateUser, authorizeRoles('admin', 'chemist
 });
 
 // Create test components
+// Accepts components with nested reference_ranges array for demographic-specific normal values
 router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { components } = req.body;
@@ -339,41 +418,7 @@ router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async 
     const test = await db.test.findByPk(testId);
     if (!test) return res.status(404).json({ error: 'Test not found' });
 
-    const structureConfig = [];
-    let idCounter = 1;
-    for (const component of components) {
-      if (component.gender === 'both') continue;
-
-      let genderValue = 'Any';
-      if (component.gender === 'm' || component.gender === 'Male') genderValue = 'Male';
-      if (component.gender === 'f' || component.gender === 'Female') genderValue = 'Female';
-
-      let normalFrom = null;
-      let normalTo = null;
-
-      if (component.result_type === 'boolean') {
-        normalFrom = 0;
-        normalTo = 1;
-      } else {
-        if (component.normal_from !== undefined && component.normal_from !== '') normalFrom = parseFloat(component.normal_from);
-        if (component.normal_to !== undefined && component.normal_to !== '') normalTo = parseFloat(component.normal_to);
-      }
-
-      structureConfig.push({
-        key: `comp_${Date.now()}_${idCounter++}`,
-        type: component.result_type === 'boolean' ? 'boolean' : component.result_type === 'culture_panel' ? 'culture_panel' : 'numeric',
-        label: component.name,
-        unit: component.unit || '',
-        reference_ranges: [{
-          gender: genderValue,
-          min: normalFrom,
-          max: normalTo
-        }],
-        age_start: component.age_start ? parseInt(component.age_start) : null,
-        age_end: component.age_end ? parseInt(component.age_end) : null,
-        reference_range: component.reference_range || null
-      });
-    }
+    const structureConfig = buildStructureConfig(components);
 
     await test.update({ structure_config: structureConfig });
     console.log('Successfully created', structureConfig.length, 'components in structure_config');
@@ -385,6 +430,7 @@ router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async 
 });
 
 // Update test components
+// Accepts components with nested reference_ranges array for demographic-specific normal values
 router.put('/:id/components', authenticateUser, authorizeRoles('admin'), async (req, res) => {
   try {
     const { components } = req.body;
@@ -395,41 +441,7 @@ router.put('/:id/components', authenticateUser, authorizeRoles('admin'), async (
     const test = await db.test.findByPk(testId);
     if (!test) return res.status(404).json({ error: 'Test not found' });
 
-    const structureConfig = [];
-    let idCounter = 1;
-    for (const component of components) {
-      if (component.gender === 'both') continue;
-
-      let genderValue = 'Any';
-      if (component.gender === 'm' || component.gender === 'Male') genderValue = 'Male';
-      if (component.gender === 'f' || component.gender === 'Female') genderValue = 'Female';
-
-      let normalFrom = null;
-      let normalTo = null;
-
-      if (component.result_type === 'boolean') {
-        normalFrom = 0;
-        normalTo = 1;
-      } else {
-        if (component.normal_from !== undefined && component.normal_from !== '') normalFrom = parseFloat(component.normal_from);
-        if (component.normal_to !== undefined && component.normal_to !== '') normalTo = parseFloat(component.normal_to);
-      }
-
-      structureConfig.push({
-        key: `comp_${Date.now()}_${idCounter++}`,
-        type: component.result_type === 'boolean' ? 'boolean' : component.result_type === 'culture_panel' ? 'culture_panel' : 'numeric',
-        label: component.name,
-        unit: component.unit || '',
-        reference_ranges: [{
-          gender: genderValue,
-          min: normalFrom,
-          max: normalTo
-        }],
-        age_start: component.age_start ? parseInt(component.age_start) : null,
-        age_end: component.age_end ? parseInt(component.age_end) : null,
-        reference_range: component.reference_range || null
-      });
-    }
+    const structureConfig = buildStructureConfig(components);
 
     await test.update({ structure_config: structureConfig });
     console.log('Successfully updated', structureConfig.length, 'components in structure_config');

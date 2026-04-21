@@ -115,6 +115,35 @@ function initModels(sequelize) {
   var inventory_transaction = _inventory_transaction(sequelize, DataTypes);
   var inventory_notification = _inventory_notification(sequelize, DataTypes);
 
+  // ── Inventory associations ──────────────────────────────────────────────
+  // inventory_item ↔ inventory_batch (one item has many batches)
+  inventory_item.hasMany(inventory_batch, { as: "batches", foreignKey: "item_id" });
+  inventory_batch.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
+
+  // inventory_item ↔ inventory_transaction
+  inventory_item.hasMany(inventory_transaction, { as: "transactions", foreignKey: "item_id" });
+  inventory_transaction.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
+
+  // inventory_batch ↔ inventory_transaction
+  inventory_batch.hasMany(inventory_transaction, { as: "transactions", foreignKey: "batch_id" });
+  inventory_transaction.belongsTo(inventory_batch, { as: "batch", foreignKey: "batch_id" });
+
+  // inventory_notification ↔ inventory_item
+  inventory_notification.belongsTo(inventory_item, { as: "item", foreignKey: "item_id" });
+  inventory_item.hasMany(inventory_notification, { as: "notifications", foreignKey: "item_id" });
+
+  // inventory_notification ↔ inventory_batch
+  inventory_notification.belongsTo(inventory_batch, { as: "batch", foreignKey: "batch_id" });
+  inventory_batch.hasMany(inventory_notification, { as: "notifications", foreignKey: "batch_id" });
+
+  // supplier ↔ inventory_batch
+  supplier.hasMany(inventory_batch, { as: "batches", foreignKey: "supplier_id" });
+  inventory_batch.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id" });
+
+  // employee ↔ inventory_transaction
+  inventory_transaction.belongsTo(employee, { as: "employee", foreignKey: "employee_id" });
+  employee.hasMany(inventory_transaction, { as: "inventory_transactions", foreignKey: "employee_id" });
+
   // Add many-to-many association between test and question
   test.belongsToMany(question, {
     as: "questions",
@@ -608,7 +637,11 @@ function initModels(sequelize) {
     test_has_question,
     test_comments,
     comment_images,
-    supplier
+    supplier,
+    inventory_item,
+    inventory_batch,
+    inventory_transaction,
+    inventory_notification
   };
 }
 module.exports = initModels;
