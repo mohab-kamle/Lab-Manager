@@ -103,6 +103,24 @@ export const ToastProvider = ({ children }) => {
 
     info: (message, options = {}) =>
       showToast(message, "info", { position: "center", ...options }),
+
+    loading: (message, options = {}) => {
+      showToast(message, "loading", { 
+        position: "center", 
+        duration: 0, 
+        clickToClose: false, 
+        ...options 
+      });
+      return "current-toast";
+    },
+
+    update: (id, options = {}) => {
+      const { render, type, autoClose } = options;
+      showToast(render, type || "success", { 
+        duration: autoClose || 3000,
+        clickToClose: true
+      });
+    }
   };
 
   // ============================================
@@ -334,6 +352,8 @@ const ToastComponent = ({ toastData, hideToast }) => {
         return <AlertTriangle size={size} />;
       case "info":
         return <Info size={size} />;
+      case "loading":
+        return <span className="spinner" style={{ width: size, height: size, borderTopColor: 'white' }}></span>;
       default:
         return <CheckCircle size={size} />;
     }
@@ -349,6 +369,8 @@ const ToastComponent = ({ toastData, hideToast }) => {
         return "Warning!";
       case "info":
         return "Info";
+      case "loading":
+        return "Loading...";
       default:
         return "Notification";
     }
@@ -374,7 +396,7 @@ const ToastComponent = ({ toastData, hideToast }) => {
 
         <div className="toast-content">
           <h5 className="toast-title">{getTitle()}</h5>
-          <p className="toast-message">{toastData.message}</p>
+          <div className="toast-message">{toastData.message}</div>
         </div>
 
         {toastData.showCloseBtn && (

@@ -9,11 +9,12 @@ import DynamicTable from "../../components/ui/DynamicTable";
 import PrintPDF, { DirectPDFDownload } from "../../components/pdf/PrintPDF";
 import { formatDate } from "../../utils/dateFormatter";
 import { Eye, CircleX } from "lucide-react";
-import { toast } from "react-toastify";
+import { useToast } from "../../components/ui/ToastContext";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 
 const PatientReports = () => {
+  const { toast } = useToast();
   const [reports, setReports] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);

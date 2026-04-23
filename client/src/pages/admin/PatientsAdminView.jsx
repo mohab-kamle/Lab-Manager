@@ -10,12 +10,13 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
-import { toast } from 'react-toastify';
+import { useToast } from "../../components/ui/ToastContext";
 
 
 
 const PatientsAdminView = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [patients, setPatients] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -223,7 +224,7 @@ const PatientsAdminView = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         // Update the patients state by replacing the old patient with the updated one
-        setPatients(prevPatients => prevPatients.map(p => 
+        setPatients(prevPatients => prevPatients.map(p =>
           p.id === editingPatient.id ? response.data : p
         ));
       } else {
@@ -236,6 +237,7 @@ const PatientsAdminView = () => {
       }
 
       console.log('Server response:', response.data);
+      toast.success(editingPatient ? "Patient updated successfully!" : "Patient added successfully!");
       setShowAddModal(false);
       handleResetForm();
     } catch (error) {
@@ -258,7 +260,7 @@ const PatientsAdminView = () => {
       }
       const token = localStorage.getItem("token");
       setLoading(true);
-      
+
       const payload = {
         name: newReferral.doctor_name,
         specialization: newReferral.specialization,
@@ -323,7 +325,7 @@ const PatientsAdminView = () => {
         'Patient Code': patient.patientcode,
         'Name': patient.name,
         'Email': patient.email,
-        'Gender': patient.gender? patient.gender :'',
+        'Gender': patient.gender ? patient.gender : '',
         'Birth Date': patient.birth_date ? new Date(patient.birth_date).toLocaleDateString() : '',
         'National ID': patient.national_id,
         'Nationality': patient.nationality,
@@ -366,7 +368,7 @@ const PatientsAdminView = () => {
       setError(null);
 
       const response = await axios.post(`${apiUrl}/patient/import`, formData, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         }
@@ -380,7 +382,7 @@ const PatientsAdminView = () => {
 
       setShowImportModal(false);
       setImportFile(null);
-      alert(`Successfully imported ${response.data.imported} patients`);
+      toast.success(`Successfully imported ${response.data.imported} patients`);
     } catch (error) {
       console.error('Error importing patients:', error);
       toast.error(error.response?.data?.error || 'Failed to import patients');
@@ -409,7 +411,7 @@ const PatientsAdminView = () => {
       setPatients(prevPatients => prevPatients.filter(p => !selectedPatients.includes(p.id)));
       setSelectedPatients([]);
       setShowBulkDeleteModal(false);
-      alert(`Successfully deleted ${selectedPatients.length} patients`);
+      toast.success(`Successfully deleted ${selectedPatients.length} patients`);
     } catch (error) {
       console.error("Error bulk deleting patients:", error);
       toast.error("Failed to delete patients. Please try again.");
@@ -449,7 +451,7 @@ const PatientsAdminView = () => {
       setSelectedPatients([]);
       setShowBulkUpdateModal(false);
       setBulkUpdateData({ nationality: "", diseases: [] });
-      alert(`Successfully updated ${selectedPatients.length} patients`);
+      toast.success(`Successfully updated ${selectedPatients.length} patients`);
     } catch (error) {
       console.error("Error bulk updating patients:", error);
       toast.error("Failed to update patients. Please try again.");
@@ -484,30 +486,30 @@ const PatientsAdminView = () => {
 
   const sortedPatients = [...filteredPatients].sort((a, b) => {
     if (!sortConfig.field) return 0;
-    
+
     const aValue = a[sortConfig.field];
     const bValue = b[sortConfig.field];
-    
+
     // Handle different data types
     if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortConfig.direction === "asc" 
+      return sortConfig.direction === "asc"
         ? aValue.localeCompare(bValue)
         : bValue.localeCompare(aValue);
     }
-    
+
     if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return sortConfig.direction === "asc" 
+      return sortConfig.direction === "asc"
         ? aValue - bValue
         : bValue - aValue;
     }
-    
+
     // Handle dates
     if (aValue instanceof Date && bValue instanceof Date) {
       return sortConfig.direction === "asc"
         ? aValue.getTime() - bValue.getTime()
         : bValue.getTime() - aValue.getTime();
     }
-    
+
     return 0;
   });
 
@@ -524,7 +526,7 @@ const PatientsAdminView = () => {
         size="sm"
         onClick={() => {
           setEditingPatient(rowData);
-          
+
           // Parse birth date components if birth_date exists
           let birthComponents = { birth_day: "", birth_month: "", birth_year: "", age: "", use_age: false };
           if (rowData.birth_date) {
@@ -537,7 +539,7 @@ const PatientsAdminView = () => {
               use_age: false
             };
           }
-          
+
           setPatient({
             ...rowData,
             name: rowData.name || "",
@@ -577,7 +579,7 @@ const PatientsAdminView = () => {
 
   const validateForm = (patient) => {
     const errors = {};
-    
+
     if (!patient.name) errors.name = 'Name is required';
 
     // Email validation (optional)
@@ -600,9 +602,9 @@ const PatientsAdminView = () => {
   const formatCellData = (value, field, rowData) => {
     // Determine if we should skip the check for computed columns
     const isComputedColumn = ['amount_due', 'credit'].includes(field);
-    
+
     if ((value === null || value === undefined) && !isComputedColumn) return '-';
-    
+
     switch (field) {
       case 'birth_date':
         return value ? new Date(value).toLocaleDateString() : '-';
@@ -639,9 +641,9 @@ const PatientsAdminView = () => {
         return (
           <div className="d-flex flex-wrap gap-1">
             {value.map((disease, index) => (
-              <Badge 
-                key={index} 
-                bg="primary" 
+              <Badge
+                key={index}
+                bg="primary"
                 className="text-wrap cursor-pointer"
                 style={{ cursor: 'pointer' }}
                 onClick={() => {
@@ -686,7 +688,7 @@ const PatientsAdminView = () => {
     setFormErrors({});
   };
 
-    const handleAddContract = async () => {
+  const handleAddContract = async () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
@@ -698,10 +700,10 @@ const PatientsAdminView = () => {
 
       // Add new contract to the list
       setContracts(prevContracts => [...prevContracts, response.data]);
-      
+
       // Set the new contract as selected
       setPatient(prev => ({ ...prev, contract_id: response.data.id }));
-      
+
       setShowContractModal(false);
       setNewContract({
         name: "",
@@ -736,10 +738,10 @@ const PatientsAdminView = () => {
 
       // Add new disease to the list
       setDiseases(prevDiseases => [...prevDiseases, response.data]);
-      
+
       // Set the new disease as selected
       setPatient(prev => ({ ...prev, diseases: [...prev.diseases, response.data.id] }));
-      
+
       setShowDiseaseCreateModal(false);
       setNewDisease({
         name: "",
@@ -764,14 +766,14 @@ const PatientsAdminView = () => {
             <div className="d-flex gap-2 flex-wrap">
               {selectedPatients.length > 0 && (
                 <>
-                  <Button 
+                  <Button
                     variant="outline-warning"
                     onClick={() => setShowBulkUpdateModal(true)}
                   >
                     <Pencil size={16} className="me-2" />
                     Bulk Update ({selectedPatients.length})
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline-danger"
                     onClick={() => setShowBulkDeleteModal(true)}
                   >
@@ -780,22 +782,22 @@ const PatientsAdminView = () => {
                   </Button>
                 </>
               )}
-              <Button 
+              <Button
                 variant="outline-success"
                 onClick={handleExport}
               >
                 <Download size={16} className="me-2" />
                 Export XLSX
               </Button>
-              <Button 
+              <Button
                 variant="outline-info"
                 onClick={() => setShowImportModal(true)}
               >
                 <Upload size={16} className="me-2" />
                 Import Excel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={() => {
                   setEditingPatient(null);
                   setPatient({
@@ -836,7 +838,7 @@ const PatientsAdminView = () => {
             sortConfig={sortConfig}
             setSortConfig={setSortConfig}
           />
-          
+
           <DynamicTable
             data={currentPatients}
             columns={tableHeaders.map(header => header.field)}
@@ -851,7 +853,7 @@ const PatientsAdminView = () => {
               return acc;
             }, {})}
           />
-          
+
           <TablePagination
             currentPage={currentPage}
             pageCount={pageCount}
@@ -895,7 +897,7 @@ const PatientsAdminView = () => {
                     </Col>
                   </Row>
                 )}
-                
+
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
@@ -1309,8 +1311,8 @@ const PatientsAdminView = () => {
               }}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 type="submit"
                 form="patient-form"
                 disabled={loading}
@@ -1345,8 +1347,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowImportModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleImport}
                 disabled={!importFile || loading}
               >
@@ -1373,8 +1375,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="danger" 
+              <Button
+                variant="danger"
                 onClick={() => handleDelete(patientToDelete?.id)}
               >
                 Delete
@@ -1400,8 +1402,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="danger" 
+              <Button
+                variant="danger"
                 onClick={handleBulkDelete}
                 disabled={loading}
               >
@@ -1464,8 +1466,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowBulkUpdateModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleBulkUpdate}
                 disabled={loading}
               >
@@ -1605,8 +1607,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowContractModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleAddContract}
                 disabled={loading || !newContract.region || !newContract.governorate}
               >
@@ -1656,8 +1658,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowDiseaseCreateModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleAddDisease}
                 disabled={loading || !newDisease.name.trim()}
               >
@@ -1743,8 +1745,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowReferralModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleAddReferral}
                 disabled={loading || !newReferral.doctor_name.trim() || !newReferral.specialization.trim()}
               >

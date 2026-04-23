@@ -40,7 +40,7 @@ import {
   Undo,
 } from "lucide-react";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
-import { toast } from "react-toastify";
+import { useToast } from "../../components/ui/ToastContext";
 import { formatDate } from "../../utils/dateFormatter";
 import {
   exportToExcel,
@@ -63,6 +63,7 @@ function calculateAge(birthDate) {
 }
 
 const MedicalReports = () => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const { labInfo } = useLab();
   const [reports, setReports] = useState([]);
@@ -1181,12 +1182,12 @@ const MedicalReports = () => {
           },
         }
       );
-      alert(
+      toast.success(
         `Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`
       );
       await fetchData();
     } catch (error) {
-      alert(error.response?.data?.error || "Failed to import medical reports");
+      toast.error(error.response?.data?.error || "Failed to import medical reports");
     }
   };
 

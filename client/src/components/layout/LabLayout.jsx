@@ -7,9 +7,10 @@ import MainNavBar from './MainNavBar';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import FloatingBackToTopButton from '../../components/ui/FloatingBackToTopButton';
 import { socket } from '../../utils/socket';
-import { toast } from 'react-toastify';
+import { useToast } from '../ui/ToastContext';
 
 const LabLayout = () => {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const {
     labInfo,
