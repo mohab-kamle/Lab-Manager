@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
-import { toast } from 'react-toastify';
+import { useToast } from '../../components/ui/ToastContext';
 import {
   Palette, Settings, CreditCard, Upload, Eye, EyeOff,
   Save, RefreshCw, AlertTriangle, CheckCircle, Info
@@ -11,6 +11,7 @@ import styles from '../../styles/LabManagement.module.css';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const LabManagement = () => {
+  const { toast } = useToast();
   const {
     labInfo,
     labSettings,

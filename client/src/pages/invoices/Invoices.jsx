@@ -11,14 +11,15 @@ import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
 import Select from 'react-select';
 import '../../styles/select.css';
-import { toast } from 'react-toastify';
+import { useToast } from '../../components/ui/ToastContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const Invoices = () => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
-const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
+  const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [discountPercentage, setDiscountPercentage] = useState(0);
 
   const [patients, setPatients] = useState([]);
@@ -670,7 +671,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       resetForm();
       await refreshPatientData();
       const action = editingInvoice ? "updated" : "created";
-      toast.success(`Invoice ${action} successfully! Patient financial information has been updated.`, { autoClose: 5000 });
+      toast.success(`Invoice ${action} successfully! Patient financial information has been updated.`, { duration: 5000 });
     } catch (error) {
       console.error("Error saving invoice:", error);
       
@@ -702,7 +703,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         // Refresh patient data to show updated financial information
         await refreshPatientData();
         // Show success message as a toast
-        toast.success("Invoice deleted successfully! Patient financial information has been updated.", { autoClose: 5000 });
+        toast.success("Invoice deleted successfully! Patient financial information has been updated.", { duration: 5000 });
       } else {
         setError(response.data.error || "Failed to delete invoice");
       }
@@ -793,8 +794,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       // Show success message
       if (statusesToCreate.length > 0) {
         setError(null);
-        // You could add a success toast here if you have one
-        console.log(`Created ${statusesToCreate.length} default statuses successfully`);
+        // Add a success toast
+        toast.success(`Created ${statusesToCreate.length} default statuses successfully`);
       }
     } catch (error) {
       console.error("Error creating default statuses:", error);

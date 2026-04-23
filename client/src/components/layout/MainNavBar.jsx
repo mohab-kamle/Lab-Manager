@@ -9,7 +9,7 @@ import {
   Dropdown,
   NavbarText,
 } from "react-bootstrap";
-import { toast } from "react-toastify";
+import { useToast } from "../ui/ToastContext";
 
 import ThemeToggle from "../ui/ThemeToggle";
 
@@ -87,6 +87,7 @@ export const resetNavbarActiveState = () => {
  * @returns {JSX.Element} The main navigation bar component.
  */
 const MainNavBar = () => {
+  const { toast } = useToast();
   const { user, loading: authLoading, refreshUser, logout } = useAuth();
   const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
   const navigate = useNavigate();
@@ -221,16 +222,12 @@ const MainNavBar = () => {
       };
       const payload = parseJwt(token);
       if (!payload || payload.exp < Date.now() / 1000) {
-        toast.error("Your session has expired. Please login again.", {
-          position: "top-right",
-          autoClose: 3000,
-          theme: "colored",
-          onClose: () => {
-            logout();
-            terminateLabInfo();
-            window.location.href = "/login";
-          },
-        });
+        toast.error("Your session has expired. Please login again.", { duration: 3000 });
+        setTimeout(() => {
+          logout();
+          terminateLabInfo();
+          window.location.href = "/login";
+        }, 3000);
       }
     }
   }, [user, authLoading, refreshUser, logout, terminateLabInfo]);
@@ -265,11 +262,7 @@ const MainNavBar = () => {
   };
 
   const handleLogout = () => {
-    toast.success("You have been logged out successfully.", {
-      position: "top-right",
-      autoClose: 3000,
-      theme: "colored",
-    });
+    toast.success("You have been logged out successfully.");
     logout();
     terminateLabInfo();
     navigate("/login");
