@@ -769,7 +769,7 @@ const MedicalReports = () => {
       );
 
       // Show loading state
-      const toastId = toast.loading("Saving results...");
+      toast.loading("Saving results...");
 
       try {
         // Execute sequentially to avoid MySQL deadlocks from concurrent transaction gap locks
@@ -794,7 +794,7 @@ const MedicalReports = () => {
         // Refresh the reports list
         await fetchData();
 
-        toast.update(toastId, {
+        toast.update({
           render: "Results saved successfully",
           type: "success",
           isLoading: false,
@@ -802,7 +802,7 @@ const MedicalReports = () => {
         });
       } catch (error) {
         console.error("Error saving results:", error);
-        toast.update(toastId, {
+        toast.update({
           render:
             error.response?.data?.message ||
             "Failed to save results. Please try again.",

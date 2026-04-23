@@ -93,6 +93,7 @@ const MainNavBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const logoutTimerRef = useRef(null);
 
   const [titles, setTitles] = useState(() => {
     const saved = localStorage.getItem("navbar-titles");
@@ -222,14 +223,23 @@ const MainNavBar = () => {
       };
       const payload = parseJwt(token);
       if (!payload || payload.exp < Date.now() / 1000) {
+        if (logoutTimerRef.current) return;
+
         toast.error("Your session has expired. Please login again.", { duration: 3000 });
-        setTimeout(() => {
+        logoutTimerRef.current = setTimeout(() => {
           logout();
           terminateLabInfo();
           window.location.href = "/login";
         }, 3000);
       }
     }
+
+    return () => {
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+        logoutTimerRef.current = null;
+      }
+    };
   }, [user, authLoading, refreshUser, logout, terminateLabInfo]);
 
   useEffect(() => {
@@ -434,15 +444,15 @@ const MainNavBar = () => {
                           <Dropdown.Toggle
                             id="dropdown-basic"
                             className={`nav-button ${[
-                                "categories-tests",
-                                "tests-tests",
-                                "sample-types-tests",
-                                "packages-offers",
+                              "categories-tests",
+                              "tests-tests",
+                              "sample-types-tests",
+                              "packages-offers",
 
-                                "diseases-tests",
-                              ].includes(activeItem)
-                                ? "active-dropdown"
-                                : ""
+                              "diseases-tests",
+                            ].includes(activeItem)
+                              ? "active-dropdown"
+                              : ""
                               }`}
                           >
                             <Database size={18} className="me-1 mb-1" />
