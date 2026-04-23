@@ -40,12 +40,27 @@ export const ToastProvider = ({ children }) => {
   // Show Toast Function
   const showToast = useCallback(
     (message, type = "success", options = {}) => {
-      const {
-        position = DEFAULT_POSITIONS[type] || "right",
-        duration = 3000,
-        showCloseBtn = false,
-        clickToClose = true,
-      } = options;
+      // Legacy option mapping
+      let mappedDuration = 3000;
+      if (options.autoClose === false) {
+        mappedDuration = 0;
+      } else if (typeof options.autoClose === "number") {
+        mappedDuration = options.autoClose;
+      } else if (options.duration !== undefined) {
+        mappedDuration = options.duration;
+      }
+
+      let mappedClickToClose = true;
+      if (options.closeOnClick !== undefined) {
+        mappedClickToClose = options.closeOnClick;
+      } else if (options.clickToClose !== undefined) {
+        mappedClickToClose = options.clickToClose;
+      }
+
+      const position = options.position || DEFAULT_POSITIONS[type] || "right";
+      const showCloseBtn = options.showCloseBtn !== undefined ? options.showCloseBtn : false;
+      const duration = mappedDuration;
+      const clickToClose = mappedClickToClose;
 
       // Clear any existing timeout
       if (toastTimeout) {
@@ -111,10 +126,9 @@ export const ToastProvider = ({ children }) => {
         clickToClose: false, 
         ...options 
       });
-      return "current-toast";
     },
 
-    update: (id, options = {}) => {
+    update: (options = {}) => {
       const { render, type, autoClose } = options;
       showToast(render, type || "success", { 
         duration: autoClose || 3000,
@@ -353,7 +367,7 @@ const ToastComponent = ({ toastData, hideToast }) => {
       case "info":
         return <Info size={size} />;
       case "loading":
-        return <span className="spinner" style={{ width: size, height: size, borderTopColor: 'white' }}></span>;
+        return <span className="toast-spinner" style={{ width: size, height: size, borderTopColor: 'white' }}></span>;
       default:
         return <CheckCircle size={size} />;
     }
@@ -474,7 +488,7 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
           >
             {confirmData.isLoading ? (
               <span className="confirm-loading">
-                <span className="spinner"></span>
+                <span className="toast-spinner"></span>
                 Loading...
               </span>
             ) : (
