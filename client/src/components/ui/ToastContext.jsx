@@ -22,7 +22,7 @@ const DEFAULT_POSITIONS = {
 // Toast Provider Component
 export const ToastProvider = ({ children }) => {
   // ============================================
-  // TOAST STATE & FUNCTIONS
+  // TOAST STATE & FUNCTIONS (Singleton Design)
   // ============================================
   const [toastData, setToastData] = useState({
     show: false,
@@ -129,10 +129,11 @@ export const ToastProvider = ({ children }) => {
     },
 
     update: (options = {}) => {
-      const { render, type, autoClose } = options;
-      showToast(render, type || "success", { 
-        duration: autoClose || 3000,
-        clickToClose: true
+      const { render, message, type, ...rest } = options;
+      // Support 'render' (react-toastify style) or 'message'
+      showToast(render || message, type || "success", { 
+        clickToClose: true, 
+        ...rest 
       });
     }
   };
