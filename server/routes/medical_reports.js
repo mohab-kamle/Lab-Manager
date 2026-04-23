@@ -190,7 +190,14 @@ router.get(
           {
             model: db.patient,
             as: "patient",
-            attributes: ["id", "name", "patientcode", "birth_date", "gender"]
+            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+            include: [
+              {
+                model: db.phone,
+                as: "phones",
+                attributes: ["phone_number", "type"]
+              }
+            ]
           },
           {
             model: db.test,
@@ -267,9 +274,18 @@ router.get(
         const reportData = report.get({ plain: true });
         const reportTests = testsMap[reportData.id] || [];
 
+        // Extract primary phone
+        let patientPhone = null;
+        if (reportData.patient && reportData.patient.phones && reportData.patient.phones.length > 0) {
+          const primary = reportData.patient.phones.find(p => p.type === 'primary');
+          patientPhone = primary ? primary.phone_number : reportData.patient.phones[0].phone_number;
+          reportData.patient.phone = patientPhone;
+        }
+
         return {
           ...reportData,
           patient_name: reportData.patient?.name || "Unknown Patient",
+          patient_phone: patientPhone,
           tests: reportTests,
           tests_count: reportTests.length,
           invoice_id: reportData.bill?.id || null,
@@ -626,19 +642,7 @@ router.post(
             model: db.patient,
             as: "patient",
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
-              },
-            ],
+            // db.referral has no registered association — omitted
           },
           {
             model: db.test,
@@ -779,19 +783,7 @@ router.put(
             model: db.patient,
             as: "patient",
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
-              },
-            ],
+            // db.referral has no registered association — omitted
           },
           {
             model: db.test,
@@ -1125,19 +1117,7 @@ router.get(
               model: db.patient,
               as: "patient",
               attributes: ["id", "name", "birth_date", "gender", "patientcode"],
-              include: [
-                {
-                  model: db.referral,
-                  as: "referral",
-                  attributes: [
-                    "id",
-                    "doctor_name",
-                    "specialization",
-                    "phone",
-                    "email",
-                  ],
-                },
-              ],
+              // db.referral has no registered association — omitted
             },
           ],
         }),

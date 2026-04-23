@@ -18,7 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import PrintPDF, { DirectPDFDownload } from "../../components/pdf/PrintPDF";
+import PrintPDF, { DirectPDFDownload, generatePdfBase64 } from "../../components/pdf/PrintPDF";
 import RichTextEditor from "../../components/ui/RichTextEditor";
 import ImageUpload from "../../components/ui/ImageUpload";
 import SecureImage from "../../components/ui/SecureImage";
@@ -38,6 +38,7 @@ import {
   ArrowUpWideNarrow,
   CircleX,
   Undo,
+  MessageCircle,
 } from "lucide-react";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
 import { toast } from "react-toastify";
@@ -111,7 +112,7 @@ const MedicalReports = () => {
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [selectedReportForPDF, setSelectedReportForPDF] = useState(null);
   // Loading states for various operations
-  
+
   // Comment-related state
   const [comments, setComments] = useState({
     testComments: [],
@@ -130,6 +131,7 @@ const MedicalReports = () => {
   const [savingComments, setSavingComments] = useState({ test: false, medicalReport: false });
   const [updatingReport, setUpdatingReport] = useState(false);
   const [deletingReport, setDeletingReport] = useState(false);
+  const [sendingWhatsappId, setSendingWhatsappId] = useState(null); // reportId being sent via WhatsApp
   const [markingCollected, setMarkingCollected] = useState(null); // reportId being marked
   const [savingResults, setSavingResults] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(null); // reportId for invoice loading
@@ -169,12 +171,12 @@ const MedicalReports = () => {
         prev.map((report) =>
           report.id === selectedReportForResults.id
             ? {
-                ...report,
-                patient: {
-                  ...report.patient,
-                  ...updatedData,
-                },
-              }
+              ...report,
+              patient: {
+                ...report.patient,
+                ...updatedData,
+              },
+            }
             : report
         )
       );
@@ -223,7 +225,7 @@ const MedicalReports = () => {
 
       const headers = { Authorization: `Bearer ${token}` };
       const response = await axios.get(`${apiUrl}/medical-reports/${reportId}/comments`, { headers });
-      
+
       // Organize comments by test/group ID for UI consumption
       const organizedComments = {
         test: {},
@@ -231,7 +233,7 @@ const MedicalReports = () => {
         reportImages: response.data.reportImages,
         medicalReport: response.data.reportImages
       };
-      
+
       // Group test comments by test_id
       response.data.testComments.forEach(comment => {
         if (!organizedComments.test[comment.test_id]) {
@@ -239,13 +241,13 @@ const MedicalReports = () => {
         }
         organizedComments.test[comment.test_id].push(comment);
       });
-      
+
       setComments(organizedComments);
-      
+
       // Initialize comment texts from existing comments (keep empty for new comments)
       const newCommentTexts = { tests: {} };
       setCommentTexts(newCommentTexts);
-      
+
       // Initialize comment images
       const newCommentImages = { tests: {}, medicalReport: response.data.reportImages };
       setCommentImages(newCommentImages);
@@ -261,23 +263,23 @@ const MedicalReports = () => {
       setSavingComments(prev => ({ ...prev, test: true }));
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const formData = new FormData();
       formData.append('test_id', testId);
       formData.append('comment', comment);
-      
+
       if (images && images.length > 0) {
         images.forEach(image => {
           formData.append('images', image);
         });
       }
-      
+
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/test-comments`,
         formData,
         { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
       );
-      
+
       toast.success("Test comment saved successfully");
       await fetchComments(selectedReportForResults.id);
     } catch (error) {
@@ -301,29 +303,29 @@ const MedicalReports = () => {
         ...prev,
         medicalReport: true
       }));
-      
+
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const formData = new FormData();
       images.forEach(image => {
         formData.append('images', image);
       });
-      
+
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/comment-images`,
         formData,
         { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
       );
-      
+
       toast.success("Medical report images saved successfully");
-      
+
       // Clear the uploaded images
       setCommentImages(prev => ({
         ...prev,
         medicalReport: []
       }));
-      
+
       await fetchComments(selectedReportForResults.id);
     } catch (error) {
       console.error("Error saving medical report images:", error);
@@ -341,9 +343,9 @@ const MedicalReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       await axios.delete(`${apiUrl}/medical-reports/test-comments/${commentId}`, { headers });
-      
+
       toast.success("Test comment deleted successfully");
       await fetchComments(selectedReportForResults.id);
     } catch (error) {
@@ -387,7 +389,7 @@ const MedicalReports = () => {
         }),
       }));
     }
-     
+
   }, [selectedReportForResults]);
 
   const getStatusBadge = (report) => {
@@ -449,19 +451,19 @@ const MedicalReports = () => {
 
       const updateData = isSigning
         ? {
-            done: 1,
-            pending: 0,
-            signatory_name: user.name,
-            date: new Date().toISOString(),
-          }
+          done: 1,
+          pending: 0,
+          signatory_name: user.name,
+          date: new Date().toISOString(),
+        }
         : {
-            done: 0,
-            pending: 1,
-            signatory_name: null,
-            signatory_id: null,
-            signatory_admin_id: null,
-            reported_at: null,
-          };
+          done: 0,
+          pending: 1,
+          signatory_name: null,
+          signatory_id: null,
+          signatory_admin_id: null,
+          reported_at: null,
+        };
 
       if (isSigning) {
         // Set the appropriate signatory ID based on user role
@@ -628,9 +630,9 @@ const MedicalReports = () => {
         prevReports.map((r) =>
           r.id === report.id
             ? {
-                ...r,
-                collected_at: isCollecting ? new Date().toISOString() : null,
-              }
+              ...r,
+              collected_at: isCollecting ? new Date().toISOString() : null,
+            }
             : r
         )
       );
@@ -753,7 +755,7 @@ const MedicalReports = () => {
           // Format the results object as { [parameter_key]: result_value }
           const formattedResults = {};
           let hasResults = false;
-          
+
           Object.entries(components).forEach(([key, data]) => {
             if (data && data.result !== undefined && data.result !== null && data.result !== '') {
               formattedResults[key] = data.result;
@@ -891,10 +893,10 @@ const MedicalReports = () => {
   const filteredReports = reports.filter((report) => {
     const searchMatch = searchQuery
       ? report.comment?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.patient?.name
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      report.patient?.name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
 
     const dateMatch =
@@ -939,6 +941,51 @@ const MedicalReports = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  const handleSendWhatsapp = async (reportData) => {
+    try {
+      if (!reportData.patient?.phone) {
+        toast.warning("Patient does not have a registered phone number.");
+        return;
+      }
+      setSendingWhatsappId(reportData.id);
+
+      // Extract Base64 from PrintPDF
+      const pdfBase64 = await generatePdfBase64(reportData.id, reportData.patient, apiUrl);
+
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Make request to backend
+      const response = await axios.post(
+        `${apiUrl}/whatsapp/send-report`,
+        {
+          labId: labInfo?.id || user.lab_id,
+          patientId: reportData.patient.id,
+          reportId: reportData.id,
+          phone: reportData.patient.phone,
+          pdfBase64: pdfBase64,
+        },
+        { headers }
+      );
+
+      toast.success("Report sent successfully via WhatsApp!");
+
+      // Update the local report's whatsapp_sends count so the table reflects it immediately
+      setReports((prevReports) =>
+        prevReports.map((r) =>
+          r.id === reportData.id
+            ? { ...r, whatsapp_sends: (r.whatsapp_sends || 0) + 1 }
+            : r
+        )
+      );
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      toast.error(error.response?.data?.error || error.response?.data?.message || "Failed to send report via WhatsApp.");
+    } finally {
+      setSendingWhatsappId(null);
+    }
+  };
 
   const ActionComponent = ({ rowData }) => {
     return (
@@ -1044,6 +1091,25 @@ const MedicalReports = () => {
             className="action-btn-fixed"
           />
         </div>
+
+        {/* Send via WhatsApp Button */}
+        <Button
+          variant="outline-success"
+          className="action-btn-fixed"
+          onClick={() => handleSendWhatsapp(rowData)}
+          title="Send via WhatsApp"
+          disabled={sendingWhatsappId === rowData.id}
+        >
+          {sendingWhatsappId === rowData.id ? (
+            <div
+              className="spinner-border spinner-border-sm"
+              role="status"
+              style={{ width: "12px", height: "12px" }}
+            />
+          ) : (
+            <MessageCircle size={16} />
+          )}
+        </Button>
 
         {/* PDF Preview Button */}
         <Button
@@ -1309,8 +1375,8 @@ const MedicalReports = () => {
                           formData.done
                             ? "done"
                             : formData.pending
-                            ? "pending"
-                            : "unsigned"
+                              ? "pending"
+                              : "unsigned"
                         }
                         onChange={(e) => {
                           const status = e.target.value;
@@ -1652,11 +1718,10 @@ const MedicalReports = () => {
                           <strong>Gender:</strong>
                           {!editingPatientData ? (
                             <span
-                              className={`ms-2 ${
-                                !selectedReportForResults?.patient?.gender
+                              className={`ms-2 ${!selectedReportForResults?.patient?.gender
                                   ? "text-muted fst-italic"
                                   : ""
-                              }`}
+                                }`}
                             >
                               {selectedReportForResults?.patient?.gender ||
                                 "Not specified"}
@@ -1684,16 +1749,15 @@ const MedicalReports = () => {
                           <strong>Birth Date:</strong>
                           {!editingPatientData ? (
                             <span
-                              className={`ms-2 ${
-                                !selectedReportForResults?.patient?.birth_date
+                              className={`ms-2 ${!selectedReportForResults?.patient?.birth_date
                                   ? "text-muted fst-italic"
                                   : ""
-                              }`}
+                                }`}
                             >
                               {selectedReportForResults?.patient?.birth_date
                                 ? formatDate(
-                                    selectedReportForResults.patient.birth_date
-                                  )
+                                  selectedReportForResults.patient.birth_date
+                                )
                                 : "Not specified"}
                             </span>
                           ) : (
@@ -1717,8 +1781,8 @@ const MedicalReports = () => {
                           <span className="ms-2">
                             {selectedReportForResults?.patient?.birth_date
                               ? `${calculateAge(
-                                  selectedReportForResults.patient.birth_date
-                                )} years`
+                                selectedReportForResults.patient.birth_date
+                              )} years`
                               : "Unknown"}
                           </span>
                         </div>
@@ -1728,21 +1792,21 @@ const MedicalReports = () => {
                     {/* Show filtering status */}
                     {(!selectedReportForResults?.patient?.gender ||
                       !selectedReportForResults?.patient?.birth_date) && (
-                      <Alert variant="info" className="mt-2 mb-0">
-                        <small>
-                          <strong>Note:</strong>
-                          {!selectedReportForResults?.patient?.gender &&
-                          !selectedReportForResults?.patient?.birth_date
-                            ? " Both gender and birth date are missing. Showing all test components."
-                            : !selectedReportForResults?.patient?.gender
-                            ? " Gender is missing. Showing components for all genders."
-                            : " Birth date is missing. Showing components for all ages."}
-                          {
-                            ' You can update this information using the "Edit Patient Data" button above.'
-                          }
-                        </small>
-                      </Alert>
-                    )}
+                        <Alert variant="info" className="mt-2 mb-0">
+                          <small>
+                            <strong>Note:</strong>
+                            {!selectedReportForResults?.patient?.gender &&
+                              !selectedReportForResults?.patient?.birth_date
+                              ? " Both gender and birth date are missing. Showing all test components."
+                              : !selectedReportForResults?.patient?.gender
+                                ? " Gender is missing. Showing components for all genders."
+                                : " Birth date is missing. Showing components for all ages."}
+                            {
+                              ' You can update this information using the "Edit Patient Data" button above.'
+                            }
+                          </small>
+                        </Alert>
+                      )}
                   </div>
 
                   <div className="scrollable-tabs">
@@ -1772,54 +1836,54 @@ const MedicalReports = () => {
                                   let applicableComponents = [];
 
                                   if (!hasStructureConfig) {
-                                      if (
-                                        !patientGender &&
-                                        !selectedReportForResults.patient
-                                          ?.birth_date
-                                      ) {
-                                        // Both gender and birth date missing - show all components
-                                        applicableComponents = comps;
-                                      } else if (!patientGender) {
-                                        // Only gender missing - filter by age but show all genders
-                                        applicableComponents = comps.filter(
-                                          (tc) => {
-                                            const ageMatch =
-                                              (tc.age_start == null ||
-                                                patientAge >= tc.age_start) &&
-                                              (tc.age_end == null ||
-                                                patientAge <= tc.age_end);
-                                            return ageMatch;
-                                          }
-                                        );
-                                      } else if (
-                                        !selectedReportForResults.patient
-                                          ?.birth_date
-                                      ) {
-                                        // Only birth date missing - filter by gender but show all ages
-                                        applicableComponents = comps.filter(
-                                          (tc) => {
-                                            const genderMatch =
-                                              !tc.gender ||
-                                              tc.gender === patientGender;
-                                            return genderMatch;
-                                          }
-                                        );
-                                      } else {
-                                        // Both available - filter by both gender and age
-                                        applicableComponents = comps.filter(
-                                          (tc) => {
-                                            const genderMatch =
-                                              !tc.gender ||
-                                              tc.gender === patientGender;
-                                            const ageMatch =
-                                              (tc.age_start == null ||
-                                                patientAge >= tc.age_start) &&
-                                              (tc.age_end == null ||
-                                                patientAge <= tc.age_end);
-                                            return genderMatch && ageMatch;
-                                          }
-                                        );
-                                      }
+                                    if (
+                                      !patientGender &&
+                                      !selectedReportForResults.patient
+                                        ?.birth_date
+                                    ) {
+                                      // Both gender and birth date missing - show all components
+                                      applicableComponents = comps;
+                                    } else if (!patientGender) {
+                                      // Only gender missing - filter by age but show all genders
+                                      applicableComponents = comps.filter(
+                                        (tc) => {
+                                          const ageMatch =
+                                            (tc.age_start == null ||
+                                              patientAge >= tc.age_start) &&
+                                            (tc.age_end == null ||
+                                              patientAge <= tc.age_end);
+                                          return ageMatch;
+                                        }
+                                      );
+                                    } else if (
+                                      !selectedReportForResults.patient
+                                        ?.birth_date
+                                    ) {
+                                      // Only birth date missing - filter by gender but show all ages
+                                      applicableComponents = comps.filter(
+                                        (tc) => {
+                                          const genderMatch =
+                                            !tc.gender ||
+                                            tc.gender === patientGender;
+                                          return genderMatch;
+                                        }
+                                      );
+                                    } else {
+                                      // Both available - filter by both gender and age
+                                      applicableComponents = comps.filter(
+                                        (tc) => {
+                                          const genderMatch =
+                                            !tc.gender ||
+                                            tc.gender === patientGender;
+                                          const ageMatch =
+                                            (tc.age_start == null ||
+                                              patientAge >= tc.age_start) &&
+                                            (tc.age_end == null ||
+                                              patientAge <= tc.age_end);
+                                          return genderMatch && ageMatch;
+                                        }
+                                      );
+                                    }
                                   }
 
                                   return (
@@ -1834,9 +1898,9 @@ const MedicalReports = () => {
                                           <DynamicResultForm
                                             structureConfig={test.structure_config}
                                             patientInfo={{
-                                                gender: patientGender,
-                                                age: patientAge,
-                                                age_unit: "years"
+                                              gender: patientGender,
+                                              age: patientAge,
+                                              age_unit: "years"
                                             }}
                                             antibioticsList={antibiotics}
                                             value={Object.entries(
@@ -1867,7 +1931,7 @@ const MedicalReports = () => {
                                               const componentResult =
                                                 resultsData
                                                   .test_component_results[
-                                                  test.id
+                                                test.id
                                                 ]?.[component.id];
 
                                               // Helper function to format age range
@@ -1894,8 +1958,8 @@ const MedicalReports = () => {
                                                 return gender === "m"
                                                   ? "Male"
                                                   : gender === "f"
-                                                  ? "Female"
-                                                  : gender;
+                                                    ? "Female"
+                                                    : gender;
                                               };
 
                                               return (
@@ -1913,33 +1977,33 @@ const MedicalReports = () => {
                                                         !selectedReportForResults
                                                           .patient
                                                           ?.birth_date) && (
-                                                        <div className="mt-1">
-                                                          <small className="text-info d-block">
-                                                            <i className="fas fa-info-circle me-1"></i>
-                                                            {formatGender(
-                                                              component.gender
-                                                            )}
-                                                          </small>
-                                                          <small className="text-info d-block">
-                                                            <i className="fas fa-calendar me-1"></i>
-                                                            {formatAgeRange(
-                                                              component.age_start,
-                                                              component.age_end
-                                                            )}
-                                                          </small>
-                                                        </div>
-                                                      )}
+                                                          <div className="mt-1">
+                                                            <small className="text-info d-block">
+                                                              <i className="fas fa-info-circle me-1"></i>
+                                                              {formatGender(
+                                                                component.gender
+                                                              )}
+                                                            </small>
+                                                            <small className="text-info d-block">
+                                                              <i className="fas fa-calendar me-1"></i>
+                                                              {formatAgeRange(
+                                                                component.age_start,
+                                                                component.age_end
+                                                              )}
+                                                            </small>
+                                                          </div>
+                                                        )}
                                                     </div>
                                                   </Col>
                                                   <Col md={2}>
                                                     <small className="text-muted">
                                                       {component.normal_from !==
                                                         null &&
-                                                      component.normal_to !==
+                                                        component.normal_to !==
                                                         null
                                                         ? `${component.normal_from} - ${component.normal_to}`
                                                         : component.reference_range ||
-                                                          "N/A"}
+                                                        "N/A"}
                                                     </small>
                                                   </Col>
                                                   <Col md={2}>
@@ -1951,13 +2015,13 @@ const MedicalReports = () => {
                                                     <Form.Control
                                                       type={
                                                         component.result_type ===
-                                                        "text"
+                                                          "text"
                                                           ? "text"
                                                           : "number"
                                                       }
                                                       step={
                                                         component.result_type ===
-                                                        "number"
+                                                          "number"
                                                           ? "0.01"
                                                           : undefined
                                                       }
@@ -1979,7 +2043,7 @@ const MedicalReports = () => {
                                                     <Badge
                                                       bg={getStatusBadgeColor(
                                                         componentResult?.status ||
-                                                          "pending"
+                                                        "pending"
                                                       )}
                                                     >
                                                       {componentResult?.status ||

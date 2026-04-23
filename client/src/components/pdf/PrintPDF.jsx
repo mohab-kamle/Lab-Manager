@@ -1601,6 +1601,85 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
   );
 };
 
+export const generatePdfBase64 = async (reportId, patient, apiUrl) => {
+  try {
+    const token = localStorage.getItem("token");
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    // Generate QR Data URL
+    const qrUrl = await new Promise((resolve) => {
+      QRCode.toDataURL(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`, { width: 80, margin: 0 }, (err, url) => {
+        resolve(err ? null : url);
+      });
+    });
+
+    const response = await axios.get(
+      `${apiUrl}/medical-reports/${reportId}?pdf=true`,
+      { headers }
+    );
+    const responseData = response.data;
+
+    let resultsData = null;
+    try {
+      const resultsResponse = await axios.get(
+        `${apiUrl}/medical-reports/${reportId}/results-data`,
+        { headers }
+      );
+      resultsData = resultsResponse.data;
+    } catch (e) {
+      console.warn("Could not fetch results-data for PDF, results may be missing:", e.message);
+    }
+
+    const fullReportData = {
+      ...responseData,
+      tests: (resultsData?.tests || responseData.tests || []),
+      test_component_results: resultsData?.test_component_results || {},
+      testComponentResults: responseData.testComponentResults || {},
+      testComponents: responseData.testComponents || {},
+    };
+    
+    const comments = {
+      tests: responseData.testComments || {},
+      reportImages: responseData.reportImages || []
+    };
+
+    if (!fullReportData.patient) {
+      throw new Error("Patient data not found in the response");
+    }
+
+    const transformedReport = transformReportForPDF(
+      fullReportData,
+      fullReportData.patient
+    );
+
+    const doc = (
+      <ProfessionalPDFDocument
+        patient={transformedReport.patient}
+        report={transformedReport}
+        qrUrl={qrUrl}
+        lab={fullReportData.lab}
+        comments={comments}
+      />
+    );
+    
+    const pdfInstance = pdf(doc);
+    const blob = await pdfInstance.toBlob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result.split(',')[1];
+        resolve(base64data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error generating PDF for WhatsApp:", error);
+    throw error;
+  }
+};
+
 export default PrintPDF;
 export { DirectPDFDownload };
 
