@@ -1,9 +1,8 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { getSubdomain } from './utils/subdomain';
-import { ToastContainer } from 'react-toastify';
 import { ToastProvider } from './components/ui/ToastContext';
-import 'react-toastify/dist/ReactToastify.css';
+
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import PageTransition from './components/layout/PageTransition';
 
@@ -47,18 +46,7 @@ function App() {
   return (
     <ToastProvider>
       <Router>
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="colored"
-        />
+
         <MainNavBar />
         <Suspense fallback={<LoadingSpinner />}>
           {/* IF NO SUBDOMAIN: Show Public Landing Site */}

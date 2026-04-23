@@ -6,12 +6,13 @@ import { useNavigate } from "react-router-dom";
 import { Formik, Field, ErrorMessage, Form as FormikForm } from "formik";
 import * as Yup from "yup";
 import { formatDateForInput } from "../../utils/dateFormatter";
-import { toast } from "react-toastify";
+import { useToast } from "../../components/ui/ToastContext";
 import { motion } from "framer-motion";
 import { Save, ArrowLeft } from "lucide-react";
 import "../../styles/PatientProfile.css";
 
 const PatientUpdateProfile = () => {
+  const { toast } = useToast();
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;

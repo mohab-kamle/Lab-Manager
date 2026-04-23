@@ -9,9 +9,11 @@ import { Pencil, Trash2, Plus, CircleX } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
 
 const PackagesAndOffers = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [items, setItems] = useState([]);
   const [tests, setTests] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
@@ -151,6 +153,7 @@ const PackagesAndOffers = () => {
       }
 
       console.log('Server response:', response.data);
+      toast.success(editingItem ? "Package/Offer updated successfully!" : "Package/Offer added successfully!");
       setShowAddModal(false);
       handleResetForm();
     } catch (error) {
@@ -181,6 +184,7 @@ const PackagesAndOffers = () => {
 
       // Update the items state by removing the deleted item
       setItems(prevItems => prevItems.filter(item => item.id !== id));
+      toast.success("Package/Offer deleted successfully!");
       setShowDeleteModal(false);
       setItemToDelete(null);
     } catch (error) {
