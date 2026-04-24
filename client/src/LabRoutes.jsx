@@ -13,6 +13,7 @@ const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
 const PatientReports = lazy(() => import('./pages/reports/PatientReports'));
 const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
 const PatientUpdateProfile = lazy(() => import('./pages/patient/PatientUpdateProfile'));
+const PatientInvoices = lazy(() => import('./pages/patient/PatientInvoices'));
 
 // Admin & Shared pages
 const Categories = lazy(() => import('./pages/tests/Categories'));
@@ -69,6 +70,10 @@ const LabRoutes = () => (
       <Route
         path="/patient/profile/update"
         element={<PrivateRoute element={<PatientUpdateProfile />} allowedRoles={["patient"]} />}
+      />
+      <Route
+        path="/patient/invoices"
+        element={<PrivateRoute element={<PatientInvoices />} allowedRoles={["patient"]} />}
       />
 
       {/* Role dashboards */}

@@ -150,31 +150,29 @@ body.dark {
 }
 
 .cheerful-btn-primary {
-  background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+  background-color: var(--cheerful-primary);
   color: white;
-  box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb, 79, 172, 254), 0.4);
 }
 
 .cheerful-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(79, 172, 254, 0.6);
-  color: white;
-  background: linear-gradient(to right,
-      #4facfe 0%,
-      #00f2fe 100%);
-  /* Maintain gradient */
+  box-shadow: 0 8px 25px rgba(var(--color-primary-rgb, 79, 172, 254), 0.6);
+  color: #ffffff !important;
+  background: linear-gradient(to bottom, var(--color-primary), oklch(0.65 0.14 255));
 }
 
 .cheerful-btn-outline {
   background: var(--bg-elevated);
   color: var(--cheerful-primary);
-  border: 2px solid var(--border-default);
+  /* border: 2px solid var(--border-default); */
 }
 
 .cheerful-btn-outline:hover {
+  transform: translateY(-2px);
   border-color: var(--cheerful-primary);
-  background: var(--cheerful-primary);
-  color: white;
-  box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
-  /* Add glow to outline btn on hover */
+  background: linear-gradient(to bottom, var(--color-primary), oklch(0.65 0.14 255));
+  color: #ffffff !important;
+  box-shadow: 0 8px 25px rgba(var(--color-primary-rgb, 79, 172, 254), 0.6);
+  /* Matching float and shadow effect from primary button */
 }
