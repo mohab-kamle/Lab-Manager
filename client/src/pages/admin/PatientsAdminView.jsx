@@ -1198,7 +1198,7 @@ const PatientsAdminView = () => {
                 </Form.Group>
 
                 <Row>
-                  <Col md={6}>
+                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Total Amount</Form.Label>
                       <Form.Control
@@ -1206,7 +1206,12 @@ const PatientsAdminView = () => {
                         step="0.01"
                         placeholder="Enter total amount"
                         value={patient.total || ''}
-                        onChange={(e) => setPatient({ ...patient, total: e.target.value })}
+                        onChange={(e) => {
+                          const total = e.target.value;
+                          const paid = patient.paid || 0;
+                          const calculatedDue = (parseFloat(total) || 0) - (parseFloat(paid) || 0);
+                          setPatient({ ...patient, total, due: calculatedDue.toString() });
+                        }}
                       />
                     </Form.Group>
                   </Col>
@@ -1218,7 +1223,12 @@ const PatientsAdminView = () => {
                         step="0.01"
                         placeholder="Enter paid amount"
                         value={patient.paid || ''}
-                        onChange={(e) => setPatient({ ...patient, paid: e.target.value })}
+                        onChange={(e) => {
+                          const paid = e.target.value;
+                          const total = patient.total || 0;
+                          const calculatedDue = (parseFloat(total) || 0) - (parseFloat(paid) || 0);
+                          setPatient({ ...patient, paid, due: calculatedDue.toString() });
+                        }}
                       />
                     </Form.Group>
                   </Col>
@@ -1231,43 +1241,58 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="number"
                         step="0.01"
-                        placeholder="Enter due amount"
-                        value={patient.due || ''}
+                        placeholder={(!editingPatient || !patient.due || parseFloat(patient.due) === 0) ? "Enter due amount" : "0.00"}
+                        value={parseFloat(patient.due) > 0 ? patient.due : ''}
                         onChange={(e) => setPatient({ ...patient, due: e.target.value })}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Contract</Form.Label>
-                      <div className="d-flex gap-2">
-                        <Form.Select
-                          value={patient.contract_id || ""}
-                          onChange={(e) => setPatient({ ...patient, contract_id: e.target.value || null })}
-                        >
-                          <option value="">Select Contract</option>
-                          {Array.isArray(contracts) && contracts.map(contract => (
-                            <option key={contract.id} value={contract.id}>
-                              {contract.name || `${contract.region} - ${contract.governorate}`} ({contract.discount_type})
-                            </option>
-                          ))}
-                        </Form.Select>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => setShowContractModal(true)}
-                          title="Add New Contract"
-                        >
-                          <Plus size={16} />
-                        </Button>
-                      </div>
-                      <Form.Text className="text-muted">
-                        Select an existing contract or add a new one
-                      </Form.Text>
+                      <Form.Label>Credit Amount</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        placeholder={(!editingPatient || !patient.due || parseFloat(patient.due) === 0) ? "Enter credit amount" : "0.00"}
+                        value={parseFloat(patient.due) < 0 ? Math.abs(parseFloat(patient.due)) : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPatient({ ...patient, due: val ? (-(Math.abs(parseFloat(val)))).toString() : "0" });
+                        }}
+                      />
                     </Form.Group>
                   </Col>
-                </Row>
 
+                </Row>
+                <Row><Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Contract</Form.Label>
+                    <div className="d-flex gap-2">
+                      <Form.Select
+                        value={patient.contract_id || ""}
+                        onChange={(e) => setPatient({ ...patient, contract_id: e.target.value || null })}
+                      >
+                        <option value="">Select Contract</option>
+                        {Array.isArray(contracts) && contracts.map(contract => (
+                          <option key={contract.id} value={contract.id}>
+                            {contract.name || `${contract.region} - ${contract.governorate}`} ({contract.discount_type})
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setShowContractModal(true)}
+                        title="Add New Contract"
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                    <Form.Text className="text-muted">
+                      Select an existing contract or add a new one
+                    </Form.Text>
+                  </Form.Group>
+                </Col></Row>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
