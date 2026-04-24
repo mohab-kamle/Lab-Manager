@@ -32,6 +32,8 @@ const EmployeeManagement = lazy(() => import('./pages/branches/EmployeeManagemen
 const LabManagement = lazy(() => import('./pages/lab/LabManagement'));
 const Vault = lazy(() => import('./pages/admin/Vault'));
 const TurnaroundTime = lazy(() => import('./pages/admin/TurnaroundTime'));
+const PatientProfileAdminView = lazy(() => import('./pages/admin/PatientProfileAdminView'));
+
 
 // Profile pages
 const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
@@ -97,6 +99,8 @@ const LabRoutes = () => (
       <Route path="/:role/invoices" element={<PrivateRoute element={<Invoices />} allowedRoles={["admin", "receptionist", "employee"]} />} />
       <Route path="/:role/payment-methods" element={<PrivateRoute element={<PaymentMethods />} allowedRoles={["admin", "employee"]} />} />
       <Route path="/:role/patients" element={<PrivateRoute element={<PatientsAdminView />} allowedRoles={["admin", "receptionist", "doctor"]} />} />
+      <Route path="/:role/patients/:id" element={<PrivateRoute element={<PatientProfileAdminView />} allowedRoles={["admin", "receptionist", "doctor"]} />} />
+
       <Route path="/:role/know-us" element={<PrivateRoute element={<KnowUs />} allowedRoles={["admin"]} />} />
       <Route path="/:role/medical-reports" element={<PrivateRoute element={<MedicalReports />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
       <Route path="/:role/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
