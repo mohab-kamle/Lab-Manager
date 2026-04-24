@@ -7,9 +7,10 @@ import MainNavBar from './MainNavBar';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import FloatingBackToTopButton from '../../components/ui/FloatingBackToTopButton';
 import { socket } from '../../utils/socket';
-import { toast } from 'react-toastify';
+import { useToast } from '../ui/ToastContext';
 
 const LabLayout = () => {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const {
     labInfo,
@@ -44,7 +45,7 @@ const LabLayout = () => {
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { autoClose: false, closeOnClick: true, draggable: true, theme: "colored" }
+          { duration: 0, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };
@@ -59,7 +60,7 @@ const LabLayout = () => {
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { autoClose: 10000, closeOnClick: true, draggable: true, theme: "colored" }
+          { duration: 10000, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };
@@ -74,7 +75,7 @@ const LabLayout = () => {
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { autoClose: false, closeOnClick: true, draggable: true, theme: "colored" }
+          { duration: 0, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };

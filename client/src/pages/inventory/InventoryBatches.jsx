@@ -3,10 +3,12 @@ import { Container, Button, Modal, Form, Tabs, Tab, Table } from "react-bootstra
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../utils/api";
 // import { ThemeContext } from "../../context/ThemeContext";
+import { useToast } from "../../components/ui/ToastContext";
 
 const InventoryBatches = () => {
   const { role, itemId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   // const { isDarkMode } = useContext(ThemeContext);
 
   const [item, setItem] = useState(null);
@@ -53,10 +55,11 @@ const InventoryBatches = () => {
     e.preventDefault();
     try {
       await api.post("/inventory/receive", { ...receiveData, item_id: itemId });
+      toast.success("Stock received successfully!");
       setShowReceiveModal(false);
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to receive stock");
+      toast.error(error.response?.data?.message || "Failed to receive stock");
     }
   };
 
@@ -64,11 +67,12 @@ const InventoryBatches = () => {
     e.preventDefault();
     try {
       await api.post("/inventory/consume", { ...consumeData, item_id: itemId });
+      toast.success("Stock consumed successfully!");
       setShowConsumeModal(false);
       setConsumeData({ batch_id: "", quantity: "", notes: "" });
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || "Failed to consume stock");
+      toast.error(error.response?.data?.message || "Failed to consume stock");
     }
   };
 

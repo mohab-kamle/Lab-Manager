@@ -545,7 +545,7 @@
   gap: 8px;
 }
 
-.confirm-loading .spinner {
+.toast-spinner {
   width: 16px;
   height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);

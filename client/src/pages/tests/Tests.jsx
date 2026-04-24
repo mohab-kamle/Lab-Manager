@@ -8,6 +8,7 @@ import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, X, Download, Upload, CircleX, Search } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
 import GlobalCatalogPickerModal from "./GlobalCatalogPickerModal";
 
 /**
@@ -92,6 +93,7 @@ RangeAdder.propTypes = {
 
 
 const Tests = () => {
+  const { toast } = useToast();
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [sampleTypes, setSampleTypes] = useState([]);
@@ -273,7 +275,7 @@ const Tests = () => {
       setSelectedTests([]);
       fetchTestsAndRelated();
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to bulk delete tests");
+      toast.error(err.response?.data?.error || "Failed to bulk delete tests");
     }
   };
 
@@ -555,7 +557,7 @@ const Tests = () => {
   const handleAddQuestion = async () => {
     try {
       if (!newQuestion.text.trim()) {
-        alert('Question text is required');
+        toast.error('Question text is required');
         return;
       }
 
@@ -582,17 +584,17 @@ const Tests = () => {
       // Close the modal
       setShowAddQuestionModal(false);
       
-      alert('Question created successfully!');
+      toast.success('Question created successfully!');
     } catch (error) {
       console.error('Error creating question:', error);
-      alert(error.response?.data?.error || 'Failed to create question');
+      toast.error(error.response?.data?.error || 'Failed to create question');
     }
   };
 
   const handleAddCategory = async () => {
     try {
       if (!newCategory.name.trim()) {
-        alert('Category name is required');
+        toast.error('Category name is required');
         return;
       }
 
@@ -619,10 +621,10 @@ const Tests = () => {
       // Close the modal
       setShowAddCategoryModal(false);
       
-      alert('Category created successfully!');
+      toast.success('Category created successfully!');
     } catch (error) {
       console.error('Error creating category:', error);
-      alert(error.response?.data?.error || 'Failed to create category');
+      toast.error(error.response?.data?.error || 'Failed to create category');
     }
   };
 
@@ -631,11 +633,11 @@ const Tests = () => {
     
     // Validate required fields
     if (!formData.name.trim()) {
-      alert('Test name is required');
+      toast.error('Test name is required');
       return;
     }
     if (!formData.category_id) {
-      alert('Category is required');
+      toast.error('Category is required');
       return;
     }
     
@@ -671,6 +673,7 @@ const Tests = () => {
           await axios.put(`${apiUrl}/questions/${newTestId}/tests`, { questionIds: questions }, { headers });
         }
       }
+      toast.success(editingTest ? "Test updated successfully!" : "Test created successfully!");
       setShowModal(false);
       setEditingTest(null);
       setFormData({
@@ -704,6 +707,7 @@ const Tests = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
       await axios.delete(`${apiUrl}/tests/${testToDelete.id}`, { headers });
+      toast.success("Test deleted successfully!");
       setShowDeleteModal(false);
       setTestToDelete(null);
       // Refresh using extracted logic
@@ -775,10 +779,10 @@ const Tests = () => {
           'Content-Type': 'multipart/form-data'
         }
       });
-      alert(`Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`);
+      toast.success(`Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`);
       await fetchTestsAndRelated();
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to import tests');
+      toast.error(error.response?.data?.error || 'Failed to import tests');
     }
   };
 
