@@ -14,6 +14,7 @@ import {
   FileEarmarkPerson,
   CardHeading,
   PencilSquare,
+  Receipt,
 } from "react-bootstrap-icons";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/dateFormatter";
@@ -25,6 +26,7 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 // A common path might be "../../assets/animations/lab-logo.json".
 // We will conditionally use a fallback if not found.
 import labLogoAnimation from "../../assets/LabLogoLoading.json";
+import "../../styles/PatientProfile.css";
 
 const InfoBubble = ({ icon: Icon, label, value, delay }) => (
   <motion.div
@@ -107,15 +109,23 @@ const PatientProfile = () => {
               <Button
                 as={Link}
                 to={`/patient/reports`}
-                className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2"
+                className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2 text-white"
               >
                 <FileMedical size={20} />
                 My Reports
               </Button>
               <Button
                 as={Link}
+                to={`/patient/invoices`}
+                className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2 text-white"
+              >
+                <Receipt size={20} />
+                My Invoices
+              </Button>
+              <Button
+                as={Link}
                 to={`/patient/profile/update`}
-                className="cheerful-btn cheerful-btn-outline d-flex align-items-center gap-2"
+                className="cheerful-btn cheerful-btn-outline d-flex align-items-center gap-2 text-white"
               >
                 <PencilSquare size={20} />
                 Update Profile
