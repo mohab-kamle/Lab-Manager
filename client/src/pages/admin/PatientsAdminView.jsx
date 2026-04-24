@@ -1198,7 +1198,7 @@ const PatientsAdminView = () => {
                 </Form.Group>
 
                 <Row>
-                   <Col md={6}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Total Amount</Form.Label>
                       <Form.Control
