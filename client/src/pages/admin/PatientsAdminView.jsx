@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
@@ -17,6 +19,8 @@ import { useToast } from "../../components/ui/ToastContext";
 const PatientsAdminView = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
   const [patients, setPatients] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -611,7 +615,19 @@ const PatientsAdminView = () => {
       case 'gender':
         return value;
       case 'patientcode':
-        return value ? value.toString() : '-';
+        return value ? (
+          <span 
+            className="text-primary fw-bold cursor-pointer hover-underline" 
+            style={{ cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/${user.role}/patients/${rowData.id}`);
+            }}
+          >
+            {value.toString()}
+          </span>
+        ) : '-';
+
       case 'total':
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
       case 'paid':
