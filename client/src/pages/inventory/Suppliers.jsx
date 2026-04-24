@@ -4,8 +4,10 @@ import { Container, Button, Modal, Form } from "react-bootstrap";
 import DynamicTable from "../../components/ui/DynamicTable";
 import api from "../../utils/api";
 // import { ThemeContext } from "../../context/ThemeContext";
+import { useToast } from "../../components/ui/ToastContext";
 
 const Suppliers = () => {
+  const { toast } = useToast();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -48,14 +50,16 @@ const Suppliers = () => {
     try {
       if (editingSupplier) {
         await api.put(`/suppliers/${editingSupplier.id}`, formData);
+        toast.success("Supplier updated successfully!");
       } else {
         await api.post("/suppliers", formData);
+        toast.success("Supplier added successfully!");
       }
       handleCloseModal();
       fetchSuppliers();
     } catch (error) {
       console.error("Error saving supplier", error);
-      alert(error.response?.data?.message || "Failed to save supplier");
+      toast.error(error.response?.data?.message || "Failed to save supplier");
     }
   };
 
@@ -63,9 +67,10 @@ const Suppliers = () => {
     if (window.confirm("Are you sure you want to delete this supplier?")) {
       try {
         await api.delete(`/suppliers/${id}`);
+        toast.success("Supplier deleted successfully!");
         fetchSuppliers();
       } catch (error) {
-        alert(error.response?.data?.message || "Failed to delete supplier");
+        toast.error(error.response?.data?.message || "Failed to delete supplier");
       }
     }
   };

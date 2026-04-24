@@ -1,8 +1,9 @@
 import React from 'react';
 import { useLab } from '../context/LabContext';
-import { toast } from 'react-toastify';
+import { useToast } from '../ui/ToastContext';
 
 const TrialStatus = () => {
+  const { toast } = useToast();
   const { 
     subscriptionStatus, 
     isOnTrial, 

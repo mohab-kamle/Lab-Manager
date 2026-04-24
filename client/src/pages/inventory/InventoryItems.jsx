@@ -5,9 +5,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import DynamicTable from "../../components/ui/DynamicTable";
 import api from "../../utils/api";
 // import { ThemeContext } from "../../context/ThemeContext";
+import { useToast } from "../../components/ui/ToastContext";
 
 const InventoryItems = () => {
   const { role } = useParams();
+  const { toast } = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -51,14 +53,16 @@ const InventoryItems = () => {
     try {
       if (editingItem) {
         await api.put(`/inventory/items/${editingItem.id}`, formData);
+        toast.success("Item updated successfully!");
       } else {
         await api.post("/inventory/items", formData);
+        toast.success("Item added successfully!");
       }
       handleCloseModal();
       fetchItems();
     } catch (error) {
       console.error("Error saving item", error);
-      alert(error.response?.data?.message || "Failed to save item");
+      toast.error(error.response?.data?.message || "Failed to save item");
     }
   };
 
@@ -66,9 +70,10 @@ const InventoryItems = () => {
     if (window.confirm("Are you sure you want to delete this item?")) {
       try {
         await api.delete(`/inventory/items/${id}`);
+        toast.success("Item deleted successfully!");
         fetchItems();
       } catch (error) {
-        alert(error.response?.data?.message || "Failed to delete item");
+        toast.error(error.response?.data?.message || "Failed to delete item");
       }
     }
   };

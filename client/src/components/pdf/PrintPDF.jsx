@@ -12,7 +12,7 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { useToast } from "../ui/ToastContext";
 import LabIcon from "../../assets/LabIcon.png";
 import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
@@ -1439,6 +1439,7 @@ function transformReportForPDF(report, patient) {
 
 // Direct PDF Download Component - fetches data and downloads in one step
 const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
+  const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
   const downloadTriggeredRef = useRef(false);
 

@@ -22,7 +22,7 @@ const DEFAULT_POSITIONS = {
 // Toast Provider Component
 export const ToastProvider = ({ children }) => {
   // ============================================
-  // TOAST STATE & FUNCTIONS
+  // TOAST STATE & FUNCTIONS (Singleton Design)
   // ============================================
   const [toastData, setToastData] = useState({
     show: false,
@@ -40,12 +40,27 @@ export const ToastProvider = ({ children }) => {
   // Show Toast Function
   const showToast = useCallback(
     (message, type = "success", options = {}) => {
-      const {
-        position = DEFAULT_POSITIONS[type] || "right",
-        duration = 3000,
-        showCloseBtn = false,
-        clickToClose = true,
-      } = options;
+      // Legacy option mapping
+      let mappedDuration = 3000;
+      if (options.autoClose === false) {
+        mappedDuration = 0;
+      } else if (typeof options.autoClose === "number") {
+        mappedDuration = options.autoClose;
+      } else if (options.duration !== undefined) {
+        mappedDuration = options.duration;
+      }
+
+      let mappedClickToClose = true;
+      if (options.closeOnClick !== undefined) {
+        mappedClickToClose = options.closeOnClick;
+      } else if (options.clickToClose !== undefined) {
+        mappedClickToClose = options.clickToClose;
+      }
+
+      const position = options.position || DEFAULT_POSITIONS[type] || "right";
+      const showCloseBtn = options.showCloseBtn !== undefined ? options.showCloseBtn : false;
+      const duration = mappedDuration;
+      const clickToClose = mappedClickToClose;
 
       // Clear any existing timeout
       if (toastTimeout) {
@@ -103,6 +118,24 @@ export const ToastProvider = ({ children }) => {
 
     info: (message, options = {}) =>
       showToast(message, "info", { position: "center", ...options }),
+
+    loading: (message, options = {}) => {
+      showToast(message, "loading", { 
+        position: "center", 
+        duration: 0, 
+        clickToClose: false, 
+        ...options 
+      });
+    },
+
+    update: (options = {}) => {
+      const { render, message, type, ...rest } = options;
+      // Support 'render' (react-toastify style) or 'message'
+      showToast(render || message, type || "success", { 
+        clickToClose: true, 
+        ...rest 
+      });
+    }
   };
 
   // ============================================
@@ -334,6 +367,8 @@ const ToastComponent = ({ toastData, hideToast }) => {
         return <AlertTriangle size={size} />;
       case "info":
         return <Info size={size} />;
+      case "loading":
+        return <span className="toast-spinner" style={{ width: size, height: size, borderTopColor: 'white' }}></span>;
       default:
         return <CheckCircle size={size} />;
     }
@@ -349,6 +384,8 @@ const ToastComponent = ({ toastData, hideToast }) => {
         return "Warning!";
       case "info":
         return "Info";
+      case "loading":
+        return "Loading...";
       default:
         return "Notification";
     }
@@ -374,7 +411,7 @@ const ToastComponent = ({ toastData, hideToast }) => {
 
         <div className="toast-content">
           <h5 className="toast-title">{getTitle()}</h5>
-          <p className="toast-message">{toastData.message}</p>
+          <div className="toast-message">{toastData.message}</div>
         </div>
 
         {toastData.showCloseBtn && (
@@ -452,7 +489,7 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
           >
             {confirmData.isLoading ? (
               <span className="confirm-loading">
-                <span className="spinner"></span>
+                <span className="toast-spinner"></span>
                 Loading...
               </span>
             ) : (
