@@ -15,6 +15,8 @@ module.exports = {
         DB_NAME: process.env.DB_NAME,
         DB_HOST: process.env.DB_HOST,
         DATABASE_URL: process.env.DATABASE_URL,
+        GROQ_API_KEY: process.env.GROQ_API_KEY,
+        LLM_BASE_URL: process.env.LLM_BASE_URL,
       },
       // PM2 cluster mode configuration
       max_memory_restart: "2G", // Restart if memory usage exceeds 2GB
