@@ -68,6 +68,7 @@ function App() {
               <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <PageTransition><UnifiedLogin /></PageTransition>} />
               <Route path="/otp-verify" element={<PageTransition><OTPVerify /></PageTransition>} />
               <Route path="/*" element={<LabRoutes />} />
+
             </Routes>
           )}
         </Suspense>

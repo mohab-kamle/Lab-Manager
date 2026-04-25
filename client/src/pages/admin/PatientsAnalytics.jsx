@@ -37,7 +37,7 @@ const PatientsAnalytics = () => {
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+  const COLORS = ['#3b82f6', '#2dd4bf', '#6366f1', '#0ea5e9'];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -245,7 +245,7 @@ const PatientsAnalytics = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#8884d8" />
+                  <Bar dataKey="value" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>
             </Card.Body>
@@ -267,7 +267,7 @@ const PatientsAnalytics = () => {
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={100} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#82ca9d" />
+                  <Bar dataKey="value" fill="#2dd4bf" />
                 </BarChart>
               </ResponsiveContainer>
             </Card.Body>
@@ -287,7 +287,7 @@ const PatientsAnalytics = () => {
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={100} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#ffc658" />
+                  <Bar dataKey="value" fill="#6366f1" />
                 </BarChart>
               </ResponsiveContainer>
             </Card.Body>
@@ -310,7 +310,7 @@ const PatientsAnalytics = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} />
+                  <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 8 }} />
                 </LineChart>
               </ResponsiveContainer>
             </Card.Body>

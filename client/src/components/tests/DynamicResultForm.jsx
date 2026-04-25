@@ -182,7 +182,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
 
         const newComputed = {};
         let hasChanges = false;
-        
+
         const calculatedFields = filteredConfig.filter(f => f.type === 'calculated');
         calculatedFields.forEach(field => {
             try {
@@ -191,7 +191,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                 const rounded = Math.round(val * 100) / 100;
                 newComputed[field.key] = rounded;
                 numericValues[field.key] = rounded;
-                
+
                 if (value[field.key] !== rounded) hasChanges = true;
             } catch (err) {
                 newComputed[field.key] = '--';
@@ -200,11 +200,11 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
         });
 
         setComputedResults(newComputed);
-        
+
         if (hasChanges && onChangeRef.current) {
             onChangeRef.current({ ...value, ...newComputed });
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value, filteredConfig]); // intentionally exclude onChangeRef — it's a ref
 
     const handleInputChange = (key, val) => {
@@ -265,10 +265,10 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
             }
 
             return {
-                min:       field.normal_from != null ? parseFloat(field.normal_from) : null,
-                max:       field.normal_to   != null ? parseFloat(field.normal_to)   : null,
-                panic_min: field.c_low       != null ? parseFloat(field.c_low)       : null,
-                panic_max: field.c_high      != null ? parseFloat(field.c_high)      : null,
+                min: field.normal_from != null ? parseFloat(field.normal_from) : null,
+                max: field.normal_to != null ? parseFloat(field.normal_to) : null,
+                panic_min: field.c_low != null ? parseFloat(field.c_low) : null,
+                panic_max: field.c_high != null ? parseFloat(field.c_high) : null,
             };
         }
 
@@ -309,7 +309,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
         else if (flag === 'NORMAL') inputClass += " input-normal";
 
         let inputElement;
-        
+
         if (field.type === 'text') {
             inputElement = (
                 <textarea
@@ -324,7 +324,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
         } else if (field.type === 'culture_panel') {
             const cultureValue = (rawValue && typeof rawValue === 'object') ? rawValue : { organism: '', colony_count: '', antibiotics: {} };
             const configuredAntibiotics = field.antibiotics || []; // expecting string array
-            
+
             inputElement = (
                 <div className="culture-panel-input" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
@@ -332,7 +332,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                             type="text"
                             placeholder="Isolated Organism..."
                             value={cultureValue.organism || ''}
-                            onChange={(e) => handleInputChange(field.key, {...cultureValue, organism: e.target.value})}
+                            onChange={(e) => handleInputChange(field.key, { ...cultureValue, organism: e.target.value })}
                             className="result-input"
                             style={{ flex: 2 }}
                         />
@@ -340,12 +340,12 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                             type="text"
                             placeholder="Colony Count..."
                             value={cultureValue.colony_count || ''}
-                            onChange={(e) => handleInputChange(field.key, {...cultureValue, colony_count: e.target.value})}
+                            onChange={(e) => handleInputChange(field.key, { ...cultureValue, colony_count: e.target.value })}
                             className="result-input"
                             style={{ flex: 1 }}
                         />
                     </div>
-                    
+
                     {/* Add Antibiotic Control */}
                     {antibioticsList && antibioticsList.length > 0 && (
                         <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -357,9 +357,9 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                                     if (abName && !cultureValue.antibiotics?.[abName]) {
                                         handleInputChange(field.key, {
                                             ...cultureValue,
-                                            antibiotics: { 
-                                                ...(cultureValue.antibiotics || {}), 
-                                                [abName]: { sensitivity: '-', mic: '' } 
+                                            antibiotics: {
+                                                ...(cultureValue.antibiotics || {}),
+                                                [abName]: { sensitivity: '-', mic: '' }
                                             }
                                         });
                                     }
@@ -375,7 +375,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                             </select>
                         </div>
                     )}
-                    
+
                     {Object.keys(cultureValue.antibiotics || {}).length > 0 && (
                         <div className="antibiotics-list" style={{ marginTop: '10px', background: '#f9fafb', padding: '10px', borderRadius: '4px' }}>
                             <h6 style={{ marginBottom: '8px', color: '#4b5563' }}>Antibiotics Susceptibility:</h6>
@@ -385,15 +385,15 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                                     return (
                                         <div key={ab} className="antibiotic-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <span style={{ flex: 2, fontSize: '0.85rem' }}>{ab}</span>
-                                            
+
                                             {/* Sensitivity Dropdown */}
-                                            <select 
-                                                value={abData.sensitivity || '-'} 
+                                            <select
+                                                value={abData.sensitivity || '-'}
                                                 onChange={(e) => handleInputChange(field.key, {
-                                                    ...cultureValue, 
-                                                    antibiotics: { 
-                                                        ...cultureValue.antibiotics, 
-                                                        [ab]: { ...abData, sensitivity: e.target.value } 
+                                                    ...cultureValue,
+                                                    antibiotics: {
+                                                        ...cultureValue.antibiotics,
+                                                        [ab]: { ...abData, sensitivity: e.target.value }
                                                     }
                                                 })}
                                                 style={{ flex: 1, padding: '4px', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '0.85rem' }}
@@ -405,7 +405,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                                             </select>
 
                                             {/* MIC Input */}
-                                            <input 
+                                            <input
                                                 type="text"
                                                 placeholder="MIC"
                                                 value={abData.mic || ''}
@@ -458,42 +458,42 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                     <label className="field-label">{field.label ?? field.name ?? field.key}</label>
                     {field.loinc && <span className="loinc-badge">LOINC: {field.loinc}</span>}
                 </div>
-                
+
                 <div className="field-input-wrapper">
                     <div className="input-group">
                         {inputElement}
-                    {/* Unit badge — shown inline next to input */}
-                    {field.unit && <span className="unit-label">{field.unit}</span>}
-                </div>
-
-                {flag && flag !== 'NORMAL' && (
-                    <span className={`flag-badge badge-${flag.toLowerCase()}`}>{flag}</span>
-                )}
-
-                {/* Reference range hint — patient-specific, shows unit + panic thresholds */}
-                {range && (
-                    <div className="range-hint">
-                        <span style={{ marginRight: 4 }}>Ref:</span>
-                        <strong>
-                            {range.min != null ? range.min : '—'}
-                            {' – '}
-                            {range.max != null ? range.max : '—'}
-                        </strong>
-                        {(field.unit ?? field.unit_of_measure) && (
-                            <span style={{ marginLeft: 4, color: '#64748b' }}>
-                                {field.unit ?? field.unit_of_measure}
-                            </span>
-                        )}
-                        {(range.panic_min != null || range.panic_max != null) && (
-                            <span style={{ marginLeft: 8, color: '#ef4444', fontSize: '0.75rem' }}>
-                                Panic:
-                                {range.panic_min != null ? ` <${range.panic_min}` : ''}
-                                {range.panic_max != null ? ` >${range.panic_max}` : ''}
-                            </span>
-                        )}
+                        {/* Unit badge — shown inline next to input */}
+                        {field.unit && <span className="unit-label">{field.unit}</span>}
                     </div>
-                )}
-            </div>
+
+                    {flag && flag !== 'NORMAL' && (
+                        <span className={`flag-badge badge-${flag.toLowerCase()}`}>{flag}</span>
+                    )}
+
+                    {/* Reference range hint — patient-specific, shows unit + panic thresholds */}
+                    {range && (
+                        <div className="range-hint">
+                            <span style={{ marginRight: 4 }}>Ref:</span>
+                            <strong>
+                                {range.min != null ? range.min : '—'}
+                                {' – '}
+                                {range.max != null ? range.max : '—'}
+                            </strong>
+                            {(field.unit ?? field.unit_of_measure) && (
+                                <span style={{ marginLeft: 4, color: '#64748b' }}>
+                                    {field.unit ?? field.unit_of_measure}
+                                </span>
+                            )}
+                            {(range.panic_min != null || range.panic_max != null) && (
+                                <span style={{ marginLeft: 8, color: '#ef4444', fontSize: '0.75rem' }}>
+                                    Panic:
+                                    {range.panic_min != null ? ` <${range.panic_min}` : ''}
+                                    {range.panic_max != null ? ` >${range.panic_max}` : ''}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
         );
     };
@@ -504,7 +504,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                 <span className="banner-item"><strong>Gender:</strong> {patientInfo?.gender}</span>
                 <span className="banner-item"><strong>Age:</strong> {patientInfo?.age} {patientInfo?.age_unit}</span>
             </div>
-            
+
             <div className="fields-container">
                 {filteredConfig.map(renderField)}
             </div>
