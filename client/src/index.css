@@ -192,3 +192,52 @@ body.dark {
 /* Utility classes using new tokens */
 .bg-theme-surface { background-color: var(--bg-surface); }
 .text-theme { color: var(--text-primary) !important; }
+
+/* =======================================================================
+   AI SCAN BUTTON - PREMIUM AESTHETICS
+   ======================================================================= */
+.btn-gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, oklch(0.60 0.18 290) 100%) !important;
+  border: none !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(var(--color-primary), 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-gradient-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(var(--color-primary), 0.3);
+  filter: brightness(1.1);
+}
+
+.btn-gradient-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ai-scan-btn svg {
+  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ai-scan-btn:hover:not(:disabled) svg {
+  transform: rotate(15deg) scale(1.2);
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+}
+
+.ai-scan-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Subtle pulse animation for the AI button */
+@keyframes ai-pulse {
+  0% { box-shadow: 0 0 0 0 oklch(0.60 0.18 290 / 0.4); }
+  70% { box-shadow: 0 0 0 10px oklch(0.60 0.18 290 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(0.60 0.18 290 / 0); }
+}
+
+.ai-scan-btn:not(:disabled) {
+  animation: ai-pulse 3s infinite;
+}

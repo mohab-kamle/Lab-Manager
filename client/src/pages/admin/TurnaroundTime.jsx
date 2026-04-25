@@ -142,7 +142,9 @@ const TurnaroundTime = () => {
                   <tr>
                     <th>Report ID</th>
                     <th>Patient Name</th>
+                    <th>Phone</th>
                     <th>Registered At</th>
+
                     <th>Status</th>
                     <th>Delay</th>
                   </tr>
@@ -161,7 +163,9 @@ const TurnaroundTime = () => {
                       <tr key={report.id}>
                         <td>#{report.id}</td>
                         <td>{report.patient?.name || 'Unknown'}</td>
+                        <td>{report.patient?.phones?.[0]?.phone_number || 'N/A'}</td>
                         <td>{format(regDate, 'PP pp')}</td>
+
                         <td>{statusBadge}</td>
                         <td className="text-danger fw-bold">{delayHours} hours</td>
                       </tr>

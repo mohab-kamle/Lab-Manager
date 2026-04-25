@@ -85,6 +85,8 @@ const {
   validateExcelBuffer,
   sanitizeDataForExport,
 } = require("../services/excelService");
+const { extractMedicalData } = require("../services/llmService");
+const { extractRawTextFromImage } = require("../services/bedrockService");
 const fs = require("fs");
 
 // Helper function to update medical report dates based on workflow stage
@@ -627,17 +629,19 @@ router.post(
             as: "patient",
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
             include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
-              },
+              /*
+                            {
+                              model: db.referral,
+                              as: "referral",
+                              attributes: [
+                                "id",
+                                "doctor_name",
+                                "specialization",
+                                "phone",
+                                "email",
+                              ],
+                            },
+              */
             ],
           },
           {
@@ -780,17 +784,19 @@ router.put(
             as: "patient",
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
             include: [
-              {
-                model: db.referral,
-                as: "referral",
-                attributes: [
-                  "id",
-                  "doctor_name",
-                  "specialization",
-                  "phone",
-                  "email",
-                ],
-              },
+              /*
+                            {
+                              model: db.referral,
+                              as: "referral",
+                              attributes: [
+                                "id",
+                                "doctor_name",
+                                "specialization",
+                                "phone",
+                                "email",
+                              ],
+                            },
+              */
             ],
           },
           {
@@ -1126,17 +1132,19 @@ router.get(
               as: "patient",
               attributes: ["id", "name", "birth_date", "gender", "patientcode"],
               include: [
-                {
-                  model: db.referral,
-                  as: "referral",
-                  attributes: [
-                    "id",
-                    "doctor_name",
-                    "specialization",
-                    "phone",
-                    "email",
-                  ],
-                },
+                /*
+                                {
+                                  model: db.referral,
+                                  as: "referral",
+                                  attributes: [
+                                    "id",
+                                    "doctor_name",
+                                    "specialization",
+                                    "phone",
+                                    "email",
+                                  ],
+                                },
+                */
               ],
             },
           ],
@@ -2046,13 +2054,13 @@ router.post(
             if (!isNaN(numVal)) {
               const panicMin = applicableRange.panic_min != null ? Number(applicableRange.panic_min) : null;
               const panicMax = applicableRange.panic_max != null ? Number(applicableRange.panic_max) : null;
-              const rangeMin = applicableRange.min        != null ? Number(applicableRange.min)        : null;
-              const rangeMax = applicableRange.max        != null ? Number(applicableRange.max)        : null;
+              const rangeMin = applicableRange.min != null ? Number(applicableRange.min) : null;
+              const rangeMax = applicableRange.max != null ? Number(applicableRange.max) : null;
 
-              if      (panicMin !== null && numVal <= panicMin) clinical_flag = "panic_low";
+              if (panicMin !== null && numVal <= panicMin) clinical_flag = "panic_low";
               else if (panicMax !== null && numVal >= panicMax) clinical_flag = "panic_high";
-              else if (rangeMin !== null && numVal < rangeMin)  clinical_flag = "low";
-              else if (rangeMax !== null && numVal > rangeMax)  clinical_flag = "high";
+              else if (rangeMin !== null && numVal < rangeMin) clinical_flag = "low";
+              else if (rangeMax !== null && numVal > rangeMax) clinical_flag = "high";
               // else: within normal range — flag stays "normal"
             }
           }
@@ -2110,6 +2118,68 @@ router.post(
     } catch (error) {
       console.error("Error saving dynamic results:", error);
       res.status(500).json({ error: "Failed to save results" });
+    }
+  }
+);
+
+/**
+ * @route POST /medical-reports/extract-ocr-image
+ * @desc Hybrid OCR pipeline: Image (Bedrock) -> Logical Structuring (Local/Groq LLM)
+ * @access Private
+ */
+router.post(
+  "/extract-ocr-image",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  multer({ storage: multer.memoryStorage() }).single('image'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No image file provided" });
+      }
+
+      // 1. Get hints/expected keys from request body if provided
+      let expectedKeys = [];
+      try {
+        if (req.body.expectedKeys) {
+          expectedKeys = typeof req.body.expectedKeys === 'string' 
+            ? JSON.parse(req.body.expectedKeys) 
+            : req.body.expectedKeys;
+        }
+      } catch (e) {
+        console.warn("Failed to parse expectedKeys, proceeding without hints:", e.message);
+      }
+
+      // Convert buffer to Base64
+      const base64Image = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype;
+
+      // 2. Step 2: The Eyes (Vision) - AWS Bedrock raw text extraction with hints
+      console.log("👁️  Extracting raw text via AWS Bedrock (with hints)...");
+      const rawText = await extractRawTextFromImage(base64Image, mimeType, expectedKeys);
+
+      if (!rawText) {
+        throw new Error("Vision service returned no text");
+      }
+
+      console.log("📄 Raw OCR Text from Bedrock:\n", rawText);
+
+      // 3. Step 3: The Brain (Logic) - Structuring via LLM with expected keys
+      console.log("🧠 Structuring data via LLM (with expected keys)...");
+      const cleanData = await extractMedicalData(rawText, expectedKeys);
+
+      console.log("📦 LLM Structured Data:\n", JSON.stringify(cleanData, null, 2));
+
+      res.json({
+        success: true,
+        data: cleanData
+      });
+    } catch (error) {
+      console.error("Hybrid OCR Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to process medical report OCR"
+      });
     }
   }
 );
