@@ -8,12 +8,12 @@
   top: 20px;
   right: 20px;
   z-index: 9999;
-  animation: slideInShake 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  animation: toastSlideInShake 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 }
 
 /* Right Toast - Hide Animation */
 .toast-container-right.hiding {
-  animation: slideOutRight 0.3s ease-in forwards;
+  animation: toastSlideOutRight 0.3s ease-in forwards;
 }
 
 /* Center Toast Container */
@@ -23,12 +23,12 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
-  animation: slideDownCenter 0.4s ease-out forwards;
+  animation: toastSlideDown 0.4s ease-out forwards;
 }
 
 /* Center Toast - Hide Animation */
 .toast-container-center.hiding {
-  animation: slideUp 0.3s ease-in forwards;
+  animation: toastSlideUp 0.3s ease-in forwards;
 }
 
 /* Base Toast Card */
@@ -239,7 +239,7 @@
   left: 0;
   height: 3px;
   width: 100%;
-  animation: progress 3s linear forwards;
+  animation: toastProgress 3s linear forwards;
 }
 
 .toast-container-center .toast-progress {
@@ -283,7 +283,7 @@
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  animation: fadeIn 0.2s ease-out;
+  animation: toastFadeIn 0.2s ease-out;
   cursor: pointer;
 }
 
@@ -296,7 +296,7 @@
   max-width: 450px;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: scaleIn 0.2s ease-out;
+  animation: toastScaleIn 0.2s ease-out;
   cursor: default;
 }
 
@@ -410,7 +410,7 @@
    ============================================ */
 
 /* Slide In from Right with Shake */
-@keyframes slideInShake {
+@keyframes toastSlideInShake {
   0% {
     transform: translateX(120%);
     opacity: 0;
@@ -436,7 +436,7 @@
 }
 
 /* Slide Out to Right */
-@keyframes slideOutRight {
+@keyframes toastSlideOutRight {
   from {
     transform: translateX(0);
     opacity: 1;
@@ -449,7 +449,7 @@
 }
 
 /* Slide Down from Top (Calm) */
-@keyframes slideDown {
+@keyframes toastSlideDown {
   from {
     transform: translateX(-50%) translateY(-120%);
     opacity: 0;
@@ -462,7 +462,7 @@
 }
 
 /* Slide Up to Top */
-@keyframes slideUp {
+@keyframes toastSlideUp {
   from {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
@@ -475,7 +475,7 @@
 }
 
 /* Progress Bar */
-@keyframes progress {
+@keyframes toastProgress {
   from {
     width: 100%;
   }
@@ -486,7 +486,7 @@
 }
 
 /* Fade In */
-@keyframes fadeIn {
+@keyframes toastFadeIn {
   from {
     opacity: 0;
   }
@@ -497,7 +497,7 @@
 }
 
 /* Scale In */
-@keyframes scaleIn {
+@keyframes toastScaleIn {
   from {
     transform: scale(0.9);
     opacity: 0;
