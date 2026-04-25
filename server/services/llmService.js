@@ -5,11 +5,25 @@ const OpenAI = require("openai");
  * Supports Groq by default and can be configured for self-hosted LLMs via environment variables.
  */
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1",
-});
+// Initialize OpenAI client lazily to prevent crash if API key is missing during startup
+let openai;
+function getOpenAIClient() {
+  if (openai) return openai;
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    console.warn("WARNING: GROQ_API_KEY is not defined. AI extraction features will be unavailable.");
+    // We don't throw here to prevent server crash, but we will throw when the service is actually used
+    return null;
+  }
+
+  openai = new OpenAI({
+    apiKey: apiKey,
+    baseURL: process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1",
+  });
+  return openai;
+}
+
 
 const getSystemPrompt = (expectedKeys = []) => {
   let prompt = `You are an expert clinical data extraction agent. Extract test results from OCR text and output them strictly as a JSON object.
@@ -42,8 +56,13 @@ async function extractMedicalData(rawOcrText, expectedKeys = []) {
     throw new Error("OCR text is required for extraction");
   }
 
+  const client = getOpenAIClient();
+  if (!client) {
+    throw new Error("AI Extraction service is not configured (Missing API Key)");
+  }
+
   try {
-    const response = await openai.chat.completions.create({
+    const response = await client.chat.completions.create({
       model: "llama-3.1-8b-instant", // Keep Groq model for now
       temperature: 0.0,
       response_format: { type: "json_object" },
