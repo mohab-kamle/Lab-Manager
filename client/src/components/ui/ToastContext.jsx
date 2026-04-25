@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import "../../styles/Toast.css";
@@ -36,10 +37,17 @@ export const ToastProvider = ({ children }) => {
   });
 
   const [toastTimeout, setToastTimeout] = useState(null);
+  const hideTimeoutRef = useRef(null);
 
   // Show Toast Function
   const showToast = useCallback(
     (message, type = "success", options = {}) => {
+      // Clear any existing hide timeout if we are showing a new toast
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = null;
+      }
+
       // Legacy option mapping
       let mappedDuration = 3000;
       if (options.autoClose === false) {
@@ -62,7 +70,7 @@ export const ToastProvider = ({ children }) => {
       const duration = mappedDuration;
       const clickToClose = mappedClickToClose;
 
-      // Clear any existing timeout
+      // Clear any existing auto-close timeout
       if (toastTimeout) {
         clearTimeout(toastTimeout);
       }
@@ -91,7 +99,12 @@ export const ToastProvider = ({ children }) => {
   // Hide Toast Function
   const hideToast = useCallback(() => {
     setToastData((prev) => ({ ...prev, isHiding: true }));
-    setTimeout(() => {
+    
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+    }
+
+    hideTimeoutRef.current = setTimeout(() => {
       setToastData({
         show: false,
         message: "",
@@ -102,6 +115,7 @@ export const ToastProvider = ({ children }) => {
         clickToClose: true,
         duration: 3000,
       });
+      hideTimeoutRef.current = null;
     }, 300);
   }, []);
 

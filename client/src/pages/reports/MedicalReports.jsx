@@ -38,7 +38,10 @@ import {
   ArrowUpWideNarrow,
   CircleX,
   Undo,
+  Wand2,
+  Sparkles,
 } from "lucide-react";
+import { extractFromImage } from "../../api/medicalReports";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
 import { useToast } from "../../components/ui/ToastContext";
 import { formatDate } from "../../utils/dateFormatter";
@@ -63,7 +66,7 @@ function calculateAge(birthDate) {
 }
 
 const MedicalReports = () => {
-  const { toast } = useToast();
+  const { toast, hideToast } = useToast();
   const { user } = useAuth();
   const { labInfo } = useLab();
   const [reports, setReports] = useState([]);
@@ -143,6 +146,8 @@ const MedicalReports = () => {
     gender: "",
     birth_date: "",
   });
+  const [isExtracting, setIsExtracting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -816,6 +821,83 @@ const MedicalReports = () => {
       toast.error("Failed to prepare save request. Please try again.");
     } finally {
       setSavingResults(false);
+    }
+  };
+
+  const handleAiExtraction = async (file) => {
+    if (!file) return;
+
+    try {
+      setIsExtracting(true);
+      toast.loading("AI is scanning and extracting data...");
+      
+      // Get expected parameters to help the AI map correctly
+      const expectedKeys = selectedReportForResults.tests.flatMap(test => 
+        (test.structure_config || []).map(p => p.label || p.name || p.key)
+      );
+
+      const extractedData = await extractFromImage(file, expectedKeys);
+      
+      if (!extractedData || Object.keys(extractedData).length === 0) {
+        toast.warning("No data could be extracted from this image.");
+        return;
+      }
+
+      const newComponentResults = { ...resultsData.test_component_results };
+      let matchCount = 0;
+
+      // Map AI data to existing report structure
+      selectedReportForResults.tests.forEach(test => {
+        if (!newComponentResults[test.id]) newComponentResults[test.id] = {};
+        
+        const structureConfig = test.structure_config || [];
+        
+        Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
+          if (aiValue === null || aiValue === undefined) return;
+
+          // Standardize both sides for comparison
+          const normalize = (str) => str?.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const normalizedAiKey = normalize(aiKey);
+
+          // Try to find a matching parameter in the structure config
+          const param = structureConfig.find(p => {
+            const normKey = normalize(p.key);
+            const normName = normalize(p.name);
+            const normLabel = normalize(p.label);
+            
+            return normKey === normalizedAiKey || 
+                   normName === normalizedAiKey || 
+                   normLabel === normalizedAiKey ||
+                   // Allow partial matches for better resilience (e.g., "glucose" matching "glucose_fasting")
+                   (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
+          });
+
+          if (param) {
+            const key = param.key || param.name;
+            newComponentResults[test.id][key] = {
+              ...(newComponentResults[test.id][key] || {}),
+              result: aiValue
+            };
+            matchCount++;
+          }
+        });
+      });
+
+      setResultsData(prev => ({
+        ...prev,
+        test_component_results: newComponentResults
+      }));
+
+      if (matchCount > 0) {
+        toast.success(`Successfully extracted ${matchCount} test results!`);
+      } else {
+        toast.warning("AI finished scanning but couldn't find matches for the tests in this report.");
+      }
+    } catch (error) {
+      console.error("AI Extraction failed:", error);
+      toast.error(error.message || "Failed to extract data from image");
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -1583,7 +1665,33 @@ const MedicalReports = () => {
                       <Col>
                         <h5 className="mb-0">Patient Information</h5>
                       </Col>
-                      <Col xs="auto">
+                      <Col xs="auto" className="d-flex gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          ref={fileInputRef}
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleAiExtraction(e.target.files[0]);
+                              e.target.value = null; // Reset for same file selection
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="gradient-primary"
+                          size="sm"
+                          className="d-flex align-items-center ai-scan-btn"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isExtracting}
+                        >
+                          {isExtracting ? (
+                            <Spinner size="sm" className="me-1" />
+                          ) : (
+                            <Sparkles size={16} className="me-1" />
+                          )}
+                          AI Scan Report
+                        </Button>
                         {!editingPatientData ? (
                           <Button
                             variant="outline-primary"
