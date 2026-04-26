@@ -54,22 +54,18 @@ const ChemistDashboard = () => {
       title: 'Medical Reports',
       description: 'View and manage reports',
       icon: <FileText size={24} />,
-      variant: 'primary',
       action: () => navigate('/admin/dashboard/medical-reports')
     },
     {
       title: 'Test Groups',
       description: 'Manage test configurations',
       icon: <TestTube size={24} />,
-      variant: 'success',
       action: () => navigate('/admin/dashboard/test-groups')
     },
-
     {
       title: 'Tests',
       description: 'View test catalog',
       icon: <Microscope size={24} />,
-      variant: 'warning',
       action: () => navigate('/admin/dashboard/tests')
     }
   ];
@@ -141,13 +137,12 @@ const ChemistDashboard = () => {
                 {quickActions.map((action, index) => (
                   <Col md={4} key={index} className="mb-3">
                     <Button
-                      variant={action.variant}
-                      className="w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3"
+                      className="btn-dashboard-action w-100"
                       onClick={action.action}
                     >
-                      <div className="mb-2">{action.icon}</div>
+                      <div className="mb-1">{action.icon}</div>
                       <strong>{action.title}</strong>
-                      <small className="d-block mt-1">{action.description}</small>
+                      <small className="d-block text-center mt-1">{action.description}</small>
                     </Button>
                   </Col>
                 ))}
