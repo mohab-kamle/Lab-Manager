@@ -241,3 +241,51 @@ body.dark {
 .ai-scan-btn:not(:disabled) {
   animation: ai-pulse 3s infinite;
 }
+
+.btn-dashboard-action {
+  background-color: transparent !important;
+  border: 2px solid var(--color-primary) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1rem !important;
+  border-radius: 12px !important;
+  height: 110px !important; /* Slightly smaller height */
+  min-width: 140px !important;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.btn-dashboard-action svg,
+.btn-dashboard-action span,
+.btn-dashboard-action strong,
+.btn-dashboard-action small {
+  transition: color 0.3s ease !important;
+  color: var(--color-primary) !important; /* All text/icons are Prime */
+}
+
+.btn-dashboard-action strong {
+  font-size: 1rem !important;
+}
+
+.btn-dashboard-action small {
+  opacity: 0.7;
+}
+
+/* Hover State - All become Prime background with White text */
+.btn-dashboard-action:hover {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(var(--color-primary), 0.15);
+}
+
+.btn-dashboard-action:hover svg,
+.btn-dashboard-action:hover span,
+.btn-dashboard-action:hover strong,
+.btn-dashboard-action:hover small {
+  color: white !important;
+  opacity: 1 !important;
+}

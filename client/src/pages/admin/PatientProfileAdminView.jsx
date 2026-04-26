@@ -21,6 +21,8 @@ import {
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
+import ReconciliationModal from "../../components/reconciliation/ReconciliationModal";
+import { Wallet2, CheckCircle } from "lucide-react";
 
 // Reuse styles from PatientProfile
 import "../../styles/PatientProfile.css";
@@ -78,6 +80,7 @@ const PatientProfileAdminView = () => {
   const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [saveLoading, setSaveLoading] = useState(false);
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -445,6 +448,44 @@ const PatientProfileAdminView = () => {
                 </div>
               </motion.div>
 
+              {/* Reconciliation & Billing Card */}
+              <motion.div
+                variants={itemVariants}
+                className="patient-profile-card p-4"
+              >
+                <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
+                  <Wallet2 size={24} className="text-success" /> Reconciliation & Billing
+                </h5>
+                <div className="text-center py-2">
+                  <div className="text-muted small mb-1">Total Outstanding</div>
+                  <h3 className={`fw-bold mb-3 ${parseFloat(patient.due || 0) > 0 ? 'text-danger' : 'text-success'}`}>
+                    EGP {Math.abs(parseFloat(patient.due || 0)).toFixed(2)}
+                    {parseFloat(patient.due || 0) < 0 ? ' (Credit)' : ''}
+                  </h3>
+                  
+                  <Button 
+                    variant="primary" 
+                    className="rounded-pill w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                    onClick={() => setShowReconciliationModal(true)}
+                    disabled={parseFloat(patient.due || 0) <= 0}
+                  >
+                    <Receipt size={18} /> Process Reconciliation
+                  </Button>
+                  
+                  {parseFloat(patient.due || 0) <= 0 && (
+                    <div className="mt-2 text-success small d-flex align-items-center justify-content-center gap-1">
+                      <CheckCircle size={14} /> Account is fully settled
+                    </div>
+                  )}
+                </div>
+                
+                <div className="mt-4 pt-3 border-top">
+                  <p className="text-muted small mb-0 text-center">
+                    Review and settle outstanding invoices for this patient.
+                  </p>
+                </div>
+              </motion.div>
+
               {/* Transactions Placeholder */}
               <motion.div
                 variants={itemVariants}
@@ -462,6 +503,15 @@ const PatientProfileAdminView = () => {
           </Col>
         </Row>
       </Container>
+
+      {/* Reconciliation Modal */}
+      <ReconciliationModal
+        show={showReconciliationModal}
+        onHide={() => setShowReconciliationModal(false)}
+        initialPatientId={patient.id}
+        patientName={patient.name}
+        patientCode={patient.patientcode}
+      />
     </div>
   );
 };
