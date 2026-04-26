@@ -44,6 +44,7 @@
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.6.0",
     "react-pdf": "^10.0.1",
+    "react-phone-number-input": "^3.4.16",
     "react-qr-code": "^2.0.18",
     "react-quill": "^2.0.0",
     "react-router-dom": "^7.12.0",

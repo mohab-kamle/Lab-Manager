@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const db = require('../models');
-const { lab, employee, admin, lab_settings, subscription, lab_payment, Sequelize } = db;
+const { lab, employee, admin, lab_settings, subscription, lab_payment, Sequelize, phone_number } = db;
 const { Op } = Sequelize;
 const nodemailer = require('nodemailer');
 const { registrationLimiter } = require('../middleware/rateLimiters');
@@ -158,7 +158,7 @@ router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) 
       region: labData.region,
       owner: adminData.name,
       lab_email: labData.email,
-      lab_phone: labData.phone,
+      lab_phone: labData.phoneNumbers && labData.phoneNumbers.length > 0 ? labData.phoneNumbers[0].phone : null,
       subscription_duration: subscriptionData.plan,
       subscription_status: 'active',
       subscription_start_date: new Date(),
@@ -171,17 +171,64 @@ router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) 
       secondary_color: '#6c757d'
     }, { transaction });
     
-    // Create admin employee
     const adminEmployee = await employee.create({
       username: adminData.username,
       password: hashedPassword,
       name: adminData.name,
       email: adminData.email,
-      phone: adminData.phone,
       role: 'admin',
       lab_id: newLab.id,
       is_owner: true,
     }, { transaction });
+    
+    // Create phone records for lab and admin
+    const { parsePhoneNumberFromString } = require('libphonenumber-js');
+    const normalizePhone = (phoneStr) => {
+      if (!phoneStr) return null;
+      try {
+        const phoneNumber = parsePhoneNumberFromString(phoneStr);
+        if (phoneNumber && phoneNumber.isValid()) {
+          return phoneNumber.format('E.164');
+        }
+        return phoneStr;
+      } catch (error) {
+        return phoneStr;
+      }
+    };
+
+    // Lab phones
+    if (labData.phoneNumbers && labData.phoneNumbers.length > 0) {
+      await phone_number.bulkCreate(
+        labData.phoneNumbers.map(p => ({
+          phone: normalizePhone(p.phone),
+          type: p.type || 'work',
+          is_primary: p.is_primary,
+          lab_id: newLab.id
+        })),
+        { transaction }
+      );
+    }
+
+    // Admin phones
+    if (adminData.phoneNumbers && adminData.phoneNumbers.length > 0) {
+      await phone_number.bulkCreate(
+        adminData.phoneNumbers.map(p => ({
+          phone: normalizePhone(p.phone),
+          type: p.type || 'personal',
+          is_primary: p.is_primary,
+          employee_id: adminEmployee.id
+        })),
+        { transaction }
+      );
+    } else if (adminData.phone) {
+      // Fallback for legacy data if needed, though new frontend sends phoneNumbers
+      await phone_number.create({
+        phone: normalizePhone(adminData.phone),
+        type: 'personal',
+        is_primary: true,
+        employee_id: adminEmployee.id
+      }, { transaction });
+    }
     
     // Add admin to admin table
     await admin.create({
@@ -213,7 +260,7 @@ router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) 
         lab_id: newLab.id,
         setting_key: 'contact_info',
         setting_value: JSON.stringify({
-          lab_phone: labData.phone,
+          lab_phone: labData.phoneNumbers && labData.phoneNumbers.length > 0 ? labData.phoneNumbers[0].phone : (labData.phone || ''),
           lab_email: labData.email,
           lab_address: labData.address
         }),

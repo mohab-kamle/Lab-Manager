@@ -36,6 +36,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import "../../styles/EmployeeManagement.css";
 import { useToast } from "../../components/ui/ToastContext";
+import PhoneInput from "../../components/ui/PhoneInput";
 const EmployeeManagement = () => {
   const { user } = useAuth();
   const { toast, confirm } = useToast();
@@ -71,6 +72,7 @@ const EmployeeManagement = () => {
     passport_no: "",
     role: "",
     branch_id: "",
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
   });
   const [branches, setBranches] = useState([]);
   const [formErrors, setFormErrors] = useState({});
@@ -107,6 +109,7 @@ const EmployeeManagement = () => {
           { field: "birth_date", label: "Birth Date", sortable: true },
           { field: "national_id", label: "National ID", sortable: true },
           { field: "nationality", label: "Nationality", sortable: true },
+          { field: "phones", label: "Phones", sortable: false },
           { field: "branch", label: "Branch", sortable: false },
         ];
 
@@ -137,6 +140,7 @@ const EmployeeManagement = () => {
         birth_date: employee.birth_date
           ? new Date(employee.birth_date).toISOString().split("T")[0]
           : null,
+        phoneNumbers: employee.phoneNumbers.filter(p => p.phone && p.phone.trim() !== ""),
       };
 
       // Validate the cleaned employee
@@ -295,6 +299,9 @@ const EmployeeManagement = () => {
               ? new Date(rowData.birth_date)
               : null,
             password: "", // Don't show password
+            phoneNumbers: rowData.phones && rowData.phones.length > 0 
+              ? rowData.phones 
+              : [{ phone: "", type: "personal", is_primary: true }],
           });
           setShowPassword(false);
           setShowAddModal(true);
@@ -378,6 +385,19 @@ const EmployeeManagement = () => {
         if (!rowData) return "-";
         const branch = branches.find((b) => b.id === rowData.branch_id);
         return branch ? branch.name : "-";
+      case "phones":
+        if (!value || value.length === 0) return "-";
+        const primary = value.find(p => p.is_primary) || value[0];
+        return (
+          <div className="d-flex flex-column gap-1">
+            <span className="fw-bold">{primary.phone}</span>
+            {value.length > 1 && (
+              <Badge bg="secondary" pill style={{ fontSize: '10px', width: 'fit-content' }}>
+                +{value.length - 1} more
+              </Badge>
+            )}
+          </div>
+        );
       default:
         return String(value || "-");
     }
@@ -396,6 +416,7 @@ const EmployeeManagement = () => {
       passport_no: "",
       role: "",
       branch_id: "",
+      phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
     });
     setFormErrors({});
     setShowPassword(false);
@@ -634,6 +655,87 @@ const EmployeeManagement = () => {
                         {formErrors.role}
                       </Form.Control.Feedback>
                     </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Label>Phone Numbers *</Form.Label>
+                    {employee.phoneNumbers.map((phoneEntry, index) => (
+                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
+                        <div style={{ flex: 1 }}>
+                          <PhoneInput
+                            value={phoneEntry.phone}
+                            onChange={(val) => {
+                              const newPhones = [...employee.phoneNumbers];
+                              newPhones[index].phone = val;
+                              setEmployee({ ...employee, phoneNumbers: newPhones });
+                            }}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <Form.Select
+                          style={{ width: '130px' }}
+                          value={phoneEntry.type}
+                          onChange={(e) => {
+                            const newPhones = [...employee.phoneNumbers];
+                            newPhones[index].type = e.target.value;
+                            setEmployee({ ...employee, phoneNumbers: newPhones });
+                          }}
+                        >
+                          <option value="personal">Personal</option>
+                          <option value="work">Work</option>
+                          <option value="home">Home</option>
+                        </Form.Select>
+                        <div className="d-flex flex-column align-items-center">
+                          <Form.Check
+                            type="radio"
+                            name="primaryPhone"
+                            checked={phoneEntry.is_primary}
+                            onChange={() => {
+                              const newPhones = employee.phoneNumbers.map((p, i) => ({
+                                ...p,
+                                is_primary: i === index
+                              }));
+                              setEmployee({ ...employee, phoneNumbers: newPhones });
+                            }}
+                            title="Set as primary"
+                          />
+                          <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
+                        </div>
+                        {employee.phoneNumbers.length > 1 && (
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => {
+                              const newPhones = employee.phoneNumbers.filter((_, i) => i !== index);
+                              if (phoneEntry.is_primary && newPhones.length > 0) {
+                                newPhones[0].is_primary = true;
+                              }
+                              setEmployee({ ...employee, phoneNumbers: newPhones });
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="mt-1"
+                      onClick={() => {
+                        setEmployee({
+                          ...employee,
+                          phoneNumbers: [
+                            ...employee.phoneNumbers,
+                            { phone: "", type: "personal", is_primary: false }
+                          ]
+                        });
+                      }}
+                    >
+                      <Plus size={14} className="me-1" /> Add Another Phone
+                    </Button>
                   </Col>
                 </Row>
 
