@@ -5,7 +5,8 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle, Wallet2 } from "lucide-react";
+import ReconciliationModal from "../../components/reconciliation/ReconciliationModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
@@ -96,6 +97,10 @@ const Invoices = () => {
   // Limit warning modal support
   const [limitWarningModal, setLimitWarningModal] = useState(false);
   const [limitWarningData, setLimitWarningData] = useState(null);
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
+  const [reconciliationPatientId, setReconciliationPatientId] = useState(null);
+  const [reconciliationPatientName, setReconciliationPatientName] = useState("");
+  const [reconciliationPatientCode, setReconciliationPatientCode] = useState("");
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -1146,11 +1151,27 @@ const Invoices = () => {
       >
         <Eye size={16} />
       </Button>
+      <Button
+        variant="outline-warning"
+        size="sm"
+        onClick={() => {
+          const patient = patients.find(p => p.id === rowData.patient_id);
+          setReconciliationPatientId(rowData.patient_id);
+          setReconciliationPatientName(rowData.patient_name || "Unknown Patient");
+          setReconciliationPatientCode(patient?.patientcode || "");
+          setShowReconciliationModal(true);
+        }}
+        disabled={parseFloat(rowData.due || 0) <= 0}
+        title="Reconcile Account"
+      >
+        <Wallet2 size={16} />
+      </Button>
       <InvoicePDF invoiceData={rowData}/>
     </div>
   );
 
   return (
+    <>
     <Container fluid className="invoices-container">
       {loading ? (
         <LoadingSpinner message="Loading invoices..." />
@@ -2659,6 +2680,16 @@ const Invoices = () => {
         </>
       )}
     </Container>
+
+      {/* Reconciliation Modal */}
+      <ReconciliationModal
+        show={showReconciliationModal}
+        onHide={() => setShowReconciliationModal(false)}
+        initialPatientId={reconciliationPatientId}
+        patientName={reconciliationPatientName}
+        patientCode={reconciliationPatientCode}
+      />
+    </>
   );
 };
 
