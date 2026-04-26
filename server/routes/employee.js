@@ -361,9 +361,9 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
         } = req.body;
 
         // Find employee
-        const emp = await employee.findByPk(id);
+        const emp = await employee.findOne({ where: { id, lab_id: req.tenant.lab_id } });
         if (!emp) {
-            return res.status(404).json({ error: "Employee not found" });
+            return res.status(404).json({ error: "Employee not found or you don't have permission to edit this employee." });
         }
 
         // Validate role if provided
@@ -509,9 +509,9 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
             return res.status(400).json({ error: "Cannot delete your own account" });
         }
 
-        const emp = await employee.findByPk(id);
+        const emp = await employee.findOne({ where: { id, lab_id: req.tenant.lab_id } });
         if (!emp) {
-            return res.status(404).json({ error: "Employee not found" });
+            return res.status(404).json({ error: "Employee not found or you don't have permission to delete this employee." });
         }
 
         // Delete role-specific record first

@@ -111,7 +111,7 @@ const TurnaroundTime = () => {
             </Card>
           </Col>
           <Col md={3}>
-            <Card className="h-100 bg-warning text-dark text-center">
+            <Card className="h-100 bg-warning text-black text-center">
               <Card.Body>
                 <Card.Title>Avg. Processing Time</Card.Title>
                 <h3>{formatMinutes(data.metrics.avg_processing_time_minutes)}</h3>

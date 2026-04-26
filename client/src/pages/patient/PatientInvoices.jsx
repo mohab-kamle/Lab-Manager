@@ -190,6 +190,7 @@ const PatientInvoices = () => {
             onClick={() => navigate(-1)}
             className="text-decoration-none text-primary p-0 d-flex align-items-center"
             style={{ width: "40px", height: "40px", justifyContent: "center", borderRadius: "50%", background: "var(--bg-elevated)" }}
+            aria-label="Go back"
           >
             <ArrowLeft size={20} />
           </Button>
