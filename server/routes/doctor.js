@@ -4,9 +4,25 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
-const { doctor, contract, sequelize } = require('../models');
+const { doctor, contract, sequelize, phone_number } = require('../models');
 const { loginLimiter } = require('../middleware/rateLimiters');
 const authenticateUser = require('../middleware/authenticateUser');
+const { parsePhoneNumberFromString } = require('libphonenumber-js');
+
+// Helper function to normalize phone number to E.164 format
+const normalizePhone = (phoneStr) => {
+    if (!phoneStr) return null;
+    try {
+        const phoneNumber = parsePhoneNumberFromString(phoneStr);
+        if (phoneNumber && phoneNumber.isValid()) {
+            return phoneNumber.format('E.164');
+        }
+        if (phoneStr.startsWith('+')) return phoneStr;
+        return phoneStr;
+    } catch (e) {
+        return phoneStr;
+    }
+};
 
 // Doctor Login
 router.post("/login", loginLimiter, async (req, res) => {
@@ -115,10 +131,16 @@ router.get("/", authenticateUser, async (req, res) => {
     try {
         const docs = await doctor.findAll({
             attributes: { exclude: ['password'] },
-            include: [{
-                model: contract,
-                as: 'contract'
-            }]
+            include: [
+                {
+                    model: contract,
+                    as: 'contract'
+                },
+                {
+                    model: phone_number,
+                    as: 'phones'
+                }
+            ]
         });
         res.json(docs);
     } catch (error) {
@@ -130,7 +152,7 @@ router.get("/", authenticateUser, async (req, res) => {
 // Create a new doctor (from invoice page or management)
 router.post("/", authenticateUser, async (req, res) => {
     try {
-        const { name, specialization, phone, email, commission, contract_id } = req.body;
+        const { name, specialization, phoneNumbers = [], email, commission, contract_id } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: "Doctor name is required" });
@@ -139,11 +161,30 @@ router.post("/", authenticateUser, async (req, res) => {
         const newDoctor = await doctor.create({
             name,
             specialization,
-            phone,
             email,
             commission: commission || 0,
             contract_id: contract_id || null
         });
+
+        // Add phone numbers
+        if (phoneNumbers && phoneNumbers.length > 0) {
+            const phonesToCreate = phoneNumbers.map(p => {
+                const normalized = normalizePhone(p.phone);
+                return normalized ? {
+                    phone: normalized,
+                    type: p.type || 'personal',
+                    is_primary: p.is_primary || false,
+                    doctor_id: newDoctor.id
+                } : null;
+            }).filter(p => p !== null);
+
+            if (phonesToCreate.length > 0) {
+                if (!phonesToCreate.some(p => p.is_primary)) {
+                    phonesToCreate[0].is_primary = true;
+                }
+                await phone_number.bulkCreate(phonesToCreate);
+            }
+        }
 
         res.status(201).json(newDoctor);
     } catch (error) {

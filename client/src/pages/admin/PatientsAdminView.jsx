@@ -13,6 +13,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
+import PhoneInput from "../../components/ui/PhoneInput";
 
 
 
@@ -52,8 +53,7 @@ const PatientsAdminView = () => {
     nationality: "",
     passport_no: "",
     address: "",
-    primaryPhone: "",
-    secondaryPhone: "",
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
     diseases: [],
     total: "",
     paid: "",
@@ -121,7 +121,7 @@ const PatientsAdminView = () => {
   const [newReferral, setNewReferral] = useState({
     doctor_name: "",
     specialization: "",
-    phone: "",
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
     email: "",
     address: ""
   });
@@ -163,6 +163,7 @@ const PatientsAdminView = () => {
           { field: 'nationality', label: 'Nationality', sortable: true },
           { field: 'passport_no', label: 'Passport No', sortable: true },
           { field: 'address', label: 'Address', sortable: true },
+          { field: 'phones', label: 'Phones', sortable: false },
           { field: 'total', label: 'Total', sortable: true },
           { field: 'paid', label: 'Paid', sortable: true },
 
@@ -201,8 +202,7 @@ const PatientsAdminView = () => {
       const cleanedPatient = {
         ...patient,
         birth_date: finalBirthDate,
-        primaryPhone: patient.primaryPhone || null,
-        secondaryPhone: patient.secondaryPhone || null,
+        phoneNumbers: patient.phoneNumbers.filter(p => p.phone && p.phone.trim() !== ""),
         diseases: patient.diseases || [],
         total: patient.total ? parseFloat(patient.total) : null,
         paid: patient.paid ? parseFloat(patient.paid) : null,
@@ -268,8 +268,10 @@ const PatientsAdminView = () => {
       const payload = {
         name: newReferral.doctor_name,
         specialization: newReferral.specialization,
-        phone: newReferral.phone,
-        email: newReferral.email
+        phoneNumbers: newReferral.phoneNumbers,
+        email: newReferral.email,
+        address: newReferral.address,
+        lab_id: user.lab_id
       };
 
       const response = await axios.post(`${apiUrl}/doctor`, payload, {
@@ -288,7 +290,7 @@ const PatientsAdminView = () => {
       setNewReferral({
         doctor_name: "",
         specialization: "",
-        phone: "",
+        phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
         email: "",
         address: ""
       });
@@ -555,8 +557,9 @@ const PatientsAdminView = () => {
             nationality: rowData.nationality || "",
             passport_no: rowData.passport_no || "",
             address: rowData.address || "",
-            primaryPhone: rowData.phones?.[0]?.phone_number || "",
-            secondaryPhone: rowData.phones?.[1]?.phone_number || "",
+            phoneNumbers: rowData.phones && rowData.phones.length > 0 
+              ? rowData.phones.map(p => ({ ...p, phone: p.phone_number || p.phone })) 
+              : [{ phone: "", type: "personal", is_primary: true }],
             diseases: rowData.diseases_id_diseases?.map(d => d.id) || [],
             total: rowData.total || "",
             paid: rowData.paid || "",
@@ -592,13 +595,10 @@ const PatientsAdminView = () => {
       errors.email = 'Invalid email format';
     }
 
-    // Phone validation (optional fields)
-    if (patient.primaryPhone && !/^\d+$/.test(patient.primaryPhone)) {
-      errors.primaryPhone = 'Primary phone must contain only numbers';
+    if (patient.email && !emailRegex.test(patient.email)) {
+      errors.email = 'Invalid email format';
     }
-    if (patient.secondaryPhone && !/^\d+$/.test(patient.secondaryPhone)) {
-      errors.secondaryPhone = 'Secondary phone must contain only numbers';
-    }
+
 
     return errors;
   };
@@ -614,6 +614,19 @@ const PatientsAdminView = () => {
         return value ? new Date(value).toLocaleDateString() : '-';
       case 'gender':
         return value;
+      case 'phones':
+        if (!value || value.length === 0) return "-";
+        const primary = value.find(p => p.is_primary) || value[0];
+        return (
+          <div className="d-flex flex-column gap-1">
+            <span className="fw-bold">{primary.phone_number || primary.phone}</span>
+            {value.length > 1 && (
+              <Badge bg="secondary" pill style={{ fontSize: '10px', width: 'fit-content' }}>
+                +{value.length - 1} more
+              </Badge>
+            )}
+          </div>
+        );
       case 'patientcode':
         return value ? (
           <span 
@@ -693,8 +706,7 @@ const PatientsAdminView = () => {
       nationality: "",
       passport_no: "",
       address: "",
-      primaryPhone: "",
-      secondaryPhone: "",
+      phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
       diseases: [],
       total: "",
       paid: "",
@@ -816,25 +828,7 @@ const PatientsAdminView = () => {
                 variant="primary"
                 onClick={() => {
                   setEditingPatient(null);
-                  setPatient({
-                    lab_id: user.lab_id,
-                    name: "",
-                    email: "",
-                    gender: "",
-                    birth_date: "",
-                    national_id: "",
-                    nationality: "",
-                    passport_no: "",
-                    address: "",
-                    primaryPhone: "",
-                    secondaryPhone: "",
-                    diseases: [],
-                    total: "",
-                    paid: "",
-                    due: "",
-                    contract_id: "",
-
-                  });
+                  handleResetForm();
                   setShowAddModal(true);
                 }}
               >
@@ -1129,7 +1123,7 @@ const PatientsAdminView = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col md={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Address</Form.Label>
                       <Form.Control
@@ -1142,42 +1136,84 @@ const PatientsAdminView = () => {
                   </Col>
                 </Row>
 
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Primary Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter primary phone"
-                        value={patient.primaryPhone || ''}
-                        onChange={(e) => {
-                          setPatient({ ...patient, primaryPhone: e.target.value });
-                          if (formErrors.primaryPhone) setFormErrors({ ...formErrors, primaryPhone: null });
-                        }}
-                        isInvalid={!!formErrors.primaryPhone}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {formErrors.primaryPhone}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Secondary Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter secondary phone"
-                        value={patient.secondaryPhone || ''}
-                        onChange={(e) => {
-                          setPatient({ ...patient, secondaryPhone: e.target.value });
-                          if (formErrors.secondaryPhone) setFormErrors({ ...formErrors, secondaryPhone: null });
-                        }}
-                        isInvalid={!!formErrors.secondaryPhone}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {formErrors.secondaryPhone}
-                      </Form.Control.Feedback>
-                    </Form.Group>
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Label>Phone Numbers *</Form.Label>
+                    {patient.phoneNumbers.map((phoneEntry, index) => (
+                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
+                        <div style={{ flex: 1 }}>
+                          <PhoneInput
+                            value={phoneEntry.phone}
+                            onChange={(val) => {
+                              const newPhones = [...patient.phoneNumbers];
+                              newPhones[index].phone = val;
+                              setPatient({ ...patient, phoneNumbers: newPhones });
+                            }}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <Form.Select
+                          style={{ width: '130px' }}
+                          value={phoneEntry.type}
+                          onChange={(e) => {
+                            const newPhones = [...patient.phoneNumbers];
+                            newPhones[index].type = e.target.value;
+                            setPatient({ ...patient, phoneNumbers: newPhones });
+                          }}
+                        >
+                          <option value="personal">Personal</option>
+                          <option value="work">Work</option>
+                          <option value="home">Home</option>
+                        </Form.Select>
+                        <div className="d-flex flex-column align-items-center">
+                          <Form.Check
+                            type="radio"
+                            name="primaryPhone"
+                            checked={phoneEntry.is_primary}
+                            onChange={() => {
+                              const newPhones = patient.phoneNumbers.map((p, i) => ({
+                                ...p,
+                                is_primary: i === index
+                              }));
+                              setPatient({ ...patient, phoneNumbers: newPhones });
+                            }}
+                            title="Set as primary"
+                          />
+                          <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
+                        </div>
+                        {patient.phoneNumbers.length > 1 && (
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => {
+                              const newPhones = patient.phoneNumbers.filter((_, i) => i !== index);
+                              if (phoneEntry.is_primary && newPhones.length > 0) {
+                                newPhones[0].is_primary = true;
+                              }
+                              setPatient({ ...patient, phoneNumbers: newPhones });
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="mt-1"
+                      onClick={() => {
+                        setPatient({
+                          ...patient,
+                          phoneNumbers: [
+                            ...patient.phoneNumbers,
+                            { phone: "", type: "personal", is_primary: false }
+                          ]
+                        });
+                      }}
+                    >
+                      <Plus size={14} className="me-1" /> Add Another Phone
+                    </Button>
                   </Col>
                 </Row>
 
@@ -1744,18 +1780,87 @@ const PatientsAdminView = () => {
                   </Col>
                 </Row>
                 <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter phone number"
-                        value={newReferral.phone}
-                        onChange={(e) => setNewReferral({ ...newReferral, phone: e.target.value })}
-                      />
-                    </Form.Group>
+                  <Col md={12}>
+                    <Form.Label>Phone Numbers *</Form.Label>
+                    {newReferral.phoneNumbers.map((phoneEntry, index) => (
+                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
+                        <div style={{ flex: 1 }}>
+                          <PhoneInput
+                            value={phoneEntry.phone}
+                            onChange={(val) => {
+                              const newPhones = [...newReferral.phoneNumbers];
+                              newPhones[index].phone = val;
+                              setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                            }}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <Form.Select
+                          style={{ width: '130px' }}
+                          value={phoneEntry.type}
+                          onChange={(e) => {
+                            const newPhones = [...newReferral.phoneNumbers];
+                            newPhones[index].type = e.target.value;
+                            setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                          }}
+                        >
+                          <option value="personal">Personal</option>
+                          <option value="work">Work</option>
+                          <option value="home">Home</option>
+                        </Form.Select>
+                        <div className="d-flex flex-column align-items-center">
+                          <Form.Check
+                            type="radio"
+                            name="referralPrimaryPhone"
+                            checked={phoneEntry.is_primary}
+                            onChange={() => {
+                              const newPhones = newReferral.phoneNumbers.map((p, i) => ({
+                                ...p,
+                                is_primary: i === index
+                              }));
+                              setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                            }}
+                            title="Set as primary"
+                          />
+                          <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
+                        </div>
+                        {newReferral.phoneNumbers.length > 1 && (
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => {
+                              const newPhones = newReferral.phoneNumbers.filter((_, i) => i !== index);
+                              if (phoneEntry.is_primary && newPhones.length > 0) {
+                                newPhones[0].is_primary = true;
+                              }
+                              setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="mt-1"
+                      onClick={() => {
+                        setNewReferral({
+                          ...newReferral,
+                          phoneNumbers: [
+                            ...newReferral.phoneNumbers,
+                            { phone: "", type: "personal", is_primary: false }
+                          ]
+                        });
+                      }}
+                    >
+                      <Plus size={14} className="me-1" /> Add Another Phone
+                    </Button>
                   </Col>
-                  <Col md={6}>
+                </Row>
+                <Row>
+                  <Col md={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Email</Form.Label>
                       <Form.Control

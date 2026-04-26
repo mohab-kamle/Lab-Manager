@@ -1,0 +1,59 @@
+.phone-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.phone-input-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-color, #374151);
+}
+
+.custom-phone-input {
+  --PhoneInputCountryFlag-height: 1.5em;
+  --PhoneInputCountrySelectArrow-color: #6b7280;
+  display: flex;
+  align-items: center;
+}
+
+.custom-phone-input input {
+  flex: 1;
+  min-width: 0;
+  height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  background-color: var(--bg-card, #ffffff);
+  color: var(--text-color, #111827);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.custom-phone-input input:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.custom-phone-input.has-error input {
+  border-color: #ef4444;
+}
+
+.phone-input-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+}
+
+.PhoneInputCountry {
+  margin-right: 0.5rem;
+}
+
+/* Dark mode adjustments if needed */
+[data-theme='dark'] .custom-phone-input input {
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #f9fafb;
+}
