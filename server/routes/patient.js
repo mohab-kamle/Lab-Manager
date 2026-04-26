@@ -216,10 +216,10 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
 
 // Get all patients
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee", "doctor"), tenantContext,
-    // Add cache headers for 5 minutes
+    // Use no-cache so browsers always revalidate after mutations (e.g. patient updates)
     (req, res, next) => {
         res.set({
-            'Cache-Control': 'public, max-age=300', // 5 minutes
+            'Cache-Control': 'no-cache',
             'ETag': `"patients-${req.tenant?.lab_id || req.user.id}-${Date.now()}"`
         });
         next();
@@ -411,8 +411,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
     }
 });
 
-// Update patient
+// Update patient (uses a transaction to ensure all changes are atomic)
 router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
+    const transaction = await db.sequelize.transaction();
     try {
         const patientId = req.params.id;
         const {
@@ -438,10 +439,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             where: {
                 id: patientId,
                 lab_id: req.tenant.lab_id
-            }
+            },
+            transaction
         });
 
         if (!existingPatient) {
+            await transaction.rollback();
             return res.status(404).json({ error: "Patient not found" });
         }
 
@@ -451,23 +454,31 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         const cleanNationality = nationality && nationality.trim() !== '' ? nationality : null;
         const cleanAddress = address && address.trim() !== '' ? address : null;
 
-        // Check if national ID already exists (if changed and provided)
+        // Check if national ID already exists (if changed and provided) within the same lab
         if (cleanNationalId && cleanNationalId !== existingPatient.national_id) {
-            const existingNationalId = await patient.findOne({ where: { national_id: cleanNationalId } });
+            const existingNationalId = await patient.findOne({
+                where: { national_id: cleanNationalId, lab_id: req.tenant.lab_id },
+                transaction
+            });
             if (existingNationalId) {
+                await transaction.rollback();
                 return res.status(400).json({ error: "National ID already exists" });
             }
         }
 
-        // Check if passport number already exists (if changed and provided)
+        // Check if passport number already exists (if changed and provided) within the same lab
         if (cleanPassportNo && cleanPassportNo !== existingPatient.passport_no) {
-            const existingPassport = await patient.findOne({ where: { passport_no: cleanPassportNo } });
+            const existingPassport = await patient.findOne({
+                where: { passport_no: cleanPassportNo, lab_id: req.tenant.lab_id },
+                transaction
+            });
             if (existingPassport) {
+                await transaction.rollback();
                 return res.status(400).json({ error: "Passport number already exists" });
             }
         }
 
-        // Update the patient
+        // Update the patient record
         await patient.update({
             name,
             email: email || null,
@@ -481,42 +492,44 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             paid: paid !== undefined ? paid : existingPatient.paid,
             due: due !== undefined ? due : existingPatient.due,
             contract_id: contract_id !== undefined ? contract_id : existingPatient.contract_id,
-        }, { where: { id: patientId } });
+        }, { where: { id: patientId }, transaction });
 
         // Update phone numbers
         if (primaryPhone !== undefined) {
-            await phone.destroy({ where: { patient_id: patientId, type: 'primary' } });
+            await phone.destroy({ where: { patient_id: patientId, type: 'primary' }, transaction });
             if (primaryPhone) {
                 await phone.create({
                     phone_number: primaryPhone,
                     type: 'primary',
                     patient_id: patientId
-                });
+                }, { transaction });
             }
         }
 
         if (secondaryPhone !== undefined) {
-            await phone.destroy({ where: { patient_id: patientId, type: 'secondary' } });
+            await phone.destroy({ where: { patient_id: patientId, type: 'secondary' }, transaction });
             if (secondaryPhone) {
                 await phone.create({
                     phone_number: secondaryPhone,
                     type: 'secondary',
                     patient_id: patientId
-                });
+                }, { transaction });
             }
         }
 
         // Update diseases
-        await patient_has_diseases.destroy({ where: { patient_id: patientId } });
+        await patient_has_diseases.destroy({ where: { patient_id: patientId }, transaction });
         if (diseases.length > 0) {
             const diseaseRecords = diseases.map(diseaseId => ({
                 patient_id: patientId,
                 diseases_id: diseaseId
             }));
-            await patient_has_diseases.bulkCreate(diseaseRecords);
+            await patient_has_diseases.bulkCreate(diseaseRecords, { transaction });
         }
 
-        // Fetch the updated patient with phone numbers and diseases
+        await transaction.commit();
+
+        // Fetch the updated patient with phone numbers and diseases (after commit)
         const updatedPatient = await patient.findByPk(patientId, {
             include: [
                 {
@@ -539,6 +552,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
 
         res.json(updatedPatient);
     } catch (error) {
+        await transaction.rollback();
         console.error('Error updating patient:', error);
         res.status(500).json({
             error: "Internal server error",
@@ -985,5 +999,65 @@ router.get('/recent', authenticateUser, authorizeRoles('admin'), tenantContext,
             res.status(500).json({ error: 'Failed to get recent patients' });
         }
     });
+
+// Get a single patient by ID
+// IMPORTANT: This parameterized route must come AFTER all literal-path GET routes
+// (e.g. /diseases, /count, /recent) to avoid shadowing them.
+router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee", "doctor"), tenantContext, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        let whereClause = { id: patientId };
+
+        // Scope to the user's lab (doctors may access multiple labs)
+        if (req.user.role === 'doctor') {
+            const contracts = await lab_contracts_doctor.findAll({
+                where: { doctor_id: req.user.id },
+                attributes: ['lab_id']
+            });
+            const labIds = contracts.map(c => c.lab_id);
+            if (labIds.length === 0) {
+                return res.status(404).json({ error: "Patient not found" });
+            }
+            whereClause.lab_id = { [sequelize.Sequelize.Op.in]: labIds };
+        } else {
+            whereClause.lab_id = req.tenant.lab_id;
+        }
+
+        const foundPatient = await patient.findOne({
+            where: whereClause,
+            include: [
+                {
+                    model: phone,
+                    as: 'phones',
+                    attributes: ['phone_number', 'type']
+                },
+                {
+                    model: diseases,
+                    as: 'diseases_id_diseases',
+                    through: { attributes: [] },
+                    attributes: ['id', 'name', 'details']
+                },
+                {
+                    model: contract,
+                    as: 'contract',
+                    attributes: ['id', 'name'],
+                    required: false
+                }
+            ]
+        });
+
+        if (!foundPatient) {
+            return res.status(404).json({ error: "Patient not found" });
+        }
+
+        res.json(foundPatient);
+    } catch (error) {
+        console.error('Error fetching patient by ID:', error);
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+});
 
 module.exports = router;
