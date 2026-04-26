@@ -24,6 +24,7 @@ const Diseases = lazy(() => import('./pages/tests/Diseases'));
 const Invoices = lazy(() => import('./pages/invoices/Invoices'));
 const PaymentMethods = lazy(() => import('./pages/invoices/PaymentMethods'));
 const Branches = lazy(() => import('./pages/branches/Branches'));
+const OutsourcedLabs = lazy(() => import('./pages/branches/OutsourcedLabs'));
 const PackagesAndOffers = lazy(() => import('./pages/packages/PackagesAndOffers'));
 const PatientsAdminView = lazy(() => import('./pages/admin/PatientsAdminView'));
 const PatientsAnalytics = lazy(() => import('./pages/admin/PatientsAnalytics'));
@@ -109,6 +110,7 @@ const LabRoutes = () => (
       <Route path="/:role/know-us" element={<PrivateRoute element={<KnowUs />} allowedRoles={["admin"]} />} />
       <Route path="/:role/medical-reports" element={<PrivateRoute element={<MedicalReports />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
       <Route path="/:role/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/outsourced-labs" element={<PrivateRoute element={<OutsourcedLabs />} allowedRoles={["admin", "employee", "chemist"]} />} />
       <Route path="/:role/patients-analytics" element={<PrivateRoute element={<PatientsAnalytics />} allowedRoles={["admin"]} />} />
       <Route path="/:role/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
 
