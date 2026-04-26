@@ -528,6 +528,7 @@ const PatientsAdminView = () => {
       <Button
         variant="outline-primary"
         size="sm"
+        aria-label={`Edit patient ${rowData?.name || 'unknown'}`}
         onClick={() => {
           setEditingPatient(rowData);
 
@@ -571,6 +572,7 @@ const PatientsAdminView = () => {
       <Button
         variant="outline-danger"
         size="sm"
+        aria-label={`Delete patient ${rowData?.name || 'unknown'}`}
         onClick={() => {
           setPatientToDelete(rowData);
           setShowDeleteModal(true);
@@ -885,7 +887,7 @@ const PatientsAdminView = () => {
               <Modal.Title>
                 {editingPatient ? "Edit" : "Add"} Patient
               </Modal.Title>
-              <button className="modal-close-btn" onClick={() => {
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => {
                 setShowAddModal(false);
                 setFormErrors({});
               }}>
@@ -904,7 +906,7 @@ const PatientsAdminView = () => {
                           type="text"
                           value={editingPatient.patientcode || ''}
                           readOnly
-                          className="bg-light"
+                          className="bg-theme-surface"
                         />
                         <Form.Text className="text-muted">
                           Patient code is auto-generated and cannot be changed
@@ -1367,7 +1369,7 @@ const PatientsAdminView = () => {
           <Modal show={showImportModal} onHide={() => setShowImportModal(false)}>
             <Modal.Header>
               <Modal.Title>Import Patients</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowImportModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1402,7 +1404,7 @@ const PatientsAdminView = () => {
           <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
             <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowDeleteModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1429,7 +1431,7 @@ const PatientsAdminView = () => {
           <Modal show={showBulkDeleteModal} onHide={() => setShowBulkDeleteModal(false)}>
             <Modal.Header>
               <Modal.Title>Confirm Bulk Delete</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowBulkDeleteModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowBulkDeleteModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1457,7 +1459,7 @@ const PatientsAdminView = () => {
           <Modal show={showBulkUpdateModal} onHide={() => setShowBulkUpdateModal(false)} size="lg">
             <Modal.Header>
               <Modal.Title>Bulk Update Patients</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowBulkUpdateModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowBulkUpdateModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1521,7 +1523,7 @@ const PatientsAdminView = () => {
           <Modal show={showDiseaseModal} onHide={() => setShowDiseaseModal(false)}>
             <Modal.Header>
               <Modal.Title>Disease Details</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowDiseaseModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowDiseaseModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1548,7 +1550,7 @@ const PatientsAdminView = () => {
           <Modal show={showContractModal} onHide={() => setShowContractModal(false)}>
             <Modal.Header>
               <Modal.Title>Add New Contract</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowContractModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowContractModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
