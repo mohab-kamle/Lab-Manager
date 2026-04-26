@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useEffect,
   useRef,
+  useMemo,
 } from "react";
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import "../../styles/Toast.css";
@@ -36,17 +37,48 @@ export const ToastProvider = ({ children }) => {
     duration: 3000,
   });
 
-  const [toastTimeout, setToastTimeout] = useState(null);
   const hideTimeoutRef = useRef(null);
+  const autoCloseRef = useRef(null);
+
+  const clearAllTimers = useCallback(() => {
+    if (autoCloseRef.current) {
+      clearTimeout(autoCloseRef.current);
+      autoCloseRef.current = null;
+    }
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Hide Toast Function
+  const hideToast = useCallback(() => {
+    clearAllTimers();
+
+    setToastData((prev) => {
+      if (!prev.show || prev.isHiding) return prev;
+      return { ...prev, isHiding: true };
+    });
+
+    hideTimeoutRef.current = setTimeout(() => {
+      setToastData({
+        show: false,
+        message: "",
+        type: "success",
+        position: "center",
+        isHiding: false,
+        showCloseBtn: false,
+        clickToClose: true,
+        duration: 3000,
+      });
+      hideTimeoutRef.current = null;
+    }, 300);
+  }, [clearAllTimers]);
 
   // Show Toast Function
   const showToast = useCallback(
     (message, type = "success", options = {}) => {
-      // Clear any existing hide timeout if we are showing a new toast
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = null;
-      }
+      clearAllTimers();
 
       // Legacy option mapping
       let mappedDuration = 3000;
@@ -70,11 +102,6 @@ export const ToastProvider = ({ children }) => {
       const duration = mappedDuration;
       const clickToClose = mappedClickToClose;
 
-      // Clear any existing auto-close timeout
-      if (toastTimeout) {
-        clearTimeout(toastTimeout);
-      }
-
       setToastData({
         show: true,
         message,
@@ -87,71 +114,40 @@ export const ToastProvider = ({ children }) => {
       });
 
       if (duration > 0) {
-        const timeout = setTimeout(() => {
+        autoCloseRef.current = setTimeout(() => {
+          autoCloseRef.current = null;
           hideToast();
         }, duration);
-        setToastTimeout(timeout);
       }
     },
-    [toastTimeout]
+    [clearAllTimers, hideToast]
   );
 
-  // Hide Toast Function
-  const hideToast = useCallback(() => {
-    setToastData((prev) => ({ ...prev, isHiding: true }));
-    
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-    }
-
-    hideTimeoutRef.current = setTimeout(() => {
-      setToastData({
-        show: false,
-        message: "",
-        type: "success",
-        position: "center",
-        isHiding: false,
-        showCloseBtn: false,
-        clickToClose: true,
-        duration: 3000,
-      });
-      hideTimeoutRef.current = null;
-    }, 300);
-  }, []);
-
   // Shorthand toast functions
-  const toast = {
+  const toast = useMemo(() => ({
     success: (message, options = {}) =>
       showToast(message, "success", { position: "center", ...options }),
-
     error: (message, options = {}) =>
       showToast(message, "error", { position: "right", ...options }),
-
     warning: (message, options = {}) =>
       showToast(message, "warning", { position: "right", ...options }),
-
     info: (message, options = {}) =>
       showToast(message, "info", { position: "center", ...options }),
-
-    loading: (message, options = {}) => {
-      showToast(message, "loading", { 
-        position: "center", 
-        duration: 0, 
-        clickToClose: false, 
-        ...options 
-      });
-    },
-
+    loading: (message, options = {}) =>
+      showToast(message, "loading", {
+        position: "center",
+        duration: 0,
+        clickToClose: false,
+        ...options,
+      }),
     update: (options = {}) => {
       const { render, message, type, ...rest } = options;
-      // Support 'render' (react-toastify style) or 'message'
-      showToast(render || message, type || "success", { 
-        clickToClose: true, 
-        ...rest 
+      showToast(render || message, type || "success", {
+        clickToClose: true,
+        ...rest,
       });
-    }
-  };
-
+    },
+  }), [showToast]);
   // ============================================
   // CONFIRM STATE & FUNCTIONS
   // ============================================
@@ -271,6 +267,10 @@ export const ToastProvider = ({ children }) => {
     handleCancel,
     hideToast,
   ]);
+
+  useEffect(() => {
+    return () => clearAllTimers();
+  }, [clearAllTimers]);
 
   // Shorthand confirm functions
   const confirm = {
