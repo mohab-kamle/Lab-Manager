@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { loginLimiter } = require('../middleware/rateLimiters');
+const { lab } = require('../models');
+const otpGenerator = require('otp-generator');
+const nodemailer = require('nodemailer');
+const cacheService = require('../services/cacheService');
 
 const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor } = require('../models'); 
 const { sign } = require('jsonwebtoken');
@@ -158,6 +162,70 @@ router.put("/skip-password-change", authenticateUser, authorizeRoles("admin"), t
     } catch (error) {
         console.error('Error skipping password change:', error);
         res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// Sends OTP via Email Address
+router.post('/forgotPassword', async (req,res)=>{
+    try{ 
+        const { email } = req.body;
+
+        const user = await employee.findOne({ where: {email: email} });
+
+        if(!user){
+
+           return res.status(404).json(`no user with this email was found`);
+
+        }
+        
+        const userLab = await lab.findOne({where: {id: user.lab_id}});
+
+        const otp = otpGenerator.generate(6, { digits: true, alphabets: false, upperCase: false, specialChars: false });
+
+        sendOtpEmail(email,otp,userLab.name)
+
+        const redisKey = cacheService.generateKey('otp', email);
+
+        await cacheService.set(redisKey, otp, 600);
+
+        res.status(200).json(`An OTP that is valid for 10 mins has been sent to this email successfully!`);
+
+    } catch (e){
+
+        res.status(500).json({error: 'Internal Server error',details: e.message});
+
+    }
+});
+
+// Verify incoming OTP
+router.post('/verifyOtp', async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ error: 'Email and OTP are required' });
+        }
+        // Generate the exact same key to look it up
+        const redisKey = cacheService.generateKey('otp', email);
+        // --- USE CACHESERVICE TO FETCH OTP ---
+        const storedOtp = await cacheService.get(redisKey);
+        if (!storedOtp) {
+            return res.status(400).json({ error: 'OTP has expired or is invalid' });
+        }
+        // 2. Compare the codes (cacheService.get parses JSON, so we toString() just in case)
+        if (storedOtp.toString() !== otp.toString()) {
+            return res.status(400).json({ error: 'Incorrect OTP' });
+        }
+        // 3. Success! Delete it so it can't be reused
+        await cacheService.del(redisKey);
+        // -------------------------------------
+        res.json({ 
+            success: true, 
+            message: 'OTP verified successfully.',
+            // tempResetToken: 'your_jwt_here' 
+        });
+    } catch (e) {
+        console.error('Verify OTP error:', e);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -632,5 +700,78 @@ router.get("/roles/:role/permissions", authenticateUser, authorizeRoles("admin")
     }
 });
 
+// Configure email transporter
+var transporter = nodemailer.createTransport({
+  host: 'smtp.zoho.com',
+  port: 465,
+  secure: true, // use SSL
+  auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+  }
+});
+
+// FOR TESTING PURPOPSES
+// let transporter;
+// // Replace your Zoho/Gmail transporter with this:
+// nodemailer.createTestAccount((err, account) => {
+//     if (err) {
+//         console.error('Failed to create a testing account. ' + err.message);
+//         return process.exit(1);
+//     }
+
+//     //  transporter = nodemailer.createTransport({
+//     //     host: account.smtp.host,
+//     //     port: account.smtp.port,
+//     //     secure: account.smtp.secure,
+//     //     auth: {
+//     //         user: account.user,
+//     //         pass: account.pass
+//     //     }
+//     // });
+
+// });
+
+const sendOtpEmail = async (email, otpCode, labName = 'Smart LIMS') => {
+    try{
+        const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 8px;">
+        <h2 style="color: #007bff; text-align: center;">${labName}</h2>
+        <p style="color: #333; font-size: 16px;">Hello,</p>
+        <p style="color: #333; font-size: 16px;">We received a request to reset the password for your account. Here is your One-Time Password (OTP):</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #333; padding: 10px 20px; background-color: #f4f4f4; border-radius: 4px;">
+            ${otpCode}
+            </span>
+        </div>
+        <p style="color: #d9534f; font-size: 14px; text-align: center;">
+            <em>This code is valid for the next 10 minutes.</em>
+        </p>
+        <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;" />
+        <p style="color: #6c757d; font-size: 12px; text-align: center;">
+            If you did not request a password reset, please ignore this email or contact your lab administrator immediately.
+        </p>
+        </div>
+    `;
+    // FOR TESTING PURPOPSES
+    // const info = await transporter.sendMail({
+    //     from: process.env.EMAIL_USER || 'noreply@labmanager.com',
+    //     to: email,
+    //     subject: 'Your Password Reset Code',
+    //     html: htmlContent
+    // });
+    // console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+    await transporter.sendMail({
+        from: process.env.EMAIL_USER || 'noreply@labmanager.com',
+        to: email,
+        subject: 'Your Password Reset Code',
+        html: htmlContent
+    });
+    console.log(`OTP email sent to ${email}`);
+  } catch (error) {
+    console.error('Error sending welcome email:', error);
+    // Don't fail the request if email fails
+  }
+};
 
 module.exports = router;
