@@ -827,12 +827,25 @@ const MainNavBar = () => {
                       </Dropdown>
                     )}
 
+                    {/* Outsourced Labs — Chemist & Employee (Admin sees it in Manage Branches dropdown below) */}
+                    {(user?.role === "chemist" || user?.role === "employee") && (
+                      <Nav.Link
+                        as={Link}
+                        to={`/${user?.role}/outsourced-labs`}
+                        className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
+                        data-id="outsourced-labs"
+                        onClick={() => setExpanded(false)}
+                      >
+                        Outsourced Labs
+                      </Nav.Link>
+                    )}
+
                     {/* Admin-only links */}
                     {user?.role === "admin" && (
                       <Dropdown className="mx-1 mb-1">
                         <Dropdown.Toggle
                           id="dropdown-basic"
-                          className={`nav-button ${["branches", "employees", "lab-management"].includes(
+                          className={`nav-button ${["branches", "employees", "lab-management", "outsourced-labs"].includes(
                             activeItem
                           )
                             ? "active-dropdown"
@@ -872,6 +885,16 @@ const MainNavBar = () => {
                             active={activeItem === "lab-management"}
                           >
                             Lab Ops Center
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/outsourced-labs`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Outsourced Labs"
+                            data-id="outsourced-labs"
+                            active={activeItem === "outsourced-labs"}
+                          >
+                            Outsourced Labs
                           </Dropdown.Item>
                         </Dropdown.Menu>
                       </Dropdown>
