@@ -58,6 +58,7 @@ var _inventory_item = require("./inventory_item");
 var _inventory_batch = require("./inventory_batch");
 var _inventory_transaction = require("./inventory_transaction");
 var _inventory_notification = require("./inventory_notification");
+var _outsourced_lab = require("./outsourced_lab");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -113,6 +114,7 @@ function initModels(sequelize) {
   var inventory_batch = _inventory_batch(sequelize, DataTypes);
   var inventory_transaction = _inventory_transaction(sequelize, DataTypes);
   var inventory_notification = _inventory_notification(sequelize, DataTypes);
+  var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -543,6 +545,9 @@ function initModels(sequelize) {
   chemist.belongsTo(lab, { as: "chemist_lab", foreignKey: "lab_id" });
   lab.hasMany(chemist, { as: "chemists", foreignKey: "lab_id" });
 
+  lab.hasMany(outsourced_lab, { as: "outsourced_labs", foreignKey: "lab_id" });
+  outsourced_lab.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
   // Lab Payment relationships
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });
@@ -646,7 +651,8 @@ function initModels(sequelize) {
     inventory_item,
     inventory_batch,
     inventory_transaction,
-    inventory_notification
+    inventory_notification,
+    outsourced_lab
   };
 }
 module.exports = initModels;

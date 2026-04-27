@@ -1,4 +1,3 @@
-// Test comment
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -6,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { lab, employee, admin, lab_settings, sequelize, phone_number } = require('../models');
 
-// Configure email transporter (you'll need to set up your email service)
+// Configure email transporter 
 var transporter = nodemailer.createTransport({
   host: 'smtp.zoho.com',
   port: 465,

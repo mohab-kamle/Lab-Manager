@@ -354,6 +354,7 @@ app.use("/payment-methods", require("./routes/paymentMethods"));
 app.use("/subscriptions", require("./routes/subscriptions"));
 app.use("/invoices", require("./routes/invoices"));
 app.use("/branches", require("./routes/branches"));
+app.use("/outsourced-labs", require("./routes/outsourcedLabs"));
 app.use("/labs", require("./routes/labs"));
 app.use("/packages-and-offers", require("./routes/packages_and_offers"));
 app.use("/statuses", require("./routes/statuses"));
