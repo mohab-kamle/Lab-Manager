@@ -9,8 +9,7 @@
     "prebuild": "node sync-version.cjs",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "postbuild": "node tag-version.cjs"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.17.8",
