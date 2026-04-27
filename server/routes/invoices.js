@@ -139,7 +139,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 /**
  * POST /invoices - Create a new bill with related tests, payment methods, and packages.
  */
-router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), invalidateInvoicesList, async (req, res) => {
+router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, invalidateInvoicesList, async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const { user } = req;
@@ -167,18 +167,20 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             return res.status(400).json({ error: 'Missing required fields: patient_id, status_id, and receptionist_id are required.' });
         }
 
+        const lab_id = req.tenant.lab_id;
+
         // Validate patient exists
-        const patientExists = await patient.findByPk(patient_id);
+        const patientExists = await patient.findOne({ where: { id: patient_id, lab_id } });
         if (!patientExists) {
             await transaction.rollback();
-            return res.status(400).json({ error: 'Invalid patient_id' });
+            return res.status(400).json({ error: 'Invalid patient_id or patient does not belong to your lab.' });
         }
 
         // Validate receptionist exists
-        const receptionistExists = await receptionist.findByPk(receptionist_id);
+        const receptionistExists = await receptionist.findOne({ where: { id: receptionist_id, lab_id } });
         if (!receptionistExists) {
             await transaction.rollback();
-            return res.status(400).json({ error: 'Invalid receptionist_id' });
+            return res.status(400).json({ error: 'Invalid receptionist_id or receptionist does not belong to your lab.' });
         }
 
         // Debug log for branch_id
@@ -195,7 +197,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             receptionist_id,
             patient_id,
             status_id,
-            lab_id: req.user.lab_id || patientExists.lab_id,
+            lab_id: lab_id,
             branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null, // <-- robust handling of branch_id
             referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null
         }, { transaction });
@@ -559,7 +561,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
 /**
  * PUT /bills/:id - Update an existing bill.
  */
-router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), invalidateInvoicesList, async (req, res) => {
+router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, invalidateInvoicesList, async (req, res) => {
     const { id } = req.params;
     const {
         date,
@@ -575,10 +577,11 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
         packages,
         payments
     } = req.body;
+    const lab_id = req.tenant.lab_id;
 
     try {
-        const existingBill = await bill.findByPk(id);
-        if (!existingBill) return res.status(404).json({ error: "Bill not found" });
+        const existingBill = await bill.findOne({ where: { id, lab_id } });
+        if (!existingBill) return res.status(404).json({ error: "Bill not found or you don't have permission to edit it." });
 
         // Get the old values before updating
         const oldTotal = parseFloat(existingBill.total || 0);
@@ -818,15 +821,16 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
 /**
  * ✅ DELETE /bills/:id - Delete a bill and associated records.
  */
-router.delete("/:id", authenticateUser, authorizeRoles("admin"), invalidateInvoicesList, async (req, res) => {
+router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, invalidateInvoicesList, async (req, res) => {
     const { id } = req.params;
+    const lab_id = req.tenant.lab_id;
     const transaction = await sequelize.transaction();
 
     try {
-        const existingBill = await bill.findByPk(id);
+        const existingBill = await bill.findOne({ where: { id, lab_id } });
         if (!existingBill) {
             await transaction.rollback();
-            return res.status(404).json({ error: "Bill not found" });
+            return res.status(404).json({ error: "Bill not found or you don't have permission to delete it." });
         }
 
         // Get bill amounts before deletion for patient financial update

@@ -179,9 +179,18 @@ const PatientProfile = () => {
                 <InfoBubble
                   icon={Telephone}
                   label="Mobile Number"
-                  value={user.phones?.[0]?.phone_number}
+                  value={user.phones?.find(p => p.is_primary)?.phone || user.phones?.[0]?.phone}
                   delay={0.4}
                 />
+                {user.phones?.filter(p => !p.is_primary).map((p, i) => (
+                  <InfoBubble
+                    key={i}
+                    icon={Telephone}
+                    label={`Secondary Phone (${p.type})`}
+                    value={p.phone}
+                    delay={0.4 + (i + 1) * 0.1}
+                  />
+                ))}
                 <InfoBubble
                   icon={Envelope}
                   label="Email Address"
