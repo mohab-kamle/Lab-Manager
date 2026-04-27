@@ -35,7 +35,7 @@ var _pao_has_test = require("./pao_has_test");
 var _patient = require("./patient");
 var _patient_has_diseases = require("./patient_has_diseases");
 var _payment_method = require("./payment_method");
-var _phone = require("./phone");
+var _phone_number = require("./phone_number");
 var _question = require("./question");
 var _receptionist = require("./receptionist");
 var _sample_type = require("./sample_type");
@@ -48,8 +48,7 @@ var _test_has_question = require("./test_has_question");
 
 
 
-var _lab_settings = require("./lab_settings");
-var _lab_activity_log = require("./lab_activity_log");
+
 var _lab_payment = require("./lab_payment");
 var _subscription = require("./subscription");
 var _test_comments = require("./test_comments");
@@ -98,7 +97,7 @@ function initModels(sequelize) {
   var patient = _patient(sequelize, DataTypes);
   var patient_has_diseases = _patient_has_diseases(sequelize, DataTypes);
   var payment_method = _payment_method(sequelize, DataTypes);
-  var phone = _phone(sequelize, DataTypes);
+  var phone_number = _phone_number(sequelize, DataTypes);
   var question = _question(sequelize, DataTypes);
   var receptionist = _receptionist(sequelize, DataTypes);
   var sample_type = _sample_type(sequelize, DataTypes);
@@ -366,8 +365,6 @@ function initModels(sequelize) {
   employee.hasOne(admin, { as: "admin", foreignKey: "id" });
   chemist.belongsTo(employee, { as: "id_employee", foreignKey: "id" });
   employee.hasOne(chemist, { as: "chemist", foreignKey: "id" });
-  phone.belongsTo(employee, { as: "employee", foreignKey: "employee_id" });
-  employee.hasMany(phone, { as: "phones", foreignKey: "employee_id" });
   receptionist.belongsTo(employee, { as: "id_employee", foreignKey: "id" });
   employee.hasOne(receptionist, { as: "receptionist", foreignKey: "id" });
   branch.belongsTo(lab, { as: "branch_lab", foreignKey: "lab_id" });
@@ -424,8 +421,16 @@ function initModels(sequelize) {
     as: "patient_has_diseases",
     foreignKey: "patient_id",
   });
-  phone.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
-  patient.hasMany(phone, { as: "phones", foreignKey: "patient_id" });
+  phone_number.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
+  patient.hasMany(phone_number, { as: "phones", foreignKey: "patient_id" });
+  phone_number.belongsTo(employee, { as: "employee", foreignKey: "employee_id" });
+  employee.hasMany(phone_number, { as: "phones", foreignKey: "employee_id" });
+  phone_number.belongsTo(doctor, { as: "doctor", foreignKey: "doctor_id" });
+  doctor.hasMany(phone_number, { as: "phones", foreignKey: "doctor_id" });
+  phone_number.belongsTo(supplier, { as: "supplier", foreignKey: "supplier_id" });
+  supplier.hasMany(phone_number, { as: "phones", foreignKey: "supplier_id" });
+  phone_number.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(phone_number, { as: "phones", foreignKey: "lab_id" });
   bill_has_payment_method.belongsTo(payment_method, {
     as: "payment_method",
     foreignKey: "payment_method_id",
@@ -625,13 +630,13 @@ function initModels(sequelize) {
     patient,
     patient_has_diseases,
     payment_method,
-    phone,
+    phone_number,
     question,
     receptionist,
     sample_type,
     status,
     subscription,
-    lab_payment,
+
     global_test_catalog,
     test,
     test_has_question,

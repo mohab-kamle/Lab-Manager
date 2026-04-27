@@ -4,6 +4,22 @@ const db = require("../models/index");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
+const { parsePhoneNumberFromString } = require('libphonenumber-js');
+
+// Helper function to normalize phone number to E.164 format
+const normalizePhone = (phoneStr) => {
+  if (!phoneStr) return null;
+  try {
+    const phoneNumber = parsePhoneNumberFromString(phoneStr);
+    if (phoneNumber && phoneNumber.isValid()) {
+      return phoneNumber.format('E.164');
+    }
+    if (phoneStr.startsWith('+')) return phoneStr;
+    return phoneStr;
+  } catch (e) {
+    return phoneStr;
+  }
+};
 
 router.use(authenticateUser);
 router.use(tenantContext);
@@ -14,6 +30,12 @@ router.get("/", async (req, res) => {
   try {
     const suppliers = await db.supplier.findAll({
       where: { lab_id: req.tenant.lab_id },
+      include: [
+        {
+          model: db.phone_number,
+          as: 'phones'
+        }
+      ],
       order: [["name", "ASC"]],
     });
     res.json(suppliers);
@@ -26,7 +48,7 @@ router.get("/", async (req, res) => {
 // Create supplier
 router.post("/", authorizeRoles("admin", "manager", "chemist"), async (req, res) => {
   try {
-    const { name, contact_info, email, phone, address } = req.body;
+    const { name, contact_info, email, phoneNumbers = [], address } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: "Name is required" });
@@ -36,10 +58,29 @@ router.post("/", authorizeRoles("admin", "manager", "chemist"), async (req, res)
       name,
       contact_info,
       email,
-      phone,
       address,
       lab_id: req.tenant.lab_id,
     });
+
+    // Add phone numbers
+    if (phoneNumbers && phoneNumbers.length > 0) {
+      const phonesToCreate = phoneNumbers.map(p => {
+        const normalized = normalizePhone(p.phone);
+        return normalized ? {
+          phone: normalized,
+          type: p.type || 'personal',
+          is_primary: p.is_primary || false,
+          supplier_id: supplier.id
+        } : null;
+      }).filter(p => p !== null);
+
+      if (phonesToCreate.length > 0) {
+        if (!phonesToCreate.some(p => p.is_primary)) {
+          phonesToCreate[0].is_primary = true;
+        }
+        await db.phone_number.bulkCreate(phonesToCreate);
+      }
+    }
 
     res.status(201).json(supplier);
   } catch (error) {
@@ -52,7 +93,7 @@ router.post("/", authorizeRoles("admin", "manager", "chemist"), async (req, res)
 router.put("/:id", authorizeRoles("admin", "manager", "chemist"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, contact_info, email, phone, address } = req.body;
+    const { name, contact_info, email, phoneNumbers, address } = req.body;
 
     const supplier = await db.supplier.findOne({
       where: { id, lab_id: req.tenant.lab_id },
@@ -66,9 +107,29 @@ router.put("/:id", authorizeRoles("admin", "manager", "chemist"), async (req, re
       name,
       contact_info,
       email,
-      phone,
       address,
     });
+
+    // Update phone numbers
+    if (phoneNumbers !== undefined) {
+      await db.phone_number.destroy({ where: { supplier_id: id } });
+      const phonesToCreate = phoneNumbers.map(p => {
+        const normalized = normalizePhone(p.phone);
+        return normalized ? {
+          phone: normalized,
+          type: p.type || 'personal',
+          is_primary: p.is_primary || false,
+          supplier_id: id
+        } : null;
+      }).filter(p => p !== null);
+
+      if (phonesToCreate.length > 0) {
+        if (!phonesToCreate.some(p => p.is_primary)) {
+          phonesToCreate[0].is_primary = true;
+        }
+        await db.phone_number.bulkCreate(phonesToCreate);
+      }
+    }
 
     res.json(supplier);
   } catch (error) {
