@@ -54,6 +54,13 @@ const imageStorage = multer.diskStorage({
     const rawReportId = req.params.id || req.body.reportId || 'unknown';
     const rawCommentType = req.body.commentType || 'general';
 
+    console.log('Multer generating filename:', { 
+      paramsId: req.params.id, 
+      bodyReportId: req.body.reportId, 
+      rawReportId,
+      originalName: file.originalname 
+    });
+
     const reportId = sanitizeFilenamePart(rawReportId);
     const commentType = sanitizeFilenamePart(rawCommentType);
 
@@ -1712,7 +1719,8 @@ router.get(
       const groupImagesByComment = (images) => {
         return images.reduce((acc, img) => {
           if (!acc[img.comment_id]) acc[img.comment_id] = [];
-          acc[img.comment_id].push(img);
+          // Return only the filename (basename of image_path)
+          acc[img.comment_id].push(path.basename(img.image_path));
           return acc;
         }, {});
       };
@@ -1774,8 +1782,9 @@ router.post(
       }, { transaction: t });
 
       // Handle image uploads
+      let imageRecords = [];
       if (req.files && req.files.length > 0) {
-        const imageRecords = req.files.map((file, index) => ({
+        imageRecords = req.files.map((file, index) => ({
           comment_type: 'test',
           comment_id: testComment.id,
           image_path: file.path,
@@ -1791,7 +1800,9 @@ router.post(
       await t.commit();
       res.status(201).json({ success: true, comment: testComment });
     } catch (error) {
-      await t.rollback();
+      if (t && !t.finished) {
+        await t.rollback();
+      }
       console.error("Error creating test comment:", error);
       res.status(500).json({ error: "Failed to create test comment" });
     }
@@ -1826,18 +1837,35 @@ router.post(
         await t.rollback();
         return res.status(404).json({ error: "Medical report not found" });
       }
-      // Delete existing images for this medical report
-      const deletedCount = await db.comment_images.destroy({
-        where: {
-          comment_type: 'medical_report',
-          comment_id: reportId
-        },
+      // Get existing images to keep
+      const keepImages = req.body.existingImages ? (Array.isArray(req.body.existingImages) ? req.body.existingImages : [req.body.existingImages]) : [];
+      console.log('Existing images to keep:', keepImages);
+
+      // Get all current images for this medical report
+      const currentImages = await db.comment_images.findAll({
+        where: { comment_type: 'medical_report', comment_id: reportId },
         transaction: t
       });
 
+      // Filter images to delete
+      const imagesToDelete = currentImages.filter(img => {
+        const filename = path.basename(img.image_path);
+        return !keepImages.includes(filename);
+      });
+
+      console.log('Images to delete:', imagesToDelete.length);
+
+      if (imagesToDelete.length > 0) {
+        await db.comment_images.destroy({
+          where: { id: imagesToDelete.map(img => img.id) },
+          transaction: t
+        });
+      }
+
       // Handle new image uploads
+      let imageRecords = [];
       if (req.files && req.files.length > 0) {
-        const imageRecords = req.files.map((file, index) => ({
+        imageRecords = req.files.map((file, index) => ({
           comment_type: 'medical_report',
           comment_id: reportId,
           image_path: file.path,
@@ -1851,9 +1879,15 @@ router.post(
       }
 
       await t.commit();
-      res.status(201).json({ success: true, message: "Images uploaded successfully" });
+      res.status(201).json({ 
+        success: true, 
+        message: "Images uploaded successfully",
+        images: imageRecords.map(img => path.basename(img.image_path))
+      });
     } catch (error) {
-      await t.rollback();
+      if (t && !t.finished) {
+        await t.rollback();
+      }
       console.error("Error uploading comment images:", error);
       res.status(500).json({ error: "Failed to upload images" });
     }
@@ -1961,7 +1995,7 @@ router.get(
       });
 
       res.json({
-        report_id: report.id,
+        id: report.id,
         patient: report.patient,
         tests: report.tests.map(t => ({
           id: t.id,
