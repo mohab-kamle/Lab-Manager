@@ -59,10 +59,19 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
+    const tableInfo = await queryInterface.describeTable('phone_numbers');
     // Reversing these changes if needed
-    await queryInterface.renameColumn('phone_numbers', 'updated_at', 'updatedAt');
-    await queryInterface.removeColumn('phone_numbers', 'doctor_id');
-    await queryInterface.removeColumn('phone_numbers', 'supplier_id');
-    await queryInterface.removeColumn('phone_numbers', 'lab_id');
+    if (tableInfo.updated_at && !tableInfo.updatedAt) {
+      await queryInterface.renameColumn('phone_numbers', 'updated_at', 'updatedAt');
+    }
+    if (tableInfo.doctor_id) {
+      await queryInterface.removeColumn('phone_numbers', 'doctor_id');
+    }
+    if (tableInfo.supplier_id) {
+      await queryInterface.removeColumn('phone_numbers', 'supplier_id');
+    }
+    if (tableInfo.lab_id) {
+      await queryInterface.removeColumn('phone_numbers', 'lab_id');
+    }
   }
 };
