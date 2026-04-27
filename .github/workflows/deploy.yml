@@ -42,10 +42,17 @@ jobs:
           git config user.email "actions@github.com"
           VERSION=$(node -p "require('./client/package.json').version")
           TAG="v${VERSION}"
-          git tag "${TAG}"
-          # Use GITHUB_TOKEN for authentication
+          
+          # Use GITHUB_TOKEN for authentication with ls-remote
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin "${TAG}"
+          
+          if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists on remote. Skipping tagging step."
+          else
+            echo "Tag ${TAG} does not exist. Creating and pushing..."
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
       # --- NEW: Configure AWS & Open Firewall ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
