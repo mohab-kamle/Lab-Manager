@@ -5,10 +5,10 @@ const version = pkg.version;
 const tag = `v${version}`;
 
 try {
-  // Quote the tag to handle spaces in version strings
+  // Create tag locally (don't push - let GitHub Actions handle pushing)
   execSync(`git tag "${tag}"`);
-  execSync(`git push origin "${tag}"`);
-  console.log(`✅ Tagged and pushed ${tag}`);
+  console.log(`✅ Tagged locally: ${tag}`);
+  console.log(`To push the tag, run: git push origin "${tag}"`);
 } catch (err) {
   console.error(`❌ Failed to tag: ${err.message}`);
 }
