@@ -19,6 +19,20 @@ const fs = require('fs');
 const multer = require("multer");
 const { Op } = require('sequelize');
 const crypto = require('crypto');
+const { parsePhoneNumberFromString } = require('libphonenumber-js');
+
+const normalizePhone = (phoneStr) => {
+  if (!phoneStr) return null;
+  try {
+    const phoneNumber = parsePhoneNumberFromString(phoneStr);
+    if (phoneNumber && phoneNumber.isValid()) {
+      return phoneNumber.format('E.164');
+    }
+    return phoneStr;
+  } catch (error) {
+    return phoneStr;
+  }
+};
 
 
 
@@ -81,7 +95,8 @@ router.get('/branding', authenticateUser, tenantContext, async (req, res) => {
   try {
     //Get lab branding-specific fields/properties using lab_id
     const labBrandingInfo = await lab.findByPk(req.tenant.lab_id, {
-      attributes: ['name', 'lab_email', 'lab_address', 'lab_website', 'primary_color', 'secondary_color', 'logo_url']
+      attributes: ['id', 'name', 'lab_email', 'lab_address', 'lab_website', 'primary_color', 'secondary_color', 'logo_url'],
+      include: [{ model: require('../models').phone_number, as: 'phones' }]
     });
     //Check if there's any lab with such id
     if (!labBrandingInfo) {
@@ -142,6 +157,10 @@ router.get('/by-path/:path', async (req, res) => {
           where: { role: 'admin' },
           attributes: ['id', 'name', 'email', 'role'],
           required: false
+        },
+        {
+          model: require('../models').phone_number,
+          as: 'phones'
         }
       ]
     });
@@ -170,6 +189,10 @@ router.get('/by-id/:labId', async (req, res) => {
           where: { role: 'admin' },
           attributes: ['id', 'name', 'email', 'role'],
           required: false
+        },
+        {
+          model: require('../models').phone_number,
+          as: 'phones'
         }
       ]
     });
@@ -330,6 +353,32 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
     }
 
     await labToUpdate.update(sanitizedUpdate);
+
+    // Update phone numbers if provided
+    if (updateData.phoneNumbers && Array.isArray(updateData.phoneNumbers)) {
+      const { phone_number } = require('../models');
+      
+      // Delete existing lab phones
+      await phone_number.destroy({
+        where: { lab_id: labId }
+      });
+
+      // Add new phones
+      if (updateData.phoneNumbers.length > 0) {
+        const phonesToCreate = updateData.phoneNumbers
+          .filter(p => p.phone && p.phone.trim() !== "")
+          .map(p => ({
+            phone: normalizePhone(p.phone.trim()),
+            type: p.type || 'work',
+            is_primary: p.is_primary || false,
+            lab_id: labId
+          }));
+        
+        if (phonesToCreate.length > 0) {
+          await phone_number.bulkCreate(phonesToCreate);
+        }
+      }
+    }
 
     // try {
     //   await LabActivityLog.create({

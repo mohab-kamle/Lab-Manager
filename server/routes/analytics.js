@@ -130,9 +130,9 @@ router.get(
               attributes: ['id', 'name'],
               include: [
                 {
-                  model: db.phone,
+                  model: db.phone_number,
                   as: 'phones',
-                  attributes: ['phone_number']
+                  attributes: [['phone', 'phone_number']]
                 }
               ]
 

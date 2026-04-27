@@ -4,7 +4,9 @@ import { Container, Button, Modal, Form } from "react-bootstrap";
 import DynamicTable from "../../components/ui/DynamicTable";
 import api from "../../utils/api";
 // import { ThemeContext } from "../../context/ThemeContext";
-import { useToast } from "../../components/ui/ToastContext";
+import { useToast } from "../../context/ToastContext";
+import PhoneInput from "../../components/ui/PhoneInput";
+import { Plus, Trash2 } from "lucide-react";
 
 const Suppliers = () => {
   const { toast } = useToast();
@@ -15,7 +17,11 @@ const Suppliers = () => {
   // const { isDarkMode } = useContext(ThemeContext);
 
   const [formData, setFormData] = useState({
-    name: "", contact_info: "", email: "", phone: "", address: ""
+    name: "", 
+    contact_info: "", 
+    email: "", 
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }], 
+    address: ""
   });
 
   const fetchSuppliers = async () => {
@@ -35,10 +41,21 @@ const Suppliers = () => {
   const handleShowModal = (supplier = null) => {
     if (supplier) {
       setEditingSupplier(supplier);
-      setFormData(supplier);
+      setFormData({
+        ...supplier,
+        phoneNumbers: supplier.phones && supplier.phones.length > 0 
+          ? supplier.phones 
+          : [{ phone: "", type: "personal", is_primary: true }]
+      });
     } else {
       setEditingSupplier(null);
-      setFormData({ name: "", contact_info: "", email: "", phone: "", address: "" });
+      setFormData({ 
+        name: "", 
+        contact_info: "", 
+        email: "", 
+        phoneNumbers: [{ phone: "", type: "personal", is_primary: true }], 
+        address: "" 
+      });
     }
     setShowModal(true);
   };
@@ -93,12 +110,34 @@ const Suppliers = () => {
   }, []);
 
   // DynamicTable expects columns as an array of strings (data keys)
-  const columns = ["name", "phone", "email", "contact_info"];
+  const columns = ["name", "phones", "email", "contact_info"];
 
   // Friendly column headers for DynamicTable
   const customHeaders = {
     name: "Supplier Name",
     contact_info: "Contact Person",
+    phones: "Phone",
+  };
+
+  const formatCellData = (value, field, rowData) => {
+    if (value === null || value === undefined) return "-";
+    switch (field) {
+      case "phones":
+        if (!value || value.length === 0) return "-";
+        const primary = value.find(p => p.is_primary) || value[0];
+        return (
+          <div className="d-flex flex-column gap-1">
+            <span className="fw-bold">{primary.phone}</span>
+            {value.length > 1 && (
+              <span className="text-muted" style={{ fontSize: '11px' }}>
+                +{value.length - 1} more
+              </span>
+            )}
+          </div>
+        );
+      default:
+        return String(value || "-");
+    }
   };
 
   return (
@@ -112,6 +151,7 @@ const Suppliers = () => {
         data={suppliers}
         columns={columns}
         customHeaders={customHeaders}
+        formatCellData={formatCellData}
         ActionComponent={ActionComponent}
         emptyMessage="No suppliers found."
       />
@@ -139,12 +179,82 @@ const Suppliers = () => {
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label className="text-theme">Phone</Form.Label>
-              <Form.Control
-                type="text"
-                value={formData.phone || ""}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-              />
+              <Form.Label className="text-theme">Phone Numbers *</Form.Label>
+              {formData.phoneNumbers.map((phoneEntry, index) => (
+                <div key={index} className="d-flex gap-2 mb-2 align-items-start">
+                  <div style={{ flex: 1 }}>
+                    <PhoneInput
+                      value={phoneEntry.phone}
+                      onChange={(val) => {
+                        const newPhones = [...formData.phoneNumbers];
+                        newPhones[index].phone = val;
+                        setFormData({ ...formData, phoneNumbers: newPhones });
+                      }}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <Form.Select
+                    style={{ width: '130px' }}
+                    value={phoneEntry.type}
+                    onChange={(e) => {
+                      const newPhones = [...formData.phoneNumbers];
+                      newPhones[index].type = e.target.value;
+                      setFormData({ ...formData, phoneNumbers: newPhones });
+                    }}
+                  >
+                    <option value="personal">Personal</option>
+                    <option value="work">Work</option>
+                    <option value="home">Home</option>
+                  </Form.Select>
+                  <div className="d-flex flex-column align-items-center">
+                    <Form.Check
+                      type="radio"
+                      name="primaryPhone"
+                      checked={phoneEntry.is_primary}
+                      onChange={() => {
+                        const newPhones = formData.phoneNumbers.map((p, i) => ({
+                          ...p,
+                          is_primary: i === index
+                        }));
+                        setFormData({ ...formData, phoneNumbers: newPhones });
+                      }}
+                      title="Set as primary"
+                    />
+                    <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
+                  </div>
+                  {formData.phoneNumbers.length > 1 && (
+                    <Button 
+                      variant="outline-danger" 
+                      size="sm"
+                      onClick={() => {
+                        const newPhones = formData.phoneNumbers.filter((_, i) => i !== index);
+                        if (phoneEntry.is_primary && newPhones.length > 0) {
+                          newPhones[0].is_primary = true;
+                        }
+                        setFormData({ ...formData, phoneNumbers: newPhones });
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button 
+                variant="outline-primary" 
+                size="sm" 
+                className="mt-1"
+                onClick={() => {
+                  setFormData({
+                    ...formData,
+                    phoneNumbers: [
+                      ...formData.phoneNumbers,
+                      { phone: "", type: "personal", is_primary: false }
+                    ]
+                  });
+                }}
+              >
+                <Plus size={14} className="me-1" /> Add Another Phone
+              </Button>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label className="text-theme">Email</Form.Label>
