@@ -246,7 +246,7 @@ const PatientProfileAdminView = () => {
                 <Pencil size={16} /> Edit Profile
               </Button>
             ) : (
-              <div className="d-flex gap-2 shadow-sm rounded-pill bg-white p-1">
+              <div className="d-flex gap-2 shadow-sm rounded-pill bg-theme-surface p-1">
                 <Button variant="light" className="rounded-pill" onClick={handleEditToggle} disabled={saveLoading}>
                   Cancel
                 </Button>
