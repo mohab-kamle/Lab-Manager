@@ -6,6 +6,7 @@ import axios from 'axios';
 import '../../styles/Register.module.css';
 import TermsAndConditions from '../../components/info/TermsAndConditions';
 import PrivacyPolicy from '../../components/info/PrivacyPolicy';
+import PhoneInput from '../../components/ui/PhoneInput';
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -278,7 +279,7 @@ const Register = () => {
         lab: {
           name: formData.labName,
           email: formData.labEmail,
-          phone: formData.labPhone,
+          phoneNumbers: [{ phone: formData.labPhone, type: 'work', is_primary: true }],
           address: formData.labAddress,
           website: formData.labWebsite,
           region: formData.region
@@ -286,7 +287,7 @@ const Register = () => {
         admin: {
           name: formData.adminName,
           email: formData.adminEmail,
-          phone: formData.adminPhone,
+          phoneNumbers: [{ phone: formData.adminPhone, type: 'personal', is_primary: true }],
           username: formData.adminUsername,
           password: formData.adminPassword
         },
@@ -432,13 +433,16 @@ const Register = () => {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label>Lab Phone *</Form.Label>
-                            <Form.Control
-                              type="tel"
-                              name="labPhone"
+                            <PhoneInput
                               value={formData.labPhone}
-                              onChange={handleInputChange}
-                              placeholder="+1234567890"
-                              required
+                              onChange={(val) => {
+                                setFormData(prev => {
+                                  const newFormData = { ...prev, labPhone: val };
+                                  localStorage.setItem('registrationFormData', JSON.stringify(newFormData));
+                                  return newFormData;
+                                });
+                              }}
+                              placeholder="Enter lab phone"
                             />
                           </Form.Group>
                         </Col>
@@ -522,12 +526,16 @@ const Register = () => {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label>Admin Phone</Form.Label>
-                            <Form.Control
-                              type="tel"
-                              name="adminPhone"
+                            <PhoneInput
                               value={formData.adminPhone}
-                              onChange={handleInputChange}
-                              placeholder="+1234567890"
+                              onChange={(val) => {
+                                setFormData(prev => {
+                                  const newFormData = { ...prev, adminPhone: val };
+                                  localStorage.setItem('registrationFormData', JSON.stringify(newFormData));
+                                  return newFormData;
+                                });
+                              }}
+                              placeholder="Enter admin phone"
                             />
                           </Form.Group>
                         </Col>

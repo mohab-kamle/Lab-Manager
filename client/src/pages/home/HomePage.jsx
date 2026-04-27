@@ -31,6 +31,7 @@ import RefundPolicy from "../../components/info/RefundPolicy";
 import AboutUs from "../../components/info/AboutUs";
 import TermsAndConditions from "../../components/info/TermsAndConditions";
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
+import PhoneInput from "../../components/ui/PhoneInput";
 
 // Assets & Styles
 import heroImage from "../../assets/heroImage_sm.webp";
@@ -111,7 +112,11 @@ const HomePage = () => {
     }
 
     try {
-      await axios.post(`${apiUrl}/demo/request`, demoForm);
+      const payload = {
+        ...demoForm,
+        phoneNumbers: [{ phone: demoForm.phone, type: 'work', is_primary: true }]
+      };
+      await axios.post(`${apiUrl}/demo/request`, payload);
       setDemoSuccess(true);
       setDemoForm({ email: "", labName: "", contactPerson: "", phone: "", region: "", message: "" });
     } catch (error) {
@@ -490,7 +495,11 @@ const HomePage = () => {
                 <Col md={6}>
                   <Form.Group className="mb-3">
                     <Form.Label className="small fw-semibold text-muted-homepage">Phone Number</Form.Label>
-                    <Form.Control className="bg-transparent text-theme border-muted" style={{ borderColor: "var(--border-muted)" }} type="tel" name="phone" required value={demoForm.phone} onChange={handleInputChange} />
+                    <PhoneInput
+                      value={demoForm.phone}
+                      onChange={(val) => setDemoForm({ ...demoForm, phone: val })}
+                      placeholder="Enter phone number"
+                    />
                   </Form.Group>
                 </Col>
               </Row>

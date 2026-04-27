@@ -5,12 +5,28 @@ require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { loginLimiter } = require('../middleware/rateLimiters');
 
-const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor } = require('../models'); 
+const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor, phone_number } = require('../models'); 
+const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext } = require('../middleware/tenantContext');
 const { validatePassword } = require('../utils/passwordValidator');
+
+// Helper function to normalize phone number to E.164 format
+const normalizePhone = (phoneStr) => {
+    if (!phoneStr) return null;
+    try {
+        const phoneNumber = parsePhoneNumberFromString(phoneStr);
+        if (phoneNumber && phoneNumber.isValid()) {
+            return phoneNumber.format('E.164');
+        }
+        if (phoneStr.startsWith('+')) return phoneStr;
+        return phoneStr;
+    } catch (e) {
+        return phoneStr;
+    }
+};
 
 // Employee login
 router.post("/login", loginLimiter, async (req, res) => {
@@ -177,6 +193,10 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
                             attributes: ['id', 'name']
                         }
                     ]
+                },
+                {
+                    model: phone_number,
+                    as: 'phones'
                 }
             ],
             order: [['name', 'ASC']],
@@ -243,7 +263,8 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
             nationality,
             passport_no,
             role,
-            branch_id
+            branch_id,
+            phoneNumbers = [] // Array of { phone, type, is_primary }
         } = req.body;
 
         // Validate required fields
@@ -302,6 +323,27 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
             employee_id: newEmployee.id
         });
 
+        // Add phone numbers
+        if (phoneNumbers && phoneNumbers.length > 0) {
+            const phonesToCreate = phoneNumbers.map(p => {
+                const normalized = normalizePhone(p.phone);
+                return normalized ? {
+                    phone: normalized,
+                    type: p.type || 'personal',
+                    is_primary: p.is_primary || false,
+                    employee_id: newEmployee.id
+                } : null;
+            }).filter(p => p !== null);
+
+            if (phonesToCreate.length > 0) {
+                // Ensure primary
+                if (!phonesToCreate.some(p => p.is_primary)) {
+                    phonesToCreate[0].is_primary = true;
+                }
+                await phone_number.bulkCreate(phonesToCreate);
+            }
+        }
+
         if (role === "admin") {
             await admin.create({
                 id: newEmployee.id,
@@ -357,7 +399,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             nationality,
             passport_no,
             role,
-            branch_id
+            branch_id,
+            phoneNumbers = [] // Array of { phone, type, is_primary }
         } = req.body;
 
         // Find employee
@@ -422,6 +465,27 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
         if (branch_id) {
             await branch_has_employee.destroy({ where: { employee_id: emp.id } });
             await branch_has_employee.create({ branch_id: branch_id, employee_id: emp.id });
+        }
+
+        // Update phone numbers
+        if (phoneNumbers !== undefined) {
+            await phone_number.destroy({ where: { employee_id: emp.id } });
+            const phonesToCreate = phoneNumbers.map(p => {
+                const normalized = normalizePhone(p.phone);
+                return normalized ? {
+                    phone: normalized,
+                    type: p.type || 'personal',
+                    is_primary: p.is_primary || false,
+                    employee_id: emp.id
+                } : null;
+            }).filter(p => p !== null);
+
+            if (phonesToCreate.length > 0) {
+                if (!phonesToCreate.some(p => p.is_primary)) {
+                    phonesToCreate[0].is_primary = true;
+                }
+                await phone_number.bulkCreate(phonesToCreate);
+            }
         }
 
         // Handle role changes - delete old role record and create new one
