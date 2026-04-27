@@ -14,6 +14,7 @@ import Select from 'react-select';
 import '../../styles/select.css';
 import { useToast } from '../../components/ui/ToastContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import PhoneInput from '../../components/ui/PhoneInput';
 
 const Invoices = () => {
   const { toast } = useToast();
@@ -201,12 +202,19 @@ const Invoices = () => {
 
   useEffect(() => {
     if (searchTerm) {
-      const filtered = patients.filter(patient => 
-        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.patientcode?.toString().includes(searchTerm) ||
-        patient.national_id?.toString().includes(searchTerm) ||
-        patient.phone?.toString().includes(searchTerm)
-      );
+      const filtered = patients.filter(patient => {
+        const searchLower = searchTerm.toLowerCase();
+        const phones = patient.phones || [];
+        const phoneMatch = phones.some(p => p.phone?.includes(searchTerm));
+        
+        return (
+          patient.name.toLowerCase().includes(searchLower) ||
+          patient.patientcode?.toString().includes(searchTerm) ||
+          patient.national_id?.toString().includes(searchTerm) ||
+          phoneMatch ||
+          phones.some(p => p.phone?.includes(searchTerm)) // Backward compatibility
+        );
+      });
       setFilteredPatients(filtered);
     } else {
       setFilteredPatients(patients);
@@ -221,7 +229,12 @@ const Invoices = () => {
       );
     }
     if (patient.national_id) parts.push(patient.national_id);
-    if (patient.phone) parts.push(patient.phone);
+    if (patient.phones && patient.phones.length > 0) {
+      const primary = patient.phones.find(p => p.is_primary) || patient.phones[0];
+      parts.push(primary.phone);
+    } else if (false) {
+      
+    }
 
     return {
       value: patient.id,
@@ -295,7 +308,7 @@ const Invoices = () => {
   const [newDoctor, setNewDoctor] = useState({
     name: "",
     specialization: "",
-    phone: "",
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
     email: "",
     commission: 0
   });
@@ -308,6 +321,7 @@ const Invoices = () => {
         return;
       }
       const token = localStorage.getItem("token");
+      
       // Calculate birth_date based on input method
       let finalBirthDate = null;
       if (patientForm.use_age && patientForm.age) {
@@ -318,14 +332,22 @@ const Invoices = () => {
         finalBirthDate = new Date(patientForm.birth_date).toISOString().split('T')[0];
       }
 
+      const phoneNumbers = [];
+      if (patientForm.primaryPhone) {
+        phoneNumbers.push({ phone: patientForm.primaryPhone, type: 'personal', is_primary: true });
+      }
+      if (patientForm.secondaryPhone) {
+        phoneNumbers.push({ phone: patientForm.secondaryPhone, type: 'personal', is_primary: false });
+      }
+
       const cleanedPatient = {
         ...patientForm,
         birth_date: finalBirthDate,
-        primaryPhone: patientForm.primaryPhone || null,
-        secondaryPhone: patientForm.secondaryPhone || null,
+        phoneNumbers,
         diseases: patientForm.diseases || [], // This should be an array of disease IDs
         contract_id: patientForm.contract_id || null
       };
+
       const response = await axios.post(`${apiUrl}/patient`, cleanedPatient, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -478,13 +500,14 @@ const Invoices = () => {
   const handleAddDoctor = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${apiUrl}/doctor`, newDoctor, {
+      const payload = { ...newDoctor, lab_id: user.lab_id };
+      const res = await axios.post(`${apiUrl}/doctor`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDoctors([...doctors, res.data]);
       handleDoctorSelect(res.data.id);
       setShowDoctorModal(false);
-      setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+      setNewDoctor({ name: "", specialization: "", phoneNumbers: [{ phone: "", type: "personal", is_primary: true }], email: "", commission: 0 });
     } catch (err) {
       console.error("Error creating doctor:", err);
       // Optional: Handle error display
@@ -1532,11 +1555,9 @@ const Invoices = () => {
                               <Col md={6}>
                                 <Form.Group className="mb-3">
                                   <Form.Label>Primary Phone *</Form.Label>
-                                  <Form.Control
-                                    type="text"
+                                  <PhoneInput
                                     value={patientForm.primaryPhone}
-                                    onChange={(e) => setPatientForm({ ...patientForm, primaryPhone: e.target.value })}
-                                    isInvalid={!!patientFormErrors.primaryPhone}
+                                    onChange={(val) => setPatientForm({ ...patientForm, primaryPhone: val })}
                                     placeholder="e.g., +201234567890"
                                   />
                                   <Form.Control.Feedback type="invalid">
@@ -1547,10 +1568,9 @@ const Invoices = () => {
                               <Col md={6}>
                                 <Form.Group className="mb-3">
                                   <Form.Label>Secondary Phone (Optional)</Form.Label>
-                                  <Form.Control
-                                    type="text"
+                                  <PhoneInput
                                     value={patientForm.secondaryPhone}
-                                    onChange={(e) => setPatientForm({ ...patientForm, secondaryPhone: e.target.value })}
+                                    onChange={(val) => setPatientForm({ ...patientForm, secondaryPhone: val })}
                                     placeholder="e.g., +201234567891"
                                   />
                                 </Form.Group>
@@ -2520,7 +2540,7 @@ const Invoices = () => {
             show={showDoctorModal}
             onHide={() => {
               setShowDoctorModal(false);
-              setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+              setNewDoctor({ name: "", specialization: "", phoneNumbers: [{ phone: "", type: "personal", is_primary: true }], email: "", commission: 0 });
             }}
             size="lg"
           >
@@ -2570,10 +2590,13 @@ const Invoices = () => {
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={newDoctor.phone}
-                        onChange={(e) => setNewDoctor({ ...newDoctor, phone: e.target.value })}
+                      <PhoneInput
+                        value={newDoctor.phoneNumbers[0].phone}
+                        onChange={(val) => {
+                          const newPhones = [...newDoctor.phoneNumbers];
+                          newPhones[0].phone = val;
+                          setNewDoctor({ ...newDoctor, phoneNumbers: newPhones });
+                        }}
                         placeholder="Enter phone number"
                       />
                     </Form.Group>
