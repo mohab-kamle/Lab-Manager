@@ -24,7 +24,9 @@ import {
   Percent,
   Settings,
   User,
+  Receipt,
 } from "lucide-react";
+import ReconciliationModal from "../../components/reconciliation/ReconciliationModal";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import useLabPrefix from "../../hooks/useLabPrefix";
@@ -41,6 +43,7 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -68,37 +71,36 @@ const AdminDashboard = () => {
       icon: <UserPlus size={20} />,
       label: 'Add Patient',
       onClick: () => navigate(`/admin/patients`),
-      variant: 'outline-primary'
     },
     {
       icon: <Plus size={20} />,
       label: 'Add Test',
       onClick: () => navigate(`/admin/tests`),
-      variant: 'outline-success'
     },
     {
       icon: <ClipboardList size={20} />,
       label: 'View Reports',
       onClick: () => navigate(`/admin/medical-reports`),
-      variant: 'outline-secondary'
     },
     {
       icon: <Settings size={20} />,
       label: 'Lab Management',
       onClick: () => navigate(`/admin/lab-management`),
-      variant: 'outline-info'
     },
     {
       icon: <User size={20} />,
       label: 'My Profile',
       onClick: () => navigate(`/admin/profile`),
-      variant: 'outline-primary'
     },
     {
       icon: <Activity size={20} />,
       label: "TAT Analytics",
       onClick: () => navigate(`/admin/tat-analytics`),
-      variant: "outline-danger",
+    },
+    {
+      icon: <Receipt size={20} />,
+      label: 'Reconciliation',
+      onClick: () => setShowReconciliationModal(true),
     },
   ];
   useEffect(() => {
@@ -106,6 +108,7 @@ const AdminDashboard = () => {
     resetNavbarActiveState();
   }, []);
   return (
+    <>
     <Container fluid className="py-3 px-2 px-md-4">
       <h2 className="mb-3 text-center text-md-center">Admin Dashboard</h2>
       {loading ? (
@@ -224,12 +227,11 @@ const AdminDashboard = () => {
             {actions.map((action, idx) => (
               <Col xs={6} sm={3} key={idx}>
                 <Button
-                  variant={action.variant}
-                  className="w-100 d-flex flex-column align-items-center py-3"
+                  className="btn-dashboard-action w-100"
                   onClick={action.onClick}
                 >
                   {action.icon}
-                  <span className="mt-2 small">{action.label}</span>
+                  <span className="small fw-bold">{action.label}</span>
                 </Button>
               </Col>
             ))}
@@ -289,6 +291,12 @@ const AdminDashboard = () => {
         </>
       ) : null}
     </Container>
+
+      <ReconciliationModal
+        show={showReconciliationModal}
+        onHide={() => setShowReconciliationModal(false)}
+      />
+    </>
   );
 };
 

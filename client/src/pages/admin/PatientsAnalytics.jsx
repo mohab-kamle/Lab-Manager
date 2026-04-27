@@ -162,9 +162,9 @@ const PatientsAnalytics = () => {
   }
 
   return (
-    <Container fluid className="py-4 bg-light min-vh-100">
+    <Container fluid className="py-4 bg-theme min-vh-100">
       <div className="d-flex justify-content-between align-items-center mb-4 px-2">
-        <h2 className="fw-bold text-dark m-0">Patients Analytics</h2>
+        <h2 className="fw-bold text-theme m-0">Patients Analytics</h2>
         <div className="text-muted small">Real-time demographic overview</div>
       </div>
       
@@ -181,7 +181,7 @@ const PatientsAnalytics = () => {
               <Card.Body className="p-4">
                 <div className="d-flex justify-content-between align-items-start mb-3">
                   <div className="fs-1">{item.icon}</div>
-                  <div className="badge rounded-pill bg-light text-muted fw-normal px-3">Active</div>
+                  <div className="badge rounded-pill bg-theme-surface text-muted fw-normal px-3">Active</div>
                 </div>
                 <h6 className="text-muted text-uppercase small fw-bold mb-1 tracking-wider">{item.title}</h6>
                 <div className="d-flex align-items-baseline gap-1">

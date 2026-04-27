@@ -79,7 +79,7 @@ const AdminPage = () => {
                                     name="password"
                                     className="form-control"
                                 />
-                                <Button variant="outline-secondary" onClick={() => setShowPassword(!showPassword)}>
+                                <Button variant="outline-secondary" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
                                     {showPassword ? <EyeSlash /> : <Eye />}
                                 </Button>
                             </InputGroup>

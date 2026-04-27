@@ -50,10 +50,6 @@ module.exports = function (sequelize, DataTypes) {
       type: DataTypes.STRING(100),
       allowNull: true
     },
-    phone: {
-      type: DataTypes.STRING(20),
-      allowNull: true
-    },
     is_contracted: {
       type: DataTypes.BOOLEAN,
       allowNull: true,
