@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -40,6 +43,8 @@ jobs:
           VERSION=$(node -p "require('./client/package.json').version")
           TAG="v${VERSION}"
           git tag "${TAG}"
+          # Use GITHUB_TOKEN for authentication
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git push origin "${TAG}"
       # --- NEW: Configure AWS & Open Firewall ---
       - name: Configure AWS Credentials
@@ -54,6 +59,7 @@ jobs:
           IP=$(curl -s https://checkip.amazonaws.com)
           echo "Runner IP is $IP"
           aws ec2 authorize-security-group-ingress \
+            --region ${{ secrets.AWS_REGION }} \
             --group-id ${{ secrets.AWS_SG_ID }} \
             --protocol tcp \
             --port 22 \
@@ -160,6 +166,7 @@ jobs:
         run: |
           IP=$(curl -s https://checkip.amazonaws.com)
           aws ec2 revoke-security-group-ingress \
+            --region ${{ secrets.AWS_REGION }} \
             --group-id ${{ secrets.AWS_SG_ID }} \
             --protocol tcp \
             --port 22 \
