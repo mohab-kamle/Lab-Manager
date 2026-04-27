@@ -18,6 +18,7 @@ const ChangePassword = lazy(() => import('./pages/auth/ChangePassword'));
 const PaymentCallback = lazy(() => import('./pages/payment/PaymentCallback'));
 import OTPVerify from './pages/auth/OTPVerify';
 const KnowUs = lazy(() => import('./pages/info/KnowUs'));
+const ToastTestPage = lazy(() => import('./pages/test/ToastTestPage'));
 
 import { useAuth } from './context/AuthContext';
 
@@ -59,6 +60,7 @@ function App() {
               <Route path="/otp-verify" element={<PageTransition><OTPVerify /></PageTransition>} />
               <Route path="/payment-callback" element={<PageTransition><PaymentCallback /></PageTransition>} />
               <Route path="/know-us" element={<PageTransition><KnowUs /></PageTransition>} />
+              <Route path="/toast-test" element={<PageTransition><ToastTestPage /></PageTransition>} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           ) : (
