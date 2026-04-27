@@ -22,10 +22,7 @@
     "run-migrations": "node scripts/runMigrations.js",
     "db:sync": "node syncDatabase.js",
     "db:sync:force": "node syncDatabase.js force",
-    "db:check": "node syncDatabase.js check",
-    "db:fix-culture": "node fixMedicalReportHasCulture.js",
-    "db:fix-sql": "mysql -u root -p labmanager < fix_primary_key.sql",
-    "db:fix-primary-key": "node run_fix.js"
+    "db:check": "node syncDatabase.js check"
   },
   "keywords": [],
   "author": "Mohab",
