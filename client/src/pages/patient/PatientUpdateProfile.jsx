@@ -124,6 +124,7 @@ const PatientUpdateProfile = () => {
               variant="link"
               className="text-decoration-none text-muted p-0 d-flex align-items-center gap-2"
               onClick={() => navigate(-1)}
+              aria-label="Go back to profile"
             >
               <ArrowLeft size={20} /> Back to Profile
             </Button>

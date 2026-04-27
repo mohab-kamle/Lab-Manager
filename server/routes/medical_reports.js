@@ -586,6 +586,7 @@ router.post(
   "/",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  tenantContext,
   invalidateListCache, // Invalidate list cache when new medical report is created
   async (req, res) => {
     try {
@@ -599,6 +600,7 @@ router.post(
         received_at,
         reported_at,
       } = req.body;
+      const lab_id = req.tenant.lab_id;
 
       // Validate required fields
       if (!patient_id || !doctor_id || !diagnosis) {
@@ -610,6 +612,7 @@ router.post(
         patient_id,
         doctor_id,
         diagnosis,
+        lab_id,
         date: new Date(),
         registered_at: registered_at || new Date(),
         collected_at: collected_at || null,
@@ -882,9 +885,11 @@ router.get(
   "/test/:testId/components",
   authenticateUser,
   authorizeRoles("admin", "chemist"),
+  tenantContext,
   async (req, res) => {
     try {
-      const test = await db.test.findByPk(req.params.testId, {
+      const test = await db.test.findOne({
+        where: { id: req.params.testId, lab_id: req.tenant.lab_id },
         attributes: ["structure_config"]
       });
 
@@ -922,11 +927,17 @@ router.put(
   "/:id/results",
   authenticateUser,
   authorizeRoles("admin", "chemist"),
+  tenantContext,
   invalidateTestResultsCache, // Invalidate cache when test results are updated
   async (req, res) => {
     try {
       const { test_results, culture_results } = req.body;
       const reportId = req.params.id;
+      const lab_id = req.tenant.lab_id;
+
+      // Verify ownership before proceeding
+      const report = await db.medical_report.findOne({ where: { id: reportId, lab_id } });
+      if (!report) return res.status(404).json({ error: "Medical report not found or you don't have permission." });
 
       // Helper function to calculate test status based on result and normal range
       const calculateTestStatus = (result, normalRange) => {
@@ -1040,9 +1051,10 @@ router.get(
   "/pending-count",
   authenticateUser,
   authorizeRoles("admin"),
+  tenantContext,
   async (req, res) => {
     try {
-      const count = await db.medical_report.count({ where: { pending: true } });
+      const count = await db.medical_report.count({ where: { pending: true, lab_id: req.tenant.lab_id } });
       res.json({ count });
     } catch (error) {
       res.status(500).json({ error: "Failed to get pending reports count" });
@@ -1055,9 +1067,11 @@ router.get(
   "/recent",
   authenticateUser,
   authorizeRoles("admin"),
+  tenantContext,
   async (req, res) => {
     try {
       const reports = await db.medical_report.findAll({
+        where: { lab_id: req.tenant.lab_id },
         order: [["date", "DESC"]],
         limit: 5,
         include: [
@@ -1076,9 +1090,10 @@ router.put(
   "/:id/increment-prints",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  tenantContext,
   async (req, res) => {
     try {
-      const report = await db.medical_report.findByPk(req.params.id);
+      const report = await db.medical_report.findOne({ where: { id: req.params.id, lab_id: req.tenant.lab_id } });
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
       }
@@ -1327,12 +1342,14 @@ router.get(
   "/:reportId/tests/check",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  tenantContext,
   async (req, res) => {
     try {
       const { reportId } = req.params;
 
       // Get the medical report with all its test associations
-      const medicalReport = await db.medical_report.findByPk(reportId, {
+      const medicalReport = await db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
         include: [
           {
             model: db.test,

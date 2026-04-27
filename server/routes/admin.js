@@ -26,7 +26,9 @@ router.get(
       });
 
       // Get test count
-      const testCount = await test.count();
+      const testCount = await test.count({
+        where: addLabFilter({}, labId)
+      });
 
       // Get pending reports count
       const pendingReports = await medical_report.count({

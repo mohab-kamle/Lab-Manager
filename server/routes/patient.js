@@ -224,6 +224,7 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
 
         // Fetch the updated patient with associated phones
         const updatedPatient = await patient.findByPk(userId, {
+            where: { id: userId, lab_id: req.tenant.lab_id },
             include: [{ model: phone_number, as: 'phones' }],
             transaction
         });
@@ -1008,12 +1009,13 @@ router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), t
 });
 
 // GET /patient/reports/:id - get full report for authenticated patient
-router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (req, res) => {
+router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), tenantContext, async (req, res) => {
     try {
         const reportId = req.params.id;
         const patientId = req.user.id;
+        const lab_id = req.tenant.lab_id;
         const report = await db.medical_report.findOne({
-            where: { id: reportId, patient_id: patientId },
+            where: { id: reportId, patient_id: patientId, lab_id: lab_id },
             include: [
                 {
                     model: db.patient,
