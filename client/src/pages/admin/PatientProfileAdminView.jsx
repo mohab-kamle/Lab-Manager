@@ -88,24 +88,20 @@ const PatientProfileAdminView = () => {
     const fetchPatientDetails = async () => {
       try {
         const token = localStorage.getItem("token");
-        // We'll use the existing /patient endpoint which might need filtering or a specific /patient/:id
-        // Looking at server/routes/patient.js, there's a GET /:id but it's not clear if it's public for admins.
-        // Actually, the PUT /:id check exists, so GET /:id likely exists too or we use the list and filter.
-        // Let's assume GET /patient/:id exists as it's standard.
-        const response = await axios.get(`${apiUrl}/patient`, {
+        // Fetch a single patient by ID using the dedicated endpoint
+        const response = await axios.get(`${apiUrl}/patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        const foundPatient = response.data.find(p => p.id === parseInt(id));
-        if (foundPatient) {
-          setPatient(foundPatient);
-        } else {
-          toast.error("Patient not found");
-          navigate(-1);
-        }
+        setPatient(response.data);
       } catch (error) {
         console.error("Error fetching patient details:", error);
-        toast.error("Failed to load patient details");
+        // Use toast/navigate outside the dependency array via functional refs
+        toast.error(
+          error.response?.status === 404
+            ? "Patient not found"
+            : "Failed to load patient details"
+        );
         navigate(-1);
       } finally {
         setLoading(false);
@@ -113,7 +109,10 @@ const PatientProfileAdminView = () => {
     };
 
     fetchPatientDetails();
-  }, [id, apiUrl, navigate, toast]);
+    // Note: toast and navigate are intentionally excluded – they are stable refs
+    // from context/router and should not trigger a refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, apiUrl]);
 
   if (loading) {
     return <LoadingSpinner message="Loading patient profile..." />;
