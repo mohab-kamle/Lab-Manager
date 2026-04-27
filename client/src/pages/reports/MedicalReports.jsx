@@ -150,6 +150,8 @@ const MedicalReports = () => {
     birth_date: "",
   });
   const [isExtracting, setIsExtracting] = useState(false);
+  const [showImageDeleteConfirm, setShowImageDeleteConfirm] = useState(false);
+  const [pendingImageDeletion, setPendingImageDeletion] = useState(null);
   const fileInputRef = useRef(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -234,26 +236,21 @@ const MedicalReports = () => {
       const response = await axios.get(`${apiUrl}/medical-reports/${reportId}/comments`, { headers });
       
       // Map test comments and their images
-      const testComments = (response.data.comments || []).map(comment => ({
+      const testComments = (response.data.testComments || []).map(comment => ({
         ...comment,
-        images: (comment.images || []).map(img => {
-          const pathStr = typeof img === 'string' ? img : (img.image_path || img.path);
-          if (!pathStr) return { image_name: img, isExisting: true };
-          const parts = pathStr.split(/[\\/]/);
-          const filename = parts[parts.length - 1];
-          return {
-            image_name: filename,
-            image_path: `/uploads/comment-images/${filename}`,
-            isExisting: true
-          };
-        })
+        images: (comment.images || []).map(filename => ({
+          image_name: filename,
+          image_path: `/uploads/comment-images/${filename}`,
+          isExisting: true
+        }))
       }));
 
       // Organize comments by test/group ID for UI consumption
       const reportImages = (response.data.reportImages || []).map(img => ({
         image_name: img,
         image_path: `/uploads/comment-images/${img}`,
-        isExisting: true
+        isExisting: true,
+        preview: null // No preview for existing images
       }));
 
       const organizedComments = {
@@ -282,18 +279,7 @@ const MedicalReports = () => {
       setCommentTexts(newCommentTexts);
       
       // Initialize comment images
-      const initialCommentImages = { tests: {}, medicalReport: reportImages };
-      
-      // Also for test comments, we need to map existing images if any
-      testComments.forEach(comment => {
-        if (comment.reportImages && comment.reportImages.length > 0) {
-          initialCommentImages.tests[comment.test_id] = comment.reportImages.map(img => ({
-            image_name: img,
-            image_path: `/uploads/comment-images/${img}`,
-            isExisting: true
-          }));
-        }
-      });
+      const initialCommentImages = { test: {}, medicalReport: reportImages };
 
       setCommentImages(initialCommentImages);
     } catch (error) {
@@ -427,6 +413,68 @@ const MedicalReports = () => {
     }
   };
 
+
+  // Handle image changes with deletion confirmation
+  const handleImageChange = (type, newImages, id = null) => {
+    const oldImages = type === 'medicalReport' 
+      ? commentImages.medicalReport 
+      : (commentImages.test[id] || []);
+
+    // Check if an image was removed
+    if (newImages.length < oldImages.length) {
+      const removedImage = oldImages.find(oldImg => {
+        // If it's a new image, it has a 'preview' property
+        if (oldImg.preview) {
+          return !newImages.some(newImg => newImg.preview === oldImg.preview);
+        }
+        // If it's an existing image, it has 'image_name'
+        return !newImages.some(newImg => newImg.image_name === oldImg.image_name);
+      });
+
+      if (removedImage && removedImage.isExisting) {
+        // Intercept deletion of existing image
+        setPendingImageDeletion({ type, id, newImages, removedImage });
+        setShowImageDeleteConfirm(true);
+        return;
+      }
+    }
+
+    // If it's an addition or a deletion of a new image, update state immediately
+    updateImageState(type, newImages, id);
+  };
+
+  const updateImageState = (type, images, id = null) => {
+    setCommentImages(prev => {
+      if (type === 'medicalReport') {
+        return { ...prev, medicalReport: images };
+      } else {
+        return {
+          ...prev,
+          test: {
+            ...prev.test,
+            [id]: images
+          }
+        };
+      }
+    });
+  };
+
+  const confirmImageDeletion = () => {
+    if (pendingImageDeletion) {
+      updateImageState(
+        pendingImageDeletion.type, 
+        pendingImageDeletion.newImages, 
+        pendingImageDeletion.id
+      );
+    }
+    setShowImageDeleteConfirm(false);
+    setPendingImageDeletion(null);
+  };
+
+  const cancelImageDeletion = () => {
+    setShowImageDeleteConfirm(false);
+    setPendingImageDeletion(null);
+  };
 
   // Toggle comment section expansion
   const toggleCommentExpansion = (type, id) => {
@@ -2325,15 +2373,7 @@ const MedicalReports = () => {
                                                   <Form.Label>Upload Images (Max 3)</Form.Label>
                                                   <ImageUpload
                                                     images={commentImages.test?.[test.id] || []}
-                                                    onImagesChange={(images) => {
-                                                      setCommentImages(prev => ({
-                                                        ...prev,
-                                                        test: {
-                                                          ...prev.test,
-                                                          [test.id]: images
-                                                        }
-                                                      }));
-                                                    }}
+                                                    onImagesChange={(images) => handleImageChange('test', images, test.id)}
                                                     maxImages={3}
                                                   />
                                                 </Form.Group>
@@ -2380,39 +2420,13 @@ const MedicalReports = () => {
                               </h5>
                             </div>
                             <div className="card-body">
-                              {/* Existing Images Display */}
-                              {comments.medicalReport && comments.medicalReport.length > 0 && (
-                                <div className="mb-4">
-                                  <h6 className="text-muted mb-3">Current Images:</h6>
-                                  <div className="d-flex flex-wrap gap-2">
-                                    {comments.medicalReport.map((image, idx) => (
-                                      <div key={idx} className="position-relative">
-                                        <SecureImage
-                                          src={`/uploads/comment-images/${image}`}
-                                          alt={`Medical report image ${idx + 1}`}
-                                          className="img-thumbnail"
-                                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
-                                          title={`Medical report image ${idx + 1}`}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Upload New Images */}
-                              <div className="border-top pt-3">
-                                <h6 className="text-muted mb-3">Upload New Images:</h6>
+                              {/* Unified Image Management */}
+                              <div>
+                                <h6 className="text-muted mb-3">Manage Images (Max 10):</h6>
                                 <Form.Group className="mb-3">
-                                  <Form.Label>Select Images (Max 10)</Form.Label>
                                   <ImageUpload
                                     images={commentImages.medicalReport || []}
-                                    onImagesChange={(images) => {
-                                      setCommentImages(prev => ({
-                                        ...prev,
-                                        medicalReport: images
-                                      }));
-                                    }}
+                                    onImagesChange={(images) => handleImageChange('medicalReport', images)}
                                     maxImages={10}
                                   />
                                 </Form.Group>
@@ -2420,17 +2434,17 @@ const MedicalReports = () => {
                                 <Button
                                   variant="primary"
                                   onClick={() => saveMedicalReportImages(commentImages.medicalReport || [])}
-                                  disabled={savingComments.medicalReport || !commentImages.medicalReport || commentImages.medicalReport.length === 0}
+                                  disabled={savingComments.medicalReport}
                                 >
                                   {savingComments.medicalReport ? (
                                     <>
                                       <Spinner animation="border" size="sm" className="me-2" />
-                                      Uploading...
+                                      Saving Changes...
                                     </>
                                   ) : (
                                     <>
-                                      <i className="fas fa-upload me-2"></i>
-                                      Upload Images
+                                      <i className="fas fa-save me-2"></i>
+                                      Save Changes
                                     </>
                                   )}
                                 </Button>
@@ -2521,8 +2535,46 @@ const MedicalReports = () => {
               </Button>
             </Modal.Footer>
           </Modal>
-
-
+          
+          {/* Image Deletion Confirmation Modal */}
+          <Modal 
+            show={showImageDeleteConfirm} 
+            onHide={cancelImageDeletion}
+            centered
+            size="sm"
+            contentClassName="border-0 shadow"
+          >
+            <Modal.Header closeButton className="bg-white border-0 pb-0 text-dark">
+              <Modal.Title className="h5 fw-bold text-danger">Confirm Deletion</Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="text-center pt-2">
+              <div className="mb-3">
+                <i className="fas fa-exclamation-triangle text-warning fa-3x"></i>
+              </div>
+              <p className="mb-0 text-dark">Are you sure you want to delete this image? This action cannot be undone once saved.</p>
+              {pendingImageDeletion?.removedImage && (
+                <div className="mt-3 p-2 bg-light rounded border">
+                  <SecureImage 
+                    src={pendingImageDeletion.removedImage.image_path} 
+                    alt="Pending deletion"
+                    style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                    className="rounded"
+                  />
+                  <div className="small text-muted mt-1 text-truncate">
+                    {pendingImageDeletion.removedImage.image_name}
+                  </div>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer className="border-0 pt-0">
+              <Button variant="light" onClick={cancelImageDeletion} className="fw-medium">
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={confirmImageDeletion} className="fw-medium shadow-sm">
+                Delete Image
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </>
       )}
     </Container>

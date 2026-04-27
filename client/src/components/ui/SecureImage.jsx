@@ -44,7 +44,9 @@ const SecureImage = ({
         }
 
         // For server URLs, we need a token
-        if (!user?.token) {
+        const userToken = user?.token || localStorage.getItem("token");
+        if (!userToken) {
+          console.warn('SecureImage: No authentication token available for server URL:', src);
           setError(true);
           setLoading(false);
           return;
@@ -55,7 +57,7 @@ const SecureImage = ({
         
         const response = await axios.get(imageUrl, {
           headers: {
-            Authorization: `Bearer ${user.token}`
+            Authorization: `Bearer ${userToken}`
           },
           responseType: 'blob'
         });
@@ -68,7 +70,7 @@ const SecureImage = ({
         setIsLocalBlob(true);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching secure image:', err);
+        console.error('Error fetching secure image:', err.message, 'for URL:', src);
         setError(true);
         setLoading(false);
         if (onError) {
