@@ -16,7 +16,7 @@ const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
-const { employee, patient, phone, doctor } = require("./models");
+const { employee, patient, phone_number, doctor } = require("./models");
 
 // Socket.io for Real-Time Events
 const http = require("http");
@@ -412,7 +412,7 @@ router.get("/", authenticateUser, async (req, res) => {
         ],
       });
       if (user) {
-        const phones = await phone.findAll({ where: { patient_id: req.user.id } });
+        const phones = await phone_number.findAll({ where: { patient_id: req.user.id } });
         user = { ...user.get(), role: "patient", phones };
       }
     } else if (req.user.role === "doctor") {
@@ -425,7 +425,15 @@ router.get("/", authenticateUser, async (req, res) => {
         user.role = 'doctor';
       }
     } else {
-      user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role", "lab_id"] });
+      user = await employee.findByPk(req.user.id, { 
+        attributes: ["id", "name", "username", "role", "lab_id"],
+        include: [
+          {
+            model: phone_number,
+            as: 'phones'
+          }
+        ]
+      });
     }
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
