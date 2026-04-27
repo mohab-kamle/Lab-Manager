@@ -98,6 +98,7 @@ const Tests = () => {
   const [categories, setCategories] = useState([]);
   const [sampleTypes, setSampleTypes] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [outsourcedLabs, setOutsourcedLabs] = useState([]); // Outsourced labs for the "Lab Name" dropdown
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -172,11 +173,12 @@ const Tests = () => {
     const token = localStorage.getItem("token");
     setLoading(true);
     try {
-      const [testsResponse, categoriesResponse, samplesResponse, questionsResponse] = await Promise.all([
+      const [testsResponse, categoriesResponse, samplesResponse, questionsResponse, outsourcedLabsResponse] = await Promise.all([
         axios.get(`${apiUrl}/tests/all-with-components`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${apiUrl}/categories`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${apiUrl}/samples`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${apiUrl}/questions`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${apiUrl}/questions`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${apiUrl}/outsourced-labs`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       if (Array.isArray(testsResponse.data)) {
         setTests(testsResponse.data);
@@ -191,11 +193,17 @@ const Tests = () => {
       setCategories(categoriesResponse.data);
       setSampleTypes(samplesResponse.data);
       setQuestions(questionsResponse.data);
+      // Populate outsourced labs list for the Lab Name dropdown
+      if (Array.isArray(outsourcedLabsResponse.data)) {
+        setOutsourcedLabs(outsourcedLabsResponse.data);
+      }
     } catch (error) {
+      console.error("Fetch error:", error);
       setError("Failed to fetch data. Please try again later.");
+      toast.error(error.response?.data?.error || "Failed to fetch data. Please try again later.");
     }
     setLoading(false);
-  }, [apiUrl]);
+  }, [apiUrl, toast]);
 
   useEffect(() => {
     fetchTestsAndRelated();
@@ -638,6 +646,11 @@ const Tests = () => {
     }
     if (!formData.category_id) {
       toast.error('Category is required');
+      return;
+    }
+    // When outsourcing, the user must select which lab performs the test
+    if (formData.lab_to_lab === 'OUT' && !formData.lab_name.trim()) {
+      toast.error('Lab Name is required when Lab to Lab is set to "Out"');
       return;
     }
     
@@ -1133,7 +1146,15 @@ const Tests = () => {
                   <Form.Label>Lab to Lab</Form.Label>
                   <Form.Select 
                     value={formData.lab_to_lab} 
-                    onChange={e => setFormData({ ...formData, lab_to_lab: e.target.value })}
+                    onChange={e => {
+                      const newValue = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        lab_to_lab: newValue,
+                        // Clear lab_name when switching away from "OUT" since it no longer applies
+                        lab_name: newValue === 'OUT' ? prev.lab_name : ''
+                      }));
+                    }}
                   >
                     <option value="">Select Lab to Lab Status</option>
                     <option value="IN">In</option>
@@ -1143,12 +1164,32 @@ const Tests = () => {
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Lab Name</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.lab_name} 
-                    onChange={e => setFormData({ ...formData, lab_name: e.target.value })} 
-                  />
+                  <Form.Label>
+                    Lab Name{formData.lab_to_lab === 'OUT' && <span className="text-danger"> *</span>}
+                  </Form.Label>
+                  {formData.lab_to_lab === 'OUT' ? (
+                    // When outsourcing, show a dropdown populated with outsourced labs
+                    <Form.Select
+                      value={formData.lab_name}
+                      onChange={e => setFormData({ ...formData, lab_name: e.target.value })}
+                      isInvalid={formData.lab_to_lab === 'OUT' && !formData.lab_name}
+                    >
+                      <option value="">Select Outsourced Lab</option>
+                      {outsourcedLabs.map(lab => (
+                        <option key={lab.id} value={lab.name}>
+                          {lab.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    // When not outsourcing, the field is disabled and empty
+                    <Form.Control
+                      type="text"
+                      value=""
+                      disabled
+                      placeholder="Only available when Lab to Lab is 'Out'"
+                    />
+                  )}
                 </Form.Group>
               </Col>
             </Row>
