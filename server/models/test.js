@@ -29,7 +29,7 @@ module.exports = function (sequelize, DataTypes) {
       type: DataTypes.ENUM('IN', 'OUT'),
       allowNull: true
     },
-    outsourced_lab_name: {
+    lab_name: {
       type: DataTypes.STRING(100),
       allowNull: true
     },
