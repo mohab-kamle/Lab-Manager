@@ -5,8 +5,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/ToastContext';
 import {
   Palette, Settings, CreditCard, Upload, Eye, EyeOff,
-  Save, RefreshCw, AlertTriangle, CheckCircle, Info
+  Save, RefreshCw, AlertTriangle, CheckCircle, Info, Trash2, Plus
 } from 'lucide-react';
+import PhoneInput from '../../components/ui/PhoneInput';
 import styles from '../../styles/LabManagement.module.css';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
@@ -31,7 +32,7 @@ const LabManagement = () => {
     name: '',
     logo_url: '',
     lab_name_invoice: '',
-    lab_phone: '',
+    phoneNumbers: [{ phone: '', type: 'work', is_primary: true }],
     lab_address: '',
     lab_email: '',
     lab_website: '',
@@ -93,7 +94,9 @@ const LabManagement = () => {
         name: labInfo.name || '',
         logo_url: labInfo.logo_url || '',
         lab_name_invoice: labInfo.lab_name_invoice || labInfo.name || '',
-        lab_phone: labInfo.lab_phone || '',
+        phoneNumbers: (labInfo.phones && labInfo.phones.length > 0) 
+          ? labInfo.phones.map(p => ({ phone: p.phone, type: p.type, is_primary: p.is_primary }))
+          : [{ phone: labInfo.lab_phone || '', type: 'work', is_primary: true }],
         lab_address: labInfo.lab_address || '',
         lab_email: labInfo.lab_email || '',
         lab_website: labInfo.lab_website || '',
@@ -542,14 +545,55 @@ const LabManagement = () => {
                     />
                   </div>
 
-                  <div className={styles.formGroup}>
-                    <label>Phone</label>
-                    <input
-                      type="tel"
-                      value={branding.lab_phone}
-                      onChange={(e) => setBranding(prev => ({ ...prev, lab_phone: e.target.value }))}
-                      placeholder="Lab phone number"
-                    />
+                  <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                    <label>Phone Numbers</label>
+                    <div className="d-flex flex-wrap gap-3">
+                      {branding.phoneNumbers.map((phoneEntry, index) => (
+                        <div key={index} className="d-flex gap-2 align-items-start mb-2" style={{ minWidth: '300px' }}>
+                          <div style={{ flex: 1 }}>
+                            <PhoneInput
+                              value={phoneEntry.phone}
+                              onChange={(val) => {
+                                const newPhones = [...branding.phoneNumbers];
+                                newPhones[index].phone = val;
+                                setBranding(prev => ({ ...prev, phoneNumbers: newPhones }));
+                              }}
+                              placeholder="Enter phone number"
+                            />
+                          </div>
+                          {branding.phoneNumbers.length > 1 && (
+                            <button 
+                              type="button"
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => {
+                                const newPhones = branding.phoneNumbers.filter((_, i) => i !== index);
+                                if (phoneEntry.is_primary && newPhones.length > 0) {
+                                  newPhones[0].is_primary = true;
+                                }
+                                setBranding(prev => ({ ...prev, phoneNumbers: newPhones }));
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button 
+                      type="button"
+                      className="btn btn-outline-primary btn-sm mt-1"
+                      onClick={() => {
+                        setBranding(prev => ({
+                          ...prev,
+                          phoneNumbers: [
+                            ...prev.phoneNumbers,
+                            { phone: "", type: "work", is_primary: false }
+                          ]
+                        }));
+                      }}
+                    >
+                      <Plus size={14} className="me-1" /> Add Phone
+                    </button>
                   </div>
 
                   <div className={`${styles.formGroup} ${styles.fullWidth}`}>
