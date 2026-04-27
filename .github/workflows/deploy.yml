@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -12,6 +15,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
         
       # 1. Build the frontend locally on GitHub
       - name: Build frontend
@@ -27,7 +33,26 @@ jobs:
 
           # Run the build command specifically for the 'client' package
           # This runs the 'build' script defined in client/package.json
-          pnpm --filter client run build -- --mode production --ignore-scripts
+          pnpm --filter client run build -- --mode production
+          
+      # Create and push version tag
+      - name: Create and push version tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          VERSION=$(node -p "require('./client/package.json').version")
+          TAG="v${VERSION}"
+          
+          # Use GITHUB_TOKEN for authentication with ls-remote
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          
+          if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists on remote. Skipping tagging step."
+          else
+            echo "Tag ${TAG} does not exist. Creating and pushing..."
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
       # --- NEW: Configure AWS & Open Firewall ---
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -41,6 +66,7 @@ jobs:
           IP=$(curl -s https://checkip.amazonaws.com)
           echo "Runner IP is $IP"
           aws ec2 authorize-security-group-ingress \
+            --region ${{ secrets.AWS_REGION }} \
             --group-id ${{ secrets.AWS_SG_ID }} \
             --protocol tcp \
             --port 22 \
@@ -147,6 +173,7 @@ jobs:
         run: |
           IP=$(curl -s https://checkip.amazonaws.com)
           aws ec2 revoke-security-group-ingress \
+            --region ${{ secrets.AWS_REGION }} \
             --group-id ${{ secrets.AWS_SG_ID }} \
             --protocol tcp \
             --port 22 \
