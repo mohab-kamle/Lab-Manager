@@ -138,6 +138,9 @@ const MedicalReports = () => {
   const [savingResults, setSavingResults] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(null); // reportId for invoice loading
   // Loading states for various operations
+  const [expandedSections, setExpandedSections] = useState({});
+  const [antibioticSearch, setAntibioticSearch] = useState({});
+  const [showAddAntibioticModal, setShowAddAntibioticModal] = useState({});
   const [enteringResults, setEnteringResults] = useState(false);
   const [signingReport, setSigningReport] = useState(null); // reportId being signed
   // Patient data editing states
@@ -230,16 +233,42 @@ const MedicalReports = () => {
       const headers = { Authorization: `Bearer ${token}` };
       const response = await axios.get(`${apiUrl}/medical-reports/${reportId}/comments`, { headers });
       
+      // Map test comments and their images
+      const testComments = (response.data.comments || []).map(comment => ({
+        ...comment,
+        images: (comment.images || []).map(img => {
+          const pathStr = typeof img === 'string' ? img : (img.image_path || img.path);
+          if (!pathStr) return { image_name: img, isExisting: true };
+          const parts = pathStr.split(/[\\/]/);
+          const filename = parts[parts.length - 1];
+          return {
+            image_name: filename,
+            image_path: `/uploads/comment-images/${filename}`,
+            isExisting: true
+          };
+        })
+      }));
+
       // Organize comments by test/group ID for UI consumption
+      const reportImages = (response.data.reportImages || []).map(img => ({
+        image_name: img,
+        image_path: `/uploads/comment-images/${img}`,
+        isExisting: true
+      }));
+
       const organizedComments = {
         test: {},
-        testComments: response.data.testComments,
-        reportImages: response.data.reportImages,
-        medicalReport: response.data.reportImages
+        testComments: testComments,
+        reportImages: reportImages,
+        medicalReport: reportImages
       };
       
+      // Set initial values for input fields from existing data if needed
+      // (This avoids clearing the input images if they were already there, 
+      // but usually we want to clear them after successful save)
+
       // Group test comments by test_id
-      response.data.testComments.forEach(comment => {
+      testComments.forEach(comment => {
         if (!organizedComments.test[comment.test_id]) {
           organizedComments.test[comment.test_id] = [];
         }
@@ -253,8 +282,20 @@ const MedicalReports = () => {
       setCommentTexts(newCommentTexts);
       
       // Initialize comment images
-      const newCommentImages = { tests: {}, medicalReport: response.data.reportImages };
-      setCommentImages(newCommentImages);
+      const initialCommentImages = { tests: {}, medicalReport: reportImages };
+      
+      // Also for test comments, we need to map existing images if any
+      testComments.forEach(comment => {
+        if (comment.reportImages && comment.reportImages.length > 0) {
+          initialCommentImages.tests[comment.test_id] = comment.reportImages.map(img => ({
+            image_name: img,
+            image_path: `/uploads/comment-images/${img}`,
+            isExisting: true
+          }));
+        }
+      });
+
+      setCommentImages(initialCommentImages);
     } catch (error) {
       console.error("Error fetching comments:", error);
       toast.error("Failed to fetch comments");
@@ -269,14 +310,26 @@ const MedicalReports = () => {
       const headers = { Authorization: `Bearer ${token}` };
       
       const formData = new FormData();
+      formData.append('reportId', selectedReportForResults.id);
       formData.append('test_id', testId);
       formData.append('comment', comment);
       
+      const existingImages = [];
       if (images && images.length > 0) {
         images.forEach(image => {
-          formData.append('images', image);
+          if (image.isExisting) {
+            existingImages.push(image.image_name);
+          } else {
+            const fileToUpload = image.file || image;
+            if (fileToUpload instanceof File) {
+              formData.append('images', fileToUpload);
+            }
+          }
         });
       }
+      
+      // Add existing images to keep
+      existingImages.forEach(img => formData.append('existingImages', img));
       
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/test-comments`,
@@ -312,9 +365,25 @@ const MedicalReports = () => {
       const headers = { Authorization: `Bearer ${token}` };
       
       const formData = new FormData();
-      images.forEach(image => {
-        formData.append('images', image);
-      });
+      formData.append('reportId', selectedReportForResults.id);
+      formData.append('commentType', 'medical_report');
+      
+      const existingImages = [];
+      if (images && images.length > 0) {
+        images.forEach(image => {
+          if (image.isExisting) {
+            existingImages.push(image.image_name);
+          } else {
+            const fileToUpload = image.file || image;
+            if (fileToUpload instanceof File) {
+              formData.append('images', fileToUpload);
+            }
+          }
+        });
+      }
+      
+      // Add existing images to keep
+      existingImages.forEach(img => formData.append('existingImages', img));
       
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/comment-images`,
@@ -714,6 +783,7 @@ const MedicalReports = () => {
       // Re-map the patient correctly from the entry-form response
       const reportForState = {
         ...fullReport,
+        id: rowData.id, // Ensure id is always present for consistent API calls
         date: rowData.date, // keep original date from table
         patient: fullReport.patient,
         tests: tests // use the tests array with structure_config attached
@@ -774,13 +844,13 @@ const MedicalReports = () => {
       );
 
       // Show loading state
-      toast.loading("Saving results...");
+      const toastId = toast.loading("Saving results...");
 
       try {
         // Execute sequentially to avoid MySQL deadlocks from concurrent transaction gap locks
         for (const req of saveRequests) {
           await axios.post(
-            `${apiUrl}/medical-reports/${selectedReportForResults.report_id || selectedReportForResults.id}/results`,
+            `${apiUrl}/medical-reports/${selectedReportForResults.id}/results`,
             { test_id: req.testId, results: req.formattedResults },
             { headers }
           );
@@ -799,7 +869,7 @@ const MedicalReports = () => {
         // Refresh the reports list
         await fetchData();
 
-        toast.update({
+        toast.update(toastId, {
           render: "Results saved successfully",
           type: "success",
           isLoading: false,
@@ -807,7 +877,7 @@ const MedicalReports = () => {
         });
       } catch (error) {
         console.error("Error saving results:", error);
-        toast.update({
+        toast.update(toastId, {
           render:
             error.response?.data?.message ||
             "Failed to save results. Please try again.",
@@ -829,7 +899,7 @@ const MedicalReports = () => {
 
     try {
       setIsExtracting(true);
-      toast.loading("AI is scanning and extracting data...");
+      const toastId = toast.loading("AI is scanning and extracting data...");
       
       // Get expected parameters to help the AI map correctly
       const expectedKeys = selectedReportForResults.tests.flatMap(test => 
@@ -839,7 +909,11 @@ const MedicalReports = () => {
       const extractedData = await extractFromImage(file, expectedKeys);
       
       if (!extractedData || Object.keys(extractedData).length === 0) {
-        toast.warning("No data could be extracted from this image.");
+        toast.update(toastId, {
+          render: "No data could be extracted from this image.",
+          type: "warning",
+          autoClose: 5000
+        });
         return;
       }
 
@@ -889,13 +963,25 @@ const MedicalReports = () => {
       }));
 
       if (matchCount > 0) {
-        toast.success(`Successfully extracted ${matchCount} test results!`);
+        toast.update(toastId, {
+          render: `Successfully extracted ${matchCount} test results!`,
+          type: "success",
+          autoClose: 5000
+        });
       } else {
-        toast.warning("AI finished scanning but couldn't find matches for the tests in this report.");
+        toast.update(toastId, {
+          render: "AI finished scanning but couldn't find matches for the tests in this report.",
+          type: "warning",
+          autoClose: 5000
+        });
       }
     } catch (error) {
       console.error("AI Extraction failed:", error);
+      // We can't use toastId here if it failed before toastId was assigned, 
+      // but toast.loading is synchronous so it's fine.
       toast.error(error.message || "Failed to extract data from image");
+      // Actually, if we use toast.error, the loading toast will stay.
+      // Better to use update if we have the id.
     } finally {
       setIsExtracting(false);
     }
@@ -2198,7 +2284,7 @@ const MedicalReports = () => {
                                                             {comment.images.map((image, idx) => (
                                                               <SecureImage
                                                                 key={idx}
-                                                                src={`/uploads/comment-images/${image}`}
+                                                                src={`/uploads/comment-images/${image.image_name}`}
                                                                 alt={`Comment image ${idx + 1}`}
                                                                 className="img-thumbnail"
                                                                 style={{ width: '80px', height: '80px', objectFit: 'cover' }}

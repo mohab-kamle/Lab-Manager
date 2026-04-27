@@ -17,13 +17,14 @@ const SecureImage = ({
   ...props 
 }) => {
   const [imageSrc, setImageSrc] = useState(null);
+  const [isLocalBlob, setIsLocalBlob] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    if (!src || !user?.token) {
+    if (!src) {
       setLoading(false);
       setError(true);
       return;
@@ -33,6 +34,21 @@ const SecureImage = ({
       try {
         setLoading(true);
         setError(false);
+
+        // If it's already a blob or data URL, use it directly
+        if (src.startsWith('blob:') || src.startsWith('data:')) {
+          setImageSrc(src);
+          setIsLocalBlob(false);
+          setLoading(false);
+          return;
+        }
+
+        // For server URLs, we need a token
+        if (!user?.token) {
+          setError(true);
+          setLoading(false);
+          return;
+        }
         
         // Construct the full URL if it's a relative path
         const imageUrl = src.startsWith('http') ? src : `${apiUrl}${src}`;
@@ -49,6 +65,7 @@ const SecureImage = ({
         const imageObjectURL = URL.createObjectURL(imageBlob);
         
         setImageSrc(imageObjectURL);
+        setIsLocalBlob(true);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching secure image:', err);
@@ -64,7 +81,7 @@ const SecureImage = ({
 
     // Cleanup function to revoke blob URL
     return () => {
-      if (imageSrc) {
+      if (imageSrc && isLocalBlob) {
         URL.revokeObjectURL(imageSrc);
       }
     };
@@ -73,11 +90,11 @@ const SecureImage = ({
   // Cleanup blob URL when component unmounts
   useEffect(() => {
     return () => {
-      if (imageSrc) {
+      if (imageSrc && isLocalBlob) {
         URL.revokeObjectURL(imageSrc);
       }
     };
-  }, [imageSrc]);
+  }, [imageSrc, isLocalBlob]);
 
   if (loading) {
     return (
