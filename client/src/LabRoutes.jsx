@@ -14,6 +14,7 @@ const PatientReports = lazy(() => import('./pages/reports/PatientReports'));
 const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
 const PatientUpdateProfile = lazy(() => import('./pages/patient/PatientUpdateProfile'));
 const PatientInvoices = lazy(() => import('./pages/patient/PatientInvoices'));
+const PatientTransactions = lazy(() => import('./pages/patient/PatientTransactions'));
 
 // Admin & Shared pages
 const Categories = lazy(() => import('./pages/tests/Categories'));
@@ -33,6 +34,7 @@ const MedicalReports = lazy(() => import('./pages/reports/MedicalReports'));
 const EmployeeManagement = lazy(() => import('./pages/branches/EmployeeManagement'));
 const LabManagement = lazy(() => import('./pages/lab/LabManagement'));
 const Vault = lazy(() => import('./pages/admin/Vault'));
+const TransactionsVault = lazy(() => import('./pages/admin/TransactionsVault'));
 const TurnaroundTime = lazy(() => import('./pages/admin/TurnaroundTime'));
 const PatientProfileAdminView = lazy(() => import('./pages/admin/PatientProfileAdminView'));
 
@@ -75,6 +77,10 @@ const LabRoutes = () => (
       <Route
         path="/patient/invoices"
         element={<PrivateRoute element={<PatientInvoices />} allowedRoles={["patient"]} />}
+      />
+      <Route
+        path="/patient/transactions"
+        element={<PrivateRoute element={<PatientTransactions />} allowedRoles={["patient"]} />}
       />
 
       {/* Role dashboards */}
@@ -124,6 +130,7 @@ const LabRoutes = () => (
       {/* Management routes */}
       <Route path="/admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
       <Route path="/:role/vault" element={<PrivateRoute element={<Vault />} allowedRoles={["admin"]} />} />
+      <Route path="/admin/transactions" element={<PrivateRoute element={<TransactionsVault />} allowedRoles={["admin"]} />} />
       <Route path="/:role/tat-analytics" element={<PrivateRoute element={<TurnaroundTime />} allowedRoles={["admin", "doctor", "chemist"]} />} />
 
       {/* Inventory Routes */}

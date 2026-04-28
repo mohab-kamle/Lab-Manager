@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert, Badge } from 'react-bootstrap';
 import { Users, FileText, Plus, Activity, UserPlus, ClipboardList, DollarSign, CreditCard, TrendingUp, Phone, Calendar, Receipt } from 'lucide-react';
-import ReconciliationModal from '../../components/reconciliation/ReconciliationModal';
+import SettlementModal from '../../components/settlement/SettlementModal';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -18,7 +18,7 @@ const ReceptionistDashboard = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -78,10 +78,10 @@ const ReceptionistDashboard = () => {
       action: () => navigate('/admin/dashboard/patients')
     },
     {
-      title: 'Reconciliation',
+      title: 'Settlement',
       description: 'Settle patient bills',
       icon: <Receipt size={24} />,
-      action: () => setShowReconciliationModal(true)
+      action: () => setShowSettlementModal(true)
     }
   ];
 
@@ -238,9 +238,9 @@ const ReceptionistDashboard = () => {
       </Row>
     </Container>
 
-      <ReconciliationModal
-        show={showReconciliationModal}
-        onHide={() => setShowReconciliationModal(false)}
+      <SettlementModal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
       />
     </>
   );
