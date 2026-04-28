@@ -6,7 +6,7 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle, Wallet2 } from "lucide-react";
-import ReconciliationModal from "../../components/reconciliation/ReconciliationModal";
+import SettlementModal from "../../components/settlement/SettlementModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
@@ -98,10 +98,10 @@ const Invoices = () => {
   // Limit warning modal support
   const [limitWarningModal, setLimitWarningModal] = useState(false);
   const [limitWarningData, setLimitWarningData] = useState(null);
-  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
-  const [reconciliationPatientId, setReconciliationPatientId] = useState(null);
-  const [reconciliationPatientName, setReconciliationPatientName] = useState("");
-  const [reconciliationPatientCode, setReconciliationPatientCode] = useState("");
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [settlementPatientId, setSettlementPatientId] = useState(null);
+  const [settlementPatientName, setSettlementPatientName] = useState("");
+  const [settlementPatientCode, setSettlementPatientCode] = useState("");
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -1179,10 +1179,10 @@ const Invoices = () => {
         size="sm"
         onClick={() => {
           const patient = patients.find(p => p.id === rowData.patient_id);
-          setReconciliationPatientId(rowData.patient_id);
-          setReconciliationPatientName(rowData.patient_name || "Unknown Patient");
-          setReconciliationPatientCode(patient?.patientcode || "");
-          setShowReconciliationModal(true);
+          setSettlementPatientId(rowData.patient_id);
+          setSettlementPatientName(rowData.patient_name || "Unknown Patient");
+          setSettlementPatientCode(patient?.patientcode || "");
+          setShowSettlementModal(true);
         }}
         disabled={parseFloat(rowData.due || 0) <= 0}
         title="Reconcile Account"
@@ -2704,13 +2704,13 @@ const Invoices = () => {
       )}
     </Container>
 
-      {/* Reconciliation Modal */}
-      <ReconciliationModal
-        show={showReconciliationModal}
-        onHide={() => setShowReconciliationModal(false)}
-        initialPatientId={reconciliationPatientId}
-        patientName={reconciliationPatientName}
-        patientCode={reconciliationPatientCode}
+      {/* Settlement Modal */}
+      <SettlementModal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
+        initialPatientId={settlementPatientId}
+        patientName={settlementPatientName}
+        patientCode={settlementPatientCode}
       />
     </>
   );

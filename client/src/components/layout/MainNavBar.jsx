@@ -607,13 +607,13 @@ const MainNavBar = () => {
                             {user?.role === "admin" && (
                               <Dropdown.Item
                                 as={Link}
-                                to={`/${user?.role}/vault`}
+                                to={`/admin/transactions`}
                                 data-dropdown-key="Rec"
-                                data-title="Vault(under construction)"
-                                data-id="vault"
-                                active={activeItem === "vault"}
+                                data-title="Transactions Vault"
+                                data-id="transactions-vault"
+                                active={activeItem === "transactions-vault"}
                               >
-                                Vault(under construction)
+                                Transactions Vault
                               </Dropdown.Item>
                             )}
                             <Dropdown.Item
@@ -925,6 +925,13 @@ const MainNavBar = () => {
                     className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
                   >
                     <Receipt size={18} className="mb-1" /> Invoices
+                  </Nav.Link>
+                  <Nav.Link
+                    as={Link}
+                    to={`/patient/transactions`}
+                    className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
+                  >
+                    <DollarSignIcon size={18} className="mb-1" /> Financial History
                   </Nav.Link>
                 </>
               )}

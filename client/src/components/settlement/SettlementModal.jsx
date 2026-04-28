@@ -7,7 +7,7 @@ import LoadingSpinner from '../ui/LoadingSpinner';
 import { Search, Receipt, Calculator, X, CheckCircle, CreditCard, ListChecks, Wand2 } from 'lucide-react';
 
 /**
- * ReconciliationModal - Phase 2: Reconciliation Logic (UI)
+ * SettlementModal - Phase 2: Settlement Logic (UI)
  * Implements Manual selection, Custom (Automated) allocation preview, and payment details.
  * 
  * @param {boolean} show - Control modal visibility
@@ -16,7 +16,7 @@ import { Search, Receipt, Calculator, X, CheckCircle, CreditCard, ListChecks, Wa
  * @param {string} patientName - Optional pre-selected patient name
  * @param {string} patientCode - Optional user-facing patient code
  */
-const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, patientCode }) => {
+const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientCode }) => {
   const { toast } = useToast();
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -29,7 +29,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [error, setError] = useState(null);
 
-  // Reconciliation Logic State
+  // Settlement Logic State
   const [strategy, setStrategy] = useState('automated'); // 'automated' | 'manual'
   const [paymentAmount, setPaymentAmount] = useState('');
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
@@ -44,7 +44,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
     try {
       const token = localStorage.getItem("token");
       /* 
-      // API TODO: Implement patient list fetching for reconciliation
+      // API TODO: Implement patient list fetching for settlement
       const response = await axios.get(`${apiUrl}/patient`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -52,7 +52,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
       */
 
       // Placeholder logic for now
-      console.log("Reconciliation: Fetching patients placeholder");
+      console.log("Settlement: Fetching patients placeholder");
       setPatients([]);
     } catch (err) {
       console.error("Error fetching patients:", err);
@@ -78,7 +78,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
       */
 
       // Placeholder logic for now
-      console.log(`Reconciliation: Fetching due invoices for patient ${patientId}`);
+      console.log(`Settlement: Fetching due invoices for patient ${patientId}`);
       setDueInvoices([]);
     } catch (err) {
       console.error("Error fetching due invoices:", err);
@@ -196,21 +196,21 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
         invoice_ids: strategy === 'manual' ? selectedInvoiceIds : []
       };
 
-      console.log("Submitting Reconciliation:", payload);
+      console.log("Submitting Settlement:", payload);
 
       /*
-      // API TODO: POST /reconciliations
-      await axios.post(`${apiUrl}/reconciliations`, payload, {
+      // API TODO: POST /settlements
+      await axios.post(`${apiUrl}/settlements`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success("Reconciliation processed successfully");
+      toast.success("Settlement processed successfully");
       onHide();
       */
 
-      toast.info("API placeholder: Processing reconciliation...");
+      toast.info("API placeholder: Processing settlement...");
     } catch (err) {
-      console.error("Error processing reconciliation:", err);
-      toast.error(err.response?.data?.error || "Failed to process reconciliation");
+      console.error("Error processing settlement:", err);
+      toast.error(err.response?.data?.error || "Failed to process settlement");
     } finally {
       setIsSubmitting(false);
     }
@@ -228,12 +228,12 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
       size="lg"
       centered
       backdrop="static"
-      className="reconciliation-modal"
+      className="settlement-modal"
     >
       <Modal.Header closeButton className="bg-light">
         <Modal.Title className="d-flex align-items-center gap-2">
           <Calculator className="text-primary" />
-          <span>Patient Bill Reconciliation</span>
+          <span>Patient Bill Settlement</span>
         </Modal.Title>
       </Modal.Header>
 
@@ -241,7 +241,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
         <Form>
           {/* Patient Selection Section - Only show if no initial patient */}
           {!initialPatientId ? (
-            <div className="reconciliation-section mb-4 p-3 border rounded bg-white shadow-sm">
+            <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
               <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                 <Search size={18} />
                 1. Select Patient
@@ -278,7 +278,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
           {selectedPatient && (
             <>
               {/* Strategy Selection */}
-              <div className="reconciliation-section mb-4 p-3 border rounded bg-white shadow-sm">
+              <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
                 <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                   <ListChecks size={18} />
                   2. Choose Strategy
@@ -318,7 +318,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
               </div>
 
               {/* Invoices List */}
-              <div className="reconciliation-section mb-4 p-3 border rounded bg-white shadow-sm">
+              <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
                 <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                   <Receipt size={18} />
                   3. Due Invoices
@@ -393,7 +393,7 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
               </div>
 
               {/* Payment Details */}
-              <div className="reconciliation-section mb-4 p-3 border rounded bg-white shadow-sm">
+              <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
                 <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                   <CreditCard size={18} />
                   4. Payment Details
@@ -473,11 +473,11 @@ const ReconciliationModal = ({ show, onHide, initialPatientId, patientName, pati
           disabled={!selectedPatient || dueInvoices.length === 0 || !paymentAmount || isSubmitting}
           onClick={handleSubmit}
         >
-          {isSubmitting ? "Processing..." : "Confirm Reconciliation"}
+          {isSubmitting ? "Processing..." : "Confirm Settlement"}
         </Button>
       </Modal.Footer>
     </Modal>
   );
 };
 
-export default ReconciliationModal;
+export default SettlementModal;
