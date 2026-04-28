@@ -26,7 +26,7 @@ import {
   User,
   Receipt,
 } from "lucide-react";
-import ReconciliationModal from "../../components/reconciliation/ReconciliationModal";
+import SettlementModal from "../../components/settlement/SettlementModal";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import useLabPrefix from "../../hooks/useLabPrefix";
@@ -43,7 +43,7 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -99,8 +99,8 @@ const AdminDashboard = () => {
     },
     {
       icon: <Receipt size={20} />,
-      label: 'Reconciliation',
-      onClick: () => setShowReconciliationModal(true),
+      label: 'Settlement',
+      onClick: () => setShowSettlementModal(true),
     },
   ];
   useEffect(() => {
@@ -292,9 +292,9 @@ const AdminDashboard = () => {
       ) : null}
     </Container>
 
-      <ReconciliationModal
-        show={showReconciliationModal}
-        onHide={() => setShowReconciliationModal(false)}
+      <SettlementModal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
       />
     </>
   );
