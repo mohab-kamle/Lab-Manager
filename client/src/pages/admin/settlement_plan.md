@@ -1,17 +1,17 @@
-# Implementation Plan: Patient Reconciliation Bills
+# Implementation Plan: Patient Settlement Bills
 
-This plan covers the frontend implementation of the Reconciliation feature for Admin and Receptionist roles.
+This plan covers the frontend implementation of the Settlement feature for Admin and Receptionist roles.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> The "Custom Reconciliation" logic uses an automated allocation strategy (FIFO - First In, First Out). If "Nearest" implies a different sorting (e.g., matching amounts), please clarify.
+> The "Custom Settlement" logic uses an automated allocation strategy (FIFO - First In, First Out). If "Nearest" implies a different sorting (e.g., matching amounts), please clarify.
 
 ---
 
 ## Proposed Changes
 
-### 1. New Component: `ReconciliationModal`
+### 1. New Component: `SettlementModal`
 A comprehensive form/modal for processing payments.
 
 - **Patient Search**: If opened from Dashboard, includes a searchable patient dropdown (similar to Invoice creation).
@@ -25,10 +25,10 @@ A comprehensive form/modal for processing payments.
 ### 2. Patient Profile Update
 **File**: `PatientProfileAdminView.jsx`
 
-- **Reconciliation Card**:
+- **Settlement Card**:
     - Add a new card in the profile grid.
     - Display "Current Outstanding Balance".
-    - Action Buttons: "Process Reconciliation" (opens modal with patient pre-selected).
+    - Action Buttons: "Process Settlement" (opens modal with patient pre-selected).
 - **Invoices Table Enhancement**:
     - Add a "Pay" or "Reconcile" button directly on each row in the existing invoices list (or placeholder section).
 
@@ -36,26 +36,26 @@ A comprehensive form/modal for processing payments.
 **Files**: `AdminDashboard.jsx`, `ReceptionistDashboard.jsx`
 
 - **Quick Actions**:
-    - Add a "Reconciliation" button to the main dashboard cards or toolbar.
-    - Clicking this opens the `ReconciliationModal` in its empty/search state.
+    - Add a "Settlement" button to the main dashboard cards or toolbar.
+    - Clicking this opens the `SettlementModal` in its empty/search state.
 
 ---
 
 ## Task Breakdown
 
 ### Phase 1: Foundation
-- [ ] Create `ReconciliationModal.jsx` component.
+- [ ] Create `SettlementModal.jsx` component.
 - [ ] Implement patient search/selection logic.
 - [ ] Implement invoice fetching for the selected patient.
 
-### Phase 2: Reconciliation Logic (UI)
+### Phase 2: Settlement Logic (UI)
 - [ ] Implement "Manual Selection" logic (summing selected invoices).
 - [ ] Implement "Custom Amount" logic (automated distribution preview).
 - [ ] Add validation to prevent paying more than the total due.
 
 ### Phase 3: Profile Integration
-- [ ] Add the Reconciliation Card to `PatientProfileAdminView.jsx`.
-- [ ] Connect the card buttons to the `ReconciliationModal`.
+- [ ] Add the Settlement Card to `PatientProfileAdminView.jsx`.
+- [ ] Connect the card buttons to the `SettlementModal`.
 
 ### Phase 4: Dashboard Integration
 - [ ] Add the entry point to `AdminDashboard.jsx`.
@@ -66,7 +66,7 @@ A comprehensive form/modal for processing payments.
 ## Verification Plan
 
 ### Manual Verification
-1. **From Profile**: Open reconciliation, enter an amount, verify it distributes to the oldest invoices first in the preview.
+1. **From Profile**: Open settlement, enter an amount, verify it distributes to the oldest invoices first in the preview.
 2. **From Dashboard**: Search for a patient, verify their due invoices load correctly.
 3. **Validation**: Try to enter an amount greater than the total due and verify the "Can't pay more than total due" error appears.
 4. **Role Check**: Ensure only Admin and Receptionist can see these buttons.
