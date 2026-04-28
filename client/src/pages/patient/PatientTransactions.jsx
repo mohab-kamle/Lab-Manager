@@ -22,50 +22,6 @@ import { useToast } from '../../components/ui/ToastContext';
 /**
  * PatientTransactions component to display personal financial history for patients.
  */
-// MOCK DATA for patient financial history
-const MOCK_PATIENT_TRANSACTIONS = [
-  {
-    transactionId: "TXN-10001",
-    date: "2024-04-28T14:30:00Z",
-    amount: 1250.00,
-    processType: "Payment",
-    paidWith: "Visa",
-    branchName: "Maadi Main Branch",
-    summary: "CBC, Liver Profile, Lipid Profile",
-    invoiceId: "INV-5001"
-  },
-  {
-    transactionId: "TXN-10004",
-    date: "2024-04-27T11:20:00Z",
-    amount: 750.00,
-    processType: "Due Settlement",
-    paidWith: "Wallet",
-    branchName: "Maadi Main Branch",
-    summary: "Settlement for INV-9902",
-    invoiceId: "INV-9902"
-  },
-  {
-    transactionId: "TXN-10002",
-    date: "2024-04-25T15:45:00Z",
-    amount: 300.00,
-    processType: "Refund",
-    paidWith: "Cash",
-    branchName: "Maadi Main Branch",
-    summary: "Refund for Vitamin D (Cancelled)",
-    invoiceId: "INV-4998"
-  },
-  {
-    transactionId: "TXN-10009",
-    date: "2024-04-20T10:00:00Z",
-    amount: 2500.00,
-    processType: "Due",
-    paidWith: "N/A",
-    branchName: "Dokki Branch",
-    summary: "MRI Scan - Lumbar Spine",
-    invoiceId: "INV-4882"
-  }
-];
-
 const PatientTransactions = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -77,25 +33,16 @@ const PatientTransactions = () => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        /*
-        // REAL API CALL - Commented out for development
+        // Fetch transactions from the real API
         const response = await api.get('/patient/transactions');
         setTransactions(response.data || []);
-        */
-
-        // Using MOCK DATA for testing
-        setTimeout(() => {
-          setTransactions(MOCK_PATIENT_TRANSACTIONS);
-          setLoading(false);
-        }, 800);
-
       } catch (error) {
         console.error('Error fetching transactions:', error);
         // For development, we might fallback to empty or mock if backend isn't ready
         setTransactions([]);
         toast.error('Failed to load transaction history');
       } finally {
-        // setLoading(false); // Handled in setTimeout above
+        setLoading(false);
       }
     };
 

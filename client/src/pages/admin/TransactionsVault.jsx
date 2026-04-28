@@ -9,95 +9,6 @@ import { formatDateForInput } from '../../utils/dateFormatter';
 import { useToast } from '../../components/ui/ToastContext';
 import { useNavigate } from 'react-router-dom';
 
-// MOCK DATA for development/testing
-const MOCK_TRANSACTIONS = [
-  {
-    transactionId: "TXN-10001",
-    date: "2024-04-28T14:30:00Z",
-    amount: 1250.00,
-    processType: "Payment",
-    paidWith: "Visa",
-    processedBy: { id: "EMP-01", name: "Ahmed Salem" },
-    patientId: "PAT-552",
-    branchName: "Maadi Main Branch",
-    summary: "CBC, Liver Profile, Lipid Profile"
-  },
-  {
-    transactionId: "TXN-10002",
-    date: "2024-04-28T15:45:00Z",
-    amount: 500.00,
-    processType: "Refund",
-    paidWith: "Cash",
-    processedBy: { id: "EMP-04", name: "Sarah Ahmed" },
-    patientId: "PAT-102",
-    branchName: "Maadi Main Branch",
-    summary: "Refund for Vitamin D (Cancelled)"
-  },
-  {
-    transactionId: "TXN-10003",
-    date: "2024-04-27T10:00:00Z",
-    amount: 3200.50,
-    processType: "Payment",
-    paidWith: "Insurance",
-    processedBy: { id: "EMP-01", name: "Ahmed Salem" },
-    patientId: "PAT-889",
-    branchName: "Dokki Branch",
-    summary: "Comprehensive Executive Health Check"
-  },
-  {
-    transactionId: "TXN-10004",
-    date: "2024-04-27T11:20:00Z",
-    amount: 750.00,
-    processType: "Due Settlement",
-    paidWith: "Wallet",
-    processedBy: { id: "EMP-04", name: "Sarah Ahmed" },
-    patientId: "PAT-552",
-    branchName: "Maadi Main Branch",
-    summary: "Settlement for INV-9902"
-  },
-  {
-    transactionId: "TXN-10005",
-    date: "2024-04-26T09:15:00Z",
-    amount: 450.00,
-    processType: "Payment",
-    paidWith: "Cash",
-    processedBy: { id: "EMP-09", name: "Mona Hassan" },
-    patientId: "PAT-231",
-    branchName: "Zamalek Branch",
-    summary: "Glucose Fasting, HbA1c"
-  },
-  {
-    transactionId: "TXN-10006",
-    date: "2024-04-26T16:40:00Z",
-    amount: 150.00,
-    processType: "Credit",
-    paidWith: "Wallet",
-    processedBy: { id: "EMP-01", name: "Ahmed Salem" },
-    patientId: "PAT-404",
-    branchName: "Dokki Branch",
-    summary: "Overpayment credit"
-  }
-];
-
-const MOCK_BRANCHES = [
-  { id: 1, name: "Maadi Main Branch" },
-  { id: 2, name: "Dokki Branch" },
-  { id: 3, name: "Zamalek Branch" }
-];
-
-const MOCK_EMPLOYEES = [
-  { id: "EMP-01", name: "Ahmed Salem" },
-  { id: "EMP-04", name: "Sarah Ahmed" },
-  { id: "EMP-09", name: "Mona Hassan" }
-];
-
-const MOCK_PAYMENT_METHODS = [
-  { id: 1, name: "Visa" },
-  { id: 2, name: "Cash" },
-  { id: 3, name: "Wallet" },
-  { id: 4, name: "Insurance" }
-];
-
 const TransactionsVault = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -128,8 +39,6 @@ const TransactionsVault = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      /* 
-      // REAL API CALLS - Commented out for development with test data
       const [transRes, branchRes, empRes, payRes] = await Promise.all([
         api.get('/admin/transactions'),
         api.get('/branches'),
@@ -141,23 +50,12 @@ const TransactionsVault = () => {
       setBranches(branchRes.data || []);
       setEmployees(empRes.data || []);
       setPaymentMethods(payRes.data || []);
-      */
-
-      // Using MOCK DATA for testing
-      setTimeout(() => {
-        setTransactions(MOCK_TRANSACTIONS);
-        setBranches(MOCK_BRANCHES);
-        setEmployees(MOCK_EMPLOYEES);
-        setPaymentMethods(MOCK_PAYMENT_METHODS);
-        setLoading(false);
-      }, 800);
-
     } catch (err) {
       console.error('Error fetching transactions:', err);
       setError('Failed to load transaction data.');
       toast.error('Failed to load transactions');
     } finally {
-      // setLoading(false); // Handled in setTimeout above
+      setLoading(false);
     }
   };
 
