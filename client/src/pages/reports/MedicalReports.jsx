@@ -115,7 +115,7 @@ const MedicalReports = () => {
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [selectedReportForPDF, setSelectedReportForPDF] = useState(null);
   // Loading states for various operations
-  
+
   // Comment-related state
   const [comments, setComments] = useState({
     testComments: [],
@@ -138,6 +138,9 @@ const MedicalReports = () => {
   const [savingResults, setSavingResults] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(null); // reportId for invoice loading
   // Loading states for various operations
+  const [expandedSections, setExpandedSections] = useState({});
+  const [antibioticSearch, setAntibioticSearch] = useState({});
+  const [showAddAntibioticModal, setShowAddAntibioticModal] = useState({});
   const [enteringResults, setEnteringResults] = useState(false);
   const [signingReport, setSigningReport] = useState(null); // reportId being signed
   // Patient data editing states
@@ -147,6 +150,8 @@ const MedicalReports = () => {
     birth_date: "",
   });
   const [isExtracting, setIsExtracting] = useState(false);
+  const [showImageDeleteConfirm, setShowImageDeleteConfirm] = useState(false);
+  const [pendingImageDeletion, setPendingImageDeletion] = useState(null);
   const fileInputRef = useRef(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -175,12 +180,12 @@ const MedicalReports = () => {
         prev.map((report) =>
           report.id === selectedReportForResults.id
             ? {
-                ...report,
-                patient: {
-                  ...report.patient,
-                  ...updatedData,
-                },
-              }
+              ...report,
+              patient: {
+                ...report.patient,
+                ...updatedData,
+              },
+            }
             : report
         )
       );
@@ -229,32 +234,54 @@ const MedicalReports = () => {
 
       const headers = { Authorization: `Bearer ${token}` };
       const response = await axios.get(`${apiUrl}/medical-reports/${reportId}/comments`, { headers });
-      
+
+      // Map test comments and their images
+      const testComments = (response.data.testComments || []).map(comment => ({
+        ...comment,
+        images: (comment.images || []).map(filename => ({
+          image_name: filename,
+          image_path: `/uploads/comment-images/${filename}`,
+          isExisting: true
+        }))
+      }));
+
       // Organize comments by test/group ID for UI consumption
+      const reportImages = (response.data.reportImages || []).map(img => ({
+        image_name: img,
+        image_path: `/uploads/comment-images/${img}`,
+        isExisting: true,
+        preview: null // No preview for existing images
+      }));
+
       const organizedComments = {
         test: {},
-        testComments: response.data.testComments,
-        reportImages: response.data.reportImages,
-        medicalReport: response.data.reportImages
+        testComments: testComments,
+        reportImages: reportImages,
+        medicalReport: reportImages
       };
-      
+
+      // Set initial values for input fields from existing data if needed
+      // (This avoids clearing the input images if they were already there, 
+      // but usually we want to clear them after successful save)
+
       // Group test comments by test_id
-      response.data.testComments.forEach(comment => {
+      testComments.forEach(comment => {
         if (!organizedComments.test[comment.test_id]) {
           organizedComments.test[comment.test_id] = [];
         }
         organizedComments.test[comment.test_id].push(comment);
       });
-      
+
       setComments(organizedComments);
-      
+
       // Initialize comment texts from existing comments (keep empty for new comments)
       const newCommentTexts = { tests: {} };
       setCommentTexts(newCommentTexts);
-      
+
       // Initialize comment images
-      const newCommentImages = { tests: {}, medicalReport: response.data.reportImages };
-      setCommentImages(newCommentImages);
+      const initialCommentImages = { test: {}, medicalReport: reportImages };
+
+      setCommentImages(initialCommentImages);
     } catch (error) {
       console.error("Error fetching comments:", error);
       toast.error("Failed to fetch comments");
@@ -267,23 +294,35 @@ const MedicalReports = () => {
       setSavingComments(prev => ({ ...prev, test: true }));
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const formData = new FormData();
+      formData.append('reportId', selectedReportForResults.id);
       formData.append('test_id', testId);
       formData.append('comment', comment);
-      
+
+      const existingImages = [];
       if (images && images.length > 0) {
         images.forEach(image => {
-          formData.append('images', image);
+          if (image.isExisting) {
+            existingImages.push(image.image_name);
+          } else {
+            const fileToUpload = image.file || image;
+            if (fileToUpload instanceof File) {
+              formData.append('images', fileToUpload);
+            }
+          }
         });
       }
-      
+
+      // Add existing images to keep
+      existingImages.forEach(img => formData.append('existingImages', img));
+
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/test-comments`,
         formData,
         { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
       );
-      
+
       toast.success("Test comment saved successfully");
       await fetchComments(selectedReportForResults.id);
     } catch (error) {
@@ -307,29 +346,45 @@ const MedicalReports = () => {
         ...prev,
         medicalReport: true
       }));
-      
+
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const formData = new FormData();
-      images.forEach(image => {
-        formData.append('images', image);
-      });
-      
+      formData.append('reportId', selectedReportForResults.id);
+      formData.append('commentType', 'medical_report');
+
+      const existingImages = [];
+      if (images && images.length > 0) {
+        images.forEach(image => {
+          if (image.isExisting) {
+            existingImages.push(image.image_name);
+          } else {
+            const fileToUpload = image.file || image;
+            if (fileToUpload instanceof File) {
+              formData.append('images', fileToUpload);
+            }
+          }
+        });
+      }
+
+      // Add existing images to keep
+      existingImages.forEach(img => formData.append('existingImages', img));
+
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/comment-images`,
         formData,
         { headers: { ...headers, 'Content-Type': 'multipart/form-data' } }
       );
-      
+
       toast.success("Medical report images saved successfully");
-      
+
       // Clear the uploaded images
       setCommentImages(prev => ({
         ...prev,
         medicalReport: []
       }));
-      
+
       await fetchComments(selectedReportForResults.id);
     } catch (error) {
       console.error("Error saving medical report images:", error);
@@ -347,9 +402,9 @@ const MedicalReports = () => {
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       await axios.delete(`${apiUrl}/medical-reports/test-comments/${commentId}`, { headers });
-      
+
       toast.success("Test comment deleted successfully");
       await fetchComments(selectedReportForResults.id);
     } catch (error) {
@@ -358,6 +413,68 @@ const MedicalReports = () => {
     }
   };
 
+
+  // Handle image changes with deletion confirmation
+  const handleImageChange = (type, newImages, id = null) => {
+    const oldImages = type === 'medicalReport'
+      ? commentImages.medicalReport
+      : (commentImages.test[id] || []);
+
+    // Check if an image was removed
+    if (newImages.length < oldImages.length) {
+      const removedImage = oldImages.find(oldImg => {
+        // If it's a new image, it has a 'preview' property
+        if (oldImg.preview) {
+          return !newImages.some(newImg => newImg.preview === oldImg.preview);
+        }
+        // If it's an existing image, it has 'image_name'
+        return !newImages.some(newImg => newImg.image_name === oldImg.image_name);
+      });
+
+      if (removedImage && removedImage.isExisting) {
+        // Intercept deletion of existing image
+        setPendingImageDeletion({ type, id, newImages, removedImage });
+        setShowImageDeleteConfirm(true);
+        return;
+      }
+    }
+
+    // If it's an addition or a deletion of a new image, update state immediately
+    updateImageState(type, newImages, id);
+  };
+
+  const updateImageState = (type, images, id = null) => {
+    setCommentImages(prev => {
+      if (type === 'medicalReport') {
+        return { ...prev, medicalReport: images };
+      } else {
+        return {
+          ...prev,
+          test: {
+            ...prev.test,
+            [id]: images
+          }
+        };
+      }
+    });
+  };
+
+  const confirmImageDeletion = () => {
+    if (pendingImageDeletion) {
+      updateImageState(
+        pendingImageDeletion.type,
+        pendingImageDeletion.newImages,
+        pendingImageDeletion.id
+      );
+    }
+    setShowImageDeleteConfirm(false);
+    setPendingImageDeletion(null);
+  };
+
+  const cancelImageDeletion = () => {
+    setShowImageDeleteConfirm(false);
+    setPendingImageDeletion(null);
+  };
 
   // Toggle comment section expansion
   const toggleCommentExpansion = (type, id) => {
@@ -393,7 +510,7 @@ const MedicalReports = () => {
         }),
       }));
     }
-     
+
   }, [selectedReportForResults]);
 
   const getStatusBadge = (report) => {
@@ -455,19 +572,19 @@ const MedicalReports = () => {
 
       const updateData = isSigning
         ? {
-            done: 1,
-            pending: 0,
-            signatory_name: user.name,
-            date: new Date().toISOString(),
-          }
+          done: 1,
+          pending: 0,
+          signatory_name: user.name,
+          date: new Date().toISOString(),
+        }
         : {
-            done: 0,
-            pending: 1,
-            signatory_name: null,
-            signatory_id: null,
-            signatory_admin_id: null,
-            reported_at: null,
-          };
+          done: 0,
+          pending: 1,
+          signatory_name: null,
+          signatory_id: null,
+          signatory_admin_id: null,
+          reported_at: null,
+        };
 
       if (isSigning) {
         // Set the appropriate signatory ID based on user role
@@ -634,9 +751,9 @@ const MedicalReports = () => {
         prevReports.map((r) =>
           r.id === report.id
             ? {
-                ...r,
-                collected_at: isCollecting ? new Date().toISOString() : null,
-              }
+              ...r,
+              collected_at: isCollecting ? new Date().toISOString() : null,
+            }
             : r
         )
       );
@@ -714,6 +831,7 @@ const MedicalReports = () => {
       // Re-map the patient correctly from the entry-form response
       const reportForState = {
         ...fullReport,
+        id: rowData.id, // Ensure id is always present for consistent API calls
         date: rowData.date, // keep original date from table
         patient: fullReport.patient,
         tests: tests // use the tests array with structure_config attached
@@ -759,7 +877,7 @@ const MedicalReports = () => {
           // Format the results object as { [parameter_key]: result_value }
           const formattedResults = {};
           let hasResults = false;
-          
+
           Object.entries(components).forEach(([key, data]) => {
             if (data && data.result !== undefined && data.result !== null && data.result !== '') {
               formattedResults[key] = data.result;
@@ -774,13 +892,13 @@ const MedicalReports = () => {
       );
 
       // Show loading state
-      toast.loading("Saving results...");
+      const toastId = toast.loading("Saving results...");
 
       try {
         // Execute sequentially to avoid MySQL deadlocks from concurrent transaction gap locks
         for (const req of saveRequests) {
           await axios.post(
-            `${apiUrl}/medical-reports/${selectedReportForResults.report_id || selectedReportForResults.id}/results`,
+            `${apiUrl}/medical-reports/${selectedReportForResults.id}/results`,
             { test_id: req.testId, results: req.formattedResults },
             { headers }
           );
@@ -799,7 +917,7 @@ const MedicalReports = () => {
         // Refresh the reports list
         await fetchData();
 
-        toast.update({
+        toast.update(toastId, {
           render: "Results saved successfully",
           type: "success",
           isLoading: false,
@@ -807,7 +925,7 @@ const MedicalReports = () => {
         });
       } catch (error) {
         console.error("Error saving results:", error);
-        toast.update({
+        toast.update(toastId, {
           render:
             error.response?.data?.message ||
             "Failed to save results. Please try again.",
@@ -829,17 +947,21 @@ const MedicalReports = () => {
 
     try {
       setIsExtracting(true);
-      toast.loading("AI is scanning and extracting data...");
-      
+      const toastId = toast.loading("AI is scanning and extracting data...");
+
       // Get expected parameters to help the AI map correctly
-      const expectedKeys = selectedReportForResults.tests.flatMap(test => 
+      const expectedKeys = selectedReportForResults.tests.flatMap(test =>
         (test.structure_config || []).map(p => p.label || p.name || p.key)
       );
 
       const extractedData = await extractFromImage(file, expectedKeys);
-      
+
       if (!extractedData || Object.keys(extractedData).length === 0) {
-        toast.warning("No data could be extracted from this image.");
+        toast.update(toastId, {
+          render: "No data could be extracted from this image.",
+          type: "warning",
+          autoClose: 5000
+        });
         return;
       }
 
@@ -849,9 +971,9 @@ const MedicalReports = () => {
       // Map AI data to existing report structure
       selectedReportForResults.tests.forEach(test => {
         if (!newComponentResults[test.id]) newComponentResults[test.id] = {};
-        
+
         const structureConfig = test.structure_config || [];
-        
+
         Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
           if (aiValue === null || aiValue === undefined) return;
 
@@ -864,12 +986,12 @@ const MedicalReports = () => {
             const normKey = normalize(p.key);
             const normName = normalize(p.name);
             const normLabel = normalize(p.label);
-            
-            return normKey === normalizedAiKey || 
-                   normName === normalizedAiKey || 
-                   normLabel === normalizedAiKey ||
-                   // Allow partial matches for better resilience (e.g., "glucose" matching "glucose_fasting")
-                   (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
+
+            return normKey === normalizedAiKey ||
+              normName === normalizedAiKey ||
+              normLabel === normalizedAiKey ||
+              // Allow partial matches for better resilience (e.g., "glucose" matching "glucose_fasting")
+              (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
           });
 
           if (param) {
@@ -889,13 +1011,25 @@ const MedicalReports = () => {
       }));
 
       if (matchCount > 0) {
-        toast.success(`Successfully extracted ${matchCount} test results!`);
+        toast.update(toastId, {
+          render: `Successfully extracted ${matchCount} test results!`,
+          type: "success",
+          autoClose: 5000
+        });
       } else {
-        toast.warning("AI finished scanning but couldn't find matches for the tests in this report.");
+        toast.update(toastId, {
+          render: "AI finished scanning but couldn't find matches for the tests in this report.",
+          type: "warning",
+          autoClose: 5000
+        });
       }
     } catch (error) {
       console.error("AI Extraction failed:", error);
+      // We can't use toastId here if it failed before toastId was assigned, 
+      // but toast.loading is synchronous so it's fine.
       toast.error(error.message || "Failed to extract data from image");
+      // Actually, if we use toast.error, the loading toast will stay.
+      // Better to use update if we have the id.
     } finally {
       setIsExtracting(false);
     }
@@ -974,10 +1108,10 @@ const MedicalReports = () => {
   const filteredReports = reports.filter((report) => {
     const searchMatch = searchQuery
       ? report.comment?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.patient?.name
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
+      report.patient?.name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
 
     const dateMatch =
@@ -1392,8 +1526,8 @@ const MedicalReports = () => {
                           formData.done
                             ? "done"
                             : formData.pending
-                            ? "pending"
-                            : "unsigned"
+                              ? "pending"
+                              : "unsigned"
                         }
                         onChange={(e) => {
                           const status = e.target.value;
@@ -1761,11 +1895,10 @@ const MedicalReports = () => {
                           <strong>Gender:</strong>
                           {!editingPatientData ? (
                             <span
-                              className={`ms-2 ${
-                                !selectedReportForResults?.patient?.gender
+                              className={`ms-2 ${!selectedReportForResults?.patient?.gender
                                   ? "text-muted fst-italic"
                                   : ""
-                              }`}
+                                }`}
                             >
                               {selectedReportForResults?.patient?.gender ||
                                 "Not specified"}
@@ -1793,16 +1926,15 @@ const MedicalReports = () => {
                           <strong>Birth Date:</strong>
                           {!editingPatientData ? (
                             <span
-                              className={`ms-2 ${
-                                !selectedReportForResults?.patient?.birth_date
+                              className={`ms-2 ${!selectedReportForResults?.patient?.birth_date
                                   ? "text-muted fst-italic"
                                   : ""
-                              }`}
+                                }`}
                             >
                               {selectedReportForResults?.patient?.birth_date
                                 ? formatDate(
-                                    selectedReportForResults.patient.birth_date
-                                  )
+                                  selectedReportForResults.patient.birth_date
+                                )
                                 : "Not specified"}
                             </span>
                           ) : (
@@ -1826,8 +1958,8 @@ const MedicalReports = () => {
                           <span className="ms-2">
                             {selectedReportForResults?.patient?.birth_date
                               ? `${calculateAge(
-                                  selectedReportForResults.patient.birth_date
-                                )} years`
+                                selectedReportForResults.patient.birth_date
+                              )} years`
                               : "Unknown"}
                           </span>
                         </div>
@@ -1837,21 +1969,21 @@ const MedicalReports = () => {
                     {/* Show filtering status */}
                     {(!selectedReportForResults?.patient?.gender ||
                       !selectedReportForResults?.patient?.birth_date) && (
-                      <Alert variant="info" className="mt-2 mb-0">
-                        <small>
-                          <strong>Note:</strong>
-                          {!selectedReportForResults?.patient?.gender &&
-                          !selectedReportForResults?.patient?.birth_date
-                            ? " Both gender and birth date are missing. Showing all test components."
-                            : !selectedReportForResults?.patient?.gender
-                            ? " Gender is missing. Showing components for all genders."
-                            : " Birth date is missing. Showing components for all ages."}
-                          {
-                            ' You can update this information using the "Edit Patient Data" button above.'
-                          }
-                        </small>
-                      </Alert>
-                    )}
+                        <Alert variant="info" className="mt-2 mb-0">
+                          <small>
+                            <strong>Note:</strong>
+                            {!selectedReportForResults?.patient?.gender &&
+                              !selectedReportForResults?.patient?.birth_date
+                              ? " Both gender and birth date are missing. Showing all test components."
+                              : !selectedReportForResults?.patient?.gender
+                                ? " Gender is missing. Showing components for all genders."
+                                : " Birth date is missing. Showing components for all ages."}
+                            {
+                              ' You can update this information using the "Edit Patient Data" button above.'
+                            }
+                          </small>
+                        </Alert>
+                      )}
                   </div>
 
                   <div className="scrollable-tabs">
@@ -1881,54 +2013,54 @@ const MedicalReports = () => {
                                   let applicableComponents = [];
 
                                   if (!hasStructureConfig) {
-                                      if (
-                                        !patientGender &&
-                                        !selectedReportForResults.patient
-                                          ?.birth_date
-                                      ) {
-                                        // Both gender and birth date missing - show all components
-                                        applicableComponents = comps;
-                                      } else if (!patientGender) {
-                                        // Only gender missing - filter by age but show all genders
-                                        applicableComponents = comps.filter(
-                                          (tc) => {
-                                            const ageMatch =
-                                              (tc.age_start == null ||
-                                                patientAge >= tc.age_start) &&
-                                              (tc.age_end == null ||
-                                                patientAge <= tc.age_end);
-                                            return ageMatch;
-                                          }
-                                        );
-                                      } else if (
-                                        !selectedReportForResults.patient
-                                          ?.birth_date
-                                      ) {
-                                        // Only birth date missing - filter by gender but show all ages
-                                        applicableComponents = comps.filter(
-                                          (tc) => {
-                                            const genderMatch =
-                                              !tc.gender ||
-                                              tc.gender === patientGender;
-                                            return genderMatch;
-                                          }
-                                        );
-                                      } else {
-                                        // Both available - filter by both gender and age
-                                        applicableComponents = comps.filter(
-                                          (tc) => {
-                                            const genderMatch =
-                                              !tc.gender ||
-                                              tc.gender === patientGender;
-                                            const ageMatch =
-                                              (tc.age_start == null ||
-                                                patientAge >= tc.age_start) &&
-                                              (tc.age_end == null ||
-                                                patientAge <= tc.age_end);
-                                            return genderMatch && ageMatch;
-                                          }
-                                        );
-                                      }
+                                    if (
+                                      !patientGender &&
+                                      !selectedReportForResults.patient
+                                        ?.birth_date
+                                    ) {
+                                      // Both gender and birth date missing - show all components
+                                      applicableComponents = comps;
+                                    } else if (!patientGender) {
+                                      // Only gender missing - filter by age but show all genders
+                                      applicableComponents = comps.filter(
+                                        (tc) => {
+                                          const ageMatch =
+                                            (tc.age_start == null ||
+                                              patientAge >= tc.age_start) &&
+                                            (tc.age_end == null ||
+                                              patientAge <= tc.age_end);
+                                          return ageMatch;
+                                        }
+                                      );
+                                    } else if (
+                                      !selectedReportForResults.patient
+                                        ?.birth_date
+                                    ) {
+                                      // Only birth date missing - filter by gender but show all ages
+                                      applicableComponents = comps.filter(
+                                        (tc) => {
+                                          const genderMatch =
+                                            !tc.gender ||
+                                            tc.gender === patientGender;
+                                          return genderMatch;
+                                        }
+                                      );
+                                    } else {
+                                      // Both available - filter by both gender and age
+                                      applicableComponents = comps.filter(
+                                        (tc) => {
+                                          const genderMatch =
+                                            !tc.gender ||
+                                            tc.gender === patientGender;
+                                          const ageMatch =
+                                            (tc.age_start == null ||
+                                              patientAge >= tc.age_start) &&
+                                            (tc.age_end == null ||
+                                              patientAge <= tc.age_end);
+                                          return genderMatch && ageMatch;
+                                        }
+                                      );
+                                    }
                                   }
 
                                   return (
@@ -1943,9 +2075,9 @@ const MedicalReports = () => {
                                           <DynamicResultForm
                                             structureConfig={test.structure_config}
                                             patientInfo={{
-                                                gender: patientGender,
-                                                age: patientAge,
-                                                age_unit: "years"
+                                              gender: patientGender,
+                                              age: patientAge,
+                                              age_unit: "years"
                                             }}
                                             antibioticsList={antibiotics}
                                             value={Object.entries(
@@ -1976,7 +2108,7 @@ const MedicalReports = () => {
                                               const componentResult =
                                                 resultsData
                                                   .test_component_results[
-                                                  test.id
+                                                test.id
                                                 ]?.[component.id];
 
                                               // Helper function to format age range
@@ -2003,8 +2135,8 @@ const MedicalReports = () => {
                                                 return gender === "m"
                                                   ? "Male"
                                                   : gender === "f"
-                                                  ? "Female"
-                                                  : gender;
+                                                    ? "Female"
+                                                    : gender;
                                               };
 
                                               return (
@@ -2022,33 +2154,33 @@ const MedicalReports = () => {
                                                         !selectedReportForResults
                                                           .patient
                                                           ?.birth_date) && (
-                                                        <div className="mt-1">
-                                                          <small className="text-info d-block">
-                                                            <i className="fas fa-info-circle me-1"></i>
-                                                            {formatGender(
-                                                              component.gender
-                                                            )}
-                                                          </small>
-                                                          <small className="text-info d-block">
-                                                            <i className="fas fa-calendar me-1"></i>
-                                                            {formatAgeRange(
-                                                              component.age_start,
-                                                              component.age_end
-                                                            )}
-                                                          </small>
-                                                        </div>
-                                                      )}
+                                                          <div className="mt-1">
+                                                            <small className="text-info d-block">
+                                                              <i className="fas fa-info-circle me-1"></i>
+                                                              {formatGender(
+                                                                component.gender
+                                                              )}
+                                                            </small>
+                                                            <small className="text-info d-block">
+                                                              <i className="fas fa-calendar me-1"></i>
+                                                              {formatAgeRange(
+                                                                component.age_start,
+                                                                component.age_end
+                                                              )}
+                                                            </small>
+                                                          </div>
+                                                        )}
                                                     </div>
                                                   </Col>
                                                   <Col md={2}>
                                                     <small className="text-muted">
                                                       {component.normal_from !==
                                                         null &&
-                                                      component.normal_to !==
+                                                        component.normal_to !==
                                                         null
                                                         ? `${component.normal_from} - ${component.normal_to}`
                                                         : component.reference_range ||
-                                                          "N/A"}
+                                                        "N/A"}
                                                     </small>
                                                   </Col>
                                                   <Col md={2}>
@@ -2060,13 +2192,13 @@ const MedicalReports = () => {
                                                     <Form.Control
                                                       type={
                                                         component.result_type ===
-                                                        "text"
+                                                          "text"
                                                           ? "text"
                                                           : "number"
                                                       }
                                                       step={
                                                         component.result_type ===
-                                                        "number"
+                                                          "number"
                                                           ? "0.01"
                                                           : undefined
                                                       }
@@ -2088,7 +2220,7 @@ const MedicalReports = () => {
                                                     <Badge
                                                       bg={getStatusBadgeColor(
                                                         componentResult?.status ||
-                                                          "pending"
+                                                        "pending"
                                                       )}
                                                     >
                                                       {componentResult?.status ||
@@ -2198,7 +2330,7 @@ const MedicalReports = () => {
                                                             {comment.images.map((image, idx) => (
                                                               <SecureImage
                                                                 key={idx}
-                                                                src={`/uploads/comment-images/${image}`}
+                                                                src={`/uploads/comment-images/${image.image_name}`}
                                                                 alt={`Comment image ${idx + 1}`}
                                                                 className="img-thumbnail"
                                                                 style={{ width: '80px', height: '80px', objectFit: 'cover' }}
@@ -2239,15 +2371,7 @@ const MedicalReports = () => {
                                                   <Form.Label>Upload Images (Max 3)</Form.Label>
                                                   <ImageUpload
                                                     images={commentImages.test?.[test.id] || []}
-                                                    onImagesChange={(images) => {
-                                                      setCommentImages(prev => ({
-                                                        ...prev,
-                                                        test: {
-                                                          ...prev.test,
-                                                          [test.id]: images
-                                                        }
-                                                      }));
-                                                    }}
+                                                    onImagesChange={(images) => handleImageChange('test', images, test.id)}
                                                     maxImages={3}
                                                   />
                                                 </Form.Group>
@@ -2294,39 +2418,13 @@ const MedicalReports = () => {
                               </h5>
                             </div>
                             <div className="card-body">
-                              {/* Existing Images Display */}
-                              {comments.medicalReport && comments.medicalReport.length > 0 && (
-                                <div className="mb-4">
-                                  <h6 className="text-muted mb-3">Current Images:</h6>
-                                  <div className="d-flex flex-wrap gap-2">
-                                    {comments.medicalReport.map((image, idx) => (
-                                      <div key={idx} className="position-relative">
-                                        <SecureImage
-                                          src={`/uploads/comment-images/${image}`}
-                                          alt={`Medical report image ${idx + 1}`}
-                                          className="img-thumbnail"
-                                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
-                                          title={`Medical report image ${idx + 1}`}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Upload New Images */}
-                              <div className="border-top pt-3">
-                                <h6 className="text-muted mb-3">Upload New Images:</h6>
+                              {/* Unified Image Management */}
+                              <div>
+                                <h6 className="text-muted mb-3">Manage Images (Max 10):</h6>
                                 <Form.Group className="mb-3">
-                                  <Form.Label>Select Images (Max 10)</Form.Label>
                                   <ImageUpload
                                     images={commentImages.medicalReport || []}
-                                    onImagesChange={(images) => {
-                                      setCommentImages(prev => ({
-                                        ...prev,
-                                        medicalReport: images
-                                      }));
-                                    }}
+                                    onImagesChange={(images) => handleImageChange('medicalReport', images)}
                                     maxImages={10}
                                   />
                                 </Form.Group>
@@ -2334,17 +2432,17 @@ const MedicalReports = () => {
                                 <Button
                                   variant="primary"
                                   onClick={() => saveMedicalReportImages(commentImages.medicalReport || [])}
-                                  disabled={savingComments.medicalReport || !commentImages.medicalReport || commentImages.medicalReport.length === 0}
+                                  disabled={savingComments.medicalReport}
                                 >
                                   {savingComments.medicalReport ? (
                                     <>
                                       <Spinner animation="border" size="sm" className="me-2" />
-                                      Uploading...
+                                      Saving Changes...
                                     </>
                                   ) : (
                                     <>
-                                      <i className="fas fa-upload me-2"></i>
-                                      Upload Images
+                                      <i className="fas fa-save me-2"></i>
+                                      Save Changes
                                     </>
                                   )}
                                 </Button>
@@ -2436,7 +2534,45 @@ const MedicalReports = () => {
             </Modal.Footer>
           </Modal>
 
-
+          {/* Image Deletion Confirmation Modal */}
+          <Modal
+            show={showImageDeleteConfirm}
+            onHide={cancelImageDeletion}
+            centered
+            size="sm"
+            contentClassName="border-0 shadow"
+          >
+            <Modal.Header closeButton className="bg-white border-0 pb-0 text-dark">
+              <Modal.Title className="h5 fw-bold text-danger">Confirm Deletion</Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="text-center pt-2">
+              <div className="mb-3">
+                <i className="fas fa-exclamation-triangle text-warning fa-3x"></i>
+              </div>
+              <p className="mb-0 text-dark">Are you sure you want to delete this image? This action cannot be undone once saved.</p>
+              {pendingImageDeletion?.removedImage && (
+                <div className="mt-3 p-2 bg-light rounded border">
+                  <SecureImage
+                    src={pendingImageDeletion.removedImage.image_path}
+                    alt="Pending deletion"
+                    style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                    className="rounded"
+                  />
+                  <div className="small text-muted mt-1 text-truncate">
+                    {pendingImageDeletion.removedImage.image_name}
+                  </div>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer className="border-0 pt-0">
+              <Button variant="light" onClick={cancelImageDeletion} className="fw-medium">
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={confirmImageDeletion} className="fw-medium shadow-sm">
+                Delete Image
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </>
       )}
     </Container>
