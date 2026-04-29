@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle, Wallet2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle, Wallet2, History, RotateCcw } from "lucide-react";
 import SettlementModal from "../../components/settlement/SettlementModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -15,6 +15,8 @@ import '../../styles/select.css';
 import { useToast } from '../../components/ui/ToastContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PhoneInput from '../../components/ui/PhoneInput';
+import RefundModal from "../../components/invoices/RefundModal";
+import InvoiceHistoryDrawer from "../../components/invoices/InvoiceHistoryDrawer";
 
 const Invoices = () => {
   const { toast } = useToast();
@@ -23,6 +25,12 @@ const Invoices = () => {
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [discountPercentage, setDiscountPercentage] = useState(0);
+
+  // Refund and History states
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedInvoiceForRefund, setSelectedInvoiceForRefund] = useState(null);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [selectedInvoiceIdForHistory, setSelectedInvoiceIdForHistory] = useState(null);
 
   const [patients, setPatients] = useState([]);
   const [tests, setTests] = useState([]);
@@ -1098,6 +1106,17 @@ const Invoices = () => {
         }
         return <span className="text-muted">-</span>;
 
+      case 'age':
+        const invoiceDate = new Date(rowData.date);
+        const now = new Date();
+        const diffInTime = now.getTime() - invoiceDate.getTime();
+        const diffInDays = Math.floor(diffInTime / (1000 * 3600 * 24));
+        return (
+          <Badge bg={diffInDays === 0 ? "info" : "secondary"}>
+            {diffInDays === 0 ? "Today" : `${diffInDays} days`}
+          </Badge>
+        );
+
       case 'subtotal':
       case 'total':
       case 'paid':
@@ -1162,6 +1181,29 @@ const Invoices = () => {
         }}
       >
         <Trash2 size={16} />
+      </Button>
+      <Button
+        variant="outline-info"
+        size="sm"
+        onClick={() => {
+          setSelectedInvoiceIdForHistory(rowData.id);
+          setShowHistoryDrawer(true);
+        }}
+        title="View Audit Trail"
+      >
+        <History size={16} />
+      </Button>
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        onClick={() => {
+          setSelectedInvoiceForRefund(rowData);
+          setShowRefundModal(true);
+        }}
+        disabled={rowData.status?.toLowerCase().includes('refunded')}
+        title="Process Refund"
+      >
+        <RotateCcw size={16} />
       </Button>
       <Button
         variant="outline-secondary"
@@ -1262,6 +1304,7 @@ const Invoices = () => {
             data={currentInvoices}
             columns={[
               "date",
+              "age",
               "patient_name",
               "tests",
               "packages",
@@ -1275,6 +1318,12 @@ const Invoices = () => {
               "credit",
               "status"
             ]}
+            customHeaders={{
+              age: 'Age',
+              amount_due: 'Due',
+              patient_name: 'Patient',
+              status: 'Status'
+            }}
             formatCellData={formatCellData}
             ActionComponent={ActionComponent}
           />
@@ -2712,9 +2761,29 @@ const Invoices = () => {
         patientName={settlementPatientName}
         patientCode={settlementPatientCode}
       />
+
+      {/* Refund Modal */}
+      <RefundModal
+        show={showRefundModal}
+        onHide={() => {
+          setShowRefundModal(false);
+          setSelectedInvoiceForRefund(null);
+        }}
+        invoice={selectedInvoiceForRefund}
+        onRefundProcessed={fetchData}
+      />
+
+      {/* Invoice History Drawer */}
+      <InvoiceHistoryDrawer
+        show={showHistoryDrawer}
+        onHide={() => {
+          setShowHistoryDrawer(false);
+          setSelectedInvoiceIdForHistory(null);
+        }}
+        invoiceId={selectedInvoiceIdForHistory}
+      />
     </>
   );
 };
 
 export default Invoices;
-

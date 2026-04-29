@@ -176,3 +176,27 @@ body.dark {
   box-shadow: 0 8px 25px rgba(var(--color-primary-rgb, 79, 172, 254), 0.6);
   /* Matching float and shadow effect from primary button */
 }
+
+/* Responsive Grid for Admin View */
+.profile-grid-admin {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-areas:
+    "sidebar medical settlement"
+    "sidebar transactions transactions"
+    "sidebar transactions transactions";
+  gap: 1.5rem;
+}
+
+@media (max-width: 991px) {
+  .profile-grid-admin {
+    display: flex;
+    flex-wrap: wrap;
+    grid-template-areas: none;
+  }
+  
+  .profile-grid-admin > div {
+    width: 100%;
+    grid-area: auto !important;
+  }
+}
