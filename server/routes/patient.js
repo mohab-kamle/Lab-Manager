@@ -832,7 +832,8 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                 // Add primary phone number
                 await phone_number.create({
                     phone: row['Primary Phone'].toString(),
-                    type: 'primary',
+                    type: 'personal',
+                    is_primary: true,
                     patient_id: newPatient.id
                 });
 
@@ -1132,9 +1133,9 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             where: whereClause,
             include: [
                 {
-                    model: phone,
+                    model: phone_number,
                     as: 'phones',
-                    attributes: ['phone_number', 'type']
+                    attributes: [['phone', 'phone_number'], 'type', 'is_primary']
                 },
                 {
                     model: diseases,

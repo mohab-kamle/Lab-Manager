@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button, Collapse } from 'react-bootstrap';
-import { ChevronDown, ChevronUp, Person, Receipt, Building } from 'react-bootstrap-icons';
+import { Button, Collapse, Badge } from 'react-bootstrap';
+import { ChevronDown, ChevronUp, Person, Receipt, Building, ShieldLock } from 'react-bootstrap-icons';
 import PropTypes from 'prop-types';
 import TransactionStatusBadge from './TransactionStatusBadge';
 import { formatCurrency } from '../../utils/currencyFormatter';
@@ -78,6 +78,15 @@ const TransactionSummaryRow = ({ transaction, isAdmin = false, onPatientClick, o
                         </div>
                         <p className="mb-1 ps-4 small"><strong>Name:</strong> {transaction.processedBy.name}</p>
                         <p className="mb-0 ps-4 small"><strong>Role:</strong> {transaction.processedBy.role}</p>
+                        
+                        {transaction.managerKeyName && (
+                          <div className="mt-2 ps-4">
+                            <Badge bg="warning" text="dark" className="d-flex align-items-center w-fit">
+                              <ShieldLock className="me-1" />
+                              Auth: {transaction.managerKeyName}
+                            </Badge>
+                          </div>
+                        )}
                     </div>
                   )}
                   
@@ -136,6 +145,7 @@ TransactionSummaryRow.propTypes = {
       name: PropTypes.string,
       role: PropTypes.string,
     }),
+    managerKeyName: PropTypes.string,
     patientId: PropTypes.string,
     invoiceId: PropTypes.string,
     branchName: PropTypes.string.isRequired,
