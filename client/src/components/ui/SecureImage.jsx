@@ -55,19 +55,24 @@ const SecureImage = ({
         // Construct the full URL if it's a relative path
         const imageUrl = src.startsWith('http') ? src : `${apiUrl}${src}`;
         
+        // The backend now returns { url: presignedS3Url } as JSON instead of a 302 redirect.
+        // We assign it directly to <img src> which is NOT an XHR request and therefore
+        // is never subject to S3 CORS policy checks.
         const response = await axios.get(imageUrl, {
           headers: {
             Authorization: `Bearer ${userToken}`
-          },
-          responseType: 'blob'
+          }
         });
 
-        // Create blob URL for the image
-        const imageBlob = new Blob([response.data], { type: response.headers['content-type'] });
-        const imageObjectURL = URL.createObjectURL(imageBlob);
-        
-        setImageSrc(imageObjectURL);
-        setIsLocalBlob(true);
+        // Backend returns { url: <presigned S3 URL> }
+        const presignedUrl = response.data?.url;
+        if (!presignedUrl) {
+          throw new Error('No URL returned from server');
+        }
+
+        // Set the presigned URL directly — img src load is NOT an XHR, no CORS issue
+        setImageSrc(presignedUrl);
+        setIsLocalBlob(false); // Not a local blob, just a remote URL
         setLoading(false);
       } catch (err) {
         console.error('Error fetching secure image:', err.message, 'for URL:', src);
@@ -81,12 +86,7 @@ const SecureImage = ({
 
     fetchImage();
 
-    // Cleanup function to revoke blob URL
-    return () => {
-      if (imageSrc && isLocalBlob) {
-        URL.revokeObjectURL(imageSrc);
-      }
-    };
+    // No blob URL cleanup needed — we now use direct pre-signed S3 URLs, not local blobs
   }, [src, user?.token, apiUrl, onError]);
 
   // Cleanup blob URL when component unmounts
