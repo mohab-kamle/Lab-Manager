@@ -4,7 +4,13 @@ const { BedrockRuntimeClient, InvokeModelCommand } = require("@aws-sdk/client-be
  * Service for interacting with AWS Bedrock for multimodal OCR (text extraction).
  */
 
-const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION || "us-east-1" });
+const client = new BedrockRuntimeClient({ 
+  region: process.env.AWS_REGION || "us-east-1",
+  credentials: {
+    accessKeyId: process.env.BEDROCK_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.BEDROCK_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY,
+  }
+});
 
 /**
  * Extracts raw text from an image using AWS Bedrock (amazon.nova-lite-v1:0).
