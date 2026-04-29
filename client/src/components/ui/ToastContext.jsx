@@ -423,6 +423,8 @@ export const ToastProvider = ({ children }) => {
       type = "danger",
       confirmText,
       cancelText = "Cancel",
+      requireMatch = null,
+      inputField = null,
     }) => {
       const defaultConfirmText = {
         danger: "Yes, Delete",
@@ -440,6 +442,10 @@ export const ToastProvider = ({ children }) => {
           cancelText,
           isLoading: false,
           resolvePromise: resolve,
+          requireMatch,
+          inputField,
+          matchValue: "",
+          inputValue: "",
         });
       });
     },
@@ -448,6 +454,14 @@ export const ToastProvider = ({ children }) => {
 
   const handleConfirm = useCallback(
     async (asyncCallback) => {
+      // If requireMatch is set, check if matchValue matches
+      if (confirmData.requireMatch && confirmData.matchValue !== confirmData.requireMatch) {
+        return;
+      }
+      
+      // If inputField is set and required, we could check here too, but we'll let the user decide.
+      // We pass the inputValue back in the resolve.
+
       if (asyncCallback && typeof asyncCallback === "function") {
         setConfirmData((prev) => ({ ...prev, isLoading: true }));
         try {
@@ -457,8 +471,13 @@ export const ToastProvider = ({ children }) => {
         }
       }
 
+      // Resolve promise with true or data
       if (confirmData.resolvePromise) {
-        confirmData.resolvePromise(true);
+        if (confirmData.inputField) {
+          confirmData.resolvePromise({ confirmed: true, inputValue: confirmData.inputValue });
+        } else {
+          confirmData.resolvePromise(true);
+        }
       }
 
       setConfirmData({
@@ -470,14 +489,20 @@ export const ToastProvider = ({ children }) => {
         cancelText: "Cancel",
         isLoading: false,
         resolvePromise: null,
+        requireMatch: null,
+        inputField: null,
       });
     },
-    [confirmData.resolvePromise]
+    [confirmData.resolvePromise, confirmData.requireMatch, confirmData.matchValue, confirmData.inputField, confirmData.inputValue]
   );
 
   const handleCancel = useCallback(() => {
     if (confirmData.resolvePromise) {
-      confirmData.resolvePromise(false);
+      if (confirmData.inputField) {
+        confirmData.resolvePromise({ confirmed: false });
+      } else {
+        confirmData.resolvePromise(false);
+      }
     }
 
     setConfirmData({
@@ -489,8 +514,21 @@ export const ToastProvider = ({ children }) => {
       cancelText: "Cancel",
       isLoading: false,
       resolvePromise: null,
+      requireMatch: null,
+      inputField: null,
     });
-  }, [confirmData.resolvePromise]);
+  }, [confirmData.resolvePromise, confirmData.inputField]);
+
+  // Handle Input Changes
+  const handleMatchChange = useCallback((e) => {
+    const value = e.target.value;
+    setConfirmData(prev => ({ ...prev, matchValue: value }));
+  }, []);
+
+  const handleInputChange = useCallback((e) => {
+    const value = e.target.value;
+    setConfirmData(prev => ({ ...prev, inputValue: value }));
+  }, []);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -613,6 +651,8 @@ export const ToastProvider = ({ children }) => {
         confirmData={confirmData}
         handleConfirm={handleConfirm}
         handleCancel={handleCancel}
+        handleMatchChange={handleMatchChange}
+        handleInputChange={handleInputChange}
       />
     </ToastContext.Provider>
   );
@@ -778,7 +818,10 @@ const ToastGroup = ({
   );
 };
 
-const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
+// ============================================
+// CONFIRM UI COMPONENT
+// ============================================
+const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel, handleMatchChange, handleInputChange }) => {
   if (!confirmData.show) return null;
 
   const getIcon = () => {
@@ -794,6 +837,11 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
     }
   };
 
+  const isConfirmDisabled = 
+    (confirmData.requireMatch && confirmData.matchValue !== confirmData.requireMatch) || 
+    (confirmData.inputField && !confirmData.inputValue?.trim()) ||
+    confirmData.isLoading;
+
   return (
     <div
       className="confirm-overlay"
@@ -807,9 +855,41 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
         <div className={`confirm-icon ${confirmData.type}`}>{getIcon()}</div>
 
         <h3 className="confirm-title">{confirmData.title}</h3>
-        <p className="confirm-message">{confirmData.message}</p>
+        <div className="confirm-message">{confirmData.message}</div>
 
-        <div className="confirm-buttons">
+        {confirmData.requireMatch && (
+          <div className="confirm-input-group mt-3">
+            <label className="small text-muted mb-1 text-start d-block">
+              Type <strong>{confirmData.requireMatch}</strong> to confirm:
+            </label>
+            <input
+              type="text"
+              className="confirm-input form-control"
+              value={confirmData.matchValue}
+              onChange={handleMatchChange}
+              placeholder={confirmData.requireMatch}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {confirmData.inputField && (
+          <div className="confirm-input-group mt-3">
+            <label className="small text-muted mb-1 text-start d-block">
+              {confirmData.inputField.label || 'Authorization Key'}:
+            </label>
+            <input
+              type={confirmData.inputField.type || 'text'}
+              className="confirm-input form-control"
+              value={confirmData.inputValue}
+              onChange={handleInputChange}
+              placeholder={confirmData.inputField.placeholder || ''}
+              autoFocus={!confirmData.requireMatch}
+            />
+          </div>
+        )}
+
+        <div className="confirm-buttons mt-4">
           <button
             className="confirm-btn cancel"
             onClick={handleCancel}
@@ -820,7 +900,7 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
           <button
             className={`confirm-btn ${confirmData.type}`}
             onClick={() => handleConfirm()}
-            disabled={confirmData.isLoading}
+            disabled={isConfirmDisabled}
           >
             {confirmData.isLoading ? (
               <span className="confirm-loading">
