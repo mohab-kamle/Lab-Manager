@@ -16,10 +16,9 @@ const authorizeRoles = require('../middleware/authorizeRoles');
 const authorizeFileAccess = require('../middleware/authorizeFileAccess');
 const path = require('path');
 const fs = require('fs');
-const multer = require("multer");
 const { Op } = require('sequelize');
-const crypto = require('crypto');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
+const { s3ImageUpload, deleteOldS3Logo, getS3FileUrl } = require('../services/s3Service');
 
 const normalizePhone = (phoneStr) => {
   if (!phoneStr) return null;
@@ -33,46 +32,6 @@ const normalizePhone = (phoneStr) => {
     return phoneStr;
   }
 };
-
-
-
-// Multer configuration for secure image uploads
-const BASE_UPLOAD_PATH = process.env.UPLOAD_BASE_PATH || path.join(__dirname, '../uploads');
-const LOGO_UPLOAD_PATH = path.join(BASE_UPLOAD_PATH, 'shared', 'logos');
-
-const imageStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    if (!fs.existsSync(LOGO_UPLOAD_PATH)) {
-      fs.mkdirSync(LOGO_UPLOAD_PATH, { recursive: true });
-    }
-    cb(null, LOGO_UPLOAD_PATH);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const labId = req.params.labId || (req.user && req.user.lab_id) || 'lab';
-    const unique = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
-    cb(null, `${labId}_${unique}_${base}${ext}`);
-  }
-});
-
-
-const imageUpload = multer({
-  storage: imageStorage,
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-    files: 1
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (file.mimetype.startsWith('image/') && allowedExtensions.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
-  },
-});
 
 // List labs (optionally filter by owner_id)
 router.get('/', authenticateUser, async (req, res) => {
@@ -110,35 +69,19 @@ router.get('/branding', authenticateUser, tenantContext, async (req, res) => {
   }
 });
 
-// Serve lOGO IMAGES with authentication
-router.get('/branding/logos/:filename', authorizeFileAccess, (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(LOGO_UPLOAD_PATH, filename);
-
-  // Check if file exists
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
+// Redirect lOGO IMAGES to S3 public URL
+router.get('/branding/logos/:filename', authorizeFileAccess, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const s3Key = `public/logos/${filename}`;
+    
+    // For logos, which are in the public prefix, we can just redirect to the public URL
+    const url = await getS3FileUrl(s3Key, true);
+    res.redirect(302, url);
+  } catch (error) {
+    console.error('Error redirecting to logo:', error);
+    res.status(500).json({ error: 'Failed to retrieve file' });
   }
-
-  // Set appropriate headers for images
-  const ext = path.extname(filename).toLowerCase();
-  if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(ext)) {
-    const mimeTypes = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp'
-    };
-    if (mimeTypes[ext]) {
-      res.setHeader('Content-Type', mimeTypes[ext]);
-    }
-  }
-  // Add security headers
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-
-  res.sendFile(filePath);
 });
 
 
@@ -227,12 +170,9 @@ router.get('/:labId/settings', async (req, res) => {
 
 // Update lab settings
 router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), (req, res, next) => {
-  imageUpload.single("logo")(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
-      }
-      return res.status(400).json({ error: err.message });
+  s3ImageUpload.single("logo")(req, res, (err) => {
+    if (err && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File too large. Maximum size is 5MB.' });
     } else if (err) {
       return res.status(400).json({ error: err.message });
     }
@@ -272,7 +212,7 @@ router.put('/:labId/settings', authenticateUser, authorizeRoles('admin'), (req, 
 });
 
 // Update lab information
-router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.single("logo"), async (req, res) => {
+router.put('/:labId', authenticateUser, authorizeRoles('admin'), s3ImageUpload.single("logo"), async (req, res) => {
   try {
     const { labId } = req.params;
     const updateData = req.body;
@@ -328,7 +268,7 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
     }
 
     if (req.file) {
-      const newFilename = path.basename(req.file.filename);
+      const newFilename = path.basename(req.file.key);
       sanitizedUpdate.logo_url = `/labs/branding/logos/${newFilename}`;
 
       const previousUrl = labToUpdate.logo_url;
@@ -340,14 +280,7 @@ router.put('/:labId', authenticateUser, authorizeRoles('admin'), imageUpload.sin
           oldFilename = path.basename(previousUrl);
         }
         if (oldFilename && oldFilename !== newFilename) {
-          const oldPath = path.join(LOGO_UPLOAD_PATH, oldFilename);
-          if (fs.existsSync(oldPath)) {
-            try {
-              fs.unlinkSync(oldPath);
-            } catch (e) {
-              console.warn('Failed to delete old logo:', oldPath, e.message);
-            }
-          }
+          await deleteOldS3Logo(previousUrl);
         }
       }
     }
