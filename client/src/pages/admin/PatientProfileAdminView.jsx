@@ -21,7 +21,7 @@ import {
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
-import ReconciliationModal from "../../components/reconciliation/ReconciliationModal";
+import SettlementModal from "../../components/settlement/SettlementModal";
 import { Wallet2, CheckCircle } from "lucide-react";
 
 // Reuse styles from PatientProfile
@@ -80,7 +80,7 @@ const PatientProfileAdminView = () => {
   const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [saveLoading, setSaveLoading] = useState(false);
-  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -447,13 +447,13 @@ const PatientProfileAdminView = () => {
                 </div>
               </motion.div>
 
-              {/* Reconciliation & Billing Card */}
+              {/* Settlement & Billing Card */}
               <motion.div
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
                 <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
-                  <Wallet2 size={24} className="text-success" /> Reconciliation & Billing
+                  <Wallet2 size={24} className="text-success" /> Settlement & Billing
                 </h5>
                 <div className="text-center py-2">
                   <div className="text-muted small mb-1">Total Outstanding</div>
@@ -465,10 +465,10 @@ const PatientProfileAdminView = () => {
                   <Button 
                     variant="primary" 
                     className="rounded-pill w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                    onClick={() => setShowReconciliationModal(true)}
+                    onClick={() => setShowSettlementModal(true)}
                     disabled={parseFloat(patient.due || 0) <= 0}
                   >
-                    <Receipt size={18} /> Process Reconciliation
+                    <Receipt size={18} /> Process Settlement
                   </Button>
                   
                   {parseFloat(patient.due || 0) <= 0 && (
@@ -503,10 +503,10 @@ const PatientProfileAdminView = () => {
         </Row>
       </Container>
 
-      {/* Reconciliation Modal */}
-      <ReconciliationModal
-        show={showReconciliationModal}
-        onHide={() => setShowReconciliationModal(false)}
+      {/* Settlement Modal */}
+      <SettlementModal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
         initialPatientId={patient.id}
         patientName={patient.name}
         patientCode={patient.patientcode}
