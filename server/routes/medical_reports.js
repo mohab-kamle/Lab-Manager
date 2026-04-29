@@ -27,59 +27,8 @@ const upload = multer({
   },
 });
 
-// Multer configuration for secure image uploads
-const imageStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Use secure comment-images directory
-    const baseUploadPath = process.env.UPLOAD_BASE_PATH || path.join(__dirname, '../uploads');
-    const uploadPath = path.join(baseUploadPath, 'comment-images');
-
-    // Create directory if it doesn't exist
-    const fs = require('fs');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Generate secure filename with report ID for authorization
-    // Format: reportId_commentType_timestamp_originalName
-
-    // Sanitize input to prevent path traversal
-    const sanitizeFilenamePart = (part) => {
-      if (!part) return '';
-      return String(part).replace(/[^a-zA-Z0-9_-]/g, '');
-    };
-
-    const rawReportId = req.params.id || req.body.reportId || 'unknown';
-    const rawCommentType = req.body.commentType || 'general';
-
-    const reportId = sanitizeFilenamePart(rawReportId);
-    const commentType = sanitizeFilenamePart(rawCommentType);
-
-    const timestamp = Date.now();
-    const randomSuffix = Math.round(Math.random() * 1E9);
-    const sanitizedOriginalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-
-    const secureFilename = `${reportId}_${commentType}_${timestamp}_${randomSuffix}_${sanitizedOriginalName}`;
-    cb(null, secureFilename);
-  }
-});
-
-const imageUpload = multer({
-  storage: imageStorage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit per image
-    files: 3 // Maximum 3 files
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
-  },
-});
+const { s3CommentImageUpload, s3Client, s3Bucket } = require('../services/s3Service');
+const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const {
   readExcelBuffer,
   validateExcelBuffer,
@@ -1712,7 +1661,8 @@ router.get(
       const groupImagesByComment = (images) => {
         return images.reduce((acc, img) => {
           if (!acc[img.comment_id]) acc[img.comment_id] = [];
-          acc[img.comment_id].push(img);
+          // Return only the filename (basename of image_path)
+          acc[img.comment_id].push(path.basename(img.image_path));
           return acc;
         }, {});
       };
@@ -1748,7 +1698,7 @@ router.post(
     req.body.commentType = 'test';
     next();
   },
-  imageUpload.array('images', 3),
+  s3CommentImageUpload.array('images', 3),
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
@@ -1774,11 +1724,12 @@ router.post(
       }, { transaction: t });
 
       // Handle image uploads
+      let imageRecords = [];
       if (req.files && req.files.length > 0) {
-        const imageRecords = req.files.map((file, index) => ({
+        imageRecords = req.files.map((file, index) => ({
           comment_type: 'test',
           comment_id: testComment.id,
-          image_path: file.path,
+          image_path: file.key,
           image_name: file.originalname,
           image_size: file.size,
           mime_type: file.mimetype,
@@ -1791,7 +1742,9 @@ router.post(
       await t.commit();
       res.status(201).json({ success: true, comment: testComment });
     } catch (error) {
-      await t.rollback();
+      if (t && !t.finished) {
+        await t.rollback();
+      }
       console.error("Error creating test comment:", error);
       res.status(500).json({ error: "Failed to create test comment" });
     }
@@ -1810,7 +1763,7 @@ router.post(
     req.body.commentType = 'medical_report';
     next();
   },
-  imageUpload.array('images', 3),
+  s3CommentImageUpload.array('images', 3),
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
@@ -1826,21 +1779,51 @@ router.post(
         await t.rollback();
         return res.status(404).json({ error: "Medical report not found" });
       }
-      // Delete existing images for this medical report
-      const deletedCount = await db.comment_images.destroy({
-        where: {
-          comment_type: 'medical_report',
-          comment_id: reportId
-        },
+      // Get existing images to keep
+      const keepImages = req.body.existingImages ? (Array.isArray(req.body.existingImages) ? req.body.existingImages : [req.body.existingImages]) : [];
+      console.log('Existing images to keep:', keepImages);
+
+      // Get all current images for this medical report
+      const currentImages = await db.comment_images.findAll({
+        where: { comment_type: 'medical_report', comment_id: reportId },
         transaction: t
       });
 
+      // Filter images to delete
+      const imagesToDelete = currentImages.filter(img => {
+        const filename = path.basename(img.image_path);
+        return !keepImages.includes(filename);
+      });
+
+      console.log('Images to delete:', imagesToDelete.length);
+
+      if (imagesToDelete.length > 0) {
+        for (const img of imagesToDelete) {
+          if (img.image_path) {
+            try {
+              let s3Key = img.image_path;
+              if (!s3Key.includes('/')) s3Key = `private/comment-images/${s3Key}`;
+              else if (s3Key.includes('\\')) s3Key = `private/comment-images/${path.basename(s3Key)}`;
+              await s3Client.send(new DeleteObjectCommand({ Bucket: s3Bucket, Key: s3Key }));
+            } catch (e) {
+              console.error('Failed to delete comment image from S3', e);
+            }
+          }
+        }
+
+        await db.comment_images.destroy({
+          where: { id: imagesToDelete.map(img => img.id) },
+          transaction: t
+        });
+      }
+
       // Handle new image uploads
+      let imageRecords = [];
       if (req.files && req.files.length > 0) {
-        const imageRecords = req.files.map((file, index) => ({
+        imageRecords = req.files.map((file, index) => ({
           comment_type: 'medical_report',
           comment_id: reportId,
-          image_path: file.path,
+          image_path: file.key,
           image_name: file.originalname,
           image_size: file.size,
           mime_type: file.mimetype,
@@ -1851,9 +1834,15 @@ router.post(
       }
 
       await t.commit();
-      res.status(201).json({ success: true, message: "Images uploaded successfully" });
+      res.status(201).json({ 
+        success: true, 
+        message: "Images uploaded successfully",
+        images: imageRecords.map(img => path.basename(img.image_path))
+      });
     } catch (error) {
-      await t.rollback();
+      if (t && !t.finished) {
+        await t.rollback();
+      }
       console.error("Error uploading comment images:", error);
       res.status(500).json({ error: "Failed to upload images" });
     }
@@ -1887,6 +1876,11 @@ router.delete(
         return res.status(404).json({ error: "Comment not found" });
       }
 
+      const imagesToDelete = await db.comment_images.findAll({
+        where: { comment_type: 'test', comment_id: commentId },
+        transaction: t
+      });
+
       // Delete associated images
       await db.comment_images.destroy({
         where: {
@@ -1895,6 +1889,19 @@ router.delete(
         },
         transaction: t
       });
+
+      for (const img of imagesToDelete) {
+        if (img.image_path) {
+          try {
+            let s3Key = img.image_path;
+            if (!s3Key.includes('/')) s3Key = `private/comment-images/${s3Key}`;
+            else if (s3Key.includes('\\')) s3Key = `private/comment-images/${path.basename(s3Key)}`;
+            await s3Client.send(new DeleteObjectCommand({ Bucket: s3Bucket, Key: s3Key }));
+          } catch (e) {
+             console.error('Failed to delete comment image from S3', e);
+          }
+        }
+      }
 
       // Delete comment
       await db.test_comments.destroy({
@@ -1961,7 +1968,7 @@ router.get(
       });
 
       res.json({
-        report_id: report.id,
+        id: report.id,
         patient: report.patient,
         tests: report.tests.map(t => ({
           id: t.id,

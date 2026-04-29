@@ -40,9 +40,9 @@ async function checkTableStatus() {
     'employees', 'admins', 'chemists', 'receptionists', 'bills',
     'antibiotics', 'medical_report_has_culture_antibiotic'
   ];
-  
+
   console.log(`📊 Checking table status...`);
-  
+
   const results = {};
   for (const table of keyTables) {
     try {
@@ -56,15 +56,15 @@ async function checkTableStatus() {
       }
     }
   }
-  
+
   console.log(`📋 Table Status:`);
   Object.entries(results).forEach(([table, status]) => {
     console.log(`   ${table.padEnd(35)} ${status}`);
   });
-  
+
   const missingTables = Object.entries(results).filter(([_, status]) => status === '❌ Missing');
   const errorTables = Object.entries(results).filter(([_, status]) => status.startsWith('⚠️'));
-  
+
   return { missingTables, errorTables, results };
 }
 
@@ -72,34 +72,34 @@ async function checkTableStatus() {
 async function fixMedicalReportHasCultureTable() {
   try {
     console.log(`🔧 Checking medical_report_has_culture table structure...`);
-    
+
     // Check if table exists
     const [tables] = await db.sequelize.query(
       "SHOW TABLES LIKE 'medical_report_has_culture'"
     );
-    
+
     if (tables.length === 0) {
       console.log(`✅ medical_report_has_culture table doesn't exist, will be created by sync`);
       return;
     }
-    
+
     // Check if table has the correct structure (id column as primary key)
     const [columns] = await db.sequelize.query(
       "SHOW COLUMNS FROM medical_report_has_culture"
     );
-    
+
     const hasIdColumn = columns.some(col => col.Field === 'id' && col.Key === 'PRI');
     const hasCompositeKey = columns.some(col => col.Key === 'PRI' && col.Field !== 'id');
     const hasAnyPrimaryKey = columns.some(col => col.Key === 'PRI');
-    
+
     if (hasIdColumn) {
       console.log(`✅ medical_report_has_culture table has correct structure`);
       return;
     }
-    
+
     if (hasAnyPrimaryKey) {
       console.log(`🔧 Fixing medical_report_has_culture table structure...`);
-      
+
       try {
         // First, try to drop any existing primary key
         await db.sequelize.query("ALTER TABLE medical_report_has_culture DROP PRIMARY KEY");
@@ -108,11 +108,11 @@ async function fixMedicalReportHasCultureTable() {
         console.log(`⚠️  Could not drop primary key: ${dropError.message}`);
         // Continue anyway, might not have a primary key
       }
-      
+
       try {
         // Check if id column already exists
         const idColumnExists = columns.some(col => col.Field === 'id');
-        
+
         if (!idColumnExists) {
           // Add id column as primary key
           await db.sequelize.query(`
@@ -132,7 +132,7 @@ async function fixMedicalReportHasCultureTable() {
       } catch (addError) {
         console.log(`⚠️  Could not add id primary key: ${addError.message}`);
       }
-      
+
       try {
         // Add unique constraint for medical_report_id and culture_id combination
         await db.sequelize.query(`
@@ -143,7 +143,7 @@ async function fixMedicalReportHasCultureTable() {
       } catch (constraintError) {
         console.log(`⚠️  Could not add unique constraint: ${constraintError.message}`);
       }
-      
+
       console.log(`✅ medical_report_has_culture table structure fix completed`);
     }
   } catch (error) {
@@ -155,24 +155,24 @@ async function fixMedicalReportHasCultureTable() {
 async function syncDatabase() {
   try {
     console.log(`🔄 Starting database synchronization...`);
-    
+
     // Check connection first
     const connected = await checkDatabaseConnection();
     if (!connected) {
       process.exit(1);
     }
-    
+
     // Fix medical_report_has_culture table structure if needed
     await fixMedicalReportHasCultureTable();
-    
+
     // Check current table status
     const tableStatus = await checkTableStatus();
-    
+
     if (checkOnly) {
       console.log(`\n✅ Database check completed`);
       return;
     }
-    
+
     // Determine sync mode
     let syncOptions;
     if (forceSync) {
@@ -187,26 +187,26 @@ async function syncDatabase() {
       syncOptions = { alter: true };
       console.log(`🛡️  Using ALTER mode (preserves existing data)`);
     }
-    
+
     // Perform sync
     console.log(`\n🔄 Synchronizing database schema...`);
     await db.sequelize.sync(syncOptions);
     console.log(`✅ Database synchronization completed successfully`);
-    
+
     // Check table status after sync
     console.log(`\n📊 Post-sync table status:`);
     await checkTableStatus();
-    
+
     console.log(`\n🎉 Database synchronization completed!`);
-    
+
   } catch (error) {
     console.error(`❌ Database synchronization failed:`, error);
-    
+
     // Provide helpful error messages
     if (error.code === 'ECONNREFUSED') {
       console.error(`💡 Tip: Make sure your database server is running`);
     } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
-      console.error(`💡 Tip: Check your database credentials in config/config.json`);
+      console.error(`💡 Tip: Check your database credentials in config/config.js`);
     } else if (error.message.includes('Unknown column')) {
       console.error(`💡 Tip: This might be a schema mismatch. Consider using --force flag`);
     } else if (error.message.includes('ER_DUP_FIELDNAME')) {
@@ -214,7 +214,7 @@ async function syncDatabase() {
     } else if (error.message.includes('Multiple primary key defined')) {
       console.error(`💡 Tip: Primary key conflict detected. This has been automatically fixed.`);
     }
-    
+
     process.exit(1);
   } finally {
     // Close database connection
