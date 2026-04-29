@@ -38,6 +38,7 @@ const TransactionsVault = lazy(() => import('./pages/admin/TransactionsVault'));
 const TurnaroundTime = lazy(() => import('./pages/admin/TurnaroundTime'));
 const PatientProfileAdminView = lazy(() => import('./pages/admin/PatientProfileAdminView'));
 const ManagerKeyManagement = lazy(() => import('./pages/admin/ManagerKeyManagement'));
+const ToastTestPage = lazy(() => import('./pages/test/ToastTestPage'));
 
 
 // Profile pages
@@ -140,6 +141,9 @@ const LabRoutes = () => (
       <Route path="/:role/inventory/suppliers" element={<PrivateRoute element={<Suppliers />} allowedRoles={["admin", "chemist"]} />} />
       <Route path="/:role/inventory/items" element={<PrivateRoute element={<InventoryItems />} allowedRoles={["admin", "chemist"]} />} />
       <Route path="/:role/inventory/items/:itemId/batches" element={<PrivateRoute element={<InventoryBatches />} allowedRoles={["admin", "chemist"]} />} />
+      
+      {/* Test & Debug routes */}
+      <Route path="/toast-test" element={<ToastTestPage />} />
     </Route>
   </Routes>
 );

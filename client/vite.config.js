@@ -5,6 +5,7 @@ import { ViteImageOptimizer } from 'vite-plugin-image-optimizer';
 import critical from 'rollup-plugin-critical';
 
 export default defineConfig({
+  envDir: '../', // Forces Vite to pull from the root directory
   plugins: [
     react(),
     removeConsole(),
