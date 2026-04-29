@@ -1,13 +1,14 @@
 import React, { useState, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Upload, X, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import SecureImage from './SecureImage';
 
-const ImageUpload = ({ 
-  images = [], 
-  onImagesChange, 
-  maxImages = 3, 
+const ImageUpload = ({
+  images = [],
+  onImagesChange,
+  maxImages = 3,
   disabled = false,
-  className = '' 
+  className = ''
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState('');
@@ -30,7 +31,7 @@ const ImageUpload = ({
   const handleFiles = (files) => {
     setError('');
     const fileArray = Array.from(files);
-    
+
     // Check if adding these files would exceed the limit
     if (images.length + fileArray.length > maxImages) {
       setError(`Maximum ${maxImages} images allowed`);
@@ -79,9 +80,9 @@ const ImageUpload = ({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (disabled) return;
-    
+
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       handleFiles(files);
@@ -158,7 +159,7 @@ const ImageUpload = ({
           className="d-none"
           disabled={disabled || images.length >= maxImages}
         />
-        
+
         <div className="d-flex flex-column align-items-center gap-2">
           <Upload className="h-8 w-8 text-secondary" size={32} />
           <div className="small text-secondary">
@@ -207,14 +208,13 @@ const ImageUpload = ({
                 }}
               >
                 {/* Image Thumbnail */}
-                <img
+                <SecureImage
                   src={image.preview || image.url || image.image_path}
                   alt={image.name || `Image ${index + 1}`}
                   loading="lazy"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                    e.currentTarget.nextSibling.style.display = "flex";
+                    // Note: SecureImage has its own error handling, but we can still have a local fallback if needed
                   }}
                 />
 

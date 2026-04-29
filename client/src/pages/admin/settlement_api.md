@@ -1,6 +1,6 @@
-# API Requirements: Patient Reconciliation Bills
+# API Requirements: Patient Settlement Bills
 
-This document outlines the backend API endpoints and logic required to support the Patient Reconciliation feature.
+This document outlines the backend API endpoints and logic required to support the Patient Settlement feature.
 
 ---
 
@@ -14,7 +14,7 @@ This document outlines the backend API endpoints and logic required to support t
 *   `due`: Decimal (total - paid)
 *   `date`: DateTime
 
-### 1.2. Reconciliations (New)
+### 1.2. Settlements (New)
 *   `id`: Primary Key
 *   `patient_id`: Foreign Key
 *   `amount`: Decimal (Total payment received)
@@ -22,10 +22,10 @@ This document outlines the backend API endpoints and logic required to support t
 *   `date`: DateTime
 *   `notes`: Text
 
-### 1.3. ReconciliationItems (New/Links)
-*   `reconciliation_id`: Foreign Key
+### 1.3. SettlementItems (New/Links)
+*   `settlement_id`: Foreign Key
 *   `invoice_id`: Foreign Key
-*   `amount_applied`: Decimal (Amount from this reconciliation applied to this specific invoice)
+*   `amount_applied`: Decimal (Amount from this settlement applied to this specific invoice)
 
 ---
 
@@ -54,7 +54,7 @@ Fetches all invoices for a specific patient that have an outstanding balance (`d
 ]
 ```
 
-### 2.2. POST /reconciliations
+### 2.2. POST /settlements
 Processes a payment and reconciles it against one or more invoices.
 
 **Payload:**
@@ -74,7 +74,7 @@ Processes a payment and reconciles it against one or more invoices.
 
 ## 3. Business Logic: Automated (Custom) Allocation
 
-When `strategy` is `automated` (or no specific `invoice_ids` are provided with a partial amount), the backend must follow this reconciliation logic:
+When `strategy` is `automated` (or no specific `invoice_ids` are provided with a partial amount), the backend must follow this settlement logic:
 
 1.  **Retrieve Due Invoices**: Fetch all invoices for the patient where `due > 0`, sorted by `date` (Oldest First / "Nearest").
 2.  **Validate Total Due**: Sum the `due` amounts of all retrieved invoices. If `payload.amount > total_due`, reject the request (Prevent overpayment unless credit system is explicitly requested).
@@ -85,10 +85,10 @@ When `strategy` is `automated` (or no specific `invoice_ids` are provided with a
         *   `amount_to_apply = min(remaining_payment, invoice.due)`.
         *   Update `invoice.paid += amount_to_apply`.
         *   Update `invoice.due -= amount_to_apply`.
-        *   Create `ReconciliationItem` linking this payment to the `invoice`.
+        *   Create `SettlementItem` linking this payment to the `invoice`.
         *   `remaining_payment -= amount_to_apply`.
 4.  **Final Update**: Recalculate and update the `patient.total_due` (or equivalent financial summary field).
-5.  **Transaction Record**: Save the `Reconciliation` header record.
+5.  **Transaction Record**: Save the `Settlement` header record.
 
 ---
 

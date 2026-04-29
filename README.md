@@ -1,18 +1,21 @@
 # LabManager - Complete Laboratory Management System
 
 ## Overview
+
 LabManager is a comprehensive laboratory management system designed to streamline medical laboratory operations. It provides a complete solution for managing patients, medical tests, cultures, billing, and administrative tasks in a multi-branch laboratory environment.
 
 ## System Architecture
 
 ### Technology Stack
+
 - **Frontend**: React 18 + Vite + Bootstrap 5
 - **Backend**: Node.js + Express.js + Sequelize ORM
 - **Database**: MySQL
 - **Authentication**: JWT (JSON Web Tokens)
-- **Deployment**: Docker + Nginx (Frontend) + Railway (Backend)
+- **Deployment**: Docker + Nginx (Frontend)
 
 ### Project Structure
+
 ```
 LabManager/
 ├── client/                 # React frontend application
@@ -43,6 +46,7 @@ LabManager/
 ## Key Features
 
 ### Multi-Role User System
+
 - **Patients**: View medical reports, update profiles, track appointments
 - **Admins**: Full system access and configuration
 - **Doctors**: Medical report access and patient data management
@@ -68,46 +72,59 @@ LabManager/
 > **Note:** The project has transitioned from using a single `.docker.env` file to separate environment files for development and production. If you're upgrading from an older version, please migrate your environment variables to the appropriate new files.
 
 ### Development Environment
+
 To run the application in development mode:
 
 1. Make sure you have Docker and Docker Compose installed
 2. Use the development environment file:
+
    ```
    cp .env.development 
    ```
+
 3. Start the development environment:
+
    ```
    docker compose -f docker-compose.dev.yml up -d
    ```
-4. Access the frontend at http://localhost:5173
-5. Access the backend API at http://localhost:3001
+
+4. Access the frontend at <http://localhost:5173>
+5. Access the backend API at <http://localhost:3001>
 
 The development environment includes:
+
 - Hot-reloading for both frontend and backend
 - Volume mounting for real-time code changes
 - Development-specific database (labmanager_dev)
 
 ### Production Environment
+
 To run the application in production mode:
 
 1. Make sure you have Docker and Docker Compose installed
 2. Use the production environment file:
+
    ```
    cp .env.production .env
    ```
+
 3. Start the production environment:
+
    ```
    docker compose -f docker-compose.prod.yml up -d
    ```
-4. Access the frontend at http://localhost:80
-5. Access the backend API at http://localhost:3001
+
+4. Access the frontend at <http://localhost:80>
+5. Access the backend API at <http://localhost:3001>
 
 The production environment includes:
+
 - Optimized builds for performance
 - Cloudflare tunnel for secure external access
 - Production-ready database configuration
 
 ### Environment Files
+
 The project uses a consistent environment file structure:
 
 - `.env.example` - Template files (safe to commit to version control)
@@ -117,14 +134,18 @@ The project uses a consistent environment file structure:
 Each component (root, client, server) has its own set of environment files.
 
 ### Important Note
+
 The project now exclusively uses separate Docker Compose files for development and production environments:
+
 - `docker-compose.dev.yml` - For development with hot-reloading
 - `docker-compose.prod.yml` - For production deployment
 
 The original `docker-compose.yml` file has been removed. Make sure to use the appropriate environment-specific file as shown above.
+
 - **Employees**: Limited administrative access
 
 ### Laboratory Operations
+
 - **Test Management**: Create, configure, and manage medical tests
 - **Culture Management**: Bacterial culture testing and results
 - **Antibiotic Sensitivity**: Complete antibiotic testing system
@@ -132,6 +153,7 @@ The original `docker-compose.yml` file has been removed. Make sure to use the ap
 - **Test Groups**: Grouped test configurations for efficiency
 
 ### Medical Reports
+
 - **PDF Generation**: Professional medical report generation with React-PDF
 - **QR Code Integration**: Report identification and tracking
 - **Barcode Support**: Sample tracking and identification
@@ -140,6 +162,7 @@ The original `docker-compose.yml` file has been removed. Make sure to use the ap
 - **WebAssembly Support**: Optimized PDF generation performance
 
 ### Patient Management
+
 - **Registration**: Complete patient registration system
 - **Profile Management**: Patient information and history
 - **Medical History**: Disease tracking and medical records
@@ -147,6 +170,7 @@ The original `docker-compose.yml` file has been removed. Make sure to use the ap
 - **Report Access**: Secure report viewing and download
 
 ### Billing & Financial
+
 - **Invoice Generation**: Automated invoice creation
 - **Payment Methods**: Multiple payment option support
 - **Package Management**: Service package configuration
@@ -154,6 +178,7 @@ The original `docker-compose.yml` file has been removed. Make sure to use the ap
 - **Financial Reporting**: Revenue and billing analytics
 
 ### Administrative Functions
+
 - **Branch Management**: Multi-branch laboratory support
 - **Employee Management**: Staff and role management
 - **Category Management**: Test and culture categorization
@@ -165,6 +190,7 @@ The original `docker-compose.yml` file has been removed. Make sure to use the ap
 ### Core Entity Relationships
 
 #### User Management
+
 ```
 admin, chemist, doctor, employee, patient, receptionist
 ├── phone (contact information)
@@ -173,6 +199,7 @@ admin, chemist, doctor, employee, patient, receptionist
 ```
 
 #### Laboratory Operations
+
 ```
 test, culture, antibiotic, sample_type
 ├── test_component (test components)
@@ -184,6 +211,7 @@ test, culture, antibiotic, sample_type
 ```
 
 #### Medical Reports
+
 ```
 medical_report
 ├── medical_report_has_test (test results)
@@ -194,6 +222,7 @@ medical_report
 ```
 
 #### Billing System
+
 ```
 bill
 ├── bill_has_test (tests in bill)
@@ -204,6 +233,7 @@ bill
 ```
 
 #### Administrative
+
 ```
 branch, company, contract, packages_and_offers
 ├── contract_has_test (contract tests)
@@ -216,6 +246,7 @@ branch, company, contract, packages_and_offers
 ## API Architecture
 
 ### RESTful Endpoints
+
 - **Authentication**: `/login`, `/me`, `/logout`
 - **Health Checks**: `/`, `/health`, `/cors-test`
 - **User Management**: `/admin`, `/patient`, `/employee`, `/receptionist`
@@ -225,6 +256,7 @@ branch, company, contract, packages_and_offers
 - **Administrative**: `/branches`, `/categories`, `/packages-and-offers`
 
 ### Authentication Flow
+
 1. User submits credentials
 2. Server validates and returns JWT token
 3. Client stores token in localStorage
@@ -233,6 +265,7 @@ branch, company, contract, packages_and_offers
 6. Role-based access control applied
 
 ### Security Features
+
 - **JWT Authentication**: Secure token-based authentication
 - **Password Hashing**: bcryptjs with salt rounds
 - **CORS Protection**: Configured for production domains
@@ -243,6 +276,7 @@ branch, company, contract, packages_and_offers
 ## Frontend Architecture
 
 ### Component Structure
+
 - **Layout Components**: MainNavBar, SecondaryNavBar, ErrorPage
 - **Form Components**: Dynamic forms with Formik and Yup validation
 - **Data Display**: DynamicTable, TablePagination, Toolbar
@@ -250,12 +284,14 @@ branch, company, contract, packages_and_offers
 - **Page Components**: Role-specific dashboard and management pages
 
 ### State Management
+
 - **React Context**: Global authentication state
 - **Local State**: Component-specific data
 - **Form State**: Formik for form management
 - **API State**: Axios for server communication
 
 ### Routing System
+
 - **Public Routes**: Home, login, error pages
 - **Protected Routes**: Role-based access control
 - **Dashboard Routes**: Role-specific dashboards
@@ -264,6 +300,7 @@ branch, company, contract, packages_and_offers
 ## Backend Architecture
 
 ### Middleware Stack
+
 1. **CORS**: Cross-origin resource sharing
 2. **Body Parser**: JSON request parsing
 3. **Authentication**: JWT token validation
@@ -271,6 +308,7 @@ branch, company, contract, packages_and_offers
 5. **Error Handling**: Global error processing
 
 ### Database Operations
+
 - **Sequelize ORM**: Object-relational mapping
 - **Migrations**: Database schema versioning
 - **Associations**: Entity relationships
@@ -278,6 +316,7 @@ branch, company, contract, packages_and_offers
 - **Validation**: Model-level validation
 
 ### File Handling
+
 - **Multer**: File upload middleware
 - **Image Processing**: Profile picture handling
 - **Document Storage**: Report and document management
@@ -286,6 +325,7 @@ branch, company, contract, packages_and_offers
 ## Development Workflow
 
 ### Prerequisites
+
 - Node.js (v16 or higher)
 - MySQL (v8.0 or higher)
 - pnpm (recommended package manager)
@@ -294,12 +334,14 @@ branch, company, contract, packages_and_offers
 ### Setup Instructions
 
 #### 1. Clone Repository
+
 ```bash
 git clone <repository-url>
 cd LabManager
 ```
 
 #### 2. Backend Setup
+
 ```bash
 cd server
 pnpm install
@@ -310,6 +352,7 @@ pnpm start
 ```
 
 #### 3. Frontend Setup
+
 ```bash
 cd client
 pnpm install
@@ -321,6 +364,7 @@ pnpm run dev
 ### Environment Variables
 
 #### Backend (.env)
+
 ```env
 DATABASE_URL=mysql://username:password@host:port/database
 SECRET_KEY=your-jwt-secret-key
@@ -329,6 +373,7 @@ PORT=3001
 ```
 
 #### Frontend (.env.production)
+
 ```env
 VITE_API_URL=https://api.labdoctors-laboratories.com
 ```
@@ -336,6 +381,7 @@ VITE_API_URL=https://api.labdoctors-laboratories.com
 ### Development Scripts
 
 #### Backend
+
 ```bash
 npm start              # Start development server
 npm run migrate        # Run database migrations
@@ -344,6 +390,7 @@ npm run db:check       # Check database status
 ```
 
 #### Frontend
+
 ```bash
 npm run dev            # Start development server
 npm run build          # Build for production
@@ -354,18 +401,21 @@ npm run preview        # Preview production build
 ## Deployment
 
 ### Docker Deployment
+
 - **Frontend**: Nginx container serving React build
 - **Backend**: Node.js container with Express server
 - **Database**: MySQL container or external database
 - **Orchestration**: Docker Compose for local deployment
 
 ### Production Deployment
+
 - **Frontend**: Docker container with Nginx
-- **Backend**: Railway or similar cloud platform
+- **Backend**: similar cloud platform
 - **Database**: Production MySQL instance
 - **Domain**: Custom domain with SSL certificates
 
 ### Production Considerations
+
 - **Database**: Production MySQL instance with SSL
 - **Security**: Strong JWT secret keys
 - **CORS**: Configured for production domains
@@ -377,6 +427,7 @@ npm run preview        # Preview production build
 ## Security Features
 
 ### Authentication & Authorization
+
 - JWT-based authentication
 - Role-based access control
 - Token expiration and refresh
@@ -384,6 +435,7 @@ npm run preview        # Preview production build
 - Session management
 
 ### Data Protection
+
 - Input validation and sanitization
 - SQL injection prevention
 - XSS protection
@@ -391,6 +443,7 @@ npm run preview        # Preview production build
 - CORS configuration
 
 ### Privacy & Compliance
+
 - Patient data encryption
 - Audit logging
 - Access control
@@ -400,6 +453,7 @@ npm run preview        # Preview production build
 ## Performance Optimization
 
 ### Frontend
+
 - Code splitting by routes
 - Lazy loading for heavy components
 - Image optimization
@@ -408,6 +462,7 @@ npm run preview        # Preview production build
 - WebAssembly optimization for PDF generation
 
 ### Backend
+
 - Database query optimization
 - Connection pooling
 - Response compression
@@ -415,6 +470,7 @@ npm run preview        # Preview production build
 - Rate limiting
 
 ### Database
+
 - Indexed foreign keys
 - Optimized queries
 - Query result caching
@@ -424,6 +480,7 @@ npm run preview        # Preview production build
 ## Monitoring & Maintenance
 
 ### Health Monitoring
+
 - Database connection status
 - API endpoint availability
 - System resource usage
@@ -431,6 +488,7 @@ npm run preview        # Preview production build
 - Response time monitoring
 
 ### Logging
+
 - Request/response logging
 - Error logging with stack traces
 - Authentication attempts
@@ -438,6 +496,7 @@ npm run preview        # Preview production build
 - Performance metrics
 
 ### Backup Strategy
+
 - Regular database backups
 - File system backups
 - Configuration backups
@@ -449,36 +508,42 @@ npm run preview        # Preview production build
 ### Common Issues
 
 #### Database Connection
+
 - Verify DATABASE_URL format
 - Check database credentials
 - Ensure database server is running
 - Test connection with database client
 
 #### CORS Errors
+
 - Verify allowed origins in backend
 - Check frontend API URL configuration
 - Ensure proper CORS headers
 - Test with CORS debugging endpoints
 
 #### Authentication Issues
+
 - Check JWT secret key configuration
 - Verify token format and expiration
 - Review authentication middleware
 - Test token validation
 
 #### Build Failures
+
 - Check for missing dependencies
 - Verify Node.js version compatibility
 - Review build configuration
 - Check for syntax errors
 
 #### PDF Generation Issues
+
 - Check Content Security Policy settings
 - Verify WebAssembly support
 - Ensure all assets are available
 - Check browser console for errors
 
 ### Debug Tools
+
 - Database connection testing scripts
 - Token validation utilities
 - CORS testing endpoints
@@ -488,17 +553,20 @@ npm run preview        # Preview production build
 ## Recent Updates
 
 ### API URL Configuration
+
 - Standardized environment variable usage (`VITE_API_URL`)
 - Removed hardcoded localhost references
 - Improved production deployment configuration
 
 ### PDF Generation Improvements
+
 - Enhanced React-PDF component stability
 - Fixed empty string rendering issues
 - Added WebAssembly support for better performance
 - Improved Content Security Policy configuration
 
 ### Docker Deployment
+
 - Added Nginx configuration for frontend
 - Improved Docker Compose setup
 - Enhanced production deployment workflow
@@ -507,6 +575,7 @@ npm run preview        # Preview production build
 ## Future Enhancements
 
 ### Planned Features
+
 - **Mobile Application**: React Native mobile app
 - **Real-time Notifications**: WebSocket integration
 - **Advanced Analytics**: Business intelligence dashboard
@@ -517,6 +586,7 @@ npm run preview        # Preview production build
 - **Audit Trail**: Comprehensive activity logging
 
 ### Technical Improvements
+
 - **Microservices Architecture**: Service decomposition
 - **Containerization**: Docker deployment (in progress)
 - **CI/CD Pipeline**: Automated testing and deployment
@@ -527,14 +597,16 @@ npm run preview        # Preview production build
 ## Support & Documentation
 
 ### Additional Resources
+
 - **Client Documentation**: See `client/README.md`
 - **Server Documentation**: See `server/README.md`
 - **API Documentation**: Inline code documentation
 - **Database Schema**: Migration files and model definitions
 
 ### Contact Information
+
 - **Developer**: Mohab
-- **Repository**: https://github.com/mohab-kamle/Lab-Manager-Fullstack.git
+- **Repository**: <https://github.com/mohab-kamle/Lab-Manager-Fullstack.git>
 - **Issues**: GitHub Issues for bug reports
 - **Documentation**: This README and component-specific docs
 
