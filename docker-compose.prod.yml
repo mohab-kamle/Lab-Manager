@@ -30,7 +30,6 @@ services:
     image: mysql:8.0
     container_name: labmanager-mysql
     restart: unless-stopped
-    # FIX: Point strictly to the env file. No 'environment:' block.
     env_file: .env.production
     command: --max_connections=2000
     ports:
@@ -51,14 +50,11 @@ services:
       target: server-prod
     container_name: labmanager-backend
     restart: unless-stopped
-    # FIX: Single source of truth. No 'environment:' block.
     env_file: .env.production
     ports:
       - "3001:3001"
     volumes:
-      - uploads_data:/app/uploads
       - logs_data:/app/logs
-      - ./uploads:/app/uploads/shared
     depends_on:
       redis:
         condition: service_started
@@ -87,7 +83,8 @@ services:
     networks:
       - labmanager-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      # BusyBox wget (nginx:alpine) does not support --spider; use -O /dev/null instead
+      test: ["CMD", "wget", "-q", "--tries=1", "-O", "/dev/null", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -95,8 +92,6 @@ services:
 
 volumes:
   mysql_data:
-    driver: local
-  uploads_data:
     driver: local
   logs_data:
     driver: local
