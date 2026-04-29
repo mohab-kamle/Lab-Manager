@@ -188,7 +188,10 @@ app.get('/uploads/private/:filename', authorizeFileAccess, async (req, res) => {
     const s3Key = `private/uploads/${filename}`;
     const s3Url = await getS3FileUrl(s3Key, false); // false = presigned URL for private
     
-    res.redirect(302, s3Url);
+    // Return the pre-signed URL as JSON instead of a 302 redirect.
+    // A redirect followed by XHR triggers S3 CORS checks.
+    // The client assigns the URL directly to <img src>, which is not an XHR and bypasses CORS.
+    res.json({ url: s3Url });
   } catch (error) {
     console.error('Error generating S3 presigned URL for private file:', error);
     res.status(500).json({ error: 'Failed to access file' });
@@ -204,7 +207,10 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, async (req, re
     const s3Key = `private/comment-images/${filename}`;
     const s3Url = await getS3FileUrl(s3Key, false); // false = presigned URL for private
     
-    res.redirect(302, s3Url);
+    // Return the pre-signed URL as JSON instead of a 302 redirect.
+    // A redirect followed by XHR triggers S3 CORS checks.
+    // The client assigns the URL directly to <img src>, which is not an XHR and bypasses CORS.
+    res.json({ url: s3Url });
   } catch (error) {
     console.error('Error generating S3 presigned URL for comment image:', error);
     res.status(500).json({ error: 'Failed to access comment image' });
