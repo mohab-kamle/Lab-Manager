@@ -1,11 +1,13 @@
 # LabManager Server Documentation
 
 ## Overview
+
 The LabManager server is a Node.js/Express.js backend API that provides comprehensive laboratory management functionality. It handles authentication, data management, medical reports, billing, and administrative operations for a multi-role laboratory system.
 
 ## Technology Stack
 
 ### Core Technologies
+
 - **Node.js** - JavaScript runtime
 - **Express.js 4.21.2** - Web framework
 - **Sequelize 6.37.5** - ORM for database operations
@@ -13,15 +15,18 @@ The LabManager server is a Node.js/Express.js backend API that provides comprehe
 - **JWT 9.0.2** - JSON Web Token authentication
 
 ### Security & Authentication
+
 - **bcryptjs 2.4.3** - Password hashing
 - **jsonwebtoken 9.0.2** - JWT token generation/validation
 - **CORS** - Cross-origin resource sharing
 
 ### File Handling
+
 - **Multer 2.0.1** - File upload middleware
 - **XLSX 0.18.5** - Excel file processing
 
 ### Utilities
+
 - **dotenv 16.4.7** - Environment variable management
 - **Commander 12.0.0** - CLI argument parsing
 - **Nodemon 3.1.9** - Development server with auto-restart
@@ -31,7 +36,7 @@ The LabManager server is a Node.js/Express.js backend API that provides comprehe
 ```
 server/
 ├── config/                 # Database configuration
-│   └── config.json        # Sequelize configuration
+│   └── config.js        # Sequelize configuration
 ├── middleware/            # Express middleware
 │   ├── authenticateUser.js
 │   └── authorizeRoles.js
@@ -161,6 +166,7 @@ server/
 ### Core Entities
 
 #### User Management
+
 - **admin** - System administrators
 - **chemist** - Laboratory chemists
 - **doctor** - Medical doctors
@@ -169,6 +175,7 @@ server/
 - **receptionist** - Front desk staff
 
 #### Laboratory Operations
+
 - **test** - Medical tests
 - **test_group** - Grouped tests
 - **test_component** - Individual test components
@@ -178,6 +185,7 @@ server/
 - **sample_type** - Types of samples
 
 #### Medical Reports
+
 - **medical_report** - Main report entity
 - **medical_report_has_test** - Test results
 - **medical_report_has_culture** - Culture results
@@ -186,6 +194,7 @@ server/
 - **medical_report_tg_field_value** - Test group field values
 
 #### Billing & Financial
+
 - **bill** - Invoices
 - **bill_has_test** - Tests in bills
 - **bill_has_culture** - Cultures in bills
@@ -195,6 +204,7 @@ server/
 - **payment_method** - Available payment methods
 
 #### Administrative
+
 - **branch** - Laboratory branches
 - **branch_has_employee** - Employee assignments
 - **company** - Contracted companies
@@ -206,6 +216,7 @@ server/
 - **pao_has_culture** - Cultures in packages
 
 #### Supporting Entities
+
 - **categories_test_and_culture** - Test/culture categories
 - **diseases** - Medical conditions
 - **patient_has_diseases** - Patient disease history
@@ -220,23 +231,26 @@ server/
 ## API Endpoints
 
 ### Authentication
+
 - `POST /login` - User login
 - `GET /me` - Get current user info
 - `POST /logout` - User logout
 
 ### Health Checks
+
 - `GET /` - Basic health check
 - `GET /health` - Database health check
 - `GET /cors-test` - CORS test endpoint
-- `GET /railway-health` - Railway-specific health check
 
 ### User Management
+
 - `GET /admin` - Admin operations
 - `GET /patient` - Patient operations
 - `GET /employee` - Employee operations
 - `GET /receptionist` - Receptionist operations
 
 ### Medical Reports
+
 - `GET /medical-reports` - List reports
 - `POST /medical-reports` - Create report
 - `GET /medical-reports/:id` - Get specific report
@@ -244,6 +258,7 @@ server/
 - `DELETE /medical-reports/:id` - Delete report
 
 ### Laboratory Operations
+
 - `GET /tests` - List tests
 - `POST /tests` - Create test
 - `GET /cultures` - List cultures
@@ -252,12 +267,14 @@ server/
 - `GET /test-groups` - List test groups
 
 ### Billing & Invoices
+
 - `GET /invoices` - List invoices
 - `POST /invoices` - Create invoice
 - `GET /bills` - List bills
 - `POST /bills` - Create bill
 
 ### Administrative
+
 - `GET /branches` - List branches
 - `GET /categories` - List categories
 - `GET /packages-and-offers` - List packages
@@ -266,15 +283,18 @@ server/
 ## Authentication & Authorization
 
 ### JWT Implementation
+
 - **Token Structure**: `{ id, role, iat, exp }`
 - **Secret Key**: Environment variable `SECRET_KEY`
 - **Expiration**: Configurable token lifetime
 
 ### Middleware
+
 - **authenticateUser.js**: Validates JWT tokens
 - **authorizeRoles.js**: Role-based access control
 
 ### User Roles & Permissions
+
 1. **admin** - Full system access
 2. **doctor** - Medical report access, patient data
 3. **chemist** - Laboratory operations, test management
@@ -285,11 +305,13 @@ server/
 ## Database Configuration
 
 ### Environments
+
 - **Development**: Local MySQL with root access
 - **Test**: Separate test database
 - **Production**: Environment variable `DATABASE_URL`
 
 ### Connection Settings
+
 ```json
 {
   "development": {
@@ -314,18 +336,20 @@ server/
 ## CORS Configuration
 
 ### Allowed Origins
+
 - Production domains: `labdoctors-laboratories.com`
 - Development: `localhost:5173`, `localhost:3000`
-- Railway deployment support
 - Docker container support
 
 ### CORS Headers
+
 - Methods: GET, POST, PUT, DELETE, OPTIONS, PATCH
 - Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-Key
 - Credentials: true
 - Max Age: 86400 seconds
 
 ### CORS Debugging
+
 - `/cors-test` endpoint for CORS troubleshooting
 - Detailed logging of CORS requests
 - Flexible origin handling for development
@@ -333,6 +357,7 @@ server/
 ## Development Scripts
 
 ### Database Operations
+
 ```bash
 npm run migrate           # Run migrations
 npm run migrate:undo      # Undo last migration
@@ -345,6 +370,7 @@ npm run db:fix-primary-key # Fix primary key issues
 ```
 
 ### Server Operations
+
 ```bash
 npm start                 # Start with nodemon
 npm test                  # Run tests (placeholder)
@@ -353,6 +379,7 @@ npm test                  # Run tests (placeholder)
 ## Database Migrations
 
 ### Key Migrations
+
 1. **Timestamp Management**: Added created_at/updated_at to all tables
 2. **Test Group Schema**: Implemented test group functionality
 3. **Medical Report Structure**: Enhanced report relationships
@@ -361,6 +388,7 @@ npm test                  # Run tests (placeholder)
 6. **Soft Delete**: Added deleted_at for safe record removal
 
 ### Migration Strategy
+
 - Sequential migration files with timestamps
 - SQL and JavaScript migration support
 - Safe migration scripts with rollback capability
@@ -369,12 +397,14 @@ npm test                  # Run tests (placeholder)
 ## File Upload System
 
 ### Multer Configuration
+
 - **Destination**: `uploads/` directory
 - **File Filtering**: Image and document types
 - **Size Limits**: Configurable file size restrictions
 - **Naming**: Unique filename generation
 
 ### Supported File Types
+
 - Images: PNG, JPG, JPEG, GIF
 - Documents: PDF, DOC, DOCX
 - Spreadsheets: XLS, XLSX, CSV
@@ -382,12 +412,14 @@ npm test                  # Run tests (placeholder)
 ## Error Handling
 
 ### Global Error Handler
+
 - Centralized error processing
 - Consistent error response format
 - Logging for debugging
 - User-friendly error messages
 
 ### Database Error Handling
+
 - Connection failure recovery
 - Transaction rollback on errors
 - Data validation errors
@@ -396,17 +428,20 @@ npm test                  # Run tests (placeholder)
 ## Security Features
 
 ### Password Security
+
 - bcryptjs hashing with salt rounds
 - Secure password validation
 - Password strength requirements
 
 ### Token Security
+
 - JWT with expiration
 - Secure token storage
 - Automatic token refresh
 - Token blacklisting capability
 
 ### Input Validation
+
 - Request body validation
 - SQL injection prevention
 - XSS protection
@@ -415,12 +450,14 @@ npm test                  # Run tests (placeholder)
 ## Performance Optimization
 
 ### Database Optimization
+
 - Indexed foreign keys
 - Optimized queries
 - Connection pooling
 - Query caching
 
 ### API Optimization
+
 - Response compression
 - Request rate limiting
 - Caching headers
@@ -429,12 +466,14 @@ npm test                  # Run tests (placeholder)
 ## Monitoring & Logging
 
 ### Health Monitoring
+
 - Database connection status
 - API endpoint availability
 - System resource usage
 - Error rate tracking
 
 ### Logging
+
 - Request/response logging
 - Error logging with stack traces
 - Authentication attempts
@@ -443,24 +482,21 @@ npm test                  # Run tests (placeholder)
 ## Deployment
 
 ### Environment Variables
+
 - `DATABASE_URL` - Production database connection
 - `SECRET_KEY` - JWT secret key
 - `NODE_ENV` - Environment (development/production)
 - `PORT` - Server port (default: 3001)
 
-### Railway Deployment
-- Automatic deployment from Git
-- Environment variable management
-- SSL certificate handling
-- Health check endpoints
-
 ### Docker Deployment
+
 - Containerized application deployment
 - Environment variable support
 - Health check integration
 - Production-ready configuration
 
 ### Production Considerations
+
 - Database connection pooling
 - Error monitoring and alerting
 - Backup strategies
@@ -471,24 +507,28 @@ npm test                  # Run tests (placeholder)
 ## Recent Updates
 
 ### API URL Standardization
+
 - Frontend now uses `VITE_API_URL` environment variable
 - Improved production deployment configuration
 - Enhanced CORS handling for multiple domains
 - Better environment variable management
 
 ### CORS Enhancements
+
 - Added support for Docker container deployments
 - Improved CORS debugging with `/cors-test` endpoint
 - Enhanced logging for CORS-related issues
 - Flexible origin handling for development environments
 
 ### Security Improvements
+
 - Enhanced JWT token validation
 - Improved error handling for authentication
 - Better input validation and sanitization
 - Enhanced file upload security
 
 ### Performance Optimizations
+
 - Database query optimization
 - Response compression improvements
 - Better connection pooling
@@ -497,8 +537,9 @@ npm test                  # Run tests (placeholder)
 ## Troubleshooting
 
 ### Common Issues
+
 1. **Database Connection**: Check DATABASE_URL and credentials
-2. **CORS Errors**: 
+2. **CORS Errors**:
    - Verify allowed origins configuration
    - Use `/cors-test` endpoint for debugging
    - Check frontend API URL configuration
@@ -506,12 +547,14 @@ npm test                  # Run tests (placeholder)
 4. **Migration Issues**: Run migrations sequentially
 
 ### Debug Tools
+
 - Database connection testing scripts
 - Token validation utilities
 - CORS testing endpoints (`/cors-test`)
-- Health check endpoints (`/health`, `/railway-health`)
+- Health check endpoints (`/health`)
 
 ### Log Analysis
+
 - Check server logs for errors
 - Monitor database connection status
 - Review authentication attempts
@@ -519,7 +562,8 @@ npm test                  # Run tests (placeholder)
 - CORS request logging
 
 ### Environment Variable Issues
+
 - Verify all required environment variables are set
 - Check environment variable naming conventions
 - Test with hardcoded values for debugging
-- Ensure proper environment variable loading 
+- Ensure proper environment variable loading

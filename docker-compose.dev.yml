@@ -18,11 +18,7 @@ services:
     image: mysql:8.0
     container_name: labmanager-mysql-dev
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-labmanager}
-      MYSQL_USER: ${MYSQL_USER:-labuser}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-labpassword}
+    env_file: .env.development
     command: --max_connections=2000
     ports:
       - "3306:3306"
@@ -37,30 +33,19 @@ services:
 
   backend:
     build:
-      context: .  # CHANGED: Context is now the root
+      context: .  
       dockerfile: Dockerfile
       target: server-dev
-      args:
-        NODE_ENV: development
     container_name: labmanager-backend-dev
     restart: unless-stopped
     env_file: .env.development
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: mysql://${MYSQL_USER:-labuser}:${MYSQL_PASSWORD:-labpassword}@mysql:3306/${MYSQL_DATABASE:-labmanager}
-      PORT: 3001
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
     ports:
       - "3001:3001"
     volumes:
-      - ./server:/app/server       # CHANGED: Mount source to /app/server
-      - /app/node_modules          # CHANGED: Preserve root node_modules
-      - /app/server/node_modules   # CHANGED: Preserve server node_modules
-      - uploads_data_dev:/app/server/uploads # CHANGED: Update path
-      - logs_data_dev:/app/server/logs       # CHANGED: Update path
-      - ./uploads:/app/server/uploads/shared # CHANGED: Update path
+      - ./server:/app/server       
+      - /app/node_modules          
+      - /app/server/node_modules   
+      - logs_data_dev:/app/server/logs       
     depends_on:
       redis:
         condition: service_started
@@ -68,7 +53,6 @@ services:
         condition: service_healthy
     networks:
       - labmanager-network
-    # CHANGED: Added 'prefix' to run command in the server workspace
     command: sh -c "npx sequelize-cli db:create && npm run dev && npx sequelize-cli db:migrate"
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
@@ -79,42 +63,69 @@ services:
 
   frontend:
     build:
-      context: . # CHANGED: Context is now the root
+      context: . 
       dockerfile: Dockerfile
       target: client-dev
-      args:
-        NODE_ENV: development
     container_name: labmanager-frontend-dev
     restart: unless-stopped
-    env_file: 
-      - .env.development
-    environment:
-      NODE_ENV: development
-      VITE_SERVER: http://localhost:3001
-      CHOKIDAR_USEPOLLING: "true"
+    env_file: .env.development
     ports:
       - "5173:5173"
     volumes:
-      - ./client:/app/client      # CHANGED: Mount source to /app/client
-      - /app/node_modules         # CHANGED: Preserve root node_modules
-      - /app/client/node_modules  # FIX: Preserve client node_modules from Docker build
-
+      - ./client:/app/client      
+      - /app/node_modules         
+      - /app/client/node_modules  
     networks:
       - labmanager-network
     working_dir: /app/client
     command: sh -c "pnpm run dev -- --host 0.0.0.0 --port 5173"
-
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5173/"]
+      # node:lts-alpine has no wget; use node (always available) to probe the dev server
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5173/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    container_name: labmanager-minio-dev
+    env_file: .env.development
+    ports:
+      - "9000:9000"  
+      - "9001:9001"  
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data_dev:/data
+    networks:
+      - labmanager-network
+    restart: unless-stopped
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: labmanager-minio-setup-dev
+    env_file: .env.development
+    depends_on:
+      - minio
+    networks:
+      - labmanager-network
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO...' &&
+      until mc alias set localminio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD; do
+        sleep 2;
+      done &&
+      echo 'Creating bucket (cura-uploads)...' &&
+      mc mb localminio/cura-uploads || true &&
+      echo 'Setting public policy for the public folder (logos, avatars)...' &&
+      mc anonymous set download localminio/cura-uploads/public &&
+      echo 'MinIO setup completed successfully!'
+      "
 
 volumes:
   mysql_data_dev:
     driver: local
-  uploads_data_dev:
+  minio_data_dev:
     driver: local
   logs_data_dev:
     driver: local
