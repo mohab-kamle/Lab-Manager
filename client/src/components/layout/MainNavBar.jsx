@@ -33,9 +33,11 @@ import {
 import api from "../../utils/api";
 
 import labIcon from "../../assets/LabIconWithRoundedWhiteBg_sm.webp";
+import labIconDark from "../../assets/LabIconWithRoundBlueBg.webp";
 import { getSubdomain } from "../../utils/subdomain";
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
+import { useTheme } from "../../context/ThemeContext";
 import VersionBadge from "../ui/VersionBadge";
 
 import "../../styles/MainNavBar.css";
@@ -90,7 +92,8 @@ export const resetNavbarActiveState = () => {
 const MainNavBar = () => {
   const { toast } = useToast();
   const { user, loading: authLoading, refreshUser, logout } = useAuth();
-  const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
+  const { terminateLabInfo, loading: labLoading, labInfo } = useLab();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -110,10 +113,6 @@ const MainNavBar = () => {
     return localStorage.getItem("active-dropdown-item") || null;
   });
   const [expanded, setExpanded] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem("darkMode");
-    return saved ? JSON.parse(saved) : false;
-  });
   const [isInitialized, setIsInitialized] = useState(false);
 
   // --- Notification Bell State ---
@@ -280,9 +279,6 @@ const MainNavBar = () => {
     setExpanded(false);
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -337,7 +333,7 @@ const MainNavBar = () => {
             onClick={() => setExpanded(false)}
           >
             <img
-              src={labIcon}
+              src={theme === 'dark' ? labIconDark : labIcon}
               alt=""
               style={{ width: "50px", height: "50px", borderRadius: "50%" }}
             />

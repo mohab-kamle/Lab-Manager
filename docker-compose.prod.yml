@@ -26,16 +26,12 @@ services:
     depends_on:
       - frontend
 
-
   mysql:
     image: mysql:8.0
     container_name: labmanager-mysql
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-labmanager}
-      MYSQL_USER: ${MYSQL_USER:-labuser}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-labpassword}
+    # FIX: Point strictly to the env file. No 'environment:' block.
+    env_file: .env.production
     command: --max_connections=2000
     ports:
       - "3306:3306"
@@ -53,19 +49,10 @@ services:
       context: .
       dockerfile: Dockerfile
       target: server-prod
-      args:
-        NODE_ENV: production
     container_name: labmanager-backend
     restart: unless-stopped
+    # FIX: Single source of truth. No 'environment:' block.
     env_file: .env.production
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: mysql://${MYSQL_USER:-labuser}:${MYSQL_PASSWORD:-labpassword}@mysql:3306/${MYSQL_DATABASE:-labmanager}
-      PORT: 3001
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key}
-      FORCE_SYNC: "true"
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
     ports:
       - "3001:3001"
     volumes:
