@@ -29,6 +29,8 @@
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1037.0",
+    "@aws-sdk/client-s3": "^3.1038.0",
+    "@aws-sdk/s3-request-presigner": "^3.1038.0",
     "axios": "^1.15.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
@@ -45,6 +47,7 @@
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.12.42",
     "multer": "^2.1.1",
+    "multer-s3": "^3.0.1",
     "mysql2": "^3.15.3",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.5",
