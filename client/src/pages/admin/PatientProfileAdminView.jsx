@@ -17,12 +17,16 @@ import {
   ArrowLeft,
   Pencil,
   Receipt,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ClockHistory
 } from "react-bootstrap-icons";
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
 import SettlementModal from "../../components/settlement/SettlementModal";
-import { Wallet2, CheckCircle } from "lucide-react";
+import { Wallet2, CheckCircle, Receipt as ReceiptIcon } from "lucide-react";
+import { formatCurrency } from "../../utils/currencyFormatter";
 
 // Reuse styles from PatientProfile
 import "../../styles/PatientProfile.css";
@@ -81,6 +85,8 @@ const PatientProfileAdminView = () => {
   const [formErrors, setFormErrors] = useState({});
   const [saveLoading, setSaveLoading] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -108,7 +114,22 @@ const PatientProfileAdminView = () => {
       }
     };
 
+    const fetchTransactions = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(`${apiUrl}/patient/${id}/transactions?limit=5`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setTransactions(response.data || []);
+      } catch (err) {
+        console.error("Error fetching patient transactions:", err);
+      } finally {
+        setTransactionsLoading(false);
+      }
+    };
+
     fetchPatientDetails();
+    fetchTransactions();
     // Note: toast and navigate are intentionally excluded – they are stable refs
     // from context/router and should not trigger a refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,7 +154,7 @@ const PatientProfileAdminView = () => {
         birth_date: birth_date,
         gender: patient.gender || "",
         nationality: patient.nationality || "",
-        primaryPhone: patient.phones?.find(p => p.type === 'primary')?.phone_number || "",
+        primaryPhone: patient.phones?.find(p => p.is_primary)?.phone_number || "",
         email: patient.email || "",
         address: patient.address || "",
         national_id: patient.national_id || "",
@@ -284,132 +305,198 @@ const PatientProfileAdminView = () => {
               variants={containerVariants}
               initial="hidden"
               animate="visible"
-              className="profile-grid"
+              className="profile-grid-admin"
             >
-              {/* Personal Info Card */}
+              {/* Comprehensive Patient Sidebar (Merged 3 Vertical Cards) */}
               <motion.div
                 variants={itemVariants}
-                className="patient-profile-card p-4"
+                className="patient-profile-card p-4 d-flex flex-column gap-4"
+                style={{ gridArea: 'sidebar' }}
               >
-                <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
-                  <FileEarmarkPerson /> Personal Details
-                </h5>
-                <InfoBubble
-                  icon={Calendar}
-                  label="Date of Birth"
-                  value={isEditing ? formData.birth_date : formatDate(patient.birth_date)}
-                  delay={0.1}
-                  isEditing={isEditing}
-                  name="birth_date"
-                  type="date"
-                  onChange={handleChange}
-                  error={formErrors.birth_date}
-                />
-                <InfoBubble
-                  icon={GenderAmbiguous}
-                  label="Gender"
-                  value={isEditing ? formData.gender : patient.gender}
-                  delay={0.2}
-                  isEditing={isEditing}
-                  name="gender"
-                  type="select"
-                  options={[{ value: "Male", label: "Male" }, { value: "Female", label: "Female" }]}
-                  onChange={handleChange}
-                  error={formErrors.gender}
-                />
-                <InfoBubble
-                  icon={Globe}
-                  label="Nationality"
-                  value={isEditing ? formData.nationality : patient.nationality}
-                  delay={0.3}
-                  isEditing={isEditing}
-                  name="nationality"
-                  onChange={handleChange}
-                  error={formErrors.nationality}
-                />
-              </motion.div>
+                {/* Section 1: Personal Details */}
+                <div>
+                  <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+                    <FileEarmarkPerson className="text-primary" /> Personal Details
+                  </h5>
+                  <div className="ps-2">
+                    <InfoBubble
+                      icon={Calendar}
+                      label="Date of Birth"
+                      value={isEditing ? formData.birth_date : formatDate(patient.birth_date)}
+                      delay={0.1}
+                      isEditing={isEditing}
+                      name="birth_date"
+                      type="date"
+                      onChange={handleChange}
+                      error={formErrors.birth_date}
+                    />
+                    <InfoBubble
+                      icon={GenderAmbiguous}
+                      label="Gender"
+                      value={isEditing ? formData.gender : patient.gender}
+                      delay={0.2}
+                      isEditing={isEditing}
+                      name="gender"
+                      type="select"
+                      options={[{ value: "Male", label: "Male" }, { value: "Female", label: "Female" }]}
+                      onChange={handleChange}
+                      error={formErrors.gender}
+                    />
+                    <InfoBubble
+                      icon={Globe}
+                      label="Nationality"
+                      value={isEditing ? formData.nationality : patient.nationality}
+                      delay={0.3}
+                      isEditing={isEditing}
+                      name="nationality"
+                      onChange={handleChange}
+                      error={formErrors.nationality}
+                    />
+                  </div>
+                </div>
 
-              {/* Contact Info Card */}
-              <motion.div
-                variants={itemVariants}
-                className="patient-profile-card p-4"
-              >
-                <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
-                  <Telephone /> Contact Info
-                </h5>
-                <InfoBubble
-                  icon={Telephone}
-                  label="Primary Phone"
-                  value={isEditing ? formData.primaryPhone : patient.phones?.find(p => p.type === 'primary')?.phone_number}
-                  delay={0.4}
-                  isEditing={isEditing}
-                  name="primaryPhone"
-                  onChange={handleChange}
-                  error={formErrors.primaryPhone}
-                />
-                <InfoBubble
-                  icon={Envelope}
-                  label="Email Address"
-                  value={isEditing ? formData.email : patient.email}
-                  delay={0.5}
-                  isEditing={isEditing}
-                  name="email"
-                  type="email"
-                  onChange={handleChange}
-                  error={formErrors.email}
-                />
-                <InfoBubble
-                  icon={House}
-                  label="Home Address"
-                  value={isEditing ? formData.address : patient.address}
-                  delay={0.6}
-                  isEditing={isEditing}
-                  name="address"
-                  onChange={handleChange}
-                  error={formErrors.address}
-                />
-              </motion.div>
+                <hr className="my-0 border-muted opacity-25" />
 
-              {/* Identification Card */}
-              <motion.div
-                variants={itemVariants}
-                className="patient-profile-card p-4"
-              >
-                <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
-                  <CardHeading /> Identification
-                </h5>
-                <InfoBubble
-                  icon={CardHeading}
-                  label="National ID"
-                  value={isEditing ? formData.national_id : patient.national_id}
-                  delay={0.7}
-                  isEditing={isEditing}
-                  name="national_id"
-                  onChange={handleChange}
-                  error={formErrors.national_id}
-                />
-                <InfoBubble
-                  icon={FileMedical}
-                  label="Passport Number"
-                  value={isEditing ? formData.passport_no : patient.passport_no}
-                  delay={0.8}
-                  isEditing={isEditing}
-                  name="passport_no"
-                  onChange={handleChange}
-                  error={formErrors.passport_no}
-                />
-                <div className="mt-4 pt-3 border-top">
-                  <div className="text-muted small mb-1">Associated Contract</div>
-                  <div className="fw-bold">
-                    {patient.contract?.name || "No Contract Linked"}
+                {/* Section 2: Contact Info */}
+                <div>
+                  <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+                    <Telephone className="text-primary" /> Contact Info
+                  </h5>
+                  <div className="ps-2">
+                    <InfoBubble
+                      icon={Telephone}
+                      label="Primary Phone"
+                      value={isEditing ? formData.primaryPhone : patient.phones?.find(p => p.is_primary)?.phone_number}
+                      delay={0.4}
+                      isEditing={isEditing}
+                      name="primaryPhone"
+                      onChange={handleChange}
+                      error={formErrors.primaryPhone}
+                    />
+                    <InfoBubble
+                      icon={Envelope}
+                      label="Email Address"
+                      value={isEditing ? formData.email : patient.email}
+                      delay={0.5}
+                      isEditing={isEditing}
+                      name="email"
+                      type="email"
+                      onChange={handleChange}
+                      error={formErrors.email}
+                    />
+                    <InfoBubble
+                      icon={House}
+                      label="Home Address"
+                      value={isEditing ? formData.address : patient.address}
+                      delay={0.6}
+                      isEditing={isEditing}
+                      name="address"
+                      onChange={handleChange}
+                      error={formErrors.address}
+                    />
+                  </div>
+                </div>
+
+                <hr className="my-0 border-muted opacity-25" />
+
+                {/* Section 3: Identification */}
+                <div>
+                  <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+                    <CardHeading className="text-primary" /> Identification
+                  </h5>
+                  <div className="ps-2">
+                    <InfoBubble
+                      icon={CardHeading}
+                      label="National ID"
+                      value={isEditing ? formData.national_id : patient.national_id}
+                      delay={0.7}
+                      isEditing={isEditing}
+                      name="national_id"
+                      onChange={handleChange}
+                      error={formErrors.national_id}
+                    />
+                    <InfoBubble
+                      icon={FileMedical}
+                      label="Passport Number"
+                      value={isEditing ? formData.passport_no : patient.passport_no}
+                      delay={0.8}
+                      isEditing={isEditing}
+                      name="passport_no"
+                      onChange={handleChange}
+                      error={formErrors.passport_no}
+                    />
+                  </div>
+                  <div className="mt-4 pt-3 border-top border-muted border-dashed">
+                    <div className="text-muted small mb-1">Associated Contract</div>
+                    <div className="fw-bold">
+                      {patient.contract?.name || "No Contract Linked"}
+                    </div>
                   </div>
                 </div>
               </motion.div>
 
-              {/* Medical Summary Card */}
+              {/* Transactions Card (2x2) */}
+              <motion.div
+                variants={itemVariants}
+                className="patient-profile-card p-4 d-flex flex-column"
+                style={{ gridArea: 'transactions' }}
+              >
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h5 className="fw-bold text-secondary mb-0 d-flex align-items-center gap-2">
+                    <ReceiptIcon size={24} className="text-primary" /> Recent Transactions
+                  </h5>
+                </div>
+
+                {transactionsLoading ? (
+                  <div className="flex-grow-1 d-flex align-items-center justify-content-center">
+                    <LoadingSpinner size="sm" />
+                  </div>
+                ) : transactions.length > 0 ? (
+                  <div className="flex-grow-1">
+                    {transactions.map((txn, idx) => (
+                      <div key={txn.transactionId || idx} className={`d-flex align-items-center py-3 ${idx !== transactions.length - 1 ? 'border-bottom border-muted' : ''}`}>
+                        <div className={`rounded-circle p-2 me-3 ${txn.processType?.toLowerCase() === 'refund' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'}`}>
+                          {txn.processType?.toLowerCase() === 'refund' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                        </div>
+                        <div className="flex-grow-1 overflow-hidden">
+                          <div className="d-flex justify-content-between mb-1">
+                            <span className="fw-bold text-dark text-truncate">{txn.summary || 'General Payment'}</span>
+                            <span className={`fw-bold ${txn.processType?.toLowerCase() === 'refund' ? 'text-danger' : 'text-success'}`}>
+                              {txn.processType?.toLowerCase() === 'refund' ? '-' : '+'} {formatCurrency(txn.amount)}
+                            </span>
+                          </div>
+                          <div className="d-flex justify-content-between small text-muted">
+                            <span>{txn.transactionId}</span>
+                            <span className="d-flex align-items-center gap-1">
+                              <ClockHistory size={12} /> {formatDate(txn.date)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center opacity-75 py-5">
+                    <div className="mb-3 text-muted opacity-25">
+                      <Receipt size={64} />
+                    </div>
+                    <h6 className="fw-bold text-muted">No Transactions</h6>
+                    <p className="text-muted small mb-0">Financial history for this patient is empty.</p>
+                  </div>
+                )}
+
+                <div className="mt-auto pt-4 text-center">
+                  <Button variant="link" size="sm" className="text-decoration-none fw-bold" onClick={() => navigate(`/admin/transactions?search=${patient.patientcode}`)}>
+                    View All Transactions →
+                  </Button>
+                </div>
+              </motion.div>
+
+              {/* Medical Summary Card (Top-Middle) */}
               <motion.div
                 variants={itemVariants}
                 className="patient-profile-card p-4"
+                style={{ gridArea: 'medical' }}
               >
                 <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
                   <FileMedical /> Medical History
@@ -447,10 +534,11 @@ const PatientProfileAdminView = () => {
                 </div>
               </motion.div>
 
-              {/* Settlement & Billing Card */}
+              {/* Settlement & Billing Card (Top-Right) */}
               <motion.div
                 variants={itemVariants}
                 className="patient-profile-card p-4"
+                style={{ gridArea: 'settlement' }}
               >
                 <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
                   <Wallet2 size={24} className="text-success" /> Settlement & Billing
@@ -478,24 +566,11 @@ const PatientProfileAdminView = () => {
                   )}
                 </div>
                 
-                <div className="mt-4 pt-3 border-top">
-                  <p className="text-muted small mb-0 text-center">
-                    Review and settle outstanding invoices for this patient.
+                <div className="mt-4 pt-3 border-top text-center">
+                  <p className="text-muted small mb-0">
+                    Settle outstanding invoices.
                   </p>
                 </div>
-              </motion.div>
-
-              {/* Transactions Placeholder */}
-              <motion.div
-                variants={itemVariants}
-                className="patient-profile-card p-4 d-flex flex-column align-items-center justify-content-center text-center border-dashed"
-                style={{ border: '2px dashed var(--border-default)', background: 'rgba(0,0,0,0.02)' }}
-              >
-                <div className="mb-3 text-muted opacity-50">
-                  <Receipt size={48} />
-                </div>
-                <h5 className="fw-bold text-muted mb-1">Transactions History</h5>
-                <p className="text-muted small mb-0">Upcoming Feature: View full payment and billing history here.</p>
               </motion.div>
 
             </motion.div>

@@ -888,6 +888,16 @@ const MainNavBar = () => {
                           </Dropdown.Item>
                           <Dropdown.Item
                             as={Link}
+                            to={`/admin/manager-keys`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Manager Key Management"
+                            data-id="manager-keys"
+                            active={activeItem === "manager-keys"}
+                          >
+                            Manager Key Management
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
                             to={`/${user?.role}/outsourced-labs`}
                             data-dropdown-key="Manage_B"
                             data-title="Outsourced Labs"
