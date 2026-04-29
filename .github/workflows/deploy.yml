@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -22,10 +22,10 @@ jobs:
       # 1. Build the frontend locally on GitHub
       - name: Build frontend
         run: |
-          # Write ALL Vite env vars before building.
-          # Vite statically replaces import.meta.env.VITE_* at build time,
-          # so every variable must be present here or it gets baked in as "undefined".
-          cat > client/.env.production <<EOF
+          # CRITICAL: vite.config.js sets envDir:'../' which means Vite reads
+          # env files from the PROJECT ROOT, not from client/.
+          # Writing to client/.env.production is silently ignored by Vite.
+          cat > .env.production <<EOF
           VITE_API_URL=${{ secrets.VITE_API_URL }}
           VITE_SERVER=${{ secrets.VITE_SERVER }}
           VITE_APP_NAME=${{ secrets.VITE_APP_NAME || 'LabManager' }}
@@ -33,8 +33,8 @@ jobs:
           EOF
 
           # Debug: confirm values were written (secrets are masked in logs, but "undefined" will show)
-          echo "--- client/.env.production contents ---"
-          cat client/.env.production
+          echo "--- root .env.production contents (read by Vite via envDir:'../') ---"
+          cat .env.production
           echo "---------------------------------------"
 
           # Install pnpm
@@ -67,7 +67,7 @@ jobs:
           fi
       # --- NEW: Configure AWS & Open Firewall ---
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
