@@ -14,52 +14,69 @@ $font-family-base: $font-family-sans-serif;
    2) Define SCSS fallback color palettes
 --------------------------------- */
 
-/* Light mode colors (Unchanged to lock in preferred light mode style) */
+/* Light mode colors — primary updated to Blue-600 (#2563eb) to unify
+   the vivid blue used by btn-primary-glow with Bootstrap's btn-primary. */
 $logo-color: #0e0e21;
 $bg-dark: hsl(214, 100%, 94%);
 $bg: hsl(214, 100%, 99%);
 $bg-light: hsl(214, 100%, 100%);
 $text: hsl(257, 100%, 13%);
-$text-muted: hsl(212, 100%, 27%);
+$text-muted: hsl(220, 50%, 40%);
+/* Neutral blue-grey — no longer pure navy */
 $highlight: hsl(213, 100%, 100%);
-$border: hsl(208, 100%, 46%);
-$border-muted: hsl(212, 100%, 65%);
-$primary: hsl(212, 100%, 27%);
+$border: hsl(217, 91%, 60%);
+/* Blue-400 — softer than old saturated border */
+$border-muted: hsl(214, 80%, 75%);
+/* Lighter tint of new primary */
+$primary: #2563eb;
+/* Blue-600 — matches btn-primary-glow */
 $secondary: hsl(25, 95%, 55%);
 $danger: hsl(4, 99%, 37%);
 $warning: hsl(50, 100%, 50%);
 $success: hsl(150, 60%, 45%);
-$info: hsl(215, 95%, 42%);
+$info: hsl(199, 89%, 45%);
+/* Sky-blue — distinct from primary */
 
 /* Dark mode colors (Modern SaaS Slate/Blue Palette) */
-$dark-bg-dark: #020617;     /* Slate 950 - Inset backgrounds */
-$dark-bg: #0f172a;          /* Slate 900 - Body background */
-$dark-bg-light: #1e293b;    /* Slate 800 - Cards & Modals */
-$dark-text: #f8fafc;        /* Slate 50 - Off-white headings */
-$dark-text-muted: #94a3b8;  /* Slate 400 - Secondary text */
-$dark-highlight: #334155;   /* Slate 700 - Hover states */
-$dark-border: #334155;      /* Slate 700 */
-$dark-border-muted: #1e293b; 
-$dark-primary: #3b82f6;     /* Blue 500 */
-$dark-secondary: #64748b;   /* Slate 500 */
-$dark-danger: #f87171;      /* Red 400 */
-$dark-warning: #facc15;     /* Yellow 400 */
-$dark-success: #4ade80;     /* Green 400 */
-$dark-info: #38bdf8;        /* Sky 400 */
+$dark-bg-dark: #020617;
+/* Slate 950 - Inset backgrounds */
+$dark-bg: #080f25;
+/* Slate 900 - Body background */
+$dark-bg-light: #101935;
+/* Slate 800 - Cards & Modals */
+$dark-text: #f8fafc;
+/* Slate 50 - Off-white headings */
+$dark-text-muted: #94a3b8;
+/* Slate 400 - Secondary text */
+$dark-highlight: #334155;
+/* Slate 700 - Hover states */
+$dark-border: #334155;
+/* Slate 700 */
+$dark-border-muted: #101935;
+$dark-primary: #3b82f6;
+/* Blue 500 */
+$dark-secondary: #64748b;
+/* Slate 500 */
+$dark-danger: #f87171;
+/* Red 400 */
+$dark-warning: #facc15;
+/* Yellow 400 */
+$dark-success: #4ade80;
+/* Green 400 */
+$dark-info: #38bdf8;
+/* Sky 400 */
 
 /* -------------------------------
    3) Apply to Bootstrap
 --------------------------------- */
-@use "bootstrap/scss/bootstrap" with (
-   $font-family-sans-serif: $font-family-sans-serif,
+@use "bootstrap/scss/bootstrap" with ($font-family-sans-serif: $font-family-sans-serif,
    $font-family-base: $font-family-base,
    $primary: $primary,
    $secondary: $secondary,
    $danger: $danger,
    $warning: $warning,
    $success: $success,
-   $info: $info
-);
+   $info: $info);
 
 /* -------------------------------
    4) Force CSS aliases on runtime
@@ -85,5 +102,5 @@ body.dark {
    /* Bootstrap Overrides */
    --bs-body-bg: #{$dark-bg};
    --bs-body-color: #{$dark-text};
+   --bs-card-bg: #{$dark-bg-light};
 }
-

@@ -38,7 +38,7 @@ body.dark .homepage-root {
   --glass-hover-shadow: 0 -4px 20px rgba(99, 102, 241, 0.15);
   --text-muted-homepage: #94a3b8;
   --pill-bg: rgba(99, 102, 241, 0.12);
-  --cta-bg: linear-gradient(135deg, #0f172a, #020617);
+  --cta-bg: linear-gradient(135deg, #080f25, #020617);
   --cta-border: rgba(255, 255, 255, 0.08);
   --glass-btn-bg: rgba(255, 255, 255, 0.05);
   --glass-btn-hover: rgba(255, 255, 255, 0.1);
