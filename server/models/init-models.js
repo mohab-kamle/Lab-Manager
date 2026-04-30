@@ -59,6 +59,8 @@ var _inventory_item = require("./inventory_item");
 var _inventory_batch = require("./inventory_batch");
 var _inventory_transaction = require("./inventory_transaction");
 var _inventory_notification = require("./inventory_notification");
+var _financial_transaction = require("./financial_transaction");
+
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -114,6 +116,8 @@ function initModels(sequelize) {
   var inventory_batch = _inventory_batch(sequelize, DataTypes);
   var inventory_transaction = _inventory_transaction(sequelize, DataTypes);
   var inventory_notification = _inventory_notification(sequelize, DataTypes);
+  var financial_transaction = _financial_transaction(sequelize, DataTypes);
+
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -542,6 +546,26 @@ function initModels(sequelize) {
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });
 
+  // ── Financial Transaction associations ──────────────────────────────────
+  financial_transaction.belongsTo(employee, { as: "processed_by", foreignKey: "processed_by_id" });
+  employee.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "processed_by_id" });
+
+  financial_transaction.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
+  patient.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "patient_id" });
+
+  financial_transaction.belongsTo(bill, { as: "bill", foreignKey: "bill_id" });
+  bill.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "bill_id" });
+
+  financial_transaction.belongsTo(payment_method, { as: "payment_method", foreignKey: "payment_method_id" });
+  payment_method.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "payment_method_id" });
+
+  financial_transaction.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "lab_id" });
+
+  financial_transaction.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
+  branch.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "branch_id" });
+
+
   // Define associations for the new models
 
 
@@ -641,8 +665,10 @@ function initModels(sequelize) {
     inventory_item,
     inventory_batch,
     inventory_transaction,
-    inventory_notification
+    inventory_notification,
+    financial_transaction
   };
+
 }
 module.exports = initModels;
 module.exports.initModels = initModels;

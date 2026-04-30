@@ -3,54 +3,57 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    /**
-     * Add altering commands here.
-     *
-     * Example:
-     * await queryInterface.createTable('users', { id: Sequelize.INTEGER });
-     */
-    // We wrap this in a transaction so if one fails, they all roll back safely
-    return queryInterface.sequelize.transaction(t => {
-      return Promise.all([
-        queryInterface.addColumn('global_test_catalog', 'type', {
-          type: Sequelize.ENUM('single', 'panel', 'culture'),
-          allowNull: false,
-          defaultValue: 'single'
-        }, { transaction: t }),
-        
-        queryInterface.addColumn('global_test_catalog', 'order_rank', {
-          type: Sequelize.INTEGER,
-          allowNull: true
-        }, { transaction: t }),
-        
-        queryInterface.addColumn('global_test_catalog', 'patient_friendly_name', {
-          type: Sequelize.STRING,
-          allowNull: true
-        }, { transaction: t }),
-        
-        queryInterface.addColumn('global_test_catalog', 'global_category', {
-          type: Sequelize.STRING,
-          allowNull: true
-        }, { transaction: t })
-      ]);
+// Helper function to safely add columns without crashing the migration
+    const addColumnSafely = async (columnName, attributes) => {
+      try {
+        await queryInterface.addColumn('global_test_catalog', columnName, attributes);
+        console.log(`✅ Success: Added '${columnName}' column.`);
+      } catch (error) {
+        if (error.message.includes("Duplicate column name")) {
+          console.log(`⚠️ Warning: Skipped adding '${columnName}'. Column already exists.`);
+        } else {
+          throw error; // Throw actual database errors
+        }
+      }
+    };
+
+    // Execute sequentially so one failure doesn't stop the others
+    await addColumnSafely('type', {
+      type: Sequelize.ENUM('single', 'panel', 'culture'),
+      allowNull: false,
+      defaultValue: 'single'
+    });
+
+    await addColumnSafely('order_rank', {
+      type: Sequelize.INTEGER,
+      allowNull: true
+    });
+
+    await addColumnSafely('patient_friendly_name', {
+      type: Sequelize.STRING,
+      allowNull: true
+    });
+
+    await addColumnSafely('global_category', {
+      type: Sequelize.STRING,
+      allowNull: true
     });
   },
 
   async down (queryInterface, Sequelize) {
-    /**
-     * Add reverting commands here.
-     *
-     * Example:
-     * await queryInterface.dropTable('users');
-     */
-    // If we need to undo this, we remove the columns
-    return queryInterface.sequelize.transaction(t => {
-      return Promise.all([
-        queryInterface.removeColumn('global_test_catalog', 'type', { transaction: t }),
-        queryInterface.removeColumn('global_test_catalog', 'order_rank', { transaction: t }),
-        queryInterface.removeColumn('global_test_catalog', 'patient_friendly_name', { transaction: t }),
-        queryInterface.removeColumn('global_test_catalog', 'global_category', { transaction: t })
-      ]);
-    });
+// Helper function to safely remove columns
+    const removeColumnSafely = async (columnName) => {
+      try {
+        await queryInterface.removeColumn('global_test_catalog', columnName);
+        console.log(`✅ Success: Removed '${columnName}' column.`);
+      } catch (error) {
+        console.log(`⚠️ Warning: Skipped removing '${columnName}'. It might not exist.`);
+      }
+    };
+
+    await removeColumnSafely('type');
+    await removeColumnSafely('order_rank');
+    await removeColumnSafely('patient_friendly_name');
+    await removeColumnSafely('global_category');
   }
 };
