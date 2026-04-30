@@ -4,12 +4,8 @@ import {
   Row,
   Col,
   Button,
-  Modal,
-  Form,
-  Alert,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
 
 // Icons
@@ -26,12 +22,9 @@ import {
 
 // Components
 import VersionBadge from "../../components/ui/VersionBadge";
-import PrivacyPolicy from "../../components/info/PrivacyPolicy";
-import RefundPolicy from "../../components/info/RefundPolicy";
-import AboutUs from "../../components/info/AboutUs";
-import TermsAndConditions from "../../components/info/TermsAndConditions";
+import InfoModal from "../../components/info/InfoModal";
+import DemoRequestModal from "../../components/home/DemoRequestModal";
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
-import PhoneInput from "../../components/ui/PhoneInput";
 
 // Assets & Styles
 import heroImage from "../../assets/heroImage_sm.webp";
@@ -74,20 +67,11 @@ const LazyLottie = ({ src, style, ...props }) => {
 };
 
 const HomePage = () => {
-  // --- Existing Logic Preserved ---
+  // Controls open/close of the demo request modal
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const [demoForm, setDemoForm] = useState({
-    email: "", labName: "", contactPerson: "", phone: "", region: "", message: "",
-  });
-  const [demoLoading, setDemoLoading] = useState(false);
-  const [demoSuccess, setDemoSuccess] = useState(false);
-  const [demoError, setDemoError] = useState("");
-  const [showTerms, setShowTerms] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showRefund, setShowRefund] = useState(false);
-  const [showAbout, setShowAbout] = useState(false);
+  // Single state for all info modals — null means closed, a string key opens that modal
+  const [activeModal, setActiveModal] = useState(null);
 
-  const apiUrl = import.meta.env.VITE_API_URL;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -95,40 +79,10 @@ const HomePage = () => {
     resetNavbarActiveState();
   }, []);
 
-  // Form Handling
-  const handleInputChange = (e) => {
-    setDemoForm({ ...demoForm, [e.target.name]: e.target.value });
-  };
-
-  const handleDemoRequest = async (e) => {
-    e.preventDefault();
-    setDemoLoading(true);
-    setDemoError("");
-
-    if (!demoForm.email || !demoForm.labName || !demoForm.contactPerson || !demoForm.phone) {
-      setDemoError("Please fill in all required fields");
-      setDemoLoading(false);
-      return;
-    }
-
-    try {
-      const payload = {
-        ...demoForm,
-        phoneNumbers: [{ phone: demoForm.phone, type: 'work', is_primary: true }]
-      };
-      await axios.post(`${apiUrl}/demo/request`, payload);
-      setDemoSuccess(true);
-      setDemoForm({ email: "", labName: "", contactPerson: "", phone: "", region: "", message: "" });
-    } catch (error) {
-      setDemoError(error.response?.data?.error || "Failed to submit demo request.");
-    } finally {
-      setDemoLoading(false);
-    }
-  };
-
   // --- Scroll Animations ---
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 500], [0, 150]);
+
 
   return (
     <div className="homepage-root">
@@ -419,10 +373,10 @@ const HomePage = () => {
             </Col>
             <Col md={4}>
               <h6 className="fw-bold mb-3" style={{ color: "var(--text)" }}>Legal</h6>
-              <div className="d-flex flex-wrap gap-4 text-muted-homepage small">
-                <span className="cursor-pointer hover-primary" onClick={() => setShowTerms(true)}>Terms</span>
-                <span className="cursor-pointer hover-primary" onClick={() => setShowPrivacy(true)}>Privacy</span>
-                <span className="cursor-pointer hover-primary" onClick={() => setShowRefund(true)}>Refunds</span>
+              <div className="d-flex gap-3 small">
+                <Button variant="link" className="p-0 text-decoration-none text-muted-homepage hover-primary" onClick={() => setActiveModal('terms')}>Terms</Button>
+                <Button variant="link" className="p-0 text-decoration-none text-muted-homepage hover-primary" onClick={() => setActiveModal('privacy')}>Privacy</Button>
+                <Button variant="link" className="p-0 text-decoration-none text-muted-homepage hover-primary" onClick={() => setActiveModal('refund')}>Refunds</Button>
               </div>
             </Col>
           </Row>
@@ -433,7 +387,7 @@ const HomePage = () => {
               <VersionBadge />
             </div>
             <div className="d-flex gap-3 small">
-              <Button variant="link" className="p-0 text-decoration-none text-muted-homepage hover-primary" onClick={() => setShowAbout(true)}>
+              <Button variant="link" className="p-0 text-decoration-none text-muted-homepage hover-primary" onClick={() => setActiveModal('about')}>
                 About Us
               </Button>
               <Button variant="link" className="p-0 text-decoration-none text-muted-homepage hover-primary" onClick={() => navigate(`/know-us`)}>
@@ -443,85 +397,20 @@ const HomePage = () => {
           </div>
         </Container>
 
-        {/* Info Modals */}
-        <PrivacyPolicy showPrivacy={showPrivacy} setShowPrivacy={setShowPrivacy} />
-        <RefundPolicy showRefund={showRefund} setShowRefund={setShowRefund} />
-        <TermsAndConditions showTerms={showTerms} setShowTerms={setShowTerms} />
-        <AboutUs showAbout={showAbout} setShowAbout={setShowAbout} />
+        {/* Single generic info modal — content is driven by activeModal key */}
+        <InfoModal
+          modalKey={activeModal}
+          show={activeModal !== null}
+          onHide={() => setActiveModal(null)}
+        />
 
       </footer>
 
-      {/* Demo Modal */}
-      <Modal show={showDemoModal} onHide={() => setShowDemoModal(false)} size="lg" centered contentClassName="glass-card border-0 p-1">
-        <Modal.Header closeButton className="border-bottom" style={{ borderColor: 'var(--border-muted)' }}>
-          <Modal.Title className="fw-bold" style={{ color: "var(--text)" }}>Request Demo Account</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="p-4">
-          {demoSuccess ? (
-            <div className="text-center py-5">
-              <CheckCircle size={64} className="text-success mb-3" />
-              <h4 style={{ color: "var(--text)" }}>Request Received!</h4>
-              <p className="text-muted-homepage">Check your email shortly for credentials.</p>
-              <Button className="btn-primary-glow px-4 mt-2" onClick={() => setShowDemoModal(false)}>Close</Button>
-            </div>
-          ) : (
-            <Form onSubmit={handleDemoRequest}>
-              <Alert className="mb-4 text-primary border-0" style={{ background: 'var(--pill-bg)' }}>
-                <strong>Includes:</strong> 7-day full access, 500 tests limit, Priority Support.
-              </Alert>
-              {demoError && <Alert variant="danger" dismissible onClose={() => setDemoError("")}>{demoError}</Alert>}
-
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small fw-semibold text-muted-homepage">Email Address</Form.Label>
-                    <Form.Control className="bg-transparent text-theme border-muted" style={{ borderColor: "var(--border-muted)" }} type="email" name="email" required value={demoForm.email} onChange={handleInputChange} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small fw-semibold text-muted-homepage">Lab Name</Form.Label>
-                    <Form.Control className="bg-transparent text-theme border-muted" style={{ borderColor: "var(--border-muted)" }} type="text" name="labName" required value={demoForm.labName} onChange={handleInputChange} />
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small fw-semibold text-muted-homepage">Contact Person</Form.Label>
-                    <Form.Control className="bg-transparent text-theme border-muted" style={{ borderColor: "var(--border-muted)" }} type="text" name="contactPerson" required value={demoForm.contactPerson} onChange={handleInputChange} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small fw-semibold text-muted-homepage">Phone Number</Form.Label>
-                    <PhoneInput
-                      value={demoForm.phone}
-                      onChange={(val) => setDemoForm({ ...demoForm, phone: val })}
-                      placeholder="Enter phone number"
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Form.Group className="mb-3">
-                <Form.Label className="small fw-semibold text-muted-homepage">Region</Form.Label>
-                <Form.Control className="bg-transparent text-theme border-muted" style={{ borderColor: "var(--border-muted)" }} type="text" name="region" value={demoForm.region} onChange={handleInputChange} />
-              </Form.Group>
-              <Form.Group className="mb-4">
-                <Form.Label className="small fw-semibold text-muted-homepage">Message (Optional)</Form.Label>
-                <Form.Control className="bg-transparent text-theme border-muted" style={{ borderColor: "var(--border-muted)" }} as="textarea" rows={3} name="message" value={demoForm.message} onChange={handleInputChange} />
-              </Form.Group>
-
-              <div className="d-flex justify-content-end gap-3 mt-4">
-                <Button className="btn-glass px-4" onClick={() => setShowDemoModal(false)}>Cancel</Button>
-                <Button className="btn-primary-glow px-4" type="submit" disabled={demoLoading}>
-                  {demoLoading ? "Sending..." : "Request Demo"}
-                </Button>
-              </div>
-            </Form>
-          )}
-        </Modal.Body>
-      </Modal>
+      {/* Demo request modal — all state and logic self-contained */}
+      <DemoRequestModal
+        show={showDemoModal}
+        onHide={() => setShowDemoModal(false)}
+      />
     </div>
   );
 };
