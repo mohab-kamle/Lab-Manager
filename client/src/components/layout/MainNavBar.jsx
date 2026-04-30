@@ -745,34 +745,6 @@ const MainNavBar = () => {
                       </Dropdown>
                     )}
 
-                    {/* Accounting - Admin only */}
-                    {user?.role === "admin" && (
-                      <Dropdown className="mx-1 mb-1">
-                        <Dropdown.Toggle
-                          id="dropdown-basic"
-                          className={`nav-button ${["payment-methods"].includes(activeItem)
-                            ? "active-dropdown"
-                            : ""
-                            }`}
-                        >
-                          <DollarSignIcon size={18} className="me-1 mb-1" />
-                          {titles.Accounting}
-                        </Dropdown.Toggle>
-
-                        <Dropdown.Menu>
-                          <Dropdown.Item
-                            as={Link}
-                            to={`/${user?.role}/payment-methods`}
-                            data-dropdown-key="Accounting"
-                            data-title="Payment Methods"
-                            data-id="payment-methods"
-                            active={activeItem === "payment-methods"}
-                          >
-                            Payment Methods
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    )}
 
                     {/* Inventory & Stock - Admin, Chemist */}
                     {(user?.role === "admin" || user?.role === "chemist") && (
@@ -841,7 +813,7 @@ const MainNavBar = () => {
                       <Dropdown className="mx-1 mb-1">
                         <Dropdown.Toggle
                           id="dropdown-basic"
-                          className={`nav-button ${["branches", "employees", "lab-management", "outsourced-labs"].includes(
+                          className={`nav-button ${["branches", "employees", "lab-management", "outsourced-labs", "payment-methods", "manager-keys"].includes(
                             activeItem
                           )
                             ? "active-dropdown"
@@ -891,6 +863,16 @@ const MainNavBar = () => {
                             active={activeItem === "manager-keys"}
                           >
                             Manager Key Management
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/payment-methods`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Payment Methods"
+                            data-id="payment-methods"
+                            active={activeItem === "payment-methods"}
+                          >
+                            Payment Methods
                           </Dropdown.Item>
                           <Dropdown.Item
                             as={Link}

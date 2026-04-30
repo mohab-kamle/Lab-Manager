@@ -65,10 +65,30 @@
   border-color: #1D498E;
 }
 
+/* Dark Mode Overrides for Navbar Buttons */
+[data-bs-theme="dark"] #dropdown-basic,
+body.dark #dropdown-basic {
+  border-color: rgba(37, 99, 235, 0.4);
+  background-color: rgba(37, 99, 235, 0.05);
+}
+
+[data-bs-theme="dark"] #dropdown-basic:hover,
+body.dark #dropdown-basic:hover {
+  border-color: #2563eb;
+  background-color: rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 15px rgba(37, 99, 235, 0.2);
+}
+
 .active-dropdown {
   position: relative;
   border: 2px solid var(--text-primary) !important;
   border-radius: 20px !important;
+}
+
+[data-bs-theme="dark"] .active-dropdown,
+body.dark .active-dropdown {
+  border-color: #2563eb !important;
+  background-color: rgba(37, 99, 235, 0.1);
 }
 
 .active-dropdown::after {
@@ -278,14 +298,45 @@ body {
 }
 
 /* Login Button Glow Effect */
+.login-btn-glow {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-btn-glow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.6),
+    transparent
+  );
+  transform: skewX(-25deg);
+}
+
 .login-btn-glow:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4) !important;
-  background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%) !important;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4) !important;
+}
+
+.login-btn-glow:hover::before {
+  animation: shine 0.75s forwards;
 }
 
 .login-btn-glow:active {
   transform: translateY(0);
+}
+
+@keyframes shine {
+  100% {
+    left: 150%;
+  }
 }
 
 /* Chevron Menu Wrapper */
@@ -308,9 +359,21 @@ body {
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+[data-bs-theme="dark"] .chevron-toggle-btn,
+body.dark .chevron-toggle-btn {
+  border-color: rgba(37, 99, 235, 0.4);
+}
+
 .chevron-toggle-btn:hover {
   background-color: rgba(0, 123, 255, 0.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-bs-theme="dark"] .chevron-toggle-btn:hover,
+body.dark .chevron-toggle-btn:hover {
+  background-color: rgba(37, 99, 235, 0.1);
+  border-color: #2563eb;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.2);
 }
 
 /* Chevron Arrow Rotation */
