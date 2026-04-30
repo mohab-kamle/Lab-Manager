@@ -185,9 +185,47 @@
 .profile-avatar-container {
   width: 140px;
   height: 140px;
+  background-color: var(--bg-light) !important;
+  border-color: var(--border-muted) !important;
 }
 
 .profile-animation {
   width: 85% !important;
   height: 85% !important;
+}
+
+/* ================================
+   Dark Mode Adjustments
+   ================================ */
+
+[data-bs-theme="dark"] .card {
+  background-color: var(--bg-light) !important;
+  border: 1px solid var(--border-muted) !important;
+}
+
+[data-bs-theme="dark"] .card-header {
+  background-color: var(--bg-light) !important;
+  border-bottom: 1px solid var(--border-muted) !important;
+}
+
+[data-bs-theme="dark"] .info-card {
+  background-color: var(--bg-elevated) !important;
+  border: 1px solid var(--border-muted) !important;
+}
+
+[data-bs-theme="dark"] .profile-avatar-container {
+  background-color: var(--bg-light) !important;
+  border-color: var(--border-muted) !important;
+}
+
+[data-bs-theme="dark"] .role-badge {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-bs-theme="dark"] .text-primary {
+  color: var(--primary) !important;
+}
+
+[data-bs-theme="dark"] .text-muted {
+  color: var(--text-muted) !important;
 }
