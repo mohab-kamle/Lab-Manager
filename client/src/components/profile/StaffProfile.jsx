@@ -251,7 +251,7 @@ const StaffProfile = () => {
                 animate={{ y: [0, 5, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 whileHover={{ scale: 1.05 }}
-                className="bg-white rounded-circle d-flex align-items-center justify-content-center shadow overflow-hidden border border-1 border-primary profile-avatar-container"
+                className="rounded-circle d-flex align-items-center justify-content-center shadow overflow-hidden border border-1 border-primary profile-avatar-container"
               >
                 <DotLottieReact
                   src={DoctorAnimation}
@@ -294,8 +294,8 @@ const StaffProfile = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <Card className="border-0 shadow-sm mb-4">
-              <Card.Header className="bg-white border-bottom py-3 d-flex justify-content-center justify-content-md-between align-items-center flex-wrap gap-3 flex-md-nowrap ">
+            <Card className="border-0 shadow-sm mb-4 profile-card">
+              <Card.Header className="border-bottom py-3 d-flex justify-content-center justify-content-md-between align-items-center flex-wrap gap-3 flex-md-nowrap ">
                 <h5 className="mb-0 fw-bold text-primary">
                   <User size={20} className="me-2" />
                   Personal Information
@@ -433,8 +433,8 @@ const StaffProfile = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <Card className="border-0 shadow-sm">
-              <Card.Header className="bg-white border-bottom py-3">
+            <Card className="border-0 shadow-sm profile-card">
+              <Card.Header className="border-bottom py-3">
                 <h5 className="mb-0 fw-bold text-primary">
                   <Shield size={20} className="me-2" />
                   Identity & Legal
