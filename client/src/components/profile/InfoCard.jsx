@@ -38,7 +38,7 @@ const InfoCard = ({
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.3, delay }}
-    className="d-flex align-items-center p-3 border rounded mb-3 bg-white shadow-sm h-100"
+    className="d-flex align-items-center p-3 border rounded mb-3 shadow-sm h-100 info-card"
   >
     <div className={`bg-${color} bg-opacity-10 p-3 rounded-circle me-3`}>
       <Icon size={24} className={`text-${color}`} />
