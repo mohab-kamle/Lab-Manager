@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle, CreditCard, Building, User, Mail, Phone, MapPin, X } from 'lucide-react';
 import axios from 'axios';
 import '../../styles/Register.module.css';
-import TermsAndConditions from '../../components/info/TermsAndConditions';
-import PrivacyPolicy from '../../components/info/PrivacyPolicy';
+import InfoModal from '../../components/info/InfoModal';
 import PhoneInput from '../../components/ui/PhoneInput';
 
 const Register = () => {
@@ -17,8 +16,8 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [subscriptionPlans, setSubscriptionPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
-  const [showTerms, setShowTerms] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
+  // Single state for all info modals — null means closed, a string key opens that modal
+  const [activeModal, setActiveModal] = useState(null);
 
   // Clear saved form data when component unmounts (after successful registration)
   // Modified to clear only if payment is successful, which is handled by the PaymentCallback component
@@ -677,7 +676,7 @@ const Register = () => {
                             required
                             label={
                               <>
-                                I accept the <a href="#" onClick={() => setShowTerms(true)}>Terms and Conditions</a>
+                                 I accept the <a href="#" onClick={() => setActiveModal('terms')}>Terms and Conditions</a>
                               </>
                             }
                           />
@@ -691,7 +690,7 @@ const Register = () => {
                             onChange={handleInputChange}
                             label={
                               <>
-                                I agree to receive marketing communications and have read the <a href="#" onClick={() => setShowPrivacy(true)}>Privacy Policy</a>
+                                 I agree to receive marketing communications and have read the <a href="#" onClick={() => setActiveModal('privacy')}>Privacy Policy</a>
                               </>
                             }
                           />
@@ -752,8 +751,12 @@ const Register = () => {
         </Row>
       </Container>
 
-      <TermsAndConditions showTerms={showTerms} setShowTerms={setShowTerms} />
-      <PrivacyPolicy showPrivacy={showPrivacy} setShowPrivacy={setShowPrivacy} />
+      {/* Single generic info modal — content is driven by activeModal key */}
+      <InfoModal
+        modalKey={activeModal}
+        show={activeModal !== null}
+        onHide={() => setActiveModal(null)}
+      />
     </div>
   );
 };
