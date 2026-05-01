@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings,financial_transaction, employee} = require("../models");
+console.log("AVAILABLE MODELS IN DB:", Object.keys(require('../models')));
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -175,7 +176,13 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
         }
 
         // Validate receptionist exists
-        const receptionistExists = await receptionist.findByPk(receptionist_id);
+        const receptionistExists = await employee.findOne({ 
+            where: { 
+                id: receptionist_id, 
+                lab_id: patientExists.lab_id,
+                role: 'receptionist' // optional: if you want to enforce the role
+            } 
+        });
         if (!receptionistExists) {
             await transaction.rollback();
             return res.status(400).json({ error: 'Invalid receptionist_id' });
@@ -309,16 +316,45 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), inva
             }, { transaction });
         }
 
-        // Add payments
         for (const payment of payments) {
+            const paidAmount = parseFloat(payment.paid_amount);
+            
+            // Add payments
             await bill_has_payment_method.create({
                 bill_id: newBill.id,
                 payment_method_id: parseInt(payment.payment_method_id),
-                paid_amount: parseFloat(payment.paid_amount)
+                paid_amount: paidAmount
             }, { transaction });
+
+            // Log 'Payment' into the new financial ledger
+            if (paidAmount > 0) {
+                await financial_transaction.create({
+                    amount: paidAmount,
+                    process_type: 'Payment',
+                    processed_by_id: user.id || receptionist_id, 
+                    patient_id: patient_id,
+                    bill_id: newBill.id,
+                    payment_method_id: parseInt(payment.payment_method_id),
+                    lab_id: req.user.lab_id || patientExists.lab_id,
+                    branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null, // <-- robust handling of branch_id
+                }, { transaction });
+            }
         }
 
-
+        // Log 'Due' into the new financial ledger if there's debt
+        const invoiceDue = parseFloat(due);
+        if (invoiceDue > 0) {
+            await financial_transaction.create({
+                amount: invoiceDue,
+                process_type: 'Due',
+                processed_by_id: user.id || receptionist_id,
+                patient_id: patient_id,
+                bill_id: newBill.id,
+                payment_method_id: null, // Debt doesn't use a payment method
+                lab_id: req.user.lab_id || patientExists.lab_id,
+                branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null, // <-- robust handling of branch_id
+            }, { transaction });
+        }
 
         // Create medical report if invoice contains tests
         let allTests = [...tests];
@@ -575,7 +611,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), in
         packages,
         payments
     } = req.body;
-
+const transaction = await sequelize.transaction();
     try {
         const existingBill = await bill.findByPk(id);
         if (!existingBill) return res.status(404).json({ error: "Bill not found" });
