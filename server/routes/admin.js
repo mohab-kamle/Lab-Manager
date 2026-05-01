@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 require("dotenv").config();
 const { Op } = require('sequelize');
-const { patient, test, medical_report, bill } = require('../models');
-
+const { patient, test, medical_report, bill, financial_transaction, payment_method, packages_and_offers } = require("../models");
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext, tenantIsolation, addLabFilter } = require('../middleware/tenantContext');
@@ -124,5 +123,109 @@ router.get(
     }
   }
 );
+
+// get all lab's transactions
+router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantContext, tenantIsolation, async (req, res) => {
+    try {
+              
+        // 1. Build Dynamic Filter Object
+        let whereClause = {
+            lab_id: req.labId // Always restrict data to the current lab context
+        };
+
+        // 2. Query the Database
+        const transactions = await financial_transaction.findAll({
+            where: whereClause,
+            include: [
+                { 
+                    model: patient, 
+                    as: 'patient',
+                    attributes: ['id', 'name'] 
+                },
+                { 
+                    model: employee, 
+                    as: 'processed_by', // Double check this alias matches what antigravity put in init-models.js!
+                    attributes: ['id', 'name', 'role'] 
+                },
+                { 
+                    model: payment_method, 
+                    as: 'payment_method',
+                    attributes: ['name'] 
+                },
+                {
+                    model: bill,
+                    as: 'bill',
+                    include: [
+                        { 
+                            model: test, 
+                            as: "test_id_tests", 
+                            attributes: ['name'], 
+                            through: { attributes: [] } 
+                        },
+                        { 
+                            model: packages_and_offers, 
+                            as: "package_id_packages_and_offers", 
+                            attributes: ['name'], 
+                            through: { attributes: [] } 
+                        }
+                    ]
+                }
+            ],
+            order: [['date', 'DESC']] // Newest transactions first
+        });
+
+        // 3. Map to a flat, UI-friendly JSON format for the frontend
+        const formattedResponse = transactions.map(txn => {
+            
+            // Build a quick summary string (e.g., "CBC, Liver Profile")
+            let summaryItems = [];
+            if (txn.bill) {
+                if (txn.bill.test_id_tests) {
+                    summaryItems.push(...txn.bill.test_id_tests.map(t => t.name));
+                }
+                if (txn.bill.package_id_packages_and_offers) {
+                    summaryItems.push(...txn.bill.package_id_packages_and_offers.map(p => p.name));
+                }
+            }
+            
+            const summaryString = summaryItems.length > 0 
+                ? summaryItems.join(', ') 
+                : 'Account Adjustment';
+
+          return {
+                transactionId: txn.transaction_code,
+                date: txn.date,
+                amount: parseFloat(txn.amount),
+                processType: txn.process_type,
+                paidWith: txn.payment_method ? txn.payment_method.name : null,
+                
+                // Return nested object for processedBy
+                processedBy: txn.processed_by ? {
+                    id: txn.processed_by.id,
+                    name: txn.processed_by.name,
+                    role: txn.processed_by.role
+                } : null,
+                
+                // Return nested object for patient
+                patient: txn.patient ? {
+                    id: txn.patient.id,
+                    name: txn.patient.name
+                } : null,
+                
+                invoiceId: txn.bill_id,
+                summary: summaryString
+            };
+        });
+
+        return res.status(200).json(formattedResponse);
+
+    } catch (error) {
+        console.error("Error fetching transactions:", error);
+        return res.status(500).json({ 
+            error: "Failed to fetch transactions",
+            message: error.message 
+        });
+    }
+});
 
 module.exports = router; 
