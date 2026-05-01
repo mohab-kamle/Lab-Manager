@@ -20,8 +20,9 @@ const ChangePassword = () => {
   const { labInfo, fetchLabInfo } = useLab();
   const { toast } = useToast();
   const apiUrl = import.meta.env.VITE_API_URL;
-  const locat = useLocation();
-  const type = locat.state?.type || 'Change';
+  const location = useLocation();
+  const type = location.state?.type || 'Change';
+  const emailToReset = location.state?.email;
 
   // Determine if this is a forgot-password flow (no auth required)
   const isForgetFlow = type === 'Forget';
@@ -83,7 +84,7 @@ const ChangePassword = () => {
 
       try {
         setLoading(true);
-        const resetToken = locat.state?.resetToken;
+        const resetToken = location.state?.resetToken;
         
         if (!resetToken) {
           toast.error("Security token missing. Please restart the forgot password process.");
@@ -189,6 +190,11 @@ const ChangePassword = () => {
                 {isForgetFlow ? (
                   <>
                     <h2 className="mb-2 fw-bold">Reset Your Password</h2>
+                    {emailToReset && (
+                      <p className="mb-3 text-primary fw-semibold">
+                        Resetting for: {emailToReset}
+                      </p>
+                    )}
                     <p className="mb-0 opacity-75">Keep your account secure by using a strong password that you can easily remember.</p>
                   </>
                 ) : (
