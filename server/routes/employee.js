@@ -10,7 +10,7 @@ const nodemailer = require('nodemailer');
 const cacheService = require('../services/cacheService');
 
 const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor } = require('../models'); 
-const { sign } = require('jsonwebtoken');
+const { sign, verify } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext } = require('../middleware/tenantContext');
@@ -165,27 +165,38 @@ router.put("/skip-password-change", authenticateUser, authorizeRoles("admin"), t
     }
 });
 
-// Sends OTP via Email Address
+// Send OTP via Email Address
 router.post('/forgotPassword', async (req,res)=>{
     try{ 
         const { email } = req.body;
 
-        const user = await employee.findOne({ where: {email: email} });
-
-        if(!user){
-
-           return res.status(404).json(`no user with this email was found`);
-
+        // 1. Basic validation
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
         }
-        
+
+        // 2. Find the employee
+        const user = await employee.findOne({ where: {email: email} });
+        if(!user){
+           return res.status(404).json(`no user with this email was found`);
+        }
+
+        // 3. Get lab info for the email template
         const userLab = await lab.findOne({where: {id: user.lab_id}});
 
-        const otp = otpGenerator.generate(6, { digits: true, alphabets: false, upperCase: false, specialChars: false });
+        // 4. Generate the 6-digit OTP
+        const otp = otpGenerator.generate(6, { 
+            digits: true, 
+            lowerCaseAlphabets: false, // Changed from 'alphabets'
+            upperCaseAlphabets: false, // Changed from 'upperCase'
+            specialChars: false 
+        });
 
-        sendOtpEmail(email,otp,userLab.name)
+        // 5. Send the email (CRITICAL: Added the 'await' keyword here)
+        await sendOtpEmail(email,otp,userLab.name);
 
+        // 6. Save to Redis
         const redisKey = cacheService.generateKey('otp', email);
-
         await cacheService.set(redisKey, otp, 600);
 
         res.status(200).json(`An OTP that is valid for 10 mins has been sent to this email successfully!`);
@@ -204,28 +215,112 @@ router.post('/verifyOtp', async (req, res) => {
         if (!email || !otp) {
             return res.status(400).json({ error: 'Email and OTP are required' });
         }
-        // Generate the exact same key to look it up
+
+        // 1. Generate the exact same key to look it up
         const redisKey = cacheService.generateKey('otp', email);
-        // --- USE CACHESERVICE TO FETCH OTP ---
+
+        // 2. Use cacheService to fetch OTP
         const storedOtp = await cacheService.get(redisKey);
         if (!storedOtp) {
             return res.status(400).json({ error: 'OTP has expired or is invalid' });
         }
-        // 2. Compare the codes (cacheService.get parses JSON, so we toString() just in case)
+
+        // 3. Compare the codes (cacheService.get parses JSON, so we toString() just in case)
         if (storedOtp.toString() !== otp.toString()) {
             return res.status(400).json({ error: 'Incorrect OTP' });
         }
-        // 3. Success! Delete it so it can't be reused
+        
+        // 4. Success! Delete it so it can't be reused
         await cacheService.del(redisKey);
-        // -------------------------------------
-        res.json({ 
-            success: true, 
+
+        // 5. Generate the JWT
+        const resetToken =sign(
+            {
+                email: email,
+                purpose: "password_reset" // Important to differentiate from a regular login token
+            },
+            SECRET_KEY,
+            { expiresIn: '15m' } // Token expires in 15 minutes
+        );
+
+        // 6. Return the token to the frontend
+        res.json({
+            success: true,
             message: 'OTP verified successfully.',
-            // tempResetToken: 'your_jwt_here' 
+            resetToken: resetToken
         });
     } catch (e) {
         console.error('Verify OTP error:', e);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Reset password (Public endpoint, no 'authenticateUser' middleware)
+router.post("/resetPassword", async (req, res) => {
+    try {
+        const { resetToken, newPassword } = req.body;
+
+        // 1. Basic payload validation
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({ error: "Token and new password are required" });
+        }
+
+        // 2. Verify the JWT token[cite: 1]
+        let decodedToken;
+        try {
+            decodedToken = verify(resetToken, SECRET_KEY);
+        } catch (err) {
+            // Catches both expired tokens and tampered tokens
+            return res.status(401).json({ error: "Invalid or expired reset token. Please request a new OTP." });
+        }
+
+        // 3. Ensure this token was specifically made for resetting passwords
+        if (decodedToken.purpose !== "password_reset") {
+            return res.status(401).json({ error: "Invalid token type." });
+        }
+
+        // 4. Find employee by the email extracted from the token payload
+        const emp = await employee.findOne({ where: { email: decodedToken.email } });
+        if (!emp) {
+            return res.status(404).json({ error: "Employee not found" });
+        }
+
+        // 5. Check if the new password is the same as the old password
+        const passwordMatch = await bcrypt.compare(newPassword, emp.password);
+        if (passwordMatch) {
+            return res.status(401).json({ error: "New password cannot be the same as old password." });
+        }
+
+        // 6. Validate new password strength (using your existing utility)
+        const passwordValidation = validatePassword(newPassword);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({ error: passwordValidation.error });
+        }
+
+        // 7. Hash new password
+        const saltRounds = 10;
+        const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // 8. Update employee
+        await emp.update({ password: hashedNewPassword });
+
+        // // Optional: Change login Status for admins (ported from your changePassword code)
+        // if (emp.role === 'admin') {
+        //     const adminObj = await admin.findByPk(emp.id);
+        //     if (adminObj && adminObj.isFirstTimeLogin) {
+        //         await adminObj.update({ isFirstTimeLogin: false });
+        //     }
+        // }
+
+        // 9. Return success response format expected by Ziad[cite: 1]
+        res.json({
+            success: true,
+            message: "Password has been reset successfully."
+        });
+
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).json({ error: "Internal server error" });
     }
 });
 
@@ -711,7 +806,7 @@ var transporter = nodemailer.createTransport({
   }
 });
 
-// FOR TESTING PURPOPSES
+////FOR TESTING PURPOPSES
 // let transporter;
 // // Replace your Zoho/Gmail transporter with this:
 // nodemailer.createTestAccount((err, account) => {
@@ -720,15 +815,15 @@ var transporter = nodemailer.createTransport({
 //         return process.exit(1);
 //     }
 
-//     //  transporter = nodemailer.createTransport({
-//     //     host: account.smtp.host,
-//     //     port: account.smtp.port,
-//     //     secure: account.smtp.secure,
-//     //     auth: {
-//     //         user: account.user,
-//     //         pass: account.pass
-//     //     }
-//     // });
+//      transporter = nodemailer.createTransport({
+//         host: account.smtp.host,
+//         port: account.smtp.port,
+//         secure: account.smtp.secure,
+//         auth: {
+//             user: account.user,
+//             pass: account.pass
+//         }
+//     });
 
 // });
 
