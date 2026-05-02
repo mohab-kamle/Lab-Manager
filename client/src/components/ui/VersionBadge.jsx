@@ -3,7 +3,7 @@ import React from 'react';
 const VersionBadge = () => {
   const version = import.meta.env.VITE_APP_VERSION || 'dev';
   const isPre = version.includes('-'); // v1.2.0-beta.1
-  const color = isPre ? '#e74c3c' : '#284889';
+  const color = isPre ? 'var(--toast-error)' : 'var(--color-primary)';
 
   return (
     <span style={{

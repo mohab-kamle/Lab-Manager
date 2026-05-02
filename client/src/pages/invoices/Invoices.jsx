@@ -1410,7 +1410,7 @@ const Invoices = () => {
                         </Button>
                       </div>
                       {showCreatePatient && (
-                        <div className="border rounded p-3 mt-2 bg-light" onClick={(e) => e.stopPropagation()}>
+                        <div className="border rounded p-3 mt-2 bg-theme-surface" onClick={(e) => e.stopPropagation()}>
                           <div>
                             <Row>
                               <Col md={6}>
@@ -1644,7 +1644,7 @@ const Invoices = () => {
                                    <Plus size={16} />
                                  </Button>
                                </div>
-                               <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                               <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8 }}>
                                  {diseases
                                    .filter(disease => disease.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase()))
                                    .map(disease => (
@@ -1860,7 +1860,7 @@ const Invoices = () => {
                         onChange={e => setTestSearchTerm(e.target.value)}
                         className="mb-2"
                       />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8 }}>
                         {tests
                           .filter(test => test.name.toLowerCase().includes(testSearchTerm.toLowerCase()))
                           .map(test => (
@@ -1894,7 +1894,7 @@ const Invoices = () => {
                         onChange={e => setPackageSearchTerm(e.target.value)}
                         className="mb-2"
                       />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8 }}>
                         {packages
                           .filter(pkg => pkg.name.toLowerCase().includes(packageSearchTerm.toLowerCase()))
                           .map(pkg => (
@@ -1924,7 +1924,7 @@ const Invoices = () => {
                 {(invoice.tests.length > 0 || invoice.packages.length > 0) && (
                   <Row className="mb-4">
                     <Col md={12}>
-                      <div className="border rounded p-3 bg-light">
+                      <div className="border rounded p-3 bg-theme-surface">
                         <h6 className="mb-3 text-primary">📋 Selected Items Summary</h6>
                         
                         {/* Tests Selection */}
@@ -2039,7 +2039,7 @@ const Invoices = () => {
 
                 <Row>
                   <Col md={12}>
-                    <div className="border rounded p-3 bg-light">
+                    <div className="border rounded p-3 bg-theme-surface">
                       <h6 className="mb-3">Invoice Summary</h6>
                       <Row>
                         <Col md={3}>
@@ -2120,7 +2120,7 @@ const Invoices = () => {
                 {/* Payment Methods Section - Final Step */}
                 <Row className="mt-4">
                   <Col md={12}>
-                    <div className="border rounded p-3 bg-light">
+                    <div className="border rounded p-3 bg-theme-surface">
                       <h6 className="mb-3 text-primary">💳 Payment Methods - Final Step</h6>
                       <p className="text-muted mb-3">Now that you know the total amount (EGP {invoice.total?.toFixed(2) || "0.00"}), choose how the payment will be made:</p>
                       
@@ -2687,7 +2687,7 @@ const Invoices = () => {
             keyboard={false}
             centered
           >
-            <Modal.Header className="border-0 pb-0 bg-white justify-content-center">
+            <Modal.Header className="border-0 pb-0 bg-theme-surface justify-content-center">
               <Modal.Title className="d-flex align-items-center text-danger">
                 <AlertTriangle size={24} className="me-2" />
                 Limit Exceeded
@@ -2700,7 +2700,7 @@ const Invoices = () => {
                     This action will increase the patient's due balance beyond the allowed limit.
                   </p>
                   
-                  <div className="bg-light rounded-3 p-3 mb-4">
+                  <div className="bg-theme-surface rounded-3 p-3 mb-4">
                     <div className="d-flex justify-content-between mb-2">
                       <span className="text-muted">Current Due</span>
                       <span className="fw-medium">{limitWarningData.current_due?.toFixed(2)}</span>
