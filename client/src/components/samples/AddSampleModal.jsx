@@ -65,34 +65,17 @@ const AddSampleModal = ({
     setIsSubmitting(true);
     
     try {
-      // TODO: Replace with actual API call once implemented
-      // Example: await api.post('/samples', formData);
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL;
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const selectedType = sampleTypes.find(st => st.id.toString() === formData.sample_type_id);
-      
-      onAdd({
-        ...formData,
-        id: Date.now(), // Mock ID
-        status: "Pending Collection",
-        test_name: `Test #${formData.test_id}`, // Mock test name
-        sample_type: selectedType ? selectedType.type : "Unknown",
-        status_history: {
-          pending_collection_at: new Date().toISOString(),
-          collected_at: null,
-          dispatched_at: null,
-          in_process_at: null,
-          completed_at: null,
-          rejected_at: null
-        },
-        created_at: new Date().toISOString()
+      const response = await axios.post(`${apiUrl}/tracked-samples`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       
+      onAdd(response.data);
       onHide();
     } catch (err) {
-      setError("Failed to verify details. Please check the IDs and try again.");
+      setError(err.response?.data?.error || "Failed to add sample. Please check the details and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -100,7 +83,7 @@ const AddSampleModal = ({
 
   return (
     <Modal show={show} onHide={onHide} centered backdrop="static">
-      <Modal.Header closeButton className="bg-light">
+      <Modal.Header closeButton>
         <Modal.Title className="d-flex align-items-center text-primary">
           <TestTube size={24} className="me-2" />
           Add New Sample
@@ -179,7 +162,7 @@ const AddSampleModal = ({
             </Form.Select>
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer className="bg-light">
+        <Modal.Footer>
           <Button variant="secondary" onClick={onHide} disabled={isSubmitting}>
             Cancel
           </Button>

@@ -29,12 +29,11 @@ const MedicalReportDetails = () => {
         });
         setReport(response.data);
 
-        // Fetch mock samples related to this report
-        const localData = localStorage.getItem("mock_samples_kanban");
-        if (localData) {
-          const allSamples = JSON.parse(localData);
-          setSamples(allSamples.filter(s => s.medical_report_id.toString() === id.toString()));
-        }
+        // Fetch real samples related to this report
+        const samplesResponse = await axios.get(`${apiUrl}/tracked-samples?report_id=${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSamples(samplesResponse.data);
 
       } catch (err) {
         console.error("Error fetching report details:", err);
@@ -187,7 +186,7 @@ const MedicalReportDetails = () => {
             </Card.Header>
             <Card.Body className="p-0">
               <Table responsive hover className="mb-0">
-                <thead className="bg-light">
+                <thead className="bg-body-tertiary">
                   <tr>
                     <th className="border-0 px-4 py-3 text-secondary font-weight-normal">Test Name</th>
                     <th className="border-0 py-3 text-secondary font-weight-normal">Samples Tracked</th>
@@ -220,7 +219,7 @@ const MedicalReportDetails = () => {
                             {testSamples.length > 0 ? (
                               <div className="d-flex flex-wrap gap-1">
                                 {Array.from(new Set(testSamples.map(s => s.sample_type))).map(type => (
-                                  <Badge key={type} bg="info" className="text-dark bg-opacity-25 border border-info">
+                                  <Badge key={type} bg="info" className="text-info bg-opacity-10 border border-info border-opacity-25">
                                     {type}
                                   </Badge>
                                 ))}
