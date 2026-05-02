@@ -1,23 +1,19 @@
-/* --- Global Homepage Theme --- */
 .homepage-root {
-  font-family: 'Inter', 'Segoe UI', sans-serif;
-  background-color: var(--bg);
+  font-family: 'Space Grotesk', sans-serif;
+  background-color: var(--bg-base);
   overflow: clip;
   position: relative;
   
-  /* Light Mode Variables (Adapts to unified theme) */
-  --bg-glow-spot: radial-gradient(circle at center, rgba(37, 99, 235, 0.08) 0%, transparent 60%);
-  --glass-bg: rgba(255, 255, 255, 0.5);
-  --glass-border: rgba(0, 0, 0, 0.06);
+  /* Inherited from Unified Theme */
+  --bg-glow-spot: radial-gradient(circle at center, rgba(31, 84, 200, 0.08) 0%, transparent 60%);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
-  --glass-hover-border-top: rgba(37, 99, 235, 0.3);
-  --glass-hover-shadow: 0 -4px 20px rgba(37, 99, 235, 0.08);
-  --text-muted-homepage: #64748b;
-  --pill-bg: rgba(37, 99, 235, 0.08);
-  --cta-bg: linear-gradient(135deg, #f8fafc, #f1f5f9);
-  --cta-border: rgba(0, 0, 0, 0.06);
-  --glass-btn-bg: rgba(0, 0, 0, 0.03);
-  --glass-btn-hover: rgba(0, 0, 0, 0.06);
+  --glass-hover-border-top: rgba(31, 84, 200, 0.3);
+  --glass-hover-shadow: 0 -4px 20px rgba(31, 84, 200, 0.08);
+  --text-muted-homepage: var(--text-secondary);
+  --cta-bg: linear-gradient(135deg, #ffffff, var(--bg-base));
+  --cta-border: var(--border-muted);
+  --glass-btn-bg: var(--hover-bg);
+  --glass-btn-hover: var(--active-bg);
 }
 .homepage-root {
   display: flex;
@@ -29,19 +25,14 @@
   margin-top: auto; /* Pushes the footer to the bottom of the flex container */
 }
 body.dark .homepage-root {
-  /* Dark Mode Variables (Deep Dark/Linear style) */
-  --bg-glow-spot: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
-  --glass-bg: rgba(25, 25, 35, 0.5);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  /* Dark Mode Adjustments */
+  --bg-glow-spot: radial-gradient(circle at center, rgba(37, 99, 235, 0.15) 0%, transparent 60%);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --glass-hover-border-top: rgba(99, 102, 241, 0.5);
-  --glass-hover-shadow: 0 -4px 20px rgba(99, 102, 241, 0.15);
-  --text-muted-homepage: #94a3b8;
-  --pill-bg: rgba(99, 102, 241, 0.12);
-  --cta-bg: linear-gradient(135deg, #080f25, #020617);
-  --cta-border: rgba(255, 255, 255, 0.08);
-  --glass-btn-bg: rgba(255, 255, 255, 0.05);
-  --glass-btn-hover: rgba(255, 255, 255, 0.1);
+  --glass-hover-border-top: rgba(37, 99, 235, 0.5);
+  --glass-hover-shadow: 0 -4px 20px rgba(37, 99, 235, 0.15);
+  --text-muted-homepage: var(--text-secondary);
+  --cta-bg: linear-gradient(135deg, var(--bg-surface), var(--bg-base));
+  --cta-border: var(--border-default);
 }
 
 /* Base modifications & Typography */
@@ -72,8 +63,17 @@ body.dark .homepage-root {
   box-shadow: var(--glass-shadow);
   border-radius: 24px;
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+}
+
+/* Optimize: Disable backdrop-filter on mobile for smoother scrolling */
+@media (max-width: 768px) {
+  .glass-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-surface); /* Solid background for mobile */
+  }
 }
 
 .glass-card:hover {
@@ -101,6 +101,7 @@ body.dark .homepage-root {
   filter: blur(60px);
   z-index: 0;
   pointer-events: none;
+  will-change: transform, filter; /* Hardware accelerate heavy blur */
 }
 
 .z-index-2 {
@@ -160,7 +161,7 @@ body.dark .homepage-root {
   border-radius: 50px;
   padding: 12px 32px;
   font-weight: 600;
-  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 10px 25px -5px rgba(31, 84, 200, 0.4);
   transition: all 0.3s ease;
 }
 
@@ -191,6 +192,7 @@ body.dark .homepage-root {
   filter: blur(40px);
   z-index: -1;
   pointer-events: none;
+  will-change: transform, filter;
 }
 
 .glass-image-border {
