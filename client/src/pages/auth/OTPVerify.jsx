@@ -3,60 +3,69 @@ import { Container, Form, Button, Card, Row, Col } from "react-bootstrap";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../components/ui/ToastContext";
+import axios from "axios";
 
 const OTPVerify = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const apiUrl = import.meta.env.VITE_API_URL;
     const [email, setEmail] = useState("");
     const [otp, setOtp] = useState("");
     const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify OTP
+    const [loading, setLoading] = useState(false);
 
-    const handleRequestOTP = (e) => {
+    const handleRequestOTP = async (e) => {
         e.preventDefault();
         if (!email.trim()) {
             toast.error("Please enter your email address");
             return;
         }
 
-        // 🛑 API INTEGRATION POINT (1/2): REQUEST OTP
-        // Here you should call your backend to send the OTP to the user's email.
-        // Example:
-        // axios.post(`${apiUrl}/auth/request-otp`, { email })
-        //   .then(() => {
-        //       toast.success("OTP sent successfully to your email.");
-        //       setStep(2);
-        //   })
-        //   .catch(err => toast.error(err.response?.data?.message || "Failed to send OTP"));
-
-        // Placeholder behavior (remove when API is ready):
-        console.log("Requesting OTP for:", email);
-        toast.info("Mock API: OTP requested. Proceeding to verification.");
-        setStep(2);
+        try {
+            setLoading(true);
+            const response = await axios.post(`${apiUrl}/emp/forgotPassword`, { email: email.trim() });
+            toast.success(response.data || "OTP sent successfully to your email.");
+            setStep(2);
+        } catch (err) {
+            console.error("Request OTP error:", err);
+            toast.error(err.response?.data?.error || err.response?.data || "Failed to send OTP. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleVerifyOTP = (e) => {
+    const handleVerifyOTP = async (e) => {
         e.preventDefault();
         if (!otp.trim()) {
             toast.error("Please enter the OTP code");
             return;
         }
 
-        // 🛑 API INTEGRATION POINT (2/2): VERIFY OTP
-        // Here you should call your backend to verify the OTP.
-        // Example:
-        // axios.post(`${apiUrl}/auth/verify-otp`, { email, otp })
-        //   .then((res) => {
-        //       toast.success("OTP verified successfully.");
-        //       // Optional: Save reset token if required for change password
-        //       // localStorage.setItem("reset_token", res.data.token);
-        //       navigate('/change-password');
-        //   })
-        //   .catch(err => toast.error(err.response?.data?.message || "Invalid OTP"));
+        try {
+            setLoading(true);
+            const response = await axios.post(`${apiUrl}/emp/verifyOtp`, { 
+                email: email.trim(), 
+                otp: otp.trim() 
+            });
 
-        // Placeholder behavior (remove when API is ready):
-        console.log("Verifying OTP:", otp);
-        toast.success("Mock API: OTP verified successfully!");
-        navigate('/change-password', { state: { type: 'Forget' } });
+            toast.success("OTP verified successfully.");
+            
+            // The resetToken will be used in the next step to authorize the password change
+            const { resetToken } = response.data;
+            
+            navigate('/change-password', { 
+                state: { 
+                    type: 'Forget',
+                    resetToken,
+                    email: email.trim()
+                } 
+            });
+        } catch (err) {
+            console.error("Verify OTP error:", err);
+            toast.error(err.response?.data?.error || "Invalid or expired OTP");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -92,8 +101,8 @@ const OTPVerify = () => {
                                                 style={{ backgroundColor: '#f8f9fa', borderRadius: '12px', fontSize: '1.1em' }}
                                             />
                                         </Form.Group>
-                                        <Button type="submit" variant="primary" size="lg" className="w-100 py-3 fw-semibold border-0" style={{ borderRadius: '12px', fontSize: '1.1em' }}>
-                                            Send OTP <ArrowRight size={18} className="ms-2" />
+                                        <Button type="submit" variant="primary" size="lg" className="w-100 py-3 fw-semibold border-0" disabled={loading} style={{ borderRadius: '12px', fontSize: '1.1em' }}>
+                                            {loading ? "Sending..." : <>Send OTP <ArrowRight size={18} className="ms-2" /></>}
                                         </Button>
                                     </Form>
                                 ) : (
@@ -117,8 +126,8 @@ const OTPVerify = () => {
                                                 maxLength="6"
                                             />
                                         </Form.Group>
-                                        <Button type="submit" variant="primary" size="lg" className="w-100 py-3 fw-semibold border-0 mb-3" style={{ borderRadius: '12px', fontSize: '1.1em' }}>
-                                            Verify & Proceed <ArrowRight size={18} className="ms-2" />
+                                        <Button type="submit" variant="primary" size="lg" className="w-100 py-3 fw-semibold border-0 mb-3" disabled={loading} style={{ borderRadius: '12px', fontSize: '1.1em' }}>
+                                            {loading ? "Verifying..." : <>Verify & Proceed <ArrowRight size={18} className="ms-2" /></>}
                                         </Button>
                                         <div className="text-center">
                                             <Button variant="link" className="text-muted text-decoration-none" onClick={() => setStep(1)}>
