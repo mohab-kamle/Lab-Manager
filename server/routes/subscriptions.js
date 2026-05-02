@@ -13,11 +13,23 @@ const authorizeRoles = require('../middleware/authorizeRoles');
 router.get("/", async (req, res) => {
     try {
         // Get all active subscription plans ordered by sort_order
-        const subscriptionPlans = await subscription.findAll({
+        let subscriptionPlans = await subscription.findAll({
             where: { is_active: true },
             order: [['sort_order', 'ASC'], ['price', 'ASC']]
         });
         
+        // Auto-seed default subscriptions if the table is completely empty
+        if (subscriptionPlans.length === 0) {
+            const { defaultSubscriptions } = require('../scripts/setup/seedSubscriptions');
+            await subscription.bulkCreate(defaultSubscriptions);
+            
+            // Refetch after seeding
+            subscriptionPlans = await subscription.findAll({
+                where: { is_active: true },
+                order: [['sort_order', 'ASC'], ['price', 'ASC']]
+            });
+        }
+
         res.json(subscriptionPlans);
     } catch (error) {
         console.error('Error fetching subscription plans:', error);
