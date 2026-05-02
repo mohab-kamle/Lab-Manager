@@ -56,16 +56,16 @@
 
 /* Custom properties for lab branding */
 :root {
-  --lab-primary-color: #284889;
-  --lab-secondary-color: #6c757d;
+  --lab-primary-color: var(--color-primary);
+  --lab-secondary-color: var(--text-secondary);
 }
 
 /* Dark mode auto-lightening for lab branding.
    Labs can override --lab-primary-color in their dark mode settings.
    If not provided, this auto-lightened value is used. */
-body.dark {
+[data-bs-theme="dark"] {
   --lab-primary-color: #6b8fd4;
-  --lab-secondary-color: #9ca3af;
+  --lab-secondary-color: var(--text-subtle);
 }
 
 /* Apply lab colors to various components */
@@ -258,10 +258,15 @@ body.dark {
 .modal-header {
   background-color: var(--color-primary) !important;
   color: white !important;
-  border-bottom: none !important;
+  border-bottom: 1px solid var(--glass-border) !important;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+[data-bs-theme="dark"] .modal-header {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
 }
 
 .modal-title {
@@ -271,14 +276,14 @@ body.dark {
 .modal-close-btn {
   background: transparent;
   border: none;
-  color: white;
+  color: currentColor;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 .modal-close-btn:hover {

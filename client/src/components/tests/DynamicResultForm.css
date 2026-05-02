@@ -1,6 +1,6 @@
 .dynamic-result-form {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    color: #1e293b;
+    color: #101935;
     max-width: 800px;
     margin: 0 auto;
 }
@@ -26,7 +26,7 @@
 .form-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #0f172a;
+    color: #080f25;
     margin: 0;
 }
 
