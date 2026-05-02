@@ -25,8 +25,10 @@ import {
   Settings,
   User,
   Receipt,
+  ScanBarcode,
 } from "lucide-react";
 import SettlementModal from "../../components/settlement/SettlementModal";
+import SampleQuickInfoModal from "../../components/samples/SampleQuickInfoModal";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import useLabPrefix from "../../hooks/useLabPrefix";
@@ -44,6 +46,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -67,6 +70,11 @@ const AdminDashboard = () => {
 
   const prefix = useLabPrefix();
   const actions = [
+    {
+      icon: <ScanBarcode size={20} />,
+      label: 'Scan Sample',
+      onClick: () => setShowScanModal(true),
+    },
     {
       icon: <UserPlus size={20} />,
       label: 'Add Patient',
@@ -109,6 +117,10 @@ const AdminDashboard = () => {
   }, []);
   return (
     <>
+    <SampleQuickInfoModal 
+      show={showScanModal} 
+      onHide={() => setShowScanModal(false)} 
+    />
     <Container fluid className="py-3 px-2 px-md-4">
       <h2 className="mb-3 text-center text-md-center">Admin Dashboard</h2>
       {loading ? (

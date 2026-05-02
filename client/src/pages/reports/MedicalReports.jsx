@@ -23,6 +23,7 @@ import RichTextEditor from "../../components/ui/RichTextEditor";
 import ImageUpload from "../../components/ui/ImageUpload";
 import SecureImage from "../../components/ui/SecureImage";
 import DynamicResultForm from "../../components/tests/DynamicResultForm";
+import SamplesListModal from "../../components/samples/SamplesListModal";
 import {
   Pencil,
   CheckCircle,
@@ -40,6 +41,8 @@ import {
   Undo,
   Wand2,
   Sparkles,
+  Activity,
+  ScanBarcode,
 } from "lucide-react";
 import { extractFromImage } from "../../api/medicalReports";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
@@ -52,6 +55,7 @@ import {
 } from "../../utils/excelUtils";
 import { useLab } from "../../context/LabContext";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import SampleQuickInfoModal from "../../components/samples/SampleQuickInfoModal";
 
 function calculateAge(birthDate) {
   if (!birthDate) return null;
@@ -90,8 +94,11 @@ const MedicalReports = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [showSamplesModal, setShowSamplesModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const [editingReport, setEditingReport] = useState(null);
   const [reportToDelete, setReportToDelete] = useState(null);
+  const [selectedReportForSamples, setSelectedReportForSamples] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedReportForResults, setSelectedReportForResults] =
     useState(null);
@@ -1163,6 +1170,17 @@ const MedicalReports = () => {
         <Button
           variant="outline-primary"
           className="action-btn-fixed"
+          onClick={() => {
+            setSelectedReportForSamples(rowData);
+            setShowSamplesModal(true);
+          }}
+          title="Sample Tracking"
+        >
+          <Activity size={16} />
+        </Button>
+        <Button
+          variant="outline-primary"
+          className="action-btn-fixed"
           onClick={() => handleEdit(rowData)}
           title="Edit Report"
         >
@@ -1408,16 +1426,25 @@ const MedicalReports = () => {
   };
 
   return (
-    <Container fluid className="medical-reports-container">
-      {loading ? (
-        <LoadingSpinner message="Loading medical reports..." />
-      ) : error ? (
-        <Alert variant="danger">{error}</Alert>
-      ) : (
+    <>
+      <SampleQuickInfoModal
+        show={showScanModal}
+        onHide={() => setShowScanModal(false)}
+      />
+      <Container fluid className="medical-reports-container">
+        {loading ? (
+          <LoadingSpinner message="Loading medical reports..." />
+        ) : error ? (
+          <Alert variant="danger">{error}</Alert>
+        ) : (
         <>
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
             <h2>Medical Reports</h2>
             <div className="d-flex gap-2 flex-wrap">
+              <Button variant="outline-primary" onClick={() => setShowScanModal(true)}>
+                <ScanBarcode size={16} className="me-2" />
+                Scan Sample
+              </Button>
               <Button variant="outline-success" as="label">
                 <Download size={16} className="me-2" />
                 Export XLSX
@@ -2573,9 +2600,19 @@ const MedicalReports = () => {
               </Button>
             </Modal.Footer>
           </Modal>
+
+          <SamplesListModal
+            show={showSamplesModal}
+            onHide={() => {
+              setShowSamplesModal(false);
+              setSelectedReportForSamples(null);
+            }}
+            report={selectedReportForSamples}
+          />
         </>
       )}
     </Container>
+    </>
   );
 };
 

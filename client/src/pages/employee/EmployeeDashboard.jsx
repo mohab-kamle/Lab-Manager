@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert, Badge } from 'react-bootstrap';
-import { Eye, FileText, Plus, Activity, User, ClipboardList, TestTube, Beaker, TrendingUp, AlertTriangle, CheckCircle, Users } from 'lucide-react';
+import { Eye, FileText, Plus, Activity, User, ClipboardList, TestTube, Beaker, TrendingUp, AlertTriangle, CheckCircle, Users, ScanBarcode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
+import SampleQuickInfoModal from '../../components/samples/SampleQuickInfoModal';
 
 const EmployeeDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showScanModal, setShowScanModal] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -53,6 +55,12 @@ const EmployeeDashboard = () => {
 
   const quickActions = [
     {
+      title: 'Scan Sample',
+      description: 'Quick scan a sample barcode',
+      icon: <ScanBarcode size={24} />,
+      action: () => setShowScanModal(true)
+    },
+    {
       title: 'View Reports',
       description: 'Browse medical reports',
       icon: <FileText size={24} />,
@@ -80,6 +88,8 @@ const EmployeeDashboard = () => {
   }
 
   return (
+    <>
+    <SampleQuickInfoModal show={showScanModal} onHide={() => setShowScanModal(false)} />
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
@@ -138,7 +148,7 @@ const EmployeeDashboard = () => {
             <Card.Body>
               <Row>
                 {quickActions.map((action, index) => (
-                  <Col md={4} key={index} className="mb-3">
+                  <Col md={3} key={index} className="mb-3">
                     <Button
                       className="btn-dashboard-action w-100"
                       onClick={action.action}
@@ -261,6 +271,7 @@ const EmployeeDashboard = () => {
         </Col>
       </Row>
     </Container>
+    </>
   );
 };
 

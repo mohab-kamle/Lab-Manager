@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert, Badge } from 'react-bootstrap';
-import { Users, FileText, Plus, Activity, UserPlus, ClipboardList, DollarSign, CreditCard, TrendingUp, Phone, Calendar, Receipt } from 'lucide-react';
+import { Users, FileText, Plus, Activity, UserPlus, ClipboardList, DollarSign, CreditCard, TrendingUp, Phone, Calendar, Receipt, ScanBarcode } from 'lucide-react';
 import SettlementModal from '../../components/settlement/SettlementModal';
+import SampleQuickInfoModal from '../../components/samples/SampleQuickInfoModal';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +20,7 @@ const ReceptionistDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -53,6 +55,12 @@ const ReceptionistDashboard = () => {
   }, [apiUrl]);
 
   const quickActions = [
+    {
+      title: 'Scan Sample',
+      description: 'Quick scan a sample barcode',
+      icon: <ScanBarcode size={24} />,
+      action: () => setShowScanModal(true)
+    },
     {
       title: 'New Patient',
       description: 'Register a new patient',
@@ -93,6 +101,7 @@ const ReceptionistDashboard = () => {
 
   return (
     <>
+    <SampleQuickInfoModal show={showScanModal} onHide={() => setShowScanModal(false)} />
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
