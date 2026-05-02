@@ -234,13 +234,13 @@ const Tests = () => {
         ? valueA === valueB
           ? 0
           : valueA
-          ? -1
-          : 1
+            ? -1
+            : 1
         : valueA === valueB
-        ? 0
-        : valueA
-        ? 1
-        : -1;
+          ? 0
+          : valueA
+            ? 1
+            : -1;
     }
     return 0;
   });
@@ -268,7 +268,7 @@ const Tests = () => {
   }, [currentTests]);
 
   const handleSelectItem = useCallback((id, checked) => {
-    setSelectedTests(prev => 
+    setSelectedTests(prev =>
       checked ? [...prev, id] : prev.filter(testId => testId !== id)
     );
   }, []);
@@ -291,19 +291,19 @@ const Tests = () => {
     if (header === 'Actions') {
       return null; // This will be handled by ActionComponent
     }
-    
+
     // Handle components/structure_config array specifically
     if ((header === 'components' || header === 'structure_config' || header === 'Structure Config') && Array.isArray(data)) {
       if (data.length === 0) return "No components";
-      
+
       const ComponentsCell = () => {
         const [expanded, setExpanded] = useState(false);
-        
+
         return (
           <div>
-            <Button 
-              variant="outline-info" 
-              size="sm" 
+            <Button
+              variant="outline-info"
+              size="sm"
               onClick={() => setExpanded(!expanded)}
               className="mb-1"
             >
@@ -333,10 +333,10 @@ const Tests = () => {
           </div>
         );
       };
-      
+
       return <ComponentsCell />;
     }
-    
+
     // Handle questions array specifically
     if (header === 'questions' && Array.isArray(data)) {
       if (data.length === 0) return "No questions";
@@ -350,7 +350,7 @@ const Tests = () => {
         </ul>
       );
     }
-    
+
     if (Array.isArray(data)) {
       return (
         <ul style={{ listStyleType: "none", padding: 0, margin: 0 }}>
@@ -448,27 +448,27 @@ const Tests = () => {
       type: test.type || "single",
       questions: test.questions ? test.questions.map(q => q.id) : []
     });
-    
+
     // Fetch test components for this test — backend now returns the full reference_ranges array
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(`${apiUrl}/tests/${test.id}/components`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       // Components now come with the full reference_ranges array attached
       const mappedComponents = (response.data || []).map((component, idx) => ({
         ...component,
         id: component.id || Date.now() + idx, // ensure each component has an id for keying
         reference_ranges: Array.isArray(component.reference_ranges) ? component.reference_ranges : [],
       }));
-      
+
       setTestComponents(mappedComponents);
     } catch (error) {
       console.error("Error fetching test components:", error);
       setTestComponents([]);
     }
-    
+
     // Clear search terms
     setCategorySearchTerm("");
     setSampleTypeSearchTerm("");
@@ -537,7 +537,7 @@ const Tests = () => {
 
   const addComponent = () => {
     setComponentError("");
-    
+
     if (!newComponent.name.trim()) {
       setComponentError("Component name is required");
       return;
@@ -576,7 +576,7 @@ const Tests = () => {
 
       // Add the new question to the questions list
       setQuestions(prev => [...prev, response.data]);
-      
+
       // Add the new question to the current test's questions
       setFormData(prev => ({
         ...prev,
@@ -588,10 +588,10 @@ const Tests = () => {
         text: "",
         category: ""
       });
-      
+
       // Close the modal
       setShowAddQuestionModal(false);
-      
+
       toast.success('Question created successfully!');
     } catch (error) {
       console.error('Error creating question:', error);
@@ -613,7 +613,7 @@ const Tests = () => {
 
       // Add the new category to the categories list
       setCategories(prev => [...prev, response.data]);
-      
+
       // Select the new category automatically
       setFormData(prev => ({
         ...prev,
@@ -625,10 +625,10 @@ const Tests = () => {
         name: "",
         description: ""
       });
-      
+
       // Close the modal
       setShowAddCategoryModal(false);
-      
+
       toast.success('Category created successfully!');
     } catch (error) {
       console.error('Error creating category:', error);
@@ -638,7 +638,7 @@ const Tests = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate required fields
     if (!formData.name.trim()) {
       toast.error('Test name is required');
@@ -653,7 +653,7 @@ const Tests = () => {
       toast.error('Lab Name is required when Lab to Lab is set to "Out"');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
@@ -665,7 +665,7 @@ const Tests = () => {
         sample_type_id: formData.sample_type_id ? parseInt(formData.sample_type_id) : null,
         lab_to_lab_status: formData.lab_to_lab // Map lab_to_lab to lab_to_lab_status
       };
-      
+
       // Remove questions and lab_to_lab from testData as they will be handled separately
       const { questions, lab_to_lab, ...testDataWithoutQuestions } = testData;
       if (editingTest) {
@@ -813,7 +813,7 @@ const Tests = () => {
             Import Excel
             <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleImportXLSX} />
           </Button>
-          <Button variant="info" onClick={() => setShowGlobalCatalogModal(true)}>
+          <Button variant="primary" onClick={() => setShowGlobalCatalogModal(true)}>
             <Search size={16} className="me-2" />Search Global Catalog
           </Button>
           {selectedTests.length > 0 && (
@@ -858,8 +858,8 @@ const Tests = () => {
           />
         </>
       )}
-      
-      <GlobalCatalogPickerModal 
+
+      <GlobalCatalogPickerModal
         show={showGlobalCatalogModal}
         onHide={() => setShowGlobalCatalogModal(false)}
         onImportSuccess={() => {
@@ -867,7 +867,7 @@ const Tests = () => {
           fetchTestsAndRelated();
         }}
       />
-      
+
       {/* Test Details Modal */}
       <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">
         <Modal.Header>
@@ -899,9 +899,9 @@ const Tests = () => {
                   <p><strong>Increased In:</strong> {selectedTest.increased_in || 'N/A'}</p>
                 </Col>
               </Row>
-              
+
               <hr />
-              
+
               <h6>Test Components ({selectedTestComponents.length})</h6>
               {selectedTestComponents.length > 0 ? (
                 <div>
@@ -954,9 +954,9 @@ const Tests = () => {
               ) : (
                 <p className="text-muted">No components defined for this test.</p>
               )}
-              
+
               <hr />
-              
+
               <h6>Questions ({selectedTest?.questions?.length || 0})</h6>
               {selectedTest?.questions && selectedTest.questions.length > 0 ? (
                 <div className="table-responsive">
@@ -1021,32 +1021,32 @@ const Tests = () => {
               <Col md={5}>
                 <Form.Group className="mb-3">
                   <Form.Label>Name *</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.name} 
+                  <Form.Control
+                    type="text"
+                    value={formData.name}
                     onChange={e => {
                       setFormData({ ...formData, name: e.target.value });
                       if (modalError) setModalError(null); // Clear error when user starts typing
-                    }} 
-                    required 
+                    }}
+                    required
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Shortcut</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.shortcut} 
+                  <Form.Control
+                    type="text"
+                    value={formData.shortcut}
                     onChange={e => {
                       setFormData({ ...formData, shortcut: e.target.value });
                       if (modalError) setModalError(null); // Clear error when user starts typing
-                    }} 
+                    }}
                   />
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1068,15 +1068,15 @@ const Tests = () => {
                       <Plus size={16} />
                     </Button>
                   </div>
-                  <Form.Select 
-                    value={formData.category_id} 
+                  <Form.Select
+                    value={formData.category_id}
                     onChange={e => setFormData({ ...formData, category_id: e.target.value })}
                     required
                     isInvalid={!formData.category_id}
                   >
                     <option value="">Select Category</option>
                     {categories
-                      .filter(cat => 
+                      .filter(cat =>
                         cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
                       )
                       .map(cat => (
@@ -1098,13 +1098,13 @@ const Tests = () => {
                     onChange={(e) => setSampleTypeSearchTerm(e.target.value)}
                     className="mb-2"
                   />
-                  <Form.Select 
-                    value={formData.sample_type_id} 
+                  <Form.Select
+                    value={formData.sample_type_id}
                     onChange={e => setFormData({ ...formData, sample_type_id: e.target.value })}
                   >
                     <option value="">Select Sample Type</option>
                     {sampleTypes
-                      .filter(sample => 
+                      .filter(sample =>
                         sample.type.toLowerCase().includes(sampleTypeSearchTerm.toLowerCase())
                       )
                       .map(sample => (
@@ -1114,38 +1114,38 @@ const Tests = () => {
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Price</Form.Label>
-                  <Form.Control 
-                    type="number" 
+                  <Form.Control
+                    type="number"
                     step="0.01"
-                    value={formData.price} 
-                    onChange={e => setFormData({ ...formData, price: e.target.value })} 
+                    value={formData.price}
+                    onChange={e => setFormData({ ...formData, price: e.target.value })}
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Cost</Form.Label>
-                  <Form.Control 
-                    type="number" 
+                  <Form.Control
+                    type="number"
                     step="0.01"
-                    value={formData.cost} 
-                    onChange={e => setFormData({ ...formData, cost: e.target.value })} 
+                    value={formData.cost}
+                    onChange={e => setFormData({ ...formData, cost: e.target.value })}
                   />
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Lab to Lab</Form.Label>
-                  <Form.Select 
-                    value={formData.lab_to_lab} 
+                  <Form.Select
+                    value={formData.lab_to_lab}
                     onChange={e => {
                       const newValue = e.target.value;
                       setFormData(prev => ({
@@ -1193,39 +1193,39 @@ const Tests = () => {
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={12}>
                 <Form.Group className="mb-3">
                   <Form.Label>Precautions</Form.Label>
-                  <Form.Control 
-                    as="textarea" 
+                  <Form.Control
+                    as="textarea"
                     rows={2}
-                    value={formData.precautions} 
-                    onChange={e => setFormData({ ...formData, precautions: e.target.value })} 
+                    value={formData.precautions}
+                    onChange={e => setFormData({ ...formData, precautions: e.target.value })}
                   />
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Decreased In</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.decreased_in} 
-                    onChange={e => setFormData({ ...formData, decreased_in: e.target.value })} 
+                  <Form.Control
+                    type="text"
+                    value={formData.decreased_in}
+                    onChange={e => setFormData({ ...formData, decreased_in: e.target.value })}
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Increased In</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.increased_in} 
-                    onChange={e => setFormData({ ...formData, increased_in: e.target.value })} 
+                  <Form.Control
+                    type="text"
+                    value={formData.increased_in}
+                    onChange={e => setFormData({ ...formData, increased_in: e.target.value })}
                   />
                 </Form.Group>
               </Col>
@@ -1549,7 +1549,7 @@ const Tests = () => {
                   </div>
                   <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
                     {questions
-                      .filter(question => 
+                      .filter(question =>
                         question.text.toLowerCase().includes(questionSearchTerm.toLowerCase()) ||
                         (question.category && question.category.toLowerCase().includes(questionSearchTerm.toLowerCase()))
                       )
@@ -1626,8 +1626,8 @@ const Tests = () => {
           <Button variant="secondary" onClick={() => setShowAddQuestionModal(false)}>
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleAddQuestion}
             disabled={!newQuestion.text.trim()}
           >
@@ -1669,8 +1669,8 @@ const Tests = () => {
           <Button variant="secondary" onClick={() => setShowAddCategoryModal(false)}>
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleAddCategory}
             disabled={!newCategory.name.trim()}
           >

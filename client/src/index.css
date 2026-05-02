@@ -20,7 +20,7 @@
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 8px;
-  border: 2px solid var(--scrollbar-bg);
+  border: 1px solid var(--scrollbar-bg);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -45,137 +45,20 @@
    ======================================================================= */
 
 :root {
-  /* --- Backgrounds (Layered Surfaces) --- */
-  --bg-base: oklch(0.97 0.005 255);      /* Page body */
-  --bg-surface: oklch(0.995 0.002 255);  /* Cards, containers */
-  --bg-elevated: oklch(1.0 0 0);         /* Hover, dropdowns, modals */
-  --bg-inset: oklch(0.94 0.008 255);     /* Input fields, inset areas */
-
-  /* --- Borders --- */
-  --border-default: oklch(0.82 0.015 255);  /* Card borders, dividers */
-  --border-muted: oklch(0.88 0.01 255);     /* Subtle separators */
-  --border-emphasis: oklch(0.60 0.08 255);  /* Active/focus borders */
-
-  /* --- Text Hierarchy --- */
-  --text-primary: oklch(0.18 0.02 255);    /* Headings, important content */
-  --text-secondary: oklch(0.42 0.03 255);  /* Body text, labels */
-  --text-subtle: oklch(0.58 0.02 255);     /* Meta info, timestamps, hints */
-
-  /* --- Semantic / Accent Colors --- */
-  --color-primary: oklch(0.45 0.18 255);         /* Actions, links, buttons */
-  --color-primary-subtle: oklch(0.93 0.04 255);  /* Primary tinted backgrounds */
-  --color-secondary: oklch(0.70 0.16 45);        /* Secondary accent (orange) */
-  --color-success: oklch(0.60 0.16 150);         /* Success states */
-  --color-success-subtle: oklch(0.93 0.04 150);  /* Success tinted bg */
-  --color-warning: oklch(0.78 0.14 85);          /* Warning states */
-  --color-warning-subtle: oklch(0.95 0.04 85);   /* Warning tinted bg */
-  --color-danger: oklch(0.55 0.20 25);           /* Error / danger states */
-  --color-danger-subtle: oklch(0.95 0.04 25);    /* Danger tinted bg */
-  --color-info: oklch(0.52 0.15 255);            /* Info states */
-
-  /* --- Interaction States --- */
-  --hover-bg: oklch(0.96 0.005 255);
-  --active-bg: oklch(0.92 0.01 255);
-  --focus-ring: oklch(0.65 0.14 255 / 0.3);
-
-  /* --- Scrollbar --- */
+  /* Scrollbar & Layout Variables */
+  --scrollbar-width: 6px;
   --scrollbar-bg: transparent;
   --scrollbar-thumb: var(--color-primary);
-  --scrollbar-thumb-hover: var(--color-primary-subtle);
-  --scrollbar-width: 5px;
-
-  /* --- Toast Colors --- */
-  --toast-success: #10b981;
-  --toast-success-bg: rgba(16, 185, 129, 0.1);
-  --toast-error: #ef4444;
-  --toast-error-bg: rgba(239, 68, 68, 0.1);
-  --toast-warning: #f59e0b;
-  --toast-warning-bg: rgba(245, 158, 11, 0.1);
-  --toast-info: #3b82f6;
-  --toast-info-bg: rgba(59, 130, 246, 0.1);
-  --toast-text: #111827;
-  --toast-text-muted: #374151;
-  --toast-bg: #ffffff;
-
-  /* ===========================
-     LEGACY ALIASES
-     These map old variable names to new tokens so that
-     existing var(--bg), var(--text), etc. still resolve.
-     Safe to remove once all files are fully migrated.
-     =========================== */
-  --bg-dark: var(--bg-inset);
-  --bg: var(--bg-base);
-  --bg-light: var(--bg-surface);
-  --text: var(--text-primary);
-  --text-muted: var(--text-secondary);
-  --highlight: var(--bg-elevated);
-  --border: var(--border-default);
-  /* --border-muted: same name in old and new, no alias needed */
-  --primary: var(--color-primary);
-  --secondary: var(--color-secondary);
-  --danger: var(--color-danger);
-  --warning: var(--color-warning);
-  --success: var(--color-success);
-  --info: var(--color-info);
+  --scrollbar-thumb-hover: var(--color-primary-hover);
 }
 
-/* ===========================
-   DARK MODE
+/* Dark mode tweaks for layout elements if needed */
+[data-bs-theme="dark"] {
+  --scrollbar-thumb-hover: var(--text-primary);
+}
 
-   Activated via ThemeContext → body.dark + data-bs-theme="dark".
-   Surfaces use progressive lightness steps from a dark base.
-   Accent chroma is REDUCED vs light mode to avoid neon effect.
-   Text chroma is near-zero for neutral off-white readability.
-   =========================== */
-
-[data-bs-theme="dark"] body,
-body.dark {
-  /* --- Unified Bridging from custom.scss --- */
-  --bg-base: var(--bg);
-  --bg-surface: var(--bg-light);
-  --bg-elevated: var(--highlight);
-  --bg-inset: var(--bg-dark);
-
-  /* --- Borders --- */
-  --border-default: var(--border);
-  --border-muted: var(--border-muted);
-  --border-emphasis: var(--color-primary); /* Use primary for emphasis borders */
-
-  /* --- Text --- */
-  --text-primary: var(--text);
-  --text-secondary: var(--text-muted);
-  --text-subtle: var(--text-muted);
-
-  /* --- Semantic Colors --- */
-  --color-primary: var(--primary);
-  --color-secondary: var(--secondary);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-  --color-info: var(--info);
-
-  /* --- Interaction States --- */
-  --hover-bg: var(--highlight);
-  --active-bg: var(--bg-light);
-  --focus-ring: rgba(59, 130, 246, 0.4); /* Based on Blue 500 */
-
-  /* --- Scrollbar --- */
-  --scrollbar-thumb: var(--primary);
-  --scrollbar-thumb-hover: var(--text-muted);
-  --scrollbar-width: 5px;
-
-  /* --- Toast (Dark Mode) --- */
-  --toast-success: #34d399;
-  --toast-success-bg: rgba(52, 211, 153, 0.15);
-  --toast-error: #f87171;
-  --toast-error-bg: rgba(248, 113, 113, 0.15);
-  --toast-warning: #fbbf24;
-  --toast-warning-bg: rgba(251, 191, 36, 0.15);
-  --toast-info: #60a5fa;
-  --toast-info-bg: rgba(96, 165, 250, 0.15);
-  --toast-text: #f9fafb;
-  --toast-text-muted: #d1d5db;
-  --toast-bg: var(--bg-light);
+[data-bs-theme="dark"] .card {
+  background-color: var(--bg-surface) !important;
 }
 
 /* Fixed size action buttons for tables */
@@ -197,11 +80,11 @@ body.dark {
    AI SCAN BUTTON - PREMIUM AESTHETICS
    ======================================================================= */
 .btn-gradient-primary {
-  background: linear-gradient(135deg, var(--color-primary) 0%, oklch(0.60 0.18 290) 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%) !important;
   border: none !important;
   color: white !important;
   font-weight: 600 !important;
-  box-shadow: 0 4px 12px rgba(var(--color-primary), 0.2);
+  box-shadow: 0 4px 12px rgba(31, 84, 200, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative;
   overflow: hidden;
@@ -209,7 +92,7 @@ body.dark {
 
 .btn-gradient-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(var(--color-primary), 0.3);
+  box-shadow: 0 8px 20px rgba(31, 84, 200, 0.3);
   filter: brightness(1.1);
 }
 
@@ -233,9 +116,9 @@ body.dark {
 
 /* Subtle pulse animation for the AI button */
 @keyframes ai-pulse {
-  0% { box-shadow: 0 0 0 0 oklch(0.60 0.18 290 / 0.4); }
-  70% { box-shadow: 0 0 0 10px oklch(0.60 0.18 290 / 0); }
-  100% { box-shadow: 0 0 0 0 oklch(0.60 0.18 290 / 0); }
+  0% { box-shadow: 0 0 0 0 rgba(31, 84, 200, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(31, 84, 200, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(31, 84, 200, 0); }
 }
 
 .ai-scan-btn:not(:disabled) {
@@ -244,7 +127,7 @@ body.dark {
 
 .btn-dashboard-action {
   background-color: transparent !important;
-  border: 2px solid var(--color-primary) !important;
+  border: 1px solid var(--color-primary) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   display: flex !important;
   flex-direction: column !important;
