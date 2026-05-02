@@ -45,6 +45,12 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       comment: 'The nature of the financial event'
     },
+    change_amount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+      comment: 'Amount returned to patient in case of overpayment'
+    },
     
     // --- Relations ---
     
@@ -96,6 +102,10 @@ The `financial_transaction` table must act as an append-only ledger. You need to
 **Location**: `server/routes/invoices.js` (POST `/` and PUT `/:id`)
 When a bill is created or updated:
 1. **If `req.body.paid > 0`**: Create a `financial_transaction` record with `process_type: 'Payment'`, mapping the `payment_method_id`.
+    *   **Overpayment & Change**: If the paid amount exceeds the bill total and `give_change` is true, the frontend will send `original_paid` (the full amount handed over) and `change_amount` (the change given back). The backend should:
+        *   Set `financial_transaction.amount = req.body.original_paid`.
+        *   Set `financial_transaction.change_amount = req.body.change_amount`.
+        *   This ensures the ledger reflects the actual cash received and the amount handed back in a single audit event.
 2. **If `req.body.due > 0`**: Create a `financial_transaction` record with `process_type: 'Due'`, leaving `payment_method_id` null.
 3. Ensure both records are attached to the same `transaction` object so they rollback if the invoice fails.
 
@@ -122,6 +132,7 @@ When a bill is created or updated:
     "transactionId": "TXN-20240425-001",
     "date": "2024-04-25T14:30:00.000Z",
     "amount": 120.50,
+    "changeAmount": 0,
     "processType": "Payment",
     "paidWith": "Visa",
     "processedBy": {

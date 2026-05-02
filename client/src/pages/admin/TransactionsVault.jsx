@@ -100,12 +100,14 @@ const TransactionsVault = () => {
   const totals = useMemo(() => {
     return filteredTransactions.reduce((acc, curr) => {
       const amount = parseFloat(curr.amount) || 0;
+      const change = parseFloat(curr.changeAmount) || 0;
+      
       if (curr.processType?.toLowerCase() === 'refund') {
         acc.refunds += amount;
         acc.net -= amount;
       } else {
         acc.processed += amount;
-        acc.net += amount;
+        acc.net += (amount - change);
       }
       return acc;
     }, { processed: 0, refunds: 0, net: 0 });
@@ -114,18 +116,24 @@ const TransactionsVault = () => {
   const exportToCSV = () => {
     if (filteredTransactions.length === 0) return;
 
-    const headers = ['Transaction ID', 'Date', 'Type', 'Method', 'Amount', 'Patient', 'Branch', 'Processed By', 'Summary'];
-    const rows = filteredTransactions.map(t => [
-      t.transactionId,
-      new Date(t.date).toLocaleString(),
-      t.processType,
-      t.paidWith || 'N/A',
-      t.amount,
-      t.patientId || 'N/A',
-      t.branchName,
-      t.processedBy?.name || 'N/A',
-      t.summary || ''
-    ]);
+    const headers = ['Transaction ID', 'Date', 'Type', 'Method', 'Amount', 'Change', 'Net Amount', 'Patient', 'Branch', 'Processed By', 'Summary'];
+    const rows = filteredTransactions.map(t => {
+      const amount = parseFloat(t.amount) || 0;
+      const change = parseFloat(t.changeAmount) || 0;
+      return [
+        t.transactionId,
+        new Date(t.date).toLocaleString(),
+        t.processType,
+        t.paidWith || 'N/A',
+        amount,
+        change,
+        amount - change,
+        t.patientId || 'N/A',
+        t.branchName,
+        t.processedBy?.name || 'N/A',
+        t.summary || ''
+      ];
+    });
 
     const csvContent = "data:text/csv;charset=utf-8," 
       + headers.join(",") + "\n" 

@@ -14,10 +14,7 @@ import {
 import axios from "axios";
 import { useToast } from "../ui/ToastContext";
 import LabIcon from "../../assets/LabIcon.png";
-import JsBarcode from "jsbarcode";
-import QRCode from "qrcode";
-import ReactDOM from "react-dom";
-import QRCodeSVG from "qrcode-svg";
+import useUniversalCode from "./useUniversalCode";
 import { usePDF } from "@react-pdf/renderer";
 import CairoFont from "../../assets/fonts/Cairo.ttf";
 import { FileText } from "lucide-react";
@@ -670,38 +667,6 @@ function calculateAge(birthdate) {
   return age;
 }
 
-// Helper to generate barcode as data URL
-function useBarcode(value) {
-  return useMemo(() => {
-    if (!value) return null;
-    try {
-      const canvas = document.createElement("canvas");
-      JsBarcode(canvas, value, {
-        format: "CODE128",
-        displayValue: false,
-        width: 2,
-        height: 40,
-        margin: 0,
-      });
-      return canvas.toDataURL("image/png");
-    } catch {
-      return null;
-    }
-  }, [value]);
-}
-
-// Helper: generate PNG QR code as data URL
-function useQrPngDataUrl(value) {
-  const [qrUrl, setQrUrl] = React.useState(null);
-  React.useEffect(() => {
-    if (!value) return;
-    QRCode.toDataURL(value, { width: 80, margin: 0 }, (err, url) => {
-      if (!err) setQrUrl(url);
-    });
-  }, [value]);
-  return qrUrl;
-}
-
 // Add a usePageNumber hook to get the current page number in the Page content
 function usePageNumber() {
   const pdfContext = usePDF();
@@ -851,7 +816,7 @@ function StatusBarFirstPage({ report }) {
 // Professional PDF Document Component
 const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
   // Use report id as barcode, and a URL as QR code (e.g., report view link)
-  const barcodeUrl = useBarcode(report?.id ? String(report.id) : "0");
+  const barcodeUrl = useUniversalCode("barcode", report?.id ? String(report.id) : "0");
   // const qrUrl = useQRCodeDataUrl(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ''}`); // This line is now passed as a prop
 
   // Comments and signatory
@@ -1140,9 +1105,7 @@ const PrintPDF = ({ patient, report, lab, comments }) => {
     return <span style={styles.btn}>Invalid Data</span>;
   }
 
-  const qrUrl = useQrPngDataUrl(
-    `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`
-  );
+  const qrUrl = useUniversalCode("qrcode", `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`);
 
   if (!qrUrl) {
     return <span style={styles.btn}>Generating QR...</span>;
@@ -1443,9 +1406,7 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
   const [loading, setLoading] = React.useState(false);
   const downloadTriggeredRef = useRef(false);
 
-  const qrUrl = useQrPngDataUrl(
-    `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`
-  );
+  const qrUrl = useUniversalCode("qrcode", `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`);
 
   if (!qrUrl) {
     return (

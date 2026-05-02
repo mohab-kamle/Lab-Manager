@@ -31,6 +31,7 @@ const PatientsAdminView = lazy(() => import('./pages/admin/PatientsAdminView'));
 const PatientsAnalytics = lazy(() => import('./pages/admin/PatientsAnalytics'));
 const KnowUs = lazy(() => import('./pages/info/KnowUs'));
 const MedicalReports = lazy(() => import('./pages/reports/MedicalReports'));
+const MedicalReportDetails = lazy(() => import('./pages/reports/MedicalReportDetails'));
 const EmployeeManagement = lazy(() => import('./pages/branches/EmployeeManagement'));
 const LabManagement = lazy(() => import('./pages/lab/LabManagement'));
 const Vault = lazy(() => import('./pages/admin/Vault'));
@@ -38,6 +39,7 @@ const TransactionsVault = lazy(() => import('./pages/admin/TransactionsVault'));
 const TurnaroundTime = lazy(() => import('./pages/admin/TurnaroundTime'));
 const PatientProfileAdminView = lazy(() => import('./pages/admin/PatientProfileAdminView'));
 const ManagerKeyManagement = lazy(() => import('./pages/admin/ManagerKeyManagement'));
+const SamplesKanban = lazy(() => import('./pages/samples/SamplesKanban'));
 const ToastTestPage = lazy(() => import('./pages/test/ToastTestPage'));
 
 
@@ -117,6 +119,8 @@ const LabRoutes = () => (
 
       <Route path="/:role/know-us" element={<PrivateRoute element={<KnowUs />} allowedRoles={["admin"]} />} />
       <Route path="/:role/medical-reports" element={<PrivateRoute element={<MedicalReports />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
+      <Route path="/:role/medical-reports/:id" element={<PrivateRoute element={<MedicalReportDetails />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
+      <Route path="/:role/samples-kanban" element={<PrivateRoute element={<SamplesKanban />} allowedRoles={["admin", "chemist", "receptionist", "employee", "doctor"]} />} />
       <Route path="/:role/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
       <Route path="/:role/outsourced-labs" element={<PrivateRoute element={<OutsourcedLabs />} allowedRoles={["admin", "employee", "chemist"]} />} />
       <Route path="/:role/patients-analytics" element={<PrivateRoute element={<PatientsAnalytics />} allowedRoles={["admin"]} />} />
