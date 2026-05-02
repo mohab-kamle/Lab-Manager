@@ -9,6 +9,7 @@ const { Op } = Sequelize;
 const nodemailer = require('nodemailer');
 const { registrationLimiter } = require('../middleware/rateLimiters');
 const { validatePassword } = require('../utils/passwordValidator');
+const authenticateUser = require('../middleware/authenticateUser');
 
 // Configure email transporter
 var transporter = nodemailer.createTransport({
@@ -98,30 +99,9 @@ router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) 
         
         console.log(`Lab subscription upgraded successfully: Lab ID ${existingLab.id}, Plan: ${subscriptionData.plan}`);
         
-        // Generate JWT token
-        const token = jwt.sign(
-          { 
-            id: adminEmployee.id, 
-            username: adminEmployee.username, 
-            role: adminEmployee.role,
-            lab_id: existingLab.id,
-          },
-          process.env.SECRET_KEY,
-          { expiresIn: '6h' }
-        );
-        
         return res.json({
           success: true,
           message: 'Subscription upgraded successfully!',
-          token: token,
-          user: {
-            id: adminEmployee.id,
-            username: adminEmployee.username,
-            name: adminEmployee.name,
-            email: adminEmployee.email,
-            role: adminEmployee.role,
-            lab_id: existingLab.id,
-          },
           lab: {
             id: existingLab.id,
             name: existingLab.name,
@@ -359,7 +339,7 @@ router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) 
 });
 
 // Upgrade existing lab subscription - Step 1: Create payment intention only
-router.post('/upgrade', registrationLimiter, async (req, res) => {
+router.post('/upgrade', registrationLimiter, authenticateUser, async (req, res) => {
   try {
     const { lab: labData, admin: adminData, subscription: subscriptionData } = req.body;
 
@@ -368,8 +348,16 @@ router.post('/upgrade', registrationLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Missing required data sections: lab, admin, or subscription' });
     }
 
-    if (!labData.id || !labData.name || !adminData.email || !subscriptionData.plan) {
-      return res.status(400).json({ error: 'Lab ID, name, admin email, and subscription plan are required for upgrade' });
+    // Security check: Ensure the authenticated user is an admin of the lab being upgraded
+    // and ignore the lab ID from the request body in favor of the one in the token
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only administrators can upgrade lab subscriptions.' });
+    }
+
+    const labId = req.user.lab_id;
+
+    if (!labId || !adminData.email || !subscriptionData.plan) {
+      return res.status(400).json({ error: 'Lab identity, admin email, and subscription plan are required for upgrade' });
     }
 
     // Validate subscription plan
@@ -378,17 +366,20 @@ router.post('/upgrade', registrationLimiter, async (req, res) => {
     }
 
     // Verify lab exists
-    const existingLab = await lab.findByPk(labData.id);
+    const existingLab = await lab.findByPk(labId);
     if (!existingLab) {
       return res.status(404).json({ error: 'Lab not found' });
     }
+
+    // Force the correct lab ID into the data passed to payment creation
+    const secureLabData = { ...labData, id: labId };
 
     // Get subscription details
     const subscriptionDetails = await getSubscriptionDetails(subscriptionData.plan);
 
     // Create payment intention for upgrade
     const paymentResult = await createPaymentIntention({
-      lab: labData,
+      lab: secureLabData,
       admin: adminData,
       subscription: subscriptionData,
       isUpgrade: true
@@ -633,7 +624,8 @@ async function createPaymentIntention(registrationData, subscriptionDetails) {
     const merchantOrderId = `${orderPrefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Bypass Paymob for Free Trial (0 EGP)
-    if (amountCents === 0) {
+    // SECURITY: Only allow bypass for new registrations with the 'free_trial' plan
+    if (amountCents === 0 && !isUpgrade && subscriptionData.plan === 'free_trial') {
       console.log(`Bypassing Paymob for free plan (${subscriptionData.plan})`);
       
       const paymentRecord = {
