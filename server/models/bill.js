@@ -63,6 +63,11 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: true,
         defaultValue: 0.0,
       },
+      refunded_amount: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 0.0,
+      },
       receptionist_id: {
         type: DataTypes.INTEGER,
         allowNull: true,

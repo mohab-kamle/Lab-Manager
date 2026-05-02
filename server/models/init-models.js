@@ -60,6 +60,7 @@ var _inventory_transaction = require("./inventory_transaction");
 var _inventory_notification = require("./inventory_notification");
 var _outsourced_lab = require("./outsourced_lab");
 var _financial_transaction = require("./financial_transaction");
+var _manager_key = require("./manager_key");
 
 
 function initModels(sequelize) {
@@ -118,7 +119,7 @@ function initModels(sequelize) {
   var inventory_notification = _inventory_notification(sequelize, DataTypes);
   var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
   var financial_transaction = _financial_transaction(sequelize, DataTypes);
-
+  var manager_key = _manager_key(sequelize, DataTypes); 
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -556,7 +557,7 @@ function initModels(sequelize) {
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });
 
-  // ── Financial Transaction associations ──────────────────────────────────
+  // financial_transaction associations
   financial_transaction.belongsTo(employee, { as: "processed_by", foreignKey: "processed_by_id" });
   employee.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "processed_by_id" });
 
@@ -627,6 +628,19 @@ function initModels(sequelize) {
     foreignKey: "test_id"
   });
 
+
+  // manager_key associations
+  manager_key.belongsTo(lab, { as: "lab", foreignKey: "lab_id"});
+  lab.hasMany(manager_key, { as: "manager_keys", foreignKey: "lab_id"});
+
+  manager_key.belongsTo(employee, { as: "admin", foreignKey: "admin_id"});
+  employee.hasMany(manager_key, { as: "manager_keys", foreignKey: "admin_id"});
+
+  // Financial Transactions belong to a Manager Key (optional)
+  financial_transaction.belongsTo(manager_key, { as: "manager_key", foreignKey: "manager_key_id"});
+  manager_key.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "manager_key_id"});
+
+
   return {
     admin,
     admin_packages_and_offers,
@@ -677,6 +691,7 @@ function initModels(sequelize) {
     inventory_transaction,
     inventory_notification,
     outsourced_lab,
+    manager_key,
     financial_transaction
   };
 

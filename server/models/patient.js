@@ -76,6 +76,11 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: true,
         defaultValue: 0.0,
       },
+      credit: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 0.0,
+      },
       contract_id: {
         type: DataTypes.INTEGER,
         allowNull: true,

@@ -48,6 +48,14 @@ module.exports = function(sequelize, DataTypes) {
         key: 'id'
       }
     },
+    manager_key_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true, // Only required for older refunds
+      references: {
+        model: 'manager_keys',
+        key: 'id'
+      }
+    },
     patient_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
