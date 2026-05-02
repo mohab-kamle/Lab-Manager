@@ -110,6 +110,7 @@ const Invoices = () => {
   const [settlementPatientId, setSettlementPatientId] = useState(null);
   const [settlementPatientName, setSettlementPatientName] = useState("");
   const [settlementPatientCode, setSettlementPatientCode] = useState("");
+  const [giveChange, setGiveChange] = useState(false);
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -228,6 +229,18 @@ const Invoices = () => {
       setFilteredPatients(patients);
     }
   }, [searchTerm, patients]);
+
+  useEffect(() => {
+    if (giveChange) {
+      setGiveChange(false);
+    }
+  }, [invoice.total, invoice.paid, invoice.payments]);
+
+  useEffect(() => {
+    if (showFormErrorAlert) {
+      setShowFormErrorAlert(false);
+    }
+  }, [invoice]);
 
   const patientOptions = filteredPatients.map((patient) => {
     const parts = [];
@@ -642,11 +655,36 @@ const Invoices = () => {
       const filteredTests = (invoice.tests || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredPackages = (invoice.packages || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       
+      // Adjust payments if give change is active
+      let finalPayments = invoice.payments || [];
+      if (giveChange && invoice.due < 0) {
+        const totalReduction = Math.abs(invoice.due);
+        let remainingReduction = totalReduction;
+        
+        // Copy and adjust payments starting from the last one
+        const adjustedPayments = JSON.parse(JSON.stringify(finalPayments));
+        for (let i = adjustedPayments.length - 1; i >= 0 && remainingReduction > 0; i--) {
+          const currentAmount = parseFloat(adjustedPayments[i].paid_amount) || 0;
+          const reduction = Math.min(currentAmount, remainingReduction);
+          adjustedPayments[i].paid_amount = (currentAmount - reduction).toFixed(2);
+          remainingReduction -= reduction;
+        }
+        finalPayments = adjustedPayments;
+      }
+      
       // Determine automatic status
       let finalStatusId = invoice.status_id;
       if (!finalStatusId) {
-        const { due } = calculateTotals(invoice);
-        finalStatusId = determineAutomaticStatus(due, invoice.paid, invoice.total);
+        let { due, total } = calculateTotals(invoice);
+        let paid = invoice.paid || 0;
+        
+        // If give change is active, adjust values for status detection
+        if (giveChange && due < 0) {
+          due = 0;
+          paid = total;
+        }
+        
+        finalStatusId = determineAutomaticStatus(due, paid, total);
         if (!finalStatusId) {
           setStatusDetectionError("No valid status found for this invoice. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
           return;
@@ -657,11 +695,15 @@ const Invoices = () => {
         ...invoice,
         tests: filteredTests,
         packages: filteredPackages,
+        payments: finalPayments,
         subtotal: invoice.subtotal,
         discount: invoice.discount,
         total: invoice.total,
-        paid: invoice.paid || 0,
-        due: invoice.due,
+        paid: (giveChange && invoice.due < 0) ? invoice.total : (invoice.paid || 0),
+        due: (giveChange && invoice.due < 0) ? 0 : invoice.due,
+        give_change: giveChange,
+        original_paid: (giveChange && invoice.due < 0) ? (invoice.paid || 0) : undefined,
+        change_amount: (giveChange && invoice.due < 0) ? Math.abs(invoice.due) : undefined,
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
         branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined,
@@ -900,6 +942,7 @@ const Invoices = () => {
     setEditingInvoice(null);
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
+    setGiveChange(false);
   };
 
   const filteredInvoices = invoices.filter(invoice => {
@@ -1167,6 +1210,7 @@ const Invoices = () => {
             receptionist_id: rowData.receptionist_id
           });
           setModalSuccessMessage("");
+          setGiveChange(false);
           setShowAddModal(true);
         }}
       >
@@ -1482,53 +1526,59 @@ const Invoices = () => {
                                     <Row>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Day"
                                           value={patientForm.birth_day}
                                           onChange={(e) => {
                                             const day = e.target.value;
-                                            const newForm = { ...patientForm, birth_day: day };
-                                            if (day && patientForm.birth_month && patientForm.birth_year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                            // Strictly allow only digits and validate range (1-31)
+                                            if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_day: day };
+                                              if (day && patientForm.birth_month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1"
-                                          max="31"
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Month"
                                           value={patientForm.birth_month}
                                           onChange={(e) => {
                                             const month = e.target.value;
-                                            const newForm = { ...patientForm, birth_month: month };
-                                            if (patientForm.birth_day && month && patientForm.birth_year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                            // Strictly allow only digits and validate range (1-12)
+                                            if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_month: month };
+                                              if (patientForm.birth_day && month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1"
-                                          max="12"
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Year"
                                           value={patientForm.birth_year}
                                           onChange={(e) => {
                                             const year = e.target.value;
-                                            const newForm = { ...patientForm, birth_year: year };
-                                            if (patientForm.birth_day && patientForm.birth_month && year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                            // Strictly allow only digits and max 4 digits
+                                            if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
+                                              const newForm = { ...patientForm, birth_year: year };
+                                              if (patientForm.birth_day && patientForm.birth_month && year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1900"
-                                          max={new Date().getFullYear()}
                                         />
                                       </Col>
                                     </Row>
@@ -2103,7 +2153,20 @@ const Invoices = () => {
                         </Col>
                         <Col md={6}>
                           <Form.Group className="mb-3">
-                            <Form.Label>{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <Form.Label className="mb-0">{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
+                              {(invoice.due || 0) < -0.01 && (
+                                <Button 
+                                  variant={giveChange ? "success" : "outline-primary"} 
+                                  size="sm" 
+                                  onClick={() => setGiveChange(!giveChange)}
+                                  className="py-0 px-2"
+                                  style={{ fontSize: '0.8rem' }}
+                                >
+                                  {giveChange ? "✓ Change Given" : "Give Change"}
+                                </Button>
+                              )}
+                            </div>
                             <Form.Control
                               type="text"
                               value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
@@ -2153,6 +2216,7 @@ const Invoices = () => {
                               const newInvoice = { ...invoice, payments: newPayments };
                               setInvoice(updatePaidFromPayments(newInvoice));
                             }}
+                            disabled={!payment.payment_method_id}
                             style={{ minWidth: '150px' }}
                           />
                           <Button
@@ -2208,6 +2272,16 @@ const Invoices = () => {
                     </div>
                   </Col>
                 </Row>
+
+                {showFormErrorAlert && Object.keys(formErrors).length > 0 && (
+                  <Alert variant="danger" className="mt-3 mb-0" onClose={() => setShowFormErrorAlert(false)} dismissible>
+                    <ul className="mb-0">
+                      {Object.entries(formErrors).map(([field, msg]) => (
+                        <li key={field}>{msg}</li>
+                      ))}
+                    </ul>
+                  </Alert>
+                )}
               </Form>
             </Modal.Body>
             <Modal.Footer>
