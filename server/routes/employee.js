@@ -3,12 +3,11 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
-const { loginLimiter } = require('../middleware/rateLimiters');
+const { loginLimiter, forgotPasswordLimiter, verifyOtpLimiter, resetPasswordLimiter } = require('../middleware/rateLimiters');
 const { lab } = require('../models');
 const otpGenerator = require('otp-generator');
 const nodemailer = require('nodemailer');
 const cacheService = require('../services/cacheService');
-
 
 const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor, phone_number } = require('../models'); 
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
@@ -183,20 +182,21 @@ router.put("/skip-password-change", authenticateUser, authorizeRoles("admin"), t
 });
 
 // Send OTP via Email Address
-router.post('/forgotPassword', async (req,res)=>{
+router.post('/forgotPassword', forgotPasswordLimiter, async (req,res)=>{
     try{ 
-        const { email } = req.body;
+        const { username } = req.body;
 
         // 1. Basic validation
-        if (!email) {
-            return res.status(400).json({ error: 'Email is required' });
+        if (!username) {
+            return res.status(400).json({ error: 'username is required' });
         }
 
         // 2. Find the employee
-        const user = await employee.findOne({ where: {email: email} });
-        if(!user){
-           return res.status(404).json(`no user with this email was found`);
+        const user = await employee.findOne({ where: {username: username} });
+        if(!user || !user.email){
+            return res.status(404).json(`No user with this username was found or email is missing`);
         }
+        const email = user.email;
 
         // 3. Get lab info for the email template
         const userLab = await lab.findOne({where: {id: user.lab_id}});
@@ -209,12 +209,22 @@ router.post('/forgotPassword', async (req,res)=>{
             specialChars: false 
         });
 
-        // 5. Send the email (CRITICAL: Added the 'await' keyword here)
-        await sendOtpEmail(email,otp,userLab.name);
+        const redisKey = cacheService.generateKey('otp', username);
+        const attemptsKey = cacheService.generateKey('otp_attempts', username);
 
-        // 6. Save to Redis
-        const redisKey = cacheService.generateKey('otp', email);
-        await cacheService.set(redisKey, otp, 600);
+        // 5. Attempt to save to Redis FIRST
+        const cacheSuccess = await cacheService.set(redisKey, otp, 600);
+
+        // 6. If it returns false, Redis is disconnected. Abort immediately.
+        if (!cacheSuccess) {
+            return res.status(503).json({ error: 'Authentication service temporarily unavailable. Please try again later.' });
+        }
+
+        // 7. Clear old attempts only if we know Redis is working
+        await cacheService.del(attemptsKey);
+
+        // 8. Send the email ONLY because we successfully saved the OTP
+        await sendOtpEmail(email, otp, userLab.name);
 
         res.status(200).json(`An OTP that is valid for 10 mins has been sent to this email successfully!`);
 
@@ -226,41 +236,60 @@ router.post('/forgotPassword', async (req,res)=>{
 });
 
 // Verify incoming OTP
-router.post('/verifyOtp', async (req, res) => {
+router.post('/verifyOtp', verifyOtpLimiter, async (req, res) => {
     try {
-        const { email, otp } = req.body;
-        if (!email || !otp) {
-            return res.status(400).json({ error: 'Email and OTP are required' });
+        const { username, otp } = req.body;
+        if (!username || !otp) {
+            return res.status(400).json({ error: 'Username and OTP are required' });
         }
 
-        // 1. Generate the exact same key to look it up
-        const redisKey = cacheService.generateKey('otp', email);
+        // 1. Verify Redis is actually online before attempting to read from it[cite: 6]
+        if (cacheService.isConnected === false) {
+             return res.status(503).json({ error: 'Authentication service temporarily unavailable. Please try again later.' });
+        }
 
-        // 2. Use cacheService to fetch OTP
+        // 2. Generate the exact same key to look it up
+        const redisKey = cacheService.generateKey('otp', username);
+        const attemptsKey = cacheService.generateKey('otp_attempts', username);
+
+        // 3. Use cacheService to fetch OTP
         const storedOtp = await cacheService.get(redisKey);
         if (!storedOtp) {
             return res.status(400).json({ error: 'OTP has expired or is invalid' });
         }
 
-        // 3. Compare the codes (cacheService.get parses JSON, so we toString() just in case)
+        // 4. Get the number of attempts
+        let attempts = await cacheService.get(attemptsKey) || 0;
+        attempts = parseInt(attempts);
+
+        // 5. Check if attempts are too high
+        if (attempts >= 4) {
+            await cacheService.del(redisKey);
+            await cacheService.del(attemptsKey);
+            return res.status(429).json({ error: 'Maximum attempts reached. Please request a new OTP.' });
+        }
+
+        // 6. Check if the submitted OTP matches the stored OTP
         if (storedOtp.toString() !== otp.toString()) {
-            return res.status(400).json({ error: 'Incorrect OTP' });
+            await cacheService.set(attemptsKey, attempts + 1, 600);
+            return res.status(400).json({ error: `Incorrect OTP. You have ${4 - attempts} attempts left.` });
         }
         
-        // 4. Success! Delete it so it can't be reused
+        // 7. Success! Delete the OTP and attempts from the cache
         await cacheService.del(redisKey);
-
-        // 5. Generate the JWT
+        await cacheService.del(attemptsKey);
+        
+        // 8. Generate the JWT
         const resetToken =sign(
             {
-                email: email,
+                username: username,
                 purpose: "password_reset" // Important to differentiate from a regular login token
             },
             SECRET_KEY,
             { expiresIn: '15m' } // Token expires in 15 minutes
         );
 
-        // 6. Return the token to the frontend
+        // 9. Return the token to the frontend
         res.json({
             success: true,
             message: 'OTP verified successfully.',
@@ -273,7 +302,7 @@ router.post('/verifyOtp', async (req, res) => {
 });
 
 // Reset password (Public endpoint, no 'authenticateUser' middleware)
-router.post("/resetPassword", async (req, res) => {
+router.post("/resetPassword", resetPasswordLimiter, async (req, res) => {
     try {
         const { resetToken, newPassword } = req.body;
 
@@ -282,7 +311,7 @@ router.post("/resetPassword", async (req, res) => {
             return res.status(400).json({ error: "Token and new password are required" });
         }
 
-        // 2. Verify the JWT token[cite: 1]
+        // 2. Verify the JWT token
         let decodedToken;
         try {
             decodedToken = verify(resetToken, SECRET_KEY);
@@ -297,7 +326,7 @@ router.post("/resetPassword", async (req, res) => {
         }
 
         // 4. Find employee by the email extracted from the token payload
-        const emp = await employee.findOne({ where: { email: decodedToken.email } });
+        const emp = await employee.findOne({ where: { username: decodedToken.username } });
         if (!emp) {
             return res.status(404).json({ error: "Employee not found" });
         }
@@ -928,8 +957,10 @@ const sendOtpEmail = async (email, otpCode, labName = 'Smart LIMS') => {
         html: htmlContent
     });
     console.log(`OTP email sent to ${email}`);
+    return true;
   } catch (error) {
-    console.error('Error sending welcome email:', error);
+    console.error('Error sending OTP email:', error);
+    throw new Error('Failed to send OTP email. Please try again later.'); // Throw to stop the route
     // Don't fail the request if email fails
   }
 };

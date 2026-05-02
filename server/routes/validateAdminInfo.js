@@ -6,11 +6,9 @@ const { tenantContext } = require('../middleware/tenantContext');
 
 router.post('/', tenantContext, async (req, res) => {
   const { username, email } = req.body;
-  const lab_id = req.tenant?.lab_id;
-
   try {
     const existingAdminByUsername = await employee.findOne({ 
-      where: { username: username, role: 'admin', lab_id: lab_id }
+      where: { username: username }
     });
 
     if (existingAdminByUsername) {
@@ -18,7 +16,7 @@ router.post('/', tenantContext, async (req, res) => {
     }
 
     const existingAdminByEmail = await employee.findOne({
-      where: { email: email, role: 'admin', lab_id: lab_id }
+      where: { email: email }
     });
 
     if (existingAdminByEmail) {
