@@ -53,6 +53,7 @@
     "nodemailer": "^8.0.5",
     "nodemon": "^3.1.9",
     "openai": "^6.34.0",
+    "otp-generator": "^4.0.1",
     "pm2": "^6.0.8",
     "redis": "^5.10.0",
     "sequelize": "^6.37.8",
