@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 require("dotenv").config();
 const { Op } = require('sequelize');
-const { patient, test, medical_report, bill, financial_transaction, payment_method, packages_and_offers } = require("../models");
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
+const { patient, test, medical_report, bill, financial_transaction, payment_method, packages_and_offers, manager_key } = require("../models");
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext, tenantIsolation, addLabFilter } = require('../middleware/tenantContext');
@@ -228,6 +230,54 @@ router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantCon
             message: error.message 
         });
     }
+});
+
+
+router.post('/keys', authenticateUser, authorizeRoles("admin"), tenantContext, tenantIsolation, async (req, res) => {
+  try {
+    // Assuming the frontend sends these in the payload
+    const { key_name } = req.body; 
+
+    // 1. Generate a 16-character random hex string and format it with dashes
+    const rawString = crypto.randomBytes(8).toString('hex').toUpperCase();
+    const plainTextKey = `${rawString.slice(0,4)}-${rawString.slice(4,8)}-${rawString.slice(8,12)}-${rawString.slice(12,16)}`;
+    
+    // 2. Extract the first four digits for identification on the frontend
+    const firstFour = plainTextKey.split('-')[0];
+
+    // 3. Hash the plain text key securely
+    const saltRounds = 10;
+    const keyHash = await bcrypt.hash(plainTextKey, saltRounds);
+
+    // 4. Calculate Expiry Date (exactly 6 months from today)
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 6);
+
+    // 5. Save to the database
+    const newKey = await manager_key.create({
+      key_hash: keyHash,
+      key_name: key_name || `Key_${firstFour}`, // Fallback name if frontend doesn't provide one
+      first_four: firstFour,
+      admin_id: req.user.id,
+      lab_id: req.labId,
+      expires_at: expiresAt,
+      is_active: true
+    });
+
+    // 6. CRITICAL: Return the plain text key ONLY ONCE
+    return res.status(201).json({
+      success: true,
+      message: "Store this key securely. It will not be shown again.",
+      key_id: newKey.id,
+      key_name: newKey.key_name,
+      expires_at: newKey.expires_at,
+      plain_text_key: plainTextKey // NEVER return this in a GET request later!
+    });
+
+  } catch (error) {
+    console.error("Error generating key:", error);
+    return res.status(500).json({ error: "Failed to generate manager key." });
+  }
 });
 
 module.exports = router; 
