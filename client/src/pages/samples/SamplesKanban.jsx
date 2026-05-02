@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Badge, Button, Dropdown } from "react-bootstrap";
+import { Container, Row, Col, Card, Badge, Button, Dropdown, Spinner } from "react-bootstrap";
+import axios from "axios";
 import { useToast } from "../../components/ui/ToastContext";
 import { Plus, Trash2, MoreVertical, Search, Filter } from "lucide-react";
 import AddSampleModal from "../../components/samples/AddSampleModal";
@@ -16,37 +17,36 @@ const KANBAN_STATES = [
   "Rejected"
 ];
 
-// Mock data generator
-const generateMockSamples = () => {
-  const mock = [];
-  for (let i = 1; i <= 15; i++) {
-    mock.push({
-      id: i,
-      medical_report_id: 100 + (i % 5),
-      invoice_id: `INV-${1000 + (i % 5)}`,
-      test_id: i % 10 || 1,
-      test_name: `Test Array ${i}`,
-      sample_type_id: (i % 3) + 1,
-      sample_type: ["Blood", "Urine", "Swab"][i % 3],
-      status: KANBAN_STATES[i % KANBAN_STATES.length],
-      status_history: {
-        pending_collection_at: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-        collected_at: i % KANBAN_STATES.length >= 1 ? new Date(Date.now() - Math.random() * 5000000000).toISOString() : null,
-        dispatched_at: i % KANBAN_STATES.length >= 2 ? new Date().toISOString() : null,
-        in_process_at: i % KANBAN_STATES.length >= 3 ? new Date().toISOString() : null,
-        completed_at: i % KANBAN_STATES.length >= 4 ? new Date().toISOString() : null,
-        rejected_at: i % KANBAN_STATES.length === 5 ? new Date().toISOString() : null
-      },
-      created_at: new Date(Date.now() - Math.random() * 10000000000).toISOString()
-    });
+const MOCK_SAMPLES = [
+  {
+    id: "SAMP-001",
+    medical_report_id: "101",
+    invoice_id: "INV-1001",
+    test_id: "1",
+    test_name: "Complete Blood Count",
+    sample_type: "Whole Blood",
+    status: "Pending Collection",
+    created_at: new Date().toISOString(),
+    status_history: { pending_collection_at: new Date().toISOString() }
+  },
+  {
+    id: "SAMP-002",
+    medical_report_id: "102",
+    invoice_id: "INV-1002",
+    test_id: "2",
+    test_name: "Liver Function Test",
+    sample_type: "Serum",
+    status: "Collected",
+    created_at: new Date().toISOString(),
+    status_history: { collected_at: new Date().toISOString() }
   }
-  return mock;
-};
+];
 
 const SamplesKanban = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const apiUrl = import.meta.env.VITE_API_URL;
   
   // Check if we came with a filter
   const queryParams = new URLSearchParams(location.search);
@@ -55,68 +55,86 @@ const SamplesKanban = () => {
   const [samples, setSamples] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [reportIdFilter, setReportIdFilter] = useState(initialReportIdFilter);
+  const [loading, setLoading] = useState(true);
   
   // Drag and Drop state
   const [draggedSampleId, setDraggedSampleId] = useState(null);
 
-  useEffect(() => {
-    // TODO: Replace with actual API call: api.get('/samples')
-    // If we have a backend:
-    // api.get('/samples').then(res => setSamples(res.data))
-    
-    // Using mock data for now
-    const localData = localStorage.getItem("mock_samples_kanban");
-    if (localData) {
-      setSamples(JSON.parse(localData));
-    } else {
-      const initial = generateMockSamples();
-      setSamples(initial);
-      localStorage.setItem("mock_samples_kanban", JSON.stringify(initial));
+  const fetchSamples = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${apiUrl}/tracked-samples`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Combine real data with a little mock data for testing
+      setSamples([...response.data, ...MOCK_SAMPLES]);
+    } catch (err) {
+      console.error("Failed to load samples", err);
+      // Fallback to only mock data if API fails
+      setSamples(MOCK_SAMPLES);
+      toast.error("Failed to load samples from server. Showing mock data.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchSamples();
   }, []);
 
-  // Update local storage when samples change (for mock persistence)
-  useEffect(() => {
-    if (samples.length > 0) {
-      localStorage.setItem("mock_samples_kanban", JSON.stringify(samples));
-    }
-  }, [samples]);
-
   const handleAddSample = (newSample) => {
-    setSamples(prev => [...prev, newSample]);
+    // If the modal returns the full object from server, we add it. 
+    // Otherwise we refetch. For now, let's just refetch to be sure.
+    fetchSamples();
     toast.success("Sample added successfully");
   };
 
-  const handleDeleteSample = (e, id) => {
+  const handleDeleteSample = async (e, id) => {
     e.stopPropagation(); // Prevent card click
     const confirmation = window.prompt("Type 'confirm delete' to delete this sample:");
     if (confirmation && confirmation.toLowerCase() === "confirm delete") {
-      // TODO: Replace with actual API call: api.delete(`/tracked-samples/${id}`)
-      setSamples(prev => prev.filter(s => s.id !== id));
-      toast.success("Sample deleted successfully");
+      try {
+        const token = localStorage.getItem("token");
+        await axios.delete(`${apiUrl}/tracked-samples/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSamples(prev => prev.filter(s => s.id !== id));
+        toast.success("Sample deleted successfully");
+      } catch (err) {
+        toast.error("Failed to delete sample.");
+      }
     } else if (confirmation !== null) {
       toast.error("Deletion cancelled. Text did not match.");
     }
   };
 
-  const handleUpdateStatus = (id, newStatus) => {
-    // TODO: Replace with actual API call: api.put(`/tracked-samples/${id}/status`, { status: newStatus })
-    const timestampKey = newStatus.toLowerCase().replace(" ", "_") + "_at";
-    
-    setSamples(prev => prev.map(s => {
-      if (s.id === id) {
-        return {
-          ...s,
-          status: newStatus,
-          status_history: {
-            ...s.status_history,
-            [timestampKey]: new Date().toISOString()
-          }
-        };
-      }
-      return s;
-    }));
-    toast.success(`Sample moved to ${newStatus}`);
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(`${apiUrl}/tracked-samples/${id}/status`, 
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      const timestampKey = newStatus.toLowerCase().replace(" ", "_") + "_at";
+      setSamples(prev => prev.map(s => {
+        if (s.id === id) {
+          return {
+            ...s,
+            status: newStatus,
+            status_history: {
+              ...s.status_history,
+              [timestampKey]: new Date().toISOString()
+            }
+          };
+        }
+        return s;
+      }));
+      toast.success(`Sample moved to ${newStatus}`);
+    } catch (err) {
+      toast.error("Failed to update status.");
+    }
   };
 
   const navigateToReport = (reportId) => {
@@ -186,10 +204,10 @@ const SamplesKanban = () => {
         </div>
         <div className="d-flex gap-3">
           <div className="input-group" style={{ width: "250px" }}>
-            <span className="input-group-text bg-white"><Filter size={18} /></span>
+            <span className="input-group-text bg-body border-end-0"><Filter size={18} /></span>
             <input 
               type="text" 
-              className="form-control border-start-0" 
+              className="form-control border-start-0 bg-body" 
               placeholder="Filter by Report ID..."
               value={reportIdFilter}
               onChange={(e) => setReportIdFilter(e.target.value)}
@@ -211,16 +229,21 @@ const SamplesKanban = () => {
       </div>
 
       <div className="d-flex overflow-auto h-100 pb-3 kanban-container" style={{ gap: "1rem" }}>
-        {KANBAN_STATES.map(state => (
+        {loading ? (
+          <div className="d-flex justify-content-center align-items-center w-100 py-5">
+            <Spinner animation="border" variant="primary" />
+            <span className="ms-3">Loading samples...</span>
+          </div>
+        ) : KANBAN_STATES.map(state => (
           <div 
             key={state} 
-            className="kanban-column bg-light rounded shadow-sm d-flex flex-column"
-            style={{ minWidth: "300px", width: "300px", maxHeight: "calc(100vh - 180px)" }}
+            className="kanban-column bg-body-tertiary rounded shadow-sm d-flex flex-column"
+            style={{ minWidth: "300px", width: "300px", maxHeight: "calc(100vh - 180px)", border: "1px solid var(--border-muted)" }}
             onDragOver={onDragOver}
             onDrop={(e) => onDrop(e, state)}
           >
-            <div className="p-3 border-bottom d-flex justify-content-between align-items-center bg-white rounded-top">
-              <h6 className="mb-0 fw-bold text-dark">{state}</h6>
+            <div className="p-3 border-bottom d-flex justify-content-between align-items-center bg-body rounded-top">
+              <h6 className="mb-0 fw-bold">{state}</h6>
               <Badge bg={getBadgeColor(state)} pill>{columns[state].length}</Badge>
             </div>
             
@@ -244,7 +267,7 @@ const SamplesKanban = () => {
                   >
                     <Card.Body className="p-3">
                       <div className="d-flex justify-content-between align-items-start mb-2">
-                        <Badge bg="light" text="dark" className="border">
+                        <Badge bg="secondary" className="bg-opacity-10 text-theme border border-secondary border-opacity-25">
                           #{sample.id}
                         </Badge>
                         <Dropdown onClick={(e) => e.stopPropagation()}>
@@ -271,7 +294,7 @@ const SamplesKanban = () => {
                       </div>
                       
                       <h6 className="mb-1 text-truncate" title={sample.test_name}>{sample.test_name}</h6>
-                      <Badge bg="info" className="mb-2 text-dark bg-opacity-25 border border-info">{sample.sample_type}</Badge>
+                      <Badge bg="info" className="mb-2 text-info bg-opacity-10 border border-info border-opacity-25">{sample.sample_type}</Badge>
                       
                       <div className="d-flex flex-column gap-1 small text-muted mt-1">
                         <div className="d-flex justify-content-between">

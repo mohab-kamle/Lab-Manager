@@ -5,36 +5,41 @@ import AddSampleModal from "./AddSampleModal";
 import PortalDropdownMenu from "./PortalDropdownMenu";
 import { useNavigate } from "react-router-dom";
 
+import axios from "axios";
+
 const SamplesListModal = ({ show, onHide, report }) => {
   const navigate = useNavigate();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTestId, setSelectedTestId] = useState("");
   const [reportSamples, setReportSamples] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchReportSamples = async () => {
+    if (!report?.id) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await axios.get(`${apiUrl}/tracked-samples?report_id=${report.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReportSamples(response.data);
+    } catch (err) {
+      console.error("Failed to fetch report samples", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (show && report) {
-      // Fetch or read mock samples for this report
-      const localData = localStorage.getItem("mock_samples_kanban");
-      if (localData) {
-        const allSamples = JSON.parse(localData);
-        setReportSamples(allSamples.filter(s => s.medical_report_id.toString() === report.id.toString()));
-      } else {
-        setReportSamples([]);
-      }
+      fetchReportSamples();
     }
   }, [show, report]);
 
   const handleAddSample = (newSample) => {
-    // Add to local state
-    setReportSamples(prev => [...prev, newSample]);
-    
-    // Update global mock state
-    const localData = localStorage.getItem("mock_samples_kanban");
-    if (localData) {
-      const allSamples = JSON.parse(localData);
-      allSamples.push(newSample);
-      localStorage.setItem("mock_samples_kanban", JSON.stringify(allSamples));
-    }
+    // Refetch to get fresh state from server
+    fetchReportSamples();
   };
 
   const getStatusBadge = (status) => {
@@ -49,29 +54,19 @@ const SamplesListModal = ({ show, onHide, report }) => {
     }
   };
 
-  const handleUpdateStatus = (id, newStatus) => {
-    const timestampKey = newStatus.toLowerCase().replace(" ", "_") + "_at";
-    
-    // Update local state
-    setReportSamples(prev => prev.map(s => {
-      if (s.id === id) {
-        return {
-          ...s,
-          status: newStatus,
-          status_history: {
-            ...s.status_history,
-            [timestampKey]: new Date().toISOString()
-          }
-        };
-      }
-      return s;
-    }));
-    
-    // Update global mock state
-    const localData = localStorage.getItem("mock_samples_kanban");
-    if (localData) {
-      const allSamples = JSON.parse(localData);
-      const updatedSamples = allSamples.map(s => {
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      await axios.put(`${apiUrl}/tracked-samples/${id}/status`, 
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      const timestampKey = newStatus.toLowerCase().replace(" ", "_") + "_at";
+      
+      // Update local state
+      setReportSamples(prev => prev.map(s => {
         if (s.id === id) {
           return {
             ...s,
@@ -83,8 +78,9 @@ const SamplesListModal = ({ show, onHide, report }) => {
           };
         }
         return s;
-      });
-      localStorage.setItem("mock_samples_kanban", JSON.stringify(updatedSamples));
+      }));
+    } catch (err) {
+      console.error("Failed to update status", err);
     }
   };
 
@@ -99,13 +95,13 @@ const SamplesListModal = ({ show, onHide, report }) => {
   return (
     <>
       <Modal show={show} onHide={onHide} size="lg" centered>
-        <Modal.Header closeButton className="bg-light">
+        <Modal.Header closeButton>
           <Modal.Title className="d-flex align-items-center text-primary">
             <TestTube size={24} className="me-2" />
             Samples for Report #{report.id}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-light p-4">
+        <Modal.Body className="p-4">
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h6 className="mb-0 text-muted">Tests ordered for this report:</h6>
             <Button variant="outline-primary" size="sm" onClick={navigateToKanban}>
@@ -114,7 +110,7 @@ const SamplesListModal = ({ show, onHide, report }) => {
           </div>
 
           {tests.length === 0 ? (
-            <div className="text-center p-5 bg-white rounded shadow-sm">
+            <div className="text-center p-5 bg-body rounded shadow-sm">
               <AlertCircle size={48} className="text-muted mb-3" />
               <p className="text-muted">No tests found for this report.</p>
             </div>
@@ -136,7 +132,7 @@ const SamplesListModal = ({ show, onHide, report }) => {
                         </Badge>
                       </div>
                     </Accordion.Header>
-                    <Accordion.Body className="bg-white">
+                    <Accordion.Body className="bg-body">
                       {testSamples.length > 0 ? (
                         <ListGroup variant="flush">
                           {testSamples.map(sample => (
@@ -145,10 +141,10 @@ const SamplesListModal = ({ show, onHide, report }) => {
                               className="d-flex justify-content-between align-items-center px-0 py-3 border-bottom-dashed"
                             >
                               <div onClick={navigateToKanban} style={{ cursor: "pointer" }}>
-                                <h6 className="mb-1 text-dark d-flex align-items-center">
+                                <h6 className="mb-1 d-flex align-items-center">
                                   Sample ID: #{sample.id}
                                   {sample.sample_type && (
-                                    <Badge bg="info" className="ms-2 text-dark bg-opacity-25 border border-info">
+                                    <Badge bg="info" className="ms-2 text-info bg-opacity-10 border border-info border-opacity-25">
                                       {sample.sample_type}
                                     </Badge>
                                   )}

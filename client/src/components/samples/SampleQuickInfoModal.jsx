@@ -110,13 +110,13 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Pending Collection': return <Badge bg="warning" text="dark">Pending Collection</Badge>;
-      case 'Collected': return <Badge bg="info">Collected</Badge>;
+      case 'Pending Collection': return <Badge bg="warning" className="text-dark">Pending Collection</Badge>;
+      case 'Collected': return <Badge bg="info" className="text-dark">Collected</Badge>;
       case 'Dispatched': return <Badge bg="primary">Dispatched</Badge>;
       case 'In Process': return <Badge bg="secondary">In Process</Badge>;
       case 'Completed': return <Badge bg="success">Completed</Badge>;
       case 'Rejected': return <Badge bg="danger">Rejected</Badge>;
-      default: return <Badge bg="light" text="dark">{status}</Badge>;
+      default: return <Badge bg="secondary" className="bg-opacity-10 text-theme">{status}</Badge>;
     }
   };
 
@@ -128,11 +128,11 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
           Sample Quick Info
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body className="bg-light">
+      <Modal.Body className="bg-body-tertiary">
         <div className="mb-4">
           <Form onSubmit={handleManualSubmit}>
             <InputGroup>
-              <InputGroup.Text className="bg-white">
+              <InputGroup.Text className="bg-body">
                 <ScanBarcode size={18} className="text-primary" />
               </InputGroup.Text>
               <Form.Control
@@ -180,8 +180,8 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
             <Row className="g-3">
               {/* Patient Section */}
               <Col md={6}>
-                <Card className="h-100 shadow-sm border-0">
-                  <Card.Header className="bg-white border-bottom-0 pt-3">
+                <Card className="h-100 shadow-sm border-0 bg-body">
+                  <Card.Header className="bg-transparent border-bottom-0 pt-3">
                     <h6 className="mb-0 text-primary d-flex align-items-center">
                       <User size={18} className="me-2" />
                       Patient Details
@@ -200,8 +200,8 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
 
               {/* Lab Section */}
               <Col md={6}>
-                <Card className="h-100 shadow-sm border-0">
-                  <Card.Header className="bg-white border-bottom-0 pt-3">
+                <Card className="h-100 shadow-sm border-0 bg-body">
+                  <Card.Header className="bg-transparent border-bottom-0 pt-3">
                     <h6 className="mb-0 text-primary d-flex align-items-center">
                       <Building size={18} className="me-2" />
                       Lab Details
@@ -220,8 +220,8 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
 
               {/* Sample & Test Section */}
               <Col md={12}>
-                <Card className="shadow-sm border-0 mt-2">
-                  <Card.Header className="bg-white border-bottom-0 pt-3 d-flex justify-content-between align-items-center">
+                <Card className="shadow-sm border-0 mt-2 bg-body">
+                  <Card.Header className="bg-transparent border-bottom-0 pt-3 d-flex justify-content-between align-items-center">
                     <h6 className="mb-0 text-primary d-flex align-items-center">
                       <FlaskConical size={18} className="me-2" />
                       Sample & Test Information
@@ -255,8 +255,8 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
 
               {/* Status Timeline Section */}
               <Col md={12}>
-                <Card className="shadow-sm border-0 mt-2">
-                  <Card.Header className="bg-white border-bottom-0 pt-3">
+                <Card className="shadow-sm border-0 mt-2 bg-body">
+                  <Card.Header className="bg-transparent border-bottom-0 pt-3">
                     <h6 className="mb-0 text-primary d-flex align-items-center">
                       <Activity size={18} className="me-2" />
                       Status Timeline
@@ -268,7 +268,7 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
                         if (!value) return null;
                         const label = key.replace('_at', '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                         return (
-                          <div key={key} className="p-2 border rounded bg-light">
+                          <div key={key} className="p-2 border rounded bg-body-tertiary">
                             <small className="d-block text-muted">{label}</small>
                             <strong>{formatDate(value, true)}</strong>
                           </div>
