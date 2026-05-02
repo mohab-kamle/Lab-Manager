@@ -32,8 +32,8 @@ import {
 
 import api from "../../utils/api";
 
-import labIcon from "../../assets/LabIconWithRoundedWhiteBg_sm.webp";
-import labIconDark from "../../assets/LabIconWithRoundBlueBg.webp";
+import labIcon from "../../assets/BlueLogoIconWithWhiteRoundBg.webp";
+import labIconDark from "../../assets/WhiteLogoWithTransparentRoundBg.webp";
 import { getSubdomain } from "../../utils/subdomain";
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
@@ -290,18 +290,27 @@ const MainNavBar = () => {
       setShowWelcome(false);
     }, 5000);
 
-    // Hide permanently if user scrolls down
-    const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setShowWelcome(false);
-      }
-    };
+    // Use IntersectionObserver instead of scroll listener to toggle welcome label
+    // This watches a sentinel element at the top of the page (usually in Layout or HomePage)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // If sentinel is not intersecting, it means we've scrolled down
+        if (!entry.isIntersecting) {
+          setShowWelcome(false);
+        }
+      },
+      { threshold: 0 }
+    );
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener("scroll", handleScroll);
+      if (sentinel) observer.unobserve(sentinel);
+      observer.disconnect();
     };
   }, [user]);
 
@@ -323,6 +332,7 @@ const MainNavBar = () => {
           zIndex: 1050,
           WebkitBackdropFilter: "blur(12px)",
           backdropFilter: "blur(12px)",
+          willChange: "transform, backdrop-filter", // Hardware acceleration
         }}
       >
         <Container fluid>
