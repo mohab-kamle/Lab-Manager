@@ -17,31 +17,6 @@ const KANBAN_STATES = [
   "Rejected"
 ];
 
-const MOCK_SAMPLES = [
-  {
-    id: "SAMP-001",
-    medical_report_id: "101",
-    invoice_id: "INV-1001",
-    test_id: "1",
-    test_name: "Complete Blood Count",
-    sample_type: "Whole Blood",
-    status: "Pending Collection",
-    created_at: new Date().toISOString(),
-    status_history: { pending_collection_at: new Date().toISOString() }
-  },
-  {
-    id: "SAMP-002",
-    medical_report_id: "102",
-    invoice_id: "INV-1002",
-    test_id: "2",
-    test_name: "Liver Function Test",
-    sample_type: "Serum",
-    status: "Collected",
-    created_at: new Date().toISOString(),
-    status_history: { collected_at: new Date().toISOString() }
-  }
-];
-
 const SamplesKanban = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -67,13 +42,10 @@ const SamplesKanban = () => {
       const response = await axios.get(`${apiUrl}/tracked-samples`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Combine real data with a little mock data for testing
-      setSamples([...response.data, ...MOCK_SAMPLES]);
+      setSamples(response.data);
     } catch (err) {
       console.error("Failed to load samples", err);
-      // Fallback to only mock data if API fails
-      setSamples(MOCK_SAMPLES);
-      toast.error("Failed to load samples from server. Showing mock data.");
+      toast.error("Failed to load samples from server.");
     } finally {
       setLoading(false);
     }
