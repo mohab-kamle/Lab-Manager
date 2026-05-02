@@ -631,6 +631,41 @@ async function createPaymentIntention(registrationData, subscriptionDetails) {
     // Generate unique merchant order ID with appropriate prefix
     const orderPrefix = isUpgrade ? 'lab_upgrade' : 'lab_reg';
     const merchantOrderId = `${orderPrefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Bypass Paymob for Free Trial (0 EGP)
+    if (amountCents === 0) {
+      console.log(`Bypassing Paymob for free plan (${subscriptionData.plan})`);
+      
+      const paymentRecord = {
+        lab_id: isUpgrade ? labData.id : null,
+        payment_intention_id: `free_${Date.now()}`,
+        order_id: Math.floor(Date.now() / 1000) % 2147483647,
+        merchant_order_id: merchantOrderId,
+        amount_cents: 0,
+        amount: 0,
+        currency: 'EGP',
+        payment_status: 'paid', // Immediately paid
+        confirmed: true,        // Immediately confirmed
+        gateway_type: 'free',
+        integration_id: 0,
+        billing_email: adminData.email,
+        registration_data: JSON.stringify(registrationData),
+        subscription_plan: subscriptionData.plan,
+        subscription_duration: subscriptionData.plan
+      };
+      
+      await lab_payment.create(paymentRecord);
+      
+      return {
+        success: true,
+        payment_intention_id: paymentRecord.payment_intention_id,
+        payment_url: `${process.env.CLIENT_URL}/payment-callback?merchant_order_id=${merchantOrderId}&success=true`,
+        order_id: paymentRecord.order_id,
+        merchant_order_id: merchantOrderId,
+        amount: 0,
+        currency: 'EGP'
+      };
+    }
     
     // Prepare billing data from subscription data
     // Ensure phone number doesn't exceed 15 characters (payment gateway requirement)

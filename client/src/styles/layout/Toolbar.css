@@ -1,185 +1,158 @@
+/* Toolbar Container */
 .toolbar-container {
   width: 100%;
-  padding: 1rem;
-  background: var(--bg-surface);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 0.75rem 1rem;
+  background: var(--bg-light);
+  border: 1px solid var(--border-muted);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   margin-bottom: 1.5rem;
+  backdrop-filter: blur(10px);
 }
 
+/* Flex Layout */
 .toolbar-wrapper {
   display: flex;
+  justify-content: space-around;
+  align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-  align-items: center;
 }
 
-.toolbar-section {
+.toolbar-left {
   flex: 1;
-  min-width: 200px;
-  transition: all 0.3s ease;
+  min-width: 260px;
 }
 
-/* Search Section */
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Universal Input Styling */
+.ui-input {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  height: 38px; /* Uniform height for all controls */
+}
+
+.ui-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); /* Adjust RGB to match your primary var */
+  background-color: var(--bg-light);
+  outline: none;
+}
+
+/* Search Box */
+.search-box {
+  position: relative;
+  width: 100%;
+}
+
+.search-box .icon-muted {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .search-input {
   width: 100%;
-  border-radius: 8px !important;
-  border: 2px solid var(--border-default) !important;
-  padding: 0.75rem 1rem !important;
-  transition: all 0.3s ease !important;
+  padding: 0 1rem 0 2.5rem;
 }
 
-.search-input:focus {
-  border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15) !important;
-  transform: translateY(-1px);
-}
-
-/* Items per page Section */
-.items-per-page-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: var(--bg-surface);
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.items-per-page-wrapper:hover {
-  background: var(--bg-elevated);
-}
-
-.items-per-page-input {
-  width: 70px;
-  padding: 0.5rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  text-align: center;
-  transition: all 0.3s ease;
-}
-
-.items-per-page-input:focus {
-  border-color: var(--color-primary);
-  outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
-}
-
-.items-per-page-label {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-
-/* Custom Select Styling */
-.custom-select {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  background: var(--bg-surface);
-  border: 2px solid var(--border-default);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  color: var(--text-primary);
-}
-
-.custom-select:hover {
-  border-color: var(--color-primary);
-  transform: translateY(-1px);
-}
-
-.custom-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
-}
-
-/* Date Filter Section */
-.date-filter-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.date-inputs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.date-input-group {
-  flex: 1;
-  min-width: 200px;
+/* Control Groups (Sort, Type, Limits) */
+.control-group {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.date-input-group span {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  white-space: nowrap;
+.icon-primary {
+  color: var(--color-primary);
 }
 
-.date-input {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  border: 2px solid var(--border-default);
+.icon-muted {
+  color: var(--text-muted);
+}
+
+/* Select Dropdowns */
+.ui-select {
+  padding: 0 2rem 0 0.875rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem top 50%;
+  background-size: 0.65rem auto;
+}
+
+/* Date Range Pill */
+.date-range-group {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-muted);
   border-radius: 8px;
-  transition: all 0.3s ease;
+  padding: 0 0.5rem;
+  height: 38px;
 }
 
-.date-input:hover {
+.date-range-group:focus-within {
   border-color: var(--color-primary);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-.date-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+.date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+.ui-date {
+  border: none;
+  background: transparent;
+  padding: 0 0.25rem;
+  height: 34px;
+}
+
+.ui-date:focus {
+  box-shadow: none;
+}
+
+/* Number Input */
+.limit-label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ui-number {
+  width: 60px;
+  text-align: center;
+  padding: 0 0.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+/* Responsive */
+@media (max-width: 991px) {
   .toolbar-wrapper {
     flex-direction: column;
+    align-items: stretch;
   }
-
-  .toolbar-section {
-    width: 100%;
-    min-width: 100%;
+  
+  .toolbar-right {
+    justify-content: flex-start;
   }
-
-  .items-per-page-wrapper {
-    justify-content: space-between;
-  }
-
-  .date-input-group {
-    width: 100%;
-  }
-
-  .custom-select,
-  .search-input,
-  .items-per-page-input,
-  .date-input {
-    padding: 0.875rem 1rem;
+  
+  .search-box {
+    max-width: 100%;
   }
 }
-
-/* Animation for dropdown menus */
-.dropdown-menu {
-  animation: slideDown 0.2s ease;
-  transform-origin: top;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-} 
