@@ -5,17 +5,17 @@
  */
 
 require('dotenv').config();
-const { subscription } = require('../models');
+const { subscription } = require('../../models');
 
 // Default subscription plans data
 const defaultSubscriptions = [
   {
     name: 'Free Trial',
     duration_type: 'free_trial',
-    duration_value: 14, // 14 days
+    duration_value: 7, // 7 days
     price: 0.00,
     currency: 'USD',
-    description: 'Try our platform for free with limited features',
+    description: 'Try our platform for free for 7 days with limited features',
     features: {
       max_labs: 1,
       max_users: 2,
@@ -257,7 +257,7 @@ const defaultSubscriptions = [
 async function seedSubscriptions() {
   try {
     console.log('Starting subscription seeding...');
-    
+
     // Check if subscriptions already exist
     const existingCount = await subscription.count();
     if (existingCount > 0) {
@@ -266,17 +266,17 @@ async function seedSubscriptions() {
       console.log('If you want to reseed, please clear the subscription table first.');
       return;
     }
-    
+
     // Create all subscription plans
     const createdSubscriptions = await subscription.bulkCreate(defaultSubscriptions);
-    
+
     console.log(`Successfully created ${createdSubscriptions.length} subscription plans:`);
     createdSubscriptions.forEach(sub => {
       console.log(`- ${sub.name}: $${sub.price} (${sub.duration_type})`);
     });
-    
+
     console.log('\nSubscription seeding completed successfully!');
-    
+
   } catch (error) {
     console.error('Error seeding subscriptions:', error);
     throw error;
