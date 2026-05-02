@@ -28,7 +28,9 @@ import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layo
 
 // Assets & Styles
 import heroImage from "../../assets/heroImage_sm.webp";
+import heroImageDark from "../../assets/heroImageDark_sm.webp";
 import "../../styles/HomePage.css";
+import { useTheme } from "../../context/ThemeContext";
 
 // Lazy load DotLottieReact
 const DotLottieReact = React.lazy(() =>
@@ -53,15 +55,31 @@ const staggerContainer = {
 
 const LazyLottie = ({ src, style, ...props }) => {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "200px" });
+  const lottieRef = useRef(null);
+  const isInView = useInView(ref, { margin: "200px" });
+
+  useEffect(() => {
+    if (lottieRef.current) {
+      if (isInView) {
+        lottieRef.current.play();
+      } else {
+        lottieRef.current.pause();
+      }
+    }
+  }, [isInView]);
 
   return (
     <div ref={ref} style={style}>
-      {isInView && (
-        <React.Suspense fallback={<div style={style} />}>
-          <DotLottieReact src={src} style={style} {...props} />
-        </React.Suspense>
-      )}
+      <React.Suspense fallback={<div style={style} />}>
+        <DotLottieReact
+          src={src}
+          style={style}
+          dotLottieRefCallback={(dotLottie) => {
+            lottieRef.current = dotLottie;
+          }}
+          {...props}
+        />
+      </React.Suspense>
     </div>
   );
 };
@@ -71,8 +89,10 @@ const HomePage = () => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   // Single state for all info modals — null means closed, a string key opens that modal
   const [activeModal, setActiveModal] = useState(null);
-
+  const { theme } = useTheme();
   const navigate = useNavigate();
+
+  const currentHeroImage = theme === 'dark' ? heroImageDark : heroImage;
 
   useEffect(() => {
     resetNavbarTitles();
@@ -80,8 +100,7 @@ const HomePage = () => {
   }, []);
 
   // --- Scroll Animations ---
-  const { scrollY } = useScroll();
-  const heroY = useTransform(scrollY, [0, 500], [0, 150]);
+  // Unused scroll transform logic removed to optimize performance.
 
 
   return (
@@ -144,7 +163,7 @@ const HomePage = () => {
                 >
                   <div className="hero-image-glow" />
                   <motion.img
-                    src={heroImage}
+                    src={currentHeroImage}
                     alt="LabManager Dashboard"
                     className="img-fluid rounded-4 shadow-3d glass-image-border"
                     loading="eager"
