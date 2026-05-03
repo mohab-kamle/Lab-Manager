@@ -736,11 +736,7 @@ const Invoices = () => {
           invoiceData,
           { headers }
         );
-        setInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv.id === editingInvoice.id ? response.data : inv
-          )
-        );
+        await fetchData();
       } else {
         response = await axios.post(`${apiUrl}/invoices`, invoiceData, { headers });
         await fetchData();
@@ -1225,7 +1221,8 @@ const Invoices = () => {
             branch_id: rowData.branch_id || "",
             patient_id: rowData.patient_id,
             status_id: rowData.status_id,
-            receptionist_id: rowData.receptionist_id
+            receptionist_id: rowData.receptionist_id ? Number(rowData.receptionist_id) : "",
+            referred_doctor_id: rowData.referred_doctor_id ? Number(rowData.referred_doctor_id) : ""
           });
           setModalSuccessMessage("");
           setGiveChange(false);
