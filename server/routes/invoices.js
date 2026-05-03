@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings,employee } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -26,7 +26,14 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 {
                     model: patient,
                     as: "patient",
-                    attributes: ['id', 'name', 'patientcode']
+                    attributes: ['id', 'name', 'patientcode'],
+                    include: [
+                        {
+                            model: phone_number,
+                            as: 'phones',
+                            attributes: [['phone', 'phone_number'], 'is_primary']
+                        }
+                    ]
                 },
                 {
                     model: doctor,
@@ -100,6 +107,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 patient_id: billData.patient_id,
                 patient_name: billData.patient?.name,
                 patientcode: billData.patient?.patientcode,
+                patient_phones: billData.patient?.phones?.map(p => p.phone_number),
                 referred_doctor_id: billData.referred_doctor_id,
                 referred_doctor_name: billData.referred_doctor?.name,
                 branch_id: billData.branch_id,

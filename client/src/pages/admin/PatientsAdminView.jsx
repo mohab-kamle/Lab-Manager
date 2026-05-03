@@ -483,10 +483,21 @@ const PatientsAdminView = () => {
   };
 
   const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const searchLower = searchQuery.toLowerCase();
+    const searchDigits = searchQuery.replace(/\D/g, "");
+    
+    const phones = patient.phones || [];
+    const phoneMatch = phones.some(p => {
+        const pNum = p.phone_number || p.phone || "";
+        return pNum.includes(searchQuery) || (searchDigits && pNum.replace(/\D/g, "").includes(searchDigits));
+    });
+
+    const matchesSearch = patient.name?.toLowerCase().includes(searchLower) ||
       patient.patientcode?.toString().includes(searchQuery) ||
-      patient.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.national_id?.includes(searchQuery);
+      patient.email?.toLowerCase().includes(searchLower) ||
+      patient.national_id?.includes(searchQuery) ||
+      phoneMatch;
+      
     return matchesSearch;
   });
 

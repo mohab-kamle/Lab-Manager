@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
@@ -87,7 +87,7 @@ const Invoices = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredPatients, setFilteredPatients] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]); // Kept for backward compatibility if used elsewhere, but we'll use a memoized version for the Select
   const [testSearchTerm, setTestSearchTerm] = useState("");
 
   const [packageSearchTerm, setPackageSearchTerm] = useState("");
@@ -210,26 +210,32 @@ const Invoices = () => {
     fetchData();
   }, [apiUrl, user?.role]);
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = patients.filter(patient => {
-        const searchLower = searchTerm.toLowerCase();
-        const phones = patient.phones || [];
-        const phoneMatch = phones.some(p => p.phone?.includes(searchTerm));
-        
-        return (
-          patient.name.toLowerCase().includes(searchLower) ||
-          patient.patientcode?.toString().includes(searchTerm) ||
-          patient.national_id?.toString().includes(searchTerm) ||
-          phoneMatch ||
-          phones.some(p => p.phone?.includes(searchTerm)) // Backward compatibility
-        );
+  const memoizedFilteredPatients = useMemo(() => {
+    if (!searchTerm) return patients;
+    const searchLower = searchTerm.toLowerCase();
+    const searchDigits = searchTerm.replace(/\D/g, "");
+    
+    return patients.filter(patient => {
+      const phones = patient.phones || [];
+      const phoneMatch = phones.some(p => {
+        const pNum = (p.phone_number || p.phone || "").toString();
+        const pDigits = pNum.replace(/\D/g, "");
+        return pNum.includes(searchTerm) || (searchDigits && pDigits.includes(searchDigits));
       });
-      setFilteredPatients(filtered);
-    } else {
-      setFilteredPatients(patients);
-    }
+
+      return (
+        patient.name?.toLowerCase().includes(searchLower) ||
+        patient.patientcode?.toString().includes(searchTerm) ||
+        patient.national_id?.toString().includes(searchTerm) ||
+        phoneMatch
+      );
+    });
   }, [searchTerm, patients]);
+
+  // Sync state for any other parts of the component using filteredPatients
+  useEffect(() => {
+    setFilteredPatients(memoizedFilteredPatients);
+  }, [memoizedFilteredPatients]);
 
   useEffect(() => {
     if (giveChange) {
@@ -243,26 +249,26 @@ const Invoices = () => {
     }
   }, [invoice]);
 
-  const patientOptions = filteredPatients.map((patient) => {
-    const parts = [];
-    if (patient.name) {
-      parts.push(
-        `${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`
-      );
-    }
-    if (patient.national_id) parts.push(patient.national_id);
-    if (patient.phones && patient.phones.length > 0) {
-      const primary = patient.phones.find(p => p.is_primary) || patient.phones[0];
-      parts.push(primary.phone);
-    } else if (false) {
+  const patientOptions = useMemo(() => {
+    return memoizedFilteredPatients.map((patient) => {
+      const parts = [];
+      if (patient.name) {
+        parts.push(`${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`);
+      }
+      if (patient.national_id) parts.push(patient.national_id);
       
-    }
+      const phones = patient.phones || [];
+      phones.forEach(p => {
+        const pNum = p.phone_number || p.phone;
+        if (pNum) parts.push(pNum);
+      });
 
-    return {
-      value: patient.id,
-      label: parts.join(" - "),
-    };
-  });
+      return {
+        value: patient.id,
+        label: parts.join(" - "),
+      };
+    });
+  }, [memoizedFilteredPatients]);
 
   // Helper function to calculate total from payment methods
   const calculatePaymentTotal = (payments) => {
@@ -507,6 +513,7 @@ const Invoices = () => {
 
   const handlePatientSelect = (selectedOption) => {
     const pId = selectedOption?.value || "";
+    setSearchTerm("");
     setInvoice(prev => {
       const updatedInvoice = {
         ...prev,
@@ -945,16 +952,22 @@ const Invoices = () => {
     });
     setFormErrors({});
     setEditingInvoice(null);
+    setSearchTerm("");
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
     setGiveChange(false);
   };
 
   const filteredInvoices = invoices.filter(invoice => {
+    const searchLower = searchQuery?.toLowerCase();
+    const searchDigits = searchQuery?.replace(/\D/g, "");
+
     const searchMatch = searchQuery
-      ? invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ? invoice.patient_name?.toLowerCase().includes(searchLower) ||
         invoice.patientcode?.toString().includes(searchQuery) ||
-        invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        invoice.patient_phones?.some(pNum => 
+          pNum?.includes(searchQuery) || (searchDigits && pNum.replace(/\D/g, "").includes(searchDigits))
+        )
       : true;
 
     const dateMatch =
@@ -1450,6 +1463,7 @@ const Invoices = () => {
                             isSearchable
                             placeholder="Search patient by name, code, national ID, or phone"
                             onInputChange={(inputValue) => setSearchTerm(inputValue)}
+                            filterOption={() => true} // We are already filtering via filteredPatients
                             className="react-select-container"
                             classNamePrefix="select"
                           />
