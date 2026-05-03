@@ -36,7 +36,6 @@ const {
 } = require("../services/excelService");
 const { extractMedicalData } = require("../services/llmService");
 const { extractRawTextFromImage } = require("../services/bedrockService");
-const fs = require("fs");
 
 // Helper function to update medical report dates based on workflow stage
 async function updateMedicalReportDates(

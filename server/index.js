@@ -143,41 +143,9 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // =========================
-// Static File Serving
 // =========================
-// Serve uploaded files (images, documents, etc.)
-const path = require('path');
-const fs = require('fs');
-
-// Create upload directories if they don't exist
-const uploadsPath = path.join(__dirname, 'uploads');
-const publicUploadsPath = path.join(uploadsPath, 'public');
-const privateUploadsPath = path.join(uploadsPath, 'private');
-const commentImagesPath = path.join(uploadsPath, 'comment-images');
-
-// Create directory structure
-[uploadsPath, publicUploadsPath, privateUploadsPath, commentImagesPath].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-    console.log('📁 Created directory:', dir);
-  }
-});
-
-// Serve PUBLIC files without authentication (avatars, logos, etc.)
-app.use('/uploads/public', express.static(publicUploadsPath, {
-  maxAge: '1d', // Cache for 1 day
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    // Set appropriate headers for different file types
-    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif') || filePath.endsWith('.webp')) {
-      res.setHeader('Content-Type', 'image/' + filePath.split('.').pop());
-    }
-    // Add CORS headers for uploaded files
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  }
-}));
+// S3 File Access Routes
+// =========================
 
 // Serve PRIVATE files with authentication (medical reports, patient documents) via S3
 app.get('/uploads/private/:filename', authorizeFileAccess, async (req, res) => {
@@ -223,10 +191,6 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, async (req, re
 // app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
 // Access is now strictly controlled via authenticated route above
 
-console.log('📁 Secure file serving configured:');
-console.log('  - Public files: /uploads/public (no auth required)');
-console.log('  - Private files: /uploads/private (auth required)');
-console.log('  - Comment images: /uploads/comment-images (auth required)');
 
 // Headers for environment info
 app.use((req, res, next) => {
