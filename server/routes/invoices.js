@@ -19,7 +19,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 lab_id: req.tenant.lab_id
             },
             attributes: [
-                'id', 'date', 'paid', 'due', 'subtotal', 'total', 'discount', 'tax',
+                'id', 'date', 'paid', 'due', 'subtotal', 'total', 'discount', 'tax', 'tax_rate',
                 'status_id', 'branch_id', 'patient_id'
             ],
             include: [
@@ -93,6 +93,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 total: billData.total,
                 discount: billData.discount,
                 tax: billData.tax,
+                tax_rate: billData.tax_rate,
                 discount_percent: billData.discount && billData.subtotal ? ((billData.discount / billData.subtotal) * 100) : 0,
                 status_id: billData.status_id,
                 status: billData.status?.state,
@@ -151,15 +152,33 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             subtotal = 0,
             discount = 0,
             tax = 0,
+            tax_rate = 0,
             total = 0,
             paid = 0,
             due = 0,
             status_id,
             receptionist_id,
-            branch_id, // <-- add branch_id here
+            branch_id,
             referred_doctor_id,
             date
         } = req.body;
+
+        let finalTax = parseFloat(tax || 0);
+        let finalTaxRate = parseFloat(tax_rate || 0);
+        const finalSubtotal = parseFloat(subtotal || 0);
+
+        if (finalTaxRate > 0 && finalTax === 0) {
+            finalTax = finalSubtotal * finalTaxRate;
+        } else if (finalTax > 0 && finalTaxRate === 0 && finalSubtotal > 0) {
+            finalTaxRate = finalTax / finalSubtotal;
+        }
+
+        // Round finalTax to 2 decimal places and finalTaxRate to 4 decimal places
+        finalTax = Math.round(finalTax * 100) / 100;
+        finalTaxRate = Math.round(finalTaxRate * 10000) / 10000;
+
+        // Re-calculate total to ensure consistency
+        const finalTotal = finalSubtotal + finalTax - parseFloat(discount || 0);
 
         // Validate required fields
         if (!patient_id || !status_id || !receptionist_id) {
@@ -194,8 +213,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             due,
             subtotal,
             discount,
-            tax,
-            total,
+            tax: finalTax,
+            tax_rate: finalTaxRate,
+            total: finalTotal,
             receptionist_id,
             patient_id,
             status_id,
@@ -212,7 +232,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             const currentDue = parseFloat(currentPatient.due || 0);
 
             // Calculate new values
-            const newTotal = currentTotal + parseFloat(total);
+            const newTotal = currentTotal + parseFloat(finalTotal);
             const newPaid = currentPaid + parseFloat(paid);
             const newDue = currentDue + parseFloat(due);
 
@@ -434,6 +454,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 subtotal: completeBill.subtotal,
                 discount: completeBill.discount,
                 tax: completeBill.tax,
+                tax_rate: completeBill.tax_rate,
                 total: completeBill.total,
                 paid: completeBill.paid,
                 due: completeBill.due,
@@ -529,6 +550,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             subtotal: invoice.subtotal,
             discount: invoice.discount,
             tax: invoice.tax,
+            tax_rate: invoice.tax_rate,
             total: invoice.total,
             paid: invoice.paid,
             due: invoice.due,
@@ -572,6 +594,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         subtotal = 0,
         discount = 0,
         tax = 0,
+        tax_rate = 0,
         total = 0,
         status_id,
         referred_doctor_id,
@@ -579,6 +602,23 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         packages,
         payments
     } = req.body;
+
+    let finalTax = parseFloat(tax || 0);
+    let finalTaxRate = parseFloat(tax_rate || 0);
+    const finalSubtotal = parseFloat(subtotal || 0);
+
+    if (finalTaxRate > 0 && finalTax === 0) {
+        finalTax = finalSubtotal * finalTaxRate;
+    } else if (finalTax > 0 && finalTaxRate === 0 && finalSubtotal > 0) {
+        finalTaxRate = finalTax / finalSubtotal;
+    }
+
+    // Round finalTax to 2 decimal places and finalTaxRate to 4 decimal places
+    finalTax = Math.round(finalTax * 100) / 100;
+    finalTaxRate = Math.round(finalTaxRate * 10000) / 10000;
+
+    // Re-calculate total to ensure consistency
+    const finalTotal = finalSubtotal + finalTax - parseFloat(discount || 0);
     const lab_id = req.tenant.lab_id;
 
     try {
@@ -598,8 +638,9 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             due,
             subtotal,
             discount,
-            tax,
-            total,
+            tax: finalTax,
+            tax_rate: finalTaxRate,
+            total: finalTotal,
             status_id,
             referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null
         });
@@ -612,7 +653,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             const currentDue = parseFloat(currentPatient.due || 0);
 
             // Remove old invoice amounts and add new ones
-            const newTotal = currentTotal - oldTotal + parseFloat(total);
+            const newTotal = currentTotal - oldTotal + parseFloat(finalTotal);
             const newPaid = currentPaid - oldPaid + parseFloat(paid);
             const newDue = currentDue - oldDue + parseFloat(due);
 
@@ -788,6 +829,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             subtotal: updatedBill.subtotal,
             discount: updatedBill.discount,
             tax: updatedBill.tax,
+            tax_rate: updatedBill.tax_rate,
             total: updatedBill.total,
             paid: updatedBill.paid,
             due: updatedBill.due,
