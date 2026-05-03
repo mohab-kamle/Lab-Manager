@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings,employee } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -177,11 +177,13 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         }
 
         // Validate receptionist exists
-        const receptionistExists = await receptionist.findOne({ where: { id: receptionist_id, lab_id } });
-        if (!receptionistExists) {
-            await transaction.rollback();
-            return res.status(400).json({ error: 'Invalid receptionist_id or receptionist does not belong to your lab.' });
-        }
+        const receptionistExists = await employee.findOne({ 
+            where: { 
+                id: receptionist_id, 
+                lab_id: patientExists.lab_id,
+                role: 'receptionist' // optional: if you want to enforce the role
+            } 
+        });
 
         // Debug log for branch_id
         console.log('[INVOICE DEBUG] Incoming branch_id:', branch_id, 'Type:', typeof branch_id);

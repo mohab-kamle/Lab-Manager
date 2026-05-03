@@ -208,6 +208,19 @@ const MainNavBar = () => {
     }
   }, [activeItem]);
 
+  // Sync active item and dropdown title with current route dynamically.
+  // This ensures the navbar correctly highlights when navigating via URL
+  // (e.g., clicking a Kanban card) rather than clicking a navbar dropdown item.
+  useEffect(() => {
+    if (location.pathname.includes("/samples-kanban")) {
+      setActiveItem("samples-kanban");
+      setTitles(prev => ({ ...prev, MedicalReports: "Samples Kanban" }));
+    } else if (location.pathname.includes("/medical-reports")) {
+      setActiveItem("all-medical-reports");
+      setTitles(prev => ({ ...prev, MedicalReports: "All Medical Reports" }));
+    }
+  }, [location.pathname]);
+
   // Handle user refresh and token expiration
   useEffect(() => {
     if (!user && !authLoading) refreshUser();
@@ -670,7 +683,7 @@ const MainNavBar = () => {
                           <Dropdown.Toggle
                             variant="outline-light"
                             id="dropdown-basic"
-                            className={`nav-button ${["all-medical-reports"].includes(activeItem)
+                            className={`nav-button ${["all-medical-reports", "samples-kanban"].includes(activeItem)
                               ? "active-dropdown"
                               : ""
                               }`}
@@ -689,6 +702,16 @@ const MainNavBar = () => {
                               active={activeItem === "all-medical-reports"}
                             >
                               All Medical Reports
+                            </Dropdown.Item>
+                            <Dropdown.Item
+                              as={Link}
+                              to={`/${user?.role}/samples-kanban`}
+                              data-dropdown-key="MedicalReports"
+                              data-title="Samples Kanban"
+                              data-id="samples-kanban"
+                              active={activeItem === "samples-kanban"}
+                            >
+                              Samples Kanban
                             </Dropdown.Item>
                           </Dropdown.Menu>
                         </Dropdown>
