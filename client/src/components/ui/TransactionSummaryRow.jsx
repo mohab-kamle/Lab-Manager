@@ -120,6 +120,22 @@ const TransactionSummaryRow = ({ transaction, isAdmin = false, onPatientClick, o
                   <div className="col-md-3">
                       <div className="d-flex align-items-center mb-2">
                           <Receipt className="me-2 text-primary" />
+                          <h6 className="mb-0">Financials</h6>
+                      </div>
+                      <div className="ps-4 small">
+                        <p className="mb-1"><strong>Received:</strong> {formatCurrency(transaction.amount)}</p>
+                        {parseFloat(transaction.changeAmount) > 0 && (
+                          <>
+                            <p className="mb-1 text-danger"><strong>Change Given:</strong> -{formatCurrency(transaction.changeAmount)}</p>
+                            <p className="mb-1 fw-bold text-success border-top pt-1"><strong>Net Payment:</strong> {formatCurrency(parseFloat(transaction.amount) - parseFloat(transaction.changeAmount))}</p>
+                          </>
+                        )}
+                      </div>
+                  </div>
+
+                  <div className="col-md-3">
+                      <div className="d-flex align-items-center mb-2">
+                          <Receipt className="me-2 text-primary" />
                           <h6 className="mb-0">Full Summary</h6>
                       </div>
                       <p className="mb-0 ps-4 small text-wrap text-break">{transaction.summary || 'No details provided'}</p>
@@ -150,6 +166,7 @@ TransactionSummaryRow.propTypes = {
     invoiceId: PropTypes.string,
     branchName: PropTypes.string.isRequired,
     summary: PropTypes.string,
+    changeAmount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   }).isRequired,
   isAdmin: PropTypes.bool,
   onPatientClick: PropTypes.func,
