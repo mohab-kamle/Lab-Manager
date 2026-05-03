@@ -209,7 +209,7 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
                   </Card.Header>
                   <Card.Body>
                     <p className="mb-1"><strong>Branch:</strong> {sampleData.lab?.branch_name}</p>
-                    {sampleData.test?.lab_to_lab_status === 'Outsourced' && (
+                    {sampleData.test?.lab_to_lab_status === 'OUT' && (
                       <div className="mt-2 p-2 bg-light border rounded text-danger">
                         <strong>Outsourced To:</strong> {sampleData.test?.lab_name}
                       </div>
