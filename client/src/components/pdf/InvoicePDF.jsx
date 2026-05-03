@@ -235,7 +235,7 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
                 { text: `EGP ${Number(discount || 0).toFixed(2)}`, alignment: 'left' }
               ],
               [
-                { text: 'Tax:', alignment: 'left' },
+                { text: `Tax${invoiceData.tax_rate ? ` (${(invoiceData.tax_rate * 100).toFixed(2)}%)` : ''}:`, alignment: 'left' },
                 { text: `EGP ${Number(tax || 0).toFixed(2)}`, alignment: 'left' }
               ],
               [
@@ -461,7 +461,7 @@ const InvoicePDF = ({ invoiceData, previewMode }) => {
             body: [
               [ { text: 'Subtotal:', alignment: 'left' }, { text: `${actualSubtotal.toFixed(2)} EGP`, alignment: 'right' } ],
               [ { text: 'Discount:', alignment: 'left' }, { text: `${Number(discount || 0).toFixed(2)} EGP`, alignment: 'right' } ],
-              [ { text: 'Tax:', alignment: 'left' }, { text: `${Number(tax || 0).toFixed(2)} EGP`, alignment: 'right' } ],
+              [ { text: `Tax${invoiceData.tax_rate ? ` (${(invoiceData.tax_rate * 100).toFixed(2)}%)` : ''}:`, alignment: 'left' }, { text: `${Number(tax || 0).toFixed(2)} EGP`, alignment: 'right' } ],
               [ { text: 'Total:', style: 'totalRow', alignment: 'left' }, { text: `${Number(total || 0).toFixed(2)} EGP`, style: 'totalRow', alignment: 'right' } ],
               [ { text: 'Paid:', alignment: 'left' }, { text: `${Number(paid || 0).toFixed(2)} EGP`, alignment: 'right' } ],
               [ { text: 'Due:', alignment: 'left' }, { text: `${Number(due || 0).toFixed(2)} EGP`, alignment: 'right' } ]
