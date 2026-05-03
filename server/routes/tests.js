@@ -160,14 +160,22 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
       }
     }
 
+    // Normalize and validate Lab-to-Lab fields
+    const normalizedStatus = (lab_to_lab_status && lab_to_lab_status.trim()) ? lab_to_lab_status.trim().toUpperCase() : null;
+    const normalizedLabName = (lab_name && lab_name.trim()) ? lab_name.trim() : null;
+
+    if (normalizedStatus === 'OUT' && !normalizedLabName) {
+      return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
+    }
+
     const test = await db.test.create({
       lab_id,
       name,
       shortcut: shortcut || null, // Convert empty string to null
       price: price || 0.00, // Default to 0 if no price provided
       cost,
-      lab_to_lab_status,
-      lab_name,
+      lab_to_lab_status: normalizedStatus,
+      lab_name: normalizedLabName,
       category_id,
       precautions,
       decreased_in,
@@ -193,7 +201,11 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
       }
     }
 
-    res.status(500).json({ error: 'Failed to create test' });
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+
+    res.status(500).json({ error: 'Failed to create test', details: error.message });
   }
 });
 
@@ -251,8 +263,19 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
     test.shortcut = shortcut !== undefined ? (shortcut || null) : test.shortcut; // Convert empty string to null
     test.price = price !== undefined ? price : test.price;
     test.cost = cost !== undefined ? cost : test.cost;
-    test.lab_to_lab_status = lab_to_lab_status !== undefined ? lab_to_lab_status : test.lab_to_lab_status;
-    test.lab_name = lab_name !== undefined ? lab_name : test.lab_name;
+    
+    // Normalize and validate Lab-to-Lab fields for update
+    if (lab_to_lab_status !== undefined) {
+      test.lab_to_lab_status = (lab_to_lab_status && lab_to_lab_status.trim()) ? lab_to_lab_status.trim().toUpperCase() : null;
+    }
+    
+    if (lab_name !== undefined) {
+      test.lab_name = (lab_name && lab_name.trim()) ? lab_name.trim() : null;
+    }
+
+    if (test.lab_to_lab_status === 'OUT' && !test.lab_name) {
+      return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
+    }
     test.category_id = category_id !== undefined ? category_id : test.category_id;
     test.precautions = precautions !== undefined ? precautions : test.precautions;
     test.decreased_in = decreased_in !== undefined ? decreased_in : test.decreased_in;
@@ -556,14 +579,23 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
       }
       // Try to find by name
       let test = await db.test.findOne({ where: { name: row.Name, lab_id: req.tenant.lab_id } });
+      
+      // Normalize Lab-to-Lab fields
+      const normalizedStatus = (row['Lab to Lab Status'] && row['Lab to Lab Status'].toString().trim()) 
+        ? row['Lab to Lab Status'].toString().trim().toUpperCase() 
+        : null;
+      const normalizedLabName = (row['Lab Name'] && row['Lab Name'].toString().trim()) 
+        ? row['Lab Name'].toString().trim() 
+        : null;
+
       const testData = {
         lab_id: req.tenant.lab_id,
         name: row.Name,
         shortcut: row.Shortcut || null,
         price: row.Price || null,
         cost: row.Cost || null,
-        lab_to_lab_status: row['Lab to Lab Status'] || null,
-        lab_name: row['Lab Name'] || null,
+        lab_to_lab_status: normalizedStatus,
+        lab_name: normalizedLabName,
         category_id: row['Category ID'],
         precautions: row.Precautions || null,
         decreased_in: row['Decreased In'] || null,
