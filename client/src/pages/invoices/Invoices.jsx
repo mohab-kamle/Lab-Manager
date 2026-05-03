@@ -71,6 +71,7 @@ const Invoices = () => {
     subtotal: 0,
     discount: 0,
     tax: 0,
+    tax_rate: 0,
     total: 0,
     paid: 0,
     due: 0,
@@ -582,15 +583,18 @@ const Invoices = () => {
     // Calculate discount amount from percentage (use custom percentage if provided, otherwise use state)
     const currentDiscountPercentage = customDiscountPercentage !== null ? customDiscountPercentage : discountPercentage;
     const discountAmount = (subtotal * (currentDiscountPercentage / 100)) || 0;
+
+    // Calculate tax amount from percentage if tax_rate is present
+    const taxAmount = items.tax_rate ? (subtotal * items.tax_rate) : (items.tax || 0);
     
     // Calculate total: subtotal + tax - discount
-    const total = subtotal + (items.tax || 0) - discountAmount;
+    const total = subtotal + taxAmount - discountAmount;
     
     // Use the paid amount from the invoice object
     const paidAmount = Number(items.paid || 0);
     const due = total - paidAmount;
 
-    return { subtotal, discount: discountAmount, total, due, paid: paidAmount };
+    return { subtotal, discount: discountAmount, tax: taxAmount, total, due, paid: paidAmount };
   };
 
   const handleDiscountChange = (discountPercentage) => {
@@ -612,11 +616,12 @@ const Invoices = () => {
 
   // Auto-update calculations whenever invoice data changes
   const updateInvoiceCalculations = (newInvoice) => {
-    const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
+    const { subtotal, discount, tax, total, due, paid } = calculateTotals(newInvoice);
     return {
       ...newInvoice,
       subtotal,
       discount,
+      tax,
       total,
       due,
       paid
@@ -2069,16 +2074,35 @@ const Invoices = () => {
                       )}
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col md={3}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Tax</Form.Label>
+                      <Form.Label>Tax (%)</Form.Label>
                       <Form.Control
                         type="number"
-                        value={invoice.tax || ""}
+                        min="0"
+                        step="0.01"
+                        value={invoice.tax_rate ? (invoice.tax_rate * 100).toFixed(2) : ""}
                         onChange={(e) => {
-                          const tax = Number(e.target.value) || 0;
+                          const rate = (Number(e.target.value) || 0) / 100;
                           setInvoice(prev => {
-                            const newInvoice = { ...prev, tax };
+                            const newInvoice = { ...prev, tax_rate: rate };
+                            return updateInvoiceCalculations(newInvoice);
+                          });
+                        }}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Tax (Amount)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        value={invoice.tax ? invoice.tax.toFixed(2) : ""}
+                        onChange={(e) => {
+                          const taxAmount = Number(e.target.value) || 0;
+                          const rate = invoice.subtotal > 0 ? taxAmount / invoice.subtotal : 0;
+                          setInvoice(prev => {
+                            const newInvoice = { ...prev, tax: taxAmount, tax_rate: rate };
                             return updateInvoiceCalculations(newInvoice);
                           });
                         }}
