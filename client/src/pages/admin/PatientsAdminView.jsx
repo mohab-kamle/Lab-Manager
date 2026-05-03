@@ -997,58 +997,62 @@ const PatientsAdminView = () => {
                         <Row>
                           <Col xs={4}>
                             <Form.Control
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="Day"
                               value={patient.birth_day}
                               onChange={(e) => {
                                 const day = e.target.value;
-                                const newPatient = { ...patient, birth_day: day };
-                                if (day && patient.birth_month && patient.birth_year) {
-                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
+                                // Strictly allow only digits and validate range (1-31)
+                                if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
+                                  const newPatient = { ...patient, birth_day: day };
+                                  if (day && patient.birth_month && patient.birth_year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                                 }
-                                setPatient(newPatient);
-                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                               }}
-                              min="1"
-                              max="31"
-                              className={formErrors.birth_date ? 'is-invalid' : ''}
                             />
                           </Col>
                           <Col xs={4}>
                             <Form.Control
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="Month"
                               value={patient.birth_month}
                               onChange={(e) => {
                                 const month = e.target.value;
-                                const newPatient = { ...patient, birth_month: month };
-                                if (patient.birth_day && month && patient.birth_year) {
-                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
+                                // Strictly allow only digits and validate range (1-12)
+                                if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
+                                  const newPatient = { ...patient, birth_month: month };
+                                  if (patient.birth_day && month && patient.birth_year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                                 }
-                                setPatient(newPatient);
-                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                               }}
-                              min="1"
-                              max="12"
-                              className={formErrors.birth_date ? 'is-invalid' : ''}
                             />
                           </Col>
                           <Col xs={4}>
                             <Form.Control
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="Year"
                               value={patient.birth_year}
                               onChange={(e) => {
                                 const year = e.target.value;
-                                const newPatient = { ...patient, birth_year: year };
-                                if (patient.birth_day && patient.birth_month && year) {
-                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
+                                // Strictly allow only digits and max 4 digits
+                                if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
+                                  const newPatient = { ...patient, birth_year: year };
+                                  if (patient.birth_day && patient.birth_month && year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                                 }
-                                setPatient(newPatient);
-                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                               }}
-                              min="1900"
-                              max={new Date().getFullYear()}
                               className={formErrors.birth_date ? 'is-invalid' : ''}
                             />
                           </Col>
