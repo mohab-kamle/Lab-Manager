@@ -20,7 +20,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
             },
             attributes: [
                 'id', 'date', 'paid', 'due', 'subtotal', 'total', 'discount', 'tax', 'tax_rate',
-                'status_id', 'branch_id', 'patient_id'
+                'status_id', 'branch_id', 'patient_id', 'receptionist_id', 'referred_doctor_id'
             ],
             include: [
                 {
@@ -112,6 +112,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 referred_doctor_name: billData.referred_doctor?.name,
                 branch_id: billData.branch_id,
                 branch_name: billData.branch?.name,
+                receptionist_id: billData.receptionist_id,
 
                 // Map separate includes
                 tests: (billData.bill_has_tests || []).map(bht => ({
@@ -520,18 +521,25 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
                 {
                     model: patient,
                     as: "patient",
-                    attributes: ['id', 'name', 'patientcode']
+                    attributes: ['id', 'name', 'patientcode'],
+                    include: [
+                        {
+                            model: phone_number,
+                            as: 'phones',
+                            attributes: [['phone', 'phone_number'], 'is_primary']
+                        }
+                    ]
                 },
                 {
                     model: test,
                     as: "test_id_tests",
-                    through: { attributes: [] },
-                    attributes: ['id', 'name', 'price']
+                    through: { attributes: ['price'] },
+                    attributes: ['id', 'name']
                 },
                 {
                     model: packages_and_offers,
                     as: "package_id_packages_and_offers",
-                    through: { attributes: [] },
+                    through: { attributes: ['price'] },
                     attributes: ['id', 'name', 'price', 'type']
                 },
                 {
@@ -562,22 +570,26 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             total: invoice.total,
             paid: invoice.paid,
             due: invoice.due,
+            receptionist_id: invoice.receptionist_id,
+            referred_doctor_id: invoice.referred_doctor_id,
+            branch_id: invoice.branch_id,
+            patient_phones: invoice.patient?.phones?.map(p => p.phone_number),
             tests: invoice.test_id_tests.map(t => ({
                 id: t.id,
                 name: t.name,
-                price: t.price
+                price: t.bill_has_test.price
             })),
             packages: invoice.package_id_packages_and_offers.map(p => ({
                 id: p.id,
                 name: p.name,
-                price: p.price,
+                price: p.bill_has_package.price,
                 type: p.type
             })),
             payments: invoice.payment_method_id_payment_methods.map(p => ({
                 payment_method_id: p.id,
                 payment_method_name: p.name,
                 paid_amount: p.bill_has_payment_method.paid_amount
-            }))
+            })),
         };
 
         res.json(response);
@@ -803,7 +815,14 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                 {
                     model: patient,
                     as: "patient",
-                    attributes: ['id', 'name', 'patientcode']
+                    attributes: ['id', 'name', 'patientcode'],
+                    include: [
+                        {
+                            model: phone_number,
+                            as: 'phones',
+                            attributes: [['phone', 'phone_number'], 'is_primary']
+                        }
+                    ]
                 },
                 {
                     model: test,
@@ -841,6 +860,10 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             total: updatedBill.total,
             paid: updatedBill.paid,
             due: updatedBill.due,
+            receptionist_id: updatedBill.receptionist_id,
+            referred_doctor_id: updatedBill.referred_doctor_id,
+            branch_id: updatedBill.branch_id,
+            patient_phones: updatedBill.patient?.phones?.map(p => p.phone_number),
             tests: updatedBill.test_id_tests.map(t => ({
                 id: t.id,
                 name: t.name,
