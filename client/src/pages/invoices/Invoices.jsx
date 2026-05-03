@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
@@ -71,6 +71,7 @@ const Invoices = () => {
     subtotal: 0,
     discount: 0,
     tax: 0,
+    tax_rate: 0,
     total: 0,
     paid: 0,
     due: 0,
@@ -86,7 +87,7 @@ const Invoices = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredPatients, setFilteredPatients] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]); // Kept for backward compatibility if used elsewhere, but we'll use a memoized version for the Select
   const [testSearchTerm, setTestSearchTerm] = useState("");
 
   const [packageSearchTerm, setPackageSearchTerm] = useState("");
@@ -110,6 +111,7 @@ const Invoices = () => {
   const [settlementPatientId, setSettlementPatientId] = useState(null);
   const [settlementPatientName, setSettlementPatientName] = useState("");
   const [settlementPatientCode, setSettlementPatientCode] = useState("");
+  const [giveChange, setGiveChange] = useState(false);
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -208,47 +210,65 @@ const Invoices = () => {
     fetchData();
   }, [apiUrl, user?.role]);
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = patients.filter(patient => {
-        const searchLower = searchTerm.toLowerCase();
-        const phones = patient.phones || [];
-        const phoneMatch = phones.some(p => p.phone?.includes(searchTerm));
-        
-        return (
-          patient.name.toLowerCase().includes(searchLower) ||
-          patient.patientcode?.toString().includes(searchTerm) ||
-          patient.national_id?.toString().includes(searchTerm) ||
-          phoneMatch ||
-          phones.some(p => p.phone?.includes(searchTerm)) // Backward compatibility
-        );
+  const memoizedFilteredPatients = useMemo(() => {
+    if (!searchTerm) return patients;
+    const searchLower = searchTerm.toLowerCase();
+    const searchDigits = searchTerm.replace(/\D/g, "");
+    
+    return patients.filter(patient => {
+      const phones = patient.phones || [];
+      const phoneMatch = phones.some(p => {
+        const pNum = (p.phone_number || p.phone || "").toString();
+        const pDigits = pNum.replace(/\D/g, "");
+        return pNum.includes(searchTerm) || (searchDigits && pDigits.includes(searchDigits));
       });
-      setFilteredPatients(filtered);
-    } else {
-      setFilteredPatients(patients);
-    }
+
+      return (
+        patient.name?.toLowerCase().includes(searchLower) ||
+        patient.patientcode?.toString().includes(searchTerm) ||
+        patient.national_id?.toString().includes(searchTerm) ||
+        phoneMatch
+      );
+    });
   }, [searchTerm, patients]);
 
-  const patientOptions = filteredPatients.map((patient) => {
-    const parts = [];
-    if (patient.name) {
-      parts.push(
-        `${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`
-      );
-    }
-    if (patient.national_id) parts.push(patient.national_id);
-    if (patient.phones && patient.phones.length > 0) {
-      const primary = patient.phones.find(p => p.is_primary) || patient.phones[0];
-      parts.push(primary.phone);
-    } else if (false) {
-      
-    }
+  // Sync state for any other parts of the component using filteredPatients
+  useEffect(() => {
+    setFilteredPatients(memoizedFilteredPatients);
+  }, [memoizedFilteredPatients]);
 
-    return {
-      value: patient.id,
-      label: parts.join(" - "),
-    };
-  });
+  useEffect(() => {
+    if (giveChange) {
+      setGiveChange(false);
+    }
+  }, [invoice.total, invoice.paid, invoice.payments]);
+
+  useEffect(() => {
+    if (showFormErrorAlert) {
+      setShowFormErrorAlert(false);
+    }
+  }, [invoice]);
+
+  const patientOptions = useMemo(() => {
+    return memoizedFilteredPatients.map((patient) => {
+      const parts = [];
+      if (patient.name) {
+        parts.push(`${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`);
+      }
+      if (patient.national_id) parts.push(patient.national_id);
+      
+      const phones = patient.phones || [];
+      phones.forEach(p => {
+        const pNum = p.phone_number || p.phone;
+        if (pNum) parts.push(pNum);
+      });
+
+      return {
+        value: patient.id,
+        label: parts.join(" - "),
+      };
+    });
+  }, [memoizedFilteredPatients]);
 
   // Helper function to calculate total from payment methods
   const calculatePaymentTotal = (payments) => {
@@ -493,6 +513,7 @@ const Invoices = () => {
 
   const handlePatientSelect = (selectedOption) => {
     const pId = selectedOption?.value || "";
+    setSearchTerm("");
     setInvoice(prev => {
       const updatedInvoice = {
         ...prev,
@@ -569,15 +590,18 @@ const Invoices = () => {
     // Calculate discount amount from percentage (use custom percentage if provided, otherwise use state)
     const currentDiscountPercentage = customDiscountPercentage !== null ? customDiscountPercentage : discountPercentage;
     const discountAmount = (subtotal * (currentDiscountPercentage / 100)) || 0;
+
+    // Calculate tax amount from percentage if tax_rate is present
+    const taxAmount = items.tax_rate ? (subtotal * items.tax_rate) : (items.tax || 0);
     
     // Calculate total: subtotal + tax - discount
-    const total = subtotal + (items.tax || 0) - discountAmount;
+    const total = subtotal + taxAmount - discountAmount;
     
     // Use the paid amount from the invoice object
     const paidAmount = Number(items.paid || 0);
     const due = total - paidAmount;
 
-    return { subtotal, discount: discountAmount, total, due, paid: paidAmount };
+    return { subtotal, discount: discountAmount, tax: taxAmount, total, due, paid: paidAmount };
   };
 
   const handleDiscountChange = (discountPercentage) => {
@@ -599,11 +623,12 @@ const Invoices = () => {
 
   // Auto-update calculations whenever invoice data changes
   const updateInvoiceCalculations = (newInvoice) => {
-    const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
+    const { subtotal, discount, tax, total, due, paid } = calculateTotals(newInvoice);
     return {
       ...newInvoice,
       subtotal,
       discount,
+      tax,
       total,
       due,
       paid
@@ -642,11 +667,36 @@ const Invoices = () => {
       const filteredTests = (invoice.tests || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredPackages = (invoice.packages || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       
+      // Adjust payments if give change is active
+      let finalPayments = invoice.payments || [];
+      if (giveChange && invoice.due < 0) {
+        const totalReduction = Math.abs(invoice.due);
+        let remainingReduction = totalReduction;
+        
+        // Copy and adjust payments starting from the last one
+        const adjustedPayments = JSON.parse(JSON.stringify(finalPayments));
+        for (let i = adjustedPayments.length - 1; i >= 0 && remainingReduction > 0; i--) {
+          const currentAmount = parseFloat(adjustedPayments[i].paid_amount) || 0;
+          const reduction = Math.min(currentAmount, remainingReduction);
+          adjustedPayments[i].paid_amount = (currentAmount - reduction).toFixed(2);
+          remainingReduction -= reduction;
+        }
+        finalPayments = adjustedPayments;
+      }
+      
       // Determine automatic status
       let finalStatusId = invoice.status_id;
       if (!finalStatusId) {
-        const { due } = calculateTotals(invoice);
-        finalStatusId = determineAutomaticStatus(due, invoice.paid, invoice.total);
+        let { due, total } = calculateTotals(invoice);
+        let paid = invoice.paid || 0;
+        
+        // If give change is active, adjust values for status detection
+        if (giveChange && due < 0) {
+          due = 0;
+          paid = total;
+        }
+        
+        finalStatusId = determineAutomaticStatus(due, paid, total);
         if (!finalStatusId) {
           setStatusDetectionError("No valid status found for this invoice. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
           return;
@@ -657,11 +707,15 @@ const Invoices = () => {
         ...invoice,
         tests: filteredTests,
         packages: filteredPackages,
+        payments: finalPayments,
         subtotal: invoice.subtotal,
         discount: invoice.discount,
         total: invoice.total,
-        paid: invoice.paid || 0,
-        due: invoice.due,
+        paid: (giveChange && invoice.due < 0) ? invoice.total : (invoice.paid || 0),
+        due: (giveChange && invoice.due < 0) ? 0 : invoice.due,
+        give_change: giveChange,
+        original_paid: (giveChange && invoice.due < 0) ? (invoice.paid || 0) : undefined,
+        change_amount: (giveChange && invoice.due < 0) ? Math.abs(invoice.due) : undefined,
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
         branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined,
@@ -682,11 +736,7 @@ const Invoices = () => {
           invoiceData,
           { headers }
         );
-        setInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv.id === editingInvoice.id ? response.data : inv
-          )
-        );
+        await fetchData();
       } else {
         response = await axios.post(`${apiUrl}/invoices`, invoiceData, { headers });
         await fetchData();
@@ -898,15 +948,22 @@ const Invoices = () => {
     });
     setFormErrors({});
     setEditingInvoice(null);
+    setSearchTerm("");
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
+    setGiveChange(false);
   };
 
   const filteredInvoices = invoices.filter(invoice => {
+    const searchLower = searchQuery?.toLowerCase();
+    const searchDigits = searchQuery?.replace(/\D/g, "");
+
     const searchMatch = searchQuery
-      ? invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ? invoice.patient_name?.toLowerCase().includes(searchLower) ||
         invoice.patientcode?.toString().includes(searchQuery) ||
-        invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        invoice.patient_phones?.some(pNum => 
+          pNum?.includes(searchQuery) || (searchDigits && pNum.replace(/\D/g, "").includes(searchDigits))
+        )
       : true;
 
     const dateMatch =
@@ -1164,9 +1221,11 @@ const Invoices = () => {
             branch_id: rowData.branch_id || "",
             patient_id: rowData.patient_id,
             status_id: rowData.status_id,
-            receptionist_id: rowData.receptionist_id
+            receptionist_id: rowData.receptionist_id ? Number(rowData.receptionist_id) : "",
+            referred_doctor_id: rowData.referred_doctor_id ? Number(rowData.referred_doctor_id) : ""
           });
           setModalSuccessMessage("");
+          setGiveChange(false);
           setShowAddModal(true);
         }}
       >
@@ -1401,6 +1460,7 @@ const Invoices = () => {
                             isSearchable
                             placeholder="Search patient by name, code, national ID, or phone"
                             onInputChange={(inputValue) => setSearchTerm(inputValue)}
+                            filterOption={() => true} // We are already filtering via filteredPatients
                             className="react-select-container"
                             classNamePrefix="select"
                           />
@@ -1482,53 +1542,59 @@ const Invoices = () => {
                                     <Row>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Day"
                                           value={patientForm.birth_day}
                                           onChange={(e) => {
                                             const day = e.target.value;
-                                            const newForm = { ...patientForm, birth_day: day };
-                                            if (day && patientForm.birth_month && patientForm.birth_year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                            // Strictly allow only digits and validate range (1-31)
+                                            if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_day: day };
+                                              if (day && patientForm.birth_month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1"
-                                          max="31"
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Month"
                                           value={patientForm.birth_month}
                                           onChange={(e) => {
                                             const month = e.target.value;
-                                            const newForm = { ...patientForm, birth_month: month };
-                                            if (patientForm.birth_day && month && patientForm.birth_year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                            // Strictly allow only digits and validate range (1-12)
+                                            if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_month: month };
+                                              if (patientForm.birth_day && month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1"
-                                          max="12"
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Year"
                                           value={patientForm.birth_year}
                                           onChange={(e) => {
                                             const year = e.target.value;
-                                            const newForm = { ...patientForm, birth_year: year };
-                                            if (patientForm.birth_day && patientForm.birth_month && year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                            // Strictly allow only digits and max 4 digits
+                                            if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
+                                              const newForm = { ...patientForm, birth_year: year };
+                                              if (patientForm.birth_day && patientForm.birth_month && year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1900"
-                                          max={new Date().getFullYear()}
                                         />
                                       </Col>
                                     </Row>
@@ -2019,16 +2085,35 @@ const Invoices = () => {
                       )}
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col md={3}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Tax</Form.Label>
+                      <Form.Label>Tax (%)</Form.Label>
                       <Form.Control
                         type="number"
-                        value={invoice.tax || ""}
+                        min="0"
+                        step="0.01"
+                        value={invoice.tax_rate ? (invoice.tax_rate * 100).toFixed(2) : ""}
                         onChange={(e) => {
-                          const tax = Number(e.target.value) || 0;
+                          const rate = (Number(e.target.value) || 0) / 100;
                           setInvoice(prev => {
-                            const newInvoice = { ...prev, tax };
+                            const newInvoice = { ...prev, tax_rate: rate };
+                            return updateInvoiceCalculations(newInvoice);
+                          });
+                        }}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Tax (Amount)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        value={invoice.tax ? invoice.tax.toFixed(2) : ""}
+                        onChange={(e) => {
+                          const taxAmount = Number(e.target.value) || 0;
+                          const rate = invoice.subtotal > 0 ? taxAmount / invoice.subtotal : 0;
+                          setInvoice(prev => {
+                            const newInvoice = { ...prev, tax: taxAmount, tax_rate: rate };
                             return updateInvoiceCalculations(newInvoice);
                           });
                         }}
@@ -2103,7 +2188,20 @@ const Invoices = () => {
                         </Col>
                         <Col md={6}>
                           <Form.Group className="mb-3">
-                            <Form.Label>{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <Form.Label className="mb-0">{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
+                              {(invoice.due || 0) < -0.01 && (
+                                <Button 
+                                  variant={giveChange ? "success" : "outline-primary"} 
+                                  size="sm" 
+                                  onClick={() => setGiveChange(!giveChange)}
+                                  className="py-0 px-2"
+                                  style={{ fontSize: '0.8rem' }}
+                                >
+                                  {giveChange ? "✓ Change Given" : "Give Change"}
+                                </Button>
+                              )}
+                            </div>
                             <Form.Control
                               type="text"
                               value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
@@ -2153,6 +2251,7 @@ const Invoices = () => {
                               const newInvoice = { ...invoice, payments: newPayments };
                               setInvoice(updatePaidFromPayments(newInvoice));
                             }}
+                            disabled={!payment.payment_method_id}
                             style={{ minWidth: '150px' }}
                           />
                           <Button
@@ -2208,6 +2307,16 @@ const Invoices = () => {
                     </div>
                   </Col>
                 </Row>
+
+                {showFormErrorAlert && Object.keys(formErrors).length > 0 && (
+                  <Alert variant="danger" className="mt-3 mb-0" onClose={() => setShowFormErrorAlert(false)} dismissible>
+                    <ul className="mb-0">
+                      {Object.entries(formErrors).map(([field, msg]) => (
+                        <li key={field}>{msg}</li>
+                      ))}
+                    </ul>
+                  </Alert>
+                )}
               </Form>
             </Modal.Body>
             <Modal.Footer>
