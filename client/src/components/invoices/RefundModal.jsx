@@ -9,7 +9,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
   const { toast, showConfirm } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState({ tests: [], packages: [] });
-  const [amountLabPays, setAmountLabPays] = useState(0);
+  const [amountLabPays, setAmountLabPays] = useState('0');
   const [isSure, setIsSure] = useState(false);
   const [authKey, setAuthKey] = useState('');
 
@@ -26,7 +26,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
   useEffect(() => {
     if (show) {
       setSelectedItems({ tests: [], packages: [] });
-      setAmountLabPays(0);
+      setAmountLabPays('0');
       setIsSure(false);
       setAuthKey('');
     }
@@ -73,6 +73,12 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
       return;
     }
 
+    const payout = parseFloat(amountLabPays) || 0;
+    if (payout > totalRefundDue) {
+      toast.error(`Payout amount cannot exceed the total refund due (EGP ${totalRefundDue.toFixed(2)})`);
+      return;
+    }
+
     if (isOlderThan24Hours && !isSure) {
       toast.error('Please confirm you are sure you want to process this refund');
       return;
@@ -115,7 +121,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
       try {
         const payload = {
           items: selectedItems,
-          amountLabPays: parseFloat(amountLabPays),
+          amountLabPays: parseFloat(amountLabPays) || 0,
           creditAdded: creditToAdd,
           // Auth key is collected from the modal state (not the confirm popup)
           authKey: isOlderThan24Hours ? authKey : null
@@ -262,7 +268,8 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
                       min="0"
                       max={totalRefundDue}
                       value={amountLabPays}
-                      onChange={(e) => setAmountLabPays(Math.min(totalRefundDue, parseFloat(e.target.value) || 0))}
+                      onChange={(e) => setAmountLabPays(e.target.value)}
+                      onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
                       className="border-start-0"
                     />
                   </InputGroup>
