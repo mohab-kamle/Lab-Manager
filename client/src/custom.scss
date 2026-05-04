@@ -105,6 +105,11 @@ $body-color: $carbon-black;
   --text-muted: var(--text-secondary);
   --border: var(--border-default);
   --primary: var(--color-primary);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
 /* =======================================================================
@@ -217,4 +222,9 @@ $body-color: $carbon-black;
   --bs-body-color: #{$platinum};
   --bs-card-bg: #{$ink-black-2};
   --bs-border-color: #{$prussian-blue};
+
+  /* Shadows (Dark Mode) */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
 }

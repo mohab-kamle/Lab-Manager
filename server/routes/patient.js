@@ -1156,7 +1156,25 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             return res.status(404).json({ error: "Patient not found" });
         }
 
-        res.json(foundPatient);
+        // Calculate gross debt and credit from individual bills
+        const patientBills = await bill.findAll({
+            where: { patient_id: patientId },
+            attributes: ['due']
+        });
+
+        let grossDebt = 0;
+        let grossCredit = 0;
+        patientBills.forEach(b => {
+            const d = parseFloat(b.due || 0);
+            if (d > 0) grossDebt += d;
+            else if (d < 0) grossCredit += Math.abs(d);
+        });
+
+        res.json({
+            ...foundPatient.toJSON(),
+            gross_debt: grossDebt,
+            gross_credit: grossCredit
+        });
     } catch (error) {
         console.error('Error fetching patient by ID:', error);
         res.status(500).json({

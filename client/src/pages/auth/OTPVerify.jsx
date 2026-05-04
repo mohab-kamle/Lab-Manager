@@ -60,14 +60,14 @@ const OTPVerify = () => {
     };
 
     return (
-        <div className="min-vh-100 d-flex align-items-center" style={{ background: 'var(--bg-dark)', padding: '20px 0' }}>
+        <div className="min-vh-100 d-flex align-items-center" style={{ background: 'var(--bg-base)', padding: '20px 0' }}>
             <Container>
                 <Row className="justify-content-center">
                     <Col lg={6} md={8} sm={12}>
-                        <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)' }}>
-                            <div className="text-center pt-4" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+                        <Card className="shadow-lg bg-theme-surface" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-muted)' }}>
+                            <div className="text-center pt-4" style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
                                 <div className="mb-3">
-                                    <div className="d-inline-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--bg)', backdropFilter: 'blur(10px)' }}>
+                                    <div className="d-inline-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--bg-surface)', backdropFilter: 'blur(10px)' }}>
                                         <KeyRound size={40} />
                                     </div>
                                 </div>
@@ -81,15 +81,20 @@ const OTPVerify = () => {
                                 {step === 1 ? (
                                     <Form onSubmit={handleRequestOTP}>
                                         <Form.Group className="mb-4">
-                                            <Form.Label className="fw-semibold text-dark">Email Address</Form.Label>
+                                            <Form.Label className="fw-semibold text-theme">Email Address</Form.Label>
                                             <Form.Control
                                                 type="email"
                                                 placeholder="Enter your registered email"
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
                                                 required
-                                                className="py-3 px-4 border-0"
-                                                style={{ backgroundColor: '#f8f9fa', borderRadius: '12px', fontSize: '1.1em' }}
+                                                className="py-3 px-4 border-0 text-theme"
+                                                style={{
+                                                    backgroundColor: 'var(--bg-inset)',
+                                                    borderRadius: '12px',
+                                                    fontSize: '1.1em',
+                                                    paddingRight: '50px'
+                                                }}
                                             />
                                         </Form.Group>
                                         <Button type="submit" variant="primary" size="lg" className="w-100 py-3 fw-semibold border-0" style={{ borderRadius: '12px', fontSize: '1.1em' }}>
@@ -99,7 +104,7 @@ const OTPVerify = () => {
                                 ) : (
                                     <Form onSubmit={handleVerifyOTP}>
                                         <Form.Group className="mb-4">
-                                            <Form.Label className="fw-semibold text-dark">One-Time Password (OTP)</Form.Label>
+                                            <Form.Label className="fw-semibold text-theme">One-Time Password (OTP)</Form.Label>
                                             <Form.Control
                                                 type="text"
                                                 inputMode="numeric"
@@ -112,8 +117,8 @@ const OTPVerify = () => {
                                                     setOtp(numericValue);
                                                 }}
                                                 required
-                                                className="py-3 px-4 border-0 text-center"
-                                                style={{ backgroundColor: '#f8f9fa', borderRadius: '12px', fontSize: '1.5em', letterSpacing: '8px' }}
+                                                className="py-3 px-4 border-0 text-center text-theme"
+                                                style={{ backgroundColor: 'var(--bg-inset)', borderRadius: '12px', fontSize: '1.5em', letterSpacing: '8px' }}
                                                 maxLength="6"
                                             />
                                         </Form.Group>

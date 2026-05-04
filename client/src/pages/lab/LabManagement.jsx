@@ -922,7 +922,7 @@ const LabManagement = () => {
             </div>
           )}
 
-          {/* Subscription Tab */}
+          {/* Activity Log Tab */}
           {activeTab === 'activity' && (
             <div className={styles.tabPanel}>
               <h2>Recent Activity</h2>

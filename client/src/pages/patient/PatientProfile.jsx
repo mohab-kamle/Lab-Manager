@@ -30,17 +30,17 @@ import "../../styles/PatientProfile.css";
 
 const InfoBubble = ({ icon: Icon, label, value, delay }) => (
   <motion.div
-    className="d-flex align-items-center mb-3"
+    className="info-bubble"
     initial={{ x: -20, opacity: 0 }}
     animate={{ x: 0, opacity: 1 }}
     transition={{ delay }}
   >
-    <div className="info-icon-wrapper me-3 text-primary">
-      <Icon size={24} />
+    <div className="bubble-icon">
+      <Icon size={22} />
     </div>
-    <div>
-      <div className="text-muted small">{label}</div>
-      <div className="fw-bold">{value || "N/A"}</div>
+    <div className="info-content">
+      <div className="text-muted small opacity-75">{label}</div>
+      <div className="fw-bold text-theme">{value || "N/A"}</div>
     </div>
   </motion.div>
 );
@@ -88,10 +88,10 @@ const PatientProfile = () => {
               style={{ width: "100%", height: "100%" }}
             />
           </div>
-          <h1 className="welcome-text display-4">
+          <h1 className="welcome-text display-4 text-theme">
             Hello, {user.name.split(" ")[0]}!
           </h1>
-          <p className="lead text-muted">
+          <p className="lead text-muted opacity-75">
             Here's a look at your personal dashboard.
           </p>
         </motion.div>
@@ -143,7 +143,7 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
-                <h5 className="mb-4 fw-bold text-secondary">
+                <h5 className="mb-4 fw-bold text-primary">
                   Personal Details
                 </h5>
                 <InfoBubble
@@ -175,7 +175,7 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
-                <h5 className="mb-4 fw-bold text-secondary">Contact Info</h5>
+                <h5 className="mb-4 fw-bold text-primary">Contact Info</h5>
                 <InfoBubble
                   icon={Telephone}
                   label="Mobile Number"
@@ -210,7 +210,7 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
-                <h5 className="mb-4 fw-bold text-secondary">
+                <h5 className="mb-4 fw-bold text-primary">
                   Official Documents
                 </h5>
                 <InfoBubble

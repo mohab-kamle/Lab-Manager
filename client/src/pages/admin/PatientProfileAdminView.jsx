@@ -266,8 +266,8 @@ const PatientProfileAdminView = () => {
                 <Pencil size={16} /> Edit Profile
               </Button>
             ) : (
-              <div className="d-flex gap-2 shadow-sm rounded-pill bg-theme-surface p-1">
-                <Button variant="light" className="rounded-pill" onClick={handleEditToggle} disabled={saveLoading}>
+              <div className="d-flex gap-2 shadow-sm rounded-pill bg-theme-surface p-1 border">
+                <Button variant="light" className="rounded-pill border-0" onClick={handleEditToggle} disabled={saveLoading}>
                   Cancel
                 </Button>
                 <Button variant="primary" className="rounded-pill" onClick={handleSave} disabled={saveLoading}>
@@ -315,7 +315,7 @@ const PatientProfileAdminView = () => {
               >
                 {/* Section 1: Personal Details */}
                 <div>
-                  <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+                  <h5 className="mb-3 fw-bold text-theme d-flex align-items-center gap-2">
                     <FileEarmarkPerson className="text-primary" /> Personal Details
                   </h5>
                   <div className="ps-2">
@@ -359,7 +359,7 @@ const PatientProfileAdminView = () => {
 
                 {/* Section 2: Contact Info */}
                 <div>
-                  <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+                  <h5 className="mb-3 fw-bold text-theme d-flex align-items-center gap-2">
                     <Telephone className="text-primary" /> Contact Info
                   </h5>
                   <div className="ps-2">
@@ -401,7 +401,7 @@ const PatientProfileAdminView = () => {
 
                 {/* Section 3: Identification */}
                 <div>
-                  <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+                  <h5 className="mb-3 fw-bold text-theme d-flex align-items-center gap-2">
                     <CardHeading className="text-primary" /> Identification
                   </h5>
                   <div className="ps-2">
@@ -442,7 +442,7 @@ const PatientProfileAdminView = () => {
                 style={{ gridArea: 'transactions' }}
               >
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h5 className="fw-bold text-secondary mb-0 d-flex align-items-center gap-2">
+                  <h5 className="fw-bold text-theme mb-0 d-flex align-items-center gap-2">
                     <ReceiptIcon size={24} className="text-primary" /> Recent Transactions
                   </h5>
                 </div>
@@ -460,7 +460,7 @@ const PatientProfileAdminView = () => {
                         </div>
                         <div className="flex-grow-1 overflow-hidden">
                           <div className="d-flex justify-content-between mb-1">
-                            <span className="fw-bold text-dark text-truncate">{txn.summary || 'General Payment'}</span>
+                            <span className="fw-bold text-theme text-truncate">{txn.summary || 'General Payment'}</span>
                             <span className={`fw-bold ${txn.processType?.toLowerCase() === 'refund' ? 'text-danger' : 'text-success'}`}>
                               {txn.processType?.toLowerCase() === 'refund' ? '-' : '+'} {formatCurrency(txn.amount)}
                             </span>
@@ -498,7 +498,7 @@ const PatientProfileAdminView = () => {
                 className="patient-profile-card p-4"
                 style={{ gridArea: 'medical' }}
               >
-                <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
+                <h5 className="mb-4 fw-bold text-theme d-flex align-items-center gap-2">
                   <FileMedical /> Medical History
                 </h5>
                 <div className="mb-3">
@@ -540,8 +540,8 @@ const PatientProfileAdminView = () => {
                 className="patient-profile-card p-4"
                 style={{ gridArea: 'settlement' }}
               >
-                <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
-                  <Wallet2 size={24} className="text-success" /> Settlement & Billing
+                <h5 className="mb-4 fw-bold text-theme d-flex align-items-center gap-2">
+                  <Wallet2 size={24} className="text-primary" /> Settlement & Billing
                 </h5>
                 <div className="text-center py-2">
                   <div className="text-muted small mb-1">Total Outstanding</div>

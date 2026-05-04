@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Container, Card, Table, Form, Row, Col, Button, InputGroup, Badge } from 'react-bootstrap';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Funnel, Trash } from 'react-bootstrap-icons';
+import { ArrowUpRight, ArrowDownLeft, Download, Funnel } from 'react-bootstrap-icons';
 import api from '../../utils/api';
 import TransactionSummaryRow from '../../components/ui/TransactionSummaryRow';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -8,6 +8,8 @@ import { formatCurrency } from '../../utils/currencyFormatter';
 import { formatDateForInput } from '../../utils/dateFormatter';
 import { useToast } from '../../components/ui/ToastContext';
 import { useNavigate } from 'react-router-dom';
+import Toolbar from '../../components/layout/Toolbar';
+import { Layers, User, MapPin, CreditCard, RotateCcw } from 'lucide-react';
 
 const TransactionsVault = () => {
   const { toast } = useToast();
@@ -15,6 +17,10 @@ const TransactionsVault = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Pagination states for Toolbar
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Filtering states
   const [filters, setFilters] = useState({
@@ -62,6 +68,7 @@ const TransactionsVault = () => {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
@@ -74,6 +81,7 @@ const TransactionsVault = () => {
       endDate: '',
       employee: ''
     });
+    setCurrentPage(1);
   };
 
   const filteredTransactions = useMemo(() => {
@@ -214,89 +222,85 @@ const TransactionsVault = () => {
         </Col>
       </Row>
 
-      <Card className="border-0 shadow-sm mb-4">
-        <Card.Body className="bg-light rounded">
-          <Form>
-            <Row className="g-3">
-              <Col md={4}>
-                <InputGroup>
-                  <InputGroup.Text className="bg-white border-end-0">
-                    <Search className="text-muted" />
-                  </InputGroup.Text>
-                  <Form.Control
-                    placeholder="Search by ID, summary, or patient..."
-                    name="search"
-                    value={filters.search}
-                    onChange={handleFilterChange}
-                    className="border-start-0"
-                  />
-                </InputGroup>
-              </Col>
-              <Col md={2}>
-                <Form.Select name="processType" value={filters.processType} onChange={handleFilterChange}>
-                  <option value="">All Types</option>
-                  <option value="Payment">Payment</option>
-                  <option value="Refund">Refund</option>
-                  <option value="Due">Due</option>
-                  <option value="Credit">Credit</option>
-                  <option value="Due Settlement">Due Settlement</option>
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Select name="paidWith" value={filters.paidWith} onChange={handleFilterChange}>
-                  <option value="">All Payment Methods</option>
-                  {paymentMethods.map(m => (
-                    <option key={m.id} value={m.name}>{m.name}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Select name="branch" value={filters.branch} onChange={handleFilterChange}>
-                  <option value="">All Branches</option>
-                  {branches.map(b => (
-                    <option key={b.id} value={b.name}>{b.name}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Form.Select name="employee" value={filters.employee} onChange={handleFilterChange}>
-                  <option value="">All Employees</option>
-                  {employees.map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col md={3}>
-                  <InputGroup size="sm">
-                    <InputGroup.Text>From</InputGroup.Text>
-                    <Form.Control 
-                        type="date" 
-                        name="startDate" 
-                        value={filters.startDate} 
-                        onChange={handleFilterChange} 
-                    />
-                  </InputGroup>
-              </Col>
-              <Col md={3}>
-                  <InputGroup size="sm">
-                    <InputGroup.Text>To</InputGroup.Text>
-                    <Form.Control 
-                        type="date" 
-                        name="endDate" 
-                        value={filters.endDate} 
-                        onChange={handleFilterChange} 
-                    />
-                  </InputGroup>
-              </Col>
-              <Col md={6} className="text-end">
-                  <Button variant="link" className="text-muted text-decoration-none small" onClick={clearFilters}>
-                      <Trash className="me-1" /> Clear All Filters
-                  </Button>
-              </Col>
-            </Row>
-          </Form>
-        </Card.Body>
-      </Card>
+      <Toolbar
+        searchQuery={filters.search}
+        setSearchQuery={(val) => setFilters(prev => ({ ...prev, search: val }))}
+        dateFilter={{ startDate: filters.startDate, endDate: filters.endDate }}
+        setDateFilter={(val) => setFilters(prev => ({ ...prev, startDate: val.startDate, endDate: val.endDate }))}
+        showDateFilter={true}
+        itemsPerPage={itemsPerPage}
+        setItemsPerPage={setItemsPerPage}
+        setCurrentPage={setCurrentPage}
+      >
+        <div className="control-group">
+          <Layers size={16} className="icon-primary" />
+          <select 
+            name="processType" 
+            value={filters.processType} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Types</option>
+            <option value="Payment">Payment</option>
+            <option value="Refund">Refund</option>
+            <option value="Due">Due</option>
+            <option value="Credit">Credit</option>
+            <option value="Due Settlement">Due Settlement</option>
+          </select>
+        </div>
+
+        <div className="control-group">
+          <CreditCard size={16} className="icon-primary" />
+          <select 
+            name="paidWith" 
+            value={filters.paidWith} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Methods</option>
+            {paymentMethods.map(m => (
+              <option key={m.id} value={m.name}>{m.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="control-group">
+          <MapPin size={16} className="icon-primary" />
+          <select 
+            name="branch" 
+            value={filters.branch} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Branches</option>
+            {branches.map(b => (
+              <option key={b.id} value={b.name}>{b.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="control-group">
+          <User size={16} className="icon-primary" />
+          <select 
+            name="employee" 
+            value={filters.employee} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Employees</option>
+            {employees.map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <button 
+          onClick={clearFilters} 
+          className="btn btn-link btn-sm text-muted text-decoration-none d-flex align-items-center gap-1"
+        >
+          <RotateCcw size={14} /> Clear
+        </button>
+      </Toolbar>
 
       <Card className="border-0 shadow-sm overflow-hidden">
         <div className="table-responsive" style={{ maxHeight: '600px' }}>

@@ -1,24 +1,24 @@
 .dynamic-result-form {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    color: #101935;
+    font-family: var(--font-family-sans-serif);
+    color: var(--text-primary);
     max-width: 800px;
     margin: 0 auto;
 }
 
 .patient-banner {
-    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    background: var(--bg-inset);
     padding: 12px 20px;
     border-radius: 8px;
     display: flex;
     gap: 24px;
     margin-bottom: 24px;
     font-size: 0.95rem;
-    color: #0369a1;
-    border: 1px solid #7dd3fc;
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
 }
 
 .form-header {
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid var(--border-muted);
     margin: 32px 0 16px 0;
     padding-bottom: 8px;
 }
@@ -26,7 +26,7 @@
 .form-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #080f25;
+    color: var(--text-primary);
     margin: 0;
 }
 
@@ -34,12 +34,12 @@
     display: flex;
     align-items: flex-start;
     padding: 16px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-muted);
     transition: background-color 0.2s;
 }
 
 .form-row:hover {
-    background-color: #f8fafc;
+    background-color: var(--hover-bg);
 }
 
 .field-label-wrapper {
@@ -52,14 +52,14 @@
 
 .field-label {
     font-weight: 500;
-    color: #334155;
+    color: var(--text-primary);
     font-size: 0.95rem;
 }
 
 .loinc-badge {
     font-size: 0.7rem;
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--bg-inset);
+    color: var(--text-secondary);
     padding: 2px 6px;
     border-radius: 4px;
     width: fit-content;
@@ -81,61 +81,62 @@
 .result-input {
     width: 60%;
     padding: 10px 14px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-default);
     border-radius: 8px;
     font-size: 1rem;
     outline: none;
     transition: all 0.2s ease;
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-primary);
 }
 
 .result-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--pill-bg);
 }
 
 .result-input[readonly] {
-    background: #f8fafc;
-    color: #475569;
+    background: var(--bg-inset);
+    color: var(--text-secondary);
     cursor: not-allowed;
-    border-color: #e2e8f0;
+    border-color: var(--border-muted);
 }
 
 /* Flags Styling */
 .input-normal {
-    border-color: #cbd5e1;
+    border-color: var(--border-default);
 }
 
 .input-warn {
-    border-color: #f59e0b;
-    background: #fffbeb;
+    border-color: var(--color-warning);
+    background: var(--toast-warning-bg);
 }
 .input-warn:focus {
-    border-color: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+    border-color: var(--color-warning);
+    box-shadow: 0 0 0 3px var(--toast-warning-bg);
 }
 
 .input-panic {
-    border-color: #ef4444;
-    color: #b91c1c;
+    border-color: var(--color-danger);
+    color: var(--color-danger);
     font-weight: 600;
-    background: #fef2f2;
+    background: var(--toast-error-bg);
 }
 .input-panic:focus {
-    border-color: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 3px var(--toast-error-bg);
 }
 
 .unit-label {
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 0.9rem;
     font-weight: 500;
 }
 
 .range-hint {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: var(--text-subtle);
 }
 
 .flag-badge {
@@ -150,16 +151,16 @@
 }
 
 .badge-panic {
-    background: #fee2e2;
-    color: #ef4444;
-    border: 1px solid #fca5a5;
+    background: var(--toast-error-bg);
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger);
     animation: pulse 2s infinite;
 }
 
 .badge-high, .badge-low {
-    background: #fef3c7;
-    color: #d97706;
-    border: 1px solid #fcd34d;
+    background: var(--toast-warning-bg);
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning);
 }
 
 @keyframes pulse {
@@ -175,7 +176,7 @@
 }
 
 .save-button {
-    background: #0ea5e9;
+    background: var(--color-primary);
     color: white;
     border: none;
     padding: 12px 28px;
@@ -184,13 +185,13 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.2);
+    box-shadow: var(--shadow-md);
 }
 
 .save-button:hover {
-    background: #0284c7;
+    background: var(--color-primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 6px 8px -1px rgba(14, 165, 233, 0.3);
+    box-shadow: var(--shadow-lg);
 }
 
 .save-button:active {
