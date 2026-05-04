@@ -196,9 +196,6 @@ jobs:
             VITE_APP_VERSION=${{ secrets.VITE_APP_VERSION || '1.1.0' }}
             EOF
 
-            echo "Generating server .env..."
-            cp .env.production server/.env
-
             echo "Restarting containers..."
             # Force rebuild to update backend code
             docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
