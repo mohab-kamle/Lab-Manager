@@ -1,4 +1,5 @@
 name: Deploy to EC2
+name: Deploy to EC2
 
 on:
   push:
@@ -8,12 +9,23 @@ on:
 permissions:
   contents: write
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
+    runs-on: ubuntu-latest
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+        
+      # 1. Build the frontend locally on GitHub
+      - name: Build frontend
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -49,7 +61,58 @@ jobs:
           
       # Create and push version tag
       - name: Create and push version tag
+          # CRITICAL: vite.config.js sets envDir:'../' which means Vite reads
+          # env files from the PROJECT ROOT, not from client/.
+          # Writing to client/.env.production is silently ignored by Vite.
+          cat > .env.production <<EOF
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          VITE_SERVER=${{ secrets.VITE_SERVER }}
+          VITE_APP_NAME=${{ secrets.VITE_APP_NAME || 'LabManager' }}
+          VITE_APP_VERSION=${{ secrets.VITE_APP_VERSION || '1.1.0' }}
+          EOF
+
+          # Debug: confirm values were written (secrets are masked in logs, but "undefined" will show)
+          echo "--- root .env.production contents (read by Vite via envDir:'../') ---"
+          cat .env.production
+          echo "---------------------------------------"
+
+          # Install pnpm
+          npm install -g pnpm
+
+          # Install dependencies from the ROOT
+          pnpm install --frozen-lockfile
+
+          # Run the build command specifically for the 'client' package
+          # This runs the 'build' script defined in client/package.json
+          pnpm --filter client run build -- --mode production
+          
+      # Create and push version tag
+      - name: Create and push version tag
         run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          VERSION=$(node -p "require('./client/package.json').version")
+          TAG="v${VERSION}"
+          
+          # Use GITHUB_TOKEN for authentication with ls-remote
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          
+          if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists on remote. Skipping tagging step."
+          else
+            echo "Tag ${TAG} does not exist. Creating and pushing..."
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
+      # --- NEW: Configure AWS & Open Firewall ---
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Whitelist GitHub Runner IP
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           VERSION=$(node -p "require('./client/package.json').version")
@@ -166,7 +229,7 @@ jobs:
             SERVER_URL=${{ secrets.SERVER_URL }}
             # Domain Configuration
             DOMAIN=${{ secrets.DOMAIN }}
-            CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+            TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             # Paymob Payment Gateway Configuration
             PRODUCTION_PAYMOB_API_KEY=${{ secrets.PRODUCTION_PAYMOB_API_KEY || '' }}
@@ -206,6 +269,13 @@ jobs:
       - name: Revoke GitHub Runner IP
         if: always()
         run: |
+          IP=$(curl -s https://checkip.amazonaws.com)
+          aws ec2 revoke-security-group-ingress \
+            --region ${{ secrets.AWS_REGION }} \
+            --group-id ${{ secrets.AWS_SG_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr $IP/32
           IP=$(curl -s https://checkip.amazonaws.com)
           aws ec2 revoke-security-group-ingress \
             --region ${{ secrets.AWS_REGION }} \
