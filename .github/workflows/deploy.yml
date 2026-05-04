@@ -94,16 +94,17 @@ jobs:
           # Use the private key from secrets
           key: ${{ secrets.EC2_KEY }}
           port: 22
+          script_stop: true
           script: |
             cd /home/ubuntu/Lab-Manager
             
+            # Fetch latest and force reset to origin/main
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+            
             # WIPE the messy dist folder completely
             rm -rf client/dist
-            
-            # Reset and Pull latest code
-            git reset --hard
-            git clean -fd
-            git pull origin main
             
             # Recreate the empty directory for the upload
             mkdir -p client/dist
@@ -133,6 +134,7 @@ jobs:
           port: 22
           timeout: 60s
           command_timeout: 30m
+          script_stop: true
           script: |
             cd /home/ubuntu/Lab-Manager
 
