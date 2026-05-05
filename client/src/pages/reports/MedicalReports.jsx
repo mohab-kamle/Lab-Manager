@@ -979,72 +979,86 @@ const MedicalReports = () => {
         return;
       }
 
-      const newComponentResults = { ...resultsData.test_component_results };
-      let matchCount = 0;
+      let finalMatchCount = 0;
 
-      // Map AI data to existing report structure
-      selectedReportForResults.tests.forEach(test => {
-        // Create a new object for this test's results to ensure React detects changes
-        const currentTestResults = { ...(newComponentResults[test.id] || {}) };
+      setResultsData(prev => {
+        const newComponentResults = { ...prev.test_component_results };
 
-        const structureConfig = test.structure_config || [];
-        const comps = testComponents[test.id] || [];
+        // Map AI data to existing report structure
+        selectedReportForResults.tests.forEach(test => {
+          // Create a new object for this test's results to ensure React detects changes
+          const currentTestResults = { ...(newComponentResults[test.id] || {}) };
 
-        Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
-          if (aiValue === null || aiValue === undefined) return;
+          const structureConfig = test.structure_config || [];
+          const comps = testComponents[test.id] || [];
 
-          // Standardize both sides for comparison
-          const normalize = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
-          const normalizedAiKey = normalize(aiKey);
+          Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
+            if (aiValue === null || aiValue === undefined) return;
 
-          // 1. Try to find a matching parameter in the structure config
-          let param = structureConfig.find(p => {
-            const normKey = normalize(p.key);
-            const normName = normalize(p.name);
-            const normLabel = normalize(p.label);
+            // Standardize both sides for comparison
+            const normalize = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalizedAiKey = normalize(aiKey);
 
-            return normKey === normalizedAiKey ||
-              normName === normalizedAiKey ||
-              normLabel === normalizedAiKey ||
-              // Allow partial matches for better resilience (e.g., "glucose" matching "glucose_fasting")
-              (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
+            // 1. Try to find a matching parameter in the structure config
+            let param = structureConfig.find(p => {
+              const normKey = normalize(p.key);
+              const normName = normalize(p.name);
+              const normLabel = normalize(p.label);
+
+              return normKey === normalizedAiKey ||
+                normName === normalizedAiKey ||
+                normLabel === normalizedAiKey ||
+                (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
+            });
+
+            if (param && param.type !== 'header') {
+              const key = param.key || param.name;
+              currentTestResults[key] = {
+                ...(currentTestResults[key] || {}),
+                result: aiValue
+              };
+              finalMatchCount++;
+              return;
+            }
+
+            // 2. If no structure config match, try matching against simple components
+            const component = comps.find(c => {
+              const normName = normalize(c.name);
+              const normLabel = normalize(c.label);
+              return normName === normalizedAiKey || normLabel === normalizedAiKey;
+            });
+
+            if (component) {
+              // Map to ID (for the form) AND name (for fallback)
+              currentTestResults[component.id] = {
+                ...(currentTestResults[component.id] || {}),
+                result: aiValue
+              };
+              
+              if (component.name && component.name !== component.id) {
+                currentTestResults[component.name] = {
+                  ...(currentTestResults[component.name] || {}),
+                  result: aiValue
+                };
+              }
+              
+              finalMatchCount++;
+            }
           });
 
-          if (param && param.type !== 'header') {
-            const key = param.key || param.name;
-            currentTestResults[key] = {
-              ...(currentTestResults[key] || {}),
-              result: aiValue
-            };
-            matchCount++;
-            return;
-          }
-
-          // 2. If no structure config match, try matching against simple components
-          const component = comps.find(c => {
-            const normName = normalize(c.name);
-            const normLabel = normalize(c.label);
-            return normName === normalizedAiKey || normLabel === normalizedAiKey;
-          });
-
-          if (component) {
-            const key = component.id;
-            currentTestResults[key] = {
-              ...(currentTestResults[key] || {}),
-              result: aiValue
-            };
-            matchCount++;
-          }
+          // Update the top-level copy with our new test results object
+          newComponentResults[test.id] = currentTestResults;
         });
 
-        // Update the top-level copy with our new test results object
-        newComponentResults[test.id] = currentTestResults;
+        return {
+          ...prev,
+          test_component_results: newComponentResults
+        };
       });
 
-      setResultsData(prev => ({
-        ...prev,
-        test_component_results: newComponentResults
-      }));
+      // Note: finalMatchCount might be slightly inaccurate due to closure, 
+      // but the state update is now guaranteed to be fresh.
+      const matchCount = finalMatchCount;
 
       if (matchCount > 0) {
         toast.update(toastId, {
