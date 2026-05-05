@@ -21,9 +21,14 @@ This section describes the high-level architecture of the LabManager system — 
 
 LabManager follows a **client-server architecture** with a clear separation between the frontend single-page application (SPA) and the backend REST API:
 
-1. **Client (React SPA):** Handles all user-facing interfaces — login, dashboards, medical reports, billing, and administration panels. Communicates with the backend exclusively via HTTP API calls.
-2. **Server (Express API):** Exposes RESTful endpoints for authentication, data management, and business logic. Connects to the MySQL database through Sequelize ORM.
-3. **Database (MySQL):** Stores all persistent data — users, patients, tests, medical reports, invoices, laboratory configuration, and multi-tenant lab information.
+1. **Client (React SPA):** Handles all user-facing interfaces (Login, Dashboard, Medical Reports, Billing).
+2. **Server (Express API):** Exposes RESTful endpoints for business logic and data management.
+3. **Secure Edge Access:** Production traffic is routed through **Cloudflare Tunnels**, providing a secure, token-based entry point without exposing open ports.
+4. **Persistence Layer:**
+    - **Relational Data:** MySQL database for core application state.
+    - **File Storage:** **S3-Compatible Storage (MinIO/AWS S3)** for medical reports and patient documents.
+5. **AI Processing:** A hybrid pipeline combining **AWS Bedrock** for vision and LLM services for automated report scanning and logical data extraction.
+6. **Infrastructure:** Containerized environment with **PNPM monorepo** and multi-stage Docker builds optimized for production performance.
 
 ## In This Section
 

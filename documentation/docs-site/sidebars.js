@@ -58,6 +58,8 @@ const sidebars = {
             'technical-guide/backend/server-readme',
             'technical-guide/backend/database-sync',
             'technical-guide/backend/sequelize-workflow',
+            'technical-guide/backend/financial-logic',
+            'technical-guide/backend/ai-ocr',
             'technical-guide/backend/fix-summary',
             'technical-guide/backend/index-fix-summary'
           ]
@@ -87,6 +89,7 @@ const sidebars = {
           label: 'Security',
           items: [
             'technical-guide/security/index',
+            'technical-guide/security/tenant-security',
             'technical-guide/security/security-notes'
           ]
         }
