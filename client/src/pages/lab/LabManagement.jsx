@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
@@ -92,7 +92,7 @@ const LabManagement = () => {
   const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
   const [whatsappQR, setWhatsappQR] = useState(null);
   const [isWhatsappLoading, setIsWhatsappLoading] = useState(false);
-  const [qrPollingInterval, setQrPollingInterval] = useState(null);
+  const qrPollingRef = useRef(null);
   const [messageTemplate, setMessageTemplate] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
 
@@ -408,8 +408,8 @@ const LabManagement = () => {
   };
 
   const startQrPolling = () => {
-    if (qrPollingInterval) return;
-    const interval = setInterval(async () => {
+    if (qrPollingRef.current) return;
+    qrPollingRef.current = setInterval(async () => {
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL}/whatsapp/qr/${labInfo.id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -424,19 +424,22 @@ const LabManagement = () => {
         console.error('Error polling QR:', error);
       }
     }, 5000);
-    setQrPollingInterval(interval);
   };
 
   const stopQrPolling = () => {
-    if (qrPollingInterval) {
-      clearInterval(qrPollingInterval);
-      setQrPollingInterval(null);
+    if (qrPollingRef.current) {
+      clearInterval(qrPollingRef.current);
+      qrPollingRef.current = null;
     }
   };
 
   useEffect(() => {
-    return () => stopQrPolling();
-  }, [qrPollingInterval]);
+    return () => {
+      if (qrPollingRef.current) {
+        clearInterval(qrPollingRef.current);
+      }
+    };
+  }, []);
 
   const handleConnectWhatsapp = async () => {
     if (!labInfo?.id) return;
