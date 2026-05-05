@@ -47,7 +47,7 @@ async function runETL() {
   // PHASE 1: THE BASE LAYER 
   // ==========================================
   console.log("1. Extracting Core Tests...");
-  await processCSV(getDataPath('loinc.csv'), (row) => {
+  await processCSV(getDataPath('Loinc.csv'), (row) => {
     if (row.CLASSTYPE === '1' && row.STATUS === 'ACTIVE') {
       const isCulture = (row.CLASS === 'MICRO' || row.CLASS === 'ABXBACT');
       const cleanedTags = row.RELATEDNAMES2 ? row.RELATEDNAMES2.replace(/;/g, ' ') : '';
@@ -112,7 +112,7 @@ async function runETL() {
   // ==========================================
   if (missingChildrenIds.size > 0) {
     console.log(`3. Backfilling ${missingChildrenIds.size} missing subtests from loinc.csv...`);
-    await processCSV(getDataPath('loinc.csv'), (row) => {
+    await processCSV(getDataPath('Loinc.csv'), (row) => {
       if (missingChildrenIds.has(row.LOINC_NUM) && row.STATUS === 'ACTIVE') {
         const isCulture = (row.CLASS === 'MICRO' || row.CLASS === 'ABXBACT');
         const cleanedTags = row.RELATEDNAMES2 ? row.RELATEDNAMES2.replace(/;/g, ' ') : '';

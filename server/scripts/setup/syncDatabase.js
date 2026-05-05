@@ -36,9 +36,9 @@ async function checkDatabaseConnection() {
 
 async function checkTableStatus() {
   const keyTables = [
-    'patients', 'tests', 'cultures', 'medical_reports', 'test_groups',
-    'employees', 'admins', 'chemists', 'receptionists', 'bills',
-    'antibiotics', 'medical_report_has_culture_antibiotic'
+    'patient', 'test', 'culture', 'medical_report', 'test_group',
+    'employee', 'admin', 'chemist', 'receptionist', 'bill',
+    'antibiotic', 'medical_report_has_culture_antibiotic'
   ];
 
   console.log(`📊 Checking table status...`);
