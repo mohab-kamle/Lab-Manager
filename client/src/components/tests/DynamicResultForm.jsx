@@ -177,37 +177,44 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
         const numericValues = {};
         for (const [k, v] of Object.entries(value)) {
             const num = Number(v);
-            if (!isNaN(num) && v !== '') numericValues[k] = num;
+            if (!isNaN(num) && v !== "" && v !== null) {
+                numericValues[k] = num;
+            }
         }
 
         const newComputed = {};
         let hasChanges = false;
+        
+        filteredConfig.forEach(item => {
+            if (item.type === 'calculated' && item.formula) {
+                try {
+                    const val = safeEvaluate(item.formula, numericValues);
+                    const rounded = Math.round(val * 100) / 100;
 
-        const calculatedFields = filteredConfig.filter(f => f.type === 'calculated');
-        calculatedFields.forEach(field => {
-            try {
-                if (!field.formula) throw new Error("No formula");
-                const val = safeEvaluate(field.formula, numericValues);
-                const rounded = Math.round(val * 100) / 100;
-                newComputed[field.key] = rounded;
-                numericValues[field.key] = rounded;
-
-                if (value[field.key] !== rounded) hasChanges = true;
-            } catch (err) {
-                newComputed[field.key] = '--';
-                if (value[field.key] !== '--') hasChanges = true;
+                    // Use loose equality to avoid string vs number issues, but check for actual change
+                    if (rounded !== undefined && rounded !== null && String(rounded) !== String(value[item.key] || '')) {
+                        newComputed[item.key] = rounded;
+                        numericValues[item.key] = rounded; // Allow sequential calculations
+                        hasChanges = true;
+                    }
+                } catch (err) {
+                    // console.error(`Error calculating ${item.key}:`, err);
+                }
             }
         });
 
-        setComputedResults(newComputed);
-
-        if (hasChanges && onChangeRef.current) {
-            onChangeRef.current({ ...value, ...newComputed });
+        if (hasChanges) {
+            setComputedResults(prev => ({ ...prev, ...newComputed }));
+            if (onChangeRef.current) {
+                onChangeRef.current({ ...value, ...newComputed });
+            }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [value, filteredConfig]); // intentionally exclude onChangeRef — it's a ref
+    }, [value, filteredConfig]);
 
     const handleInputChange = (key, val) => {
+        // Prevent update if value is identical to avoid unnecessary re-renders
+        if (String(value[key] || "") === String(val || "")) return;
+        
         if (onChangeRef.current) {
             onChangeRef.current({ ...value, ...computedResults, [key]: val });
         }

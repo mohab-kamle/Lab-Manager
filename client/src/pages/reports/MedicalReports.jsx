@@ -802,19 +802,31 @@ const MedicalReports = () => {
       const fullReport = reportResponse.data;
       const tests = fullReport.tests || [];
 
-      // Build test component results defaults
-      // The new endpoint returns results in the shape: results: { [parameter_key]: { value, clinical_flag } }
+      // Prepare initial results data
+      const initialTestResults = [];
       const transformedTestComponentResults = {};
+      
       tests.forEach((test) => {
         transformedTestComponentResults[test.id] = {};
+        
         if (test.results) {
+          // Check if this test has a simple 'result' (fallback type)
+          // or if it has component results
+          if (test.results.result !== undefined) {
+            initialTestResults.push({
+              test_id: test.id,
+              result: test.results.result,
+              status: test.results.status || 'pending'
+            });
+          }
+
+          // Also populate component results if they exist
           Object.entries(test.results).forEach(([key, data]) => {
-            // data.value may be a plain scalar (new format) OR a JSON-wrapped
-            // object like { result, status } (legacy bulk-save format).
-            // Safely unwrap either case so DynamicResultForm receives a plain value.
+            if (key === 'result' || key === 'status' || key === 'clinical_flag') return;
+            
             let resolvedVal = data.value;
             if (resolvedVal && typeof resolvedVal === 'object' && resolvedVal.result !== undefined) {
-              resolvedVal = resolvedVal.result; // unwrap legacy format
+              resolvedVal = resolvedVal.result;
             }
             transformedTestComponentResults[test.id][key] = {
               result: resolvedVal,
@@ -824,14 +836,8 @@ const MedicalReports = () => {
         }
       });
 
-      let activeTabToSet = "tests"; // default
-      if (tests.length > 0) {
-        activeTabToSet = "tests";
-      }
-
-      // Prepare initial results data
       const initialResultsData = {
-        test_results: [],
+        test_results: initialTestResults,
         culture_results: [],
         test_component_results: transformedTestComponentResults,
       };
@@ -881,9 +887,10 @@ const MedicalReports = () => {
 
       // Prepare test results data to avoid concurrent DB locking
       const saveRequests = [];
+      
+      // 1. Process test_component_results (dynamic and multi-component tests)
       Object.entries(resultsData.test_component_results || {}).forEach(
         ([testId, components]) => {
-          // Format the results object as { [parameter_key]: result_value }
           const formattedResults = {};
           let hasResults = false;
 
@@ -899,6 +906,21 @@ const MedicalReports = () => {
           }
         }
       );
+
+      // 2. Process test_results (simple tests / fallbacks)
+      // We only add them if they aren't already covered by test_component_results
+      // to avoid redundant API calls, although the backend handles both.
+      (resultsData.test_results || []).forEach((tr) => {
+        // If this testId already has a request in saveRequests, it might be a component test.
+        // However, for simple tests, we need to send { results: { result: tr.result } }
+        const existingReq = saveRequests.find(req => req.testId === tr.test_id);
+        if (!existingReq && tr.result !== undefined && tr.result !== null && tr.result !== '') {
+          saveRequests.push({
+            testId: tr.test_id,
+            formattedResults: { result: tr.result }
+          });
+        }
+      });
 
       // Show loading state
       const toastId = toast.loading("Saving results...");
@@ -1104,13 +1126,28 @@ const MedicalReports = () => {
   // Note: Status calculation is now handled by the backend automatically
 
   const updateTestResult = (testId, result) => {
-    // Backend will calculate status automatically, so we only update the result
-    setResultsData((prev) => ({
-      ...prev,
-      test_results: prev.test_results.map((tr) =>
-        tr.test_id === testId ? { ...tr, result } : tr
-      ),
-    }));
+    setResultsData((prev) => {
+      const existingIndex = prev.test_results.findIndex((tr) => tr.test_id === testId);
+      let newTestResults;
+      
+      if (existingIndex !== -1) {
+        // Update existing
+        newTestResults = prev.test_results.map((tr, idx) =>
+          idx === existingIndex ? { ...tr, result } : tr
+        );
+      } else {
+        // Add new
+        newTestResults = [
+          ...prev.test_results,
+          { test_id: testId, result, status: "pending" }
+        ];
+      }
+      
+      return {
+        ...prev,
+        test_results: newTestResults,
+      };
+    });
   };
 
   const updateTestComponentResult = (testId, componentId, result) => {
@@ -1233,11 +1270,17 @@ const MedicalReports = () => {
 
       // Extract Base64 from PrintPDF
       const pdfBase64 = await generatePdfBase64(reportData.id, reportData.patient, apiUrl);
+      
+      if (!pdfBase64) {
+        throw new Error("Failed to generate PDF. Please try again.");
+      }
 
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
 
       // Make request to backend
+      console.log(`[Frontend] Sending WhatsApp report for ${reportData.id} to ${reportData.patient.phone}`);
+      
       const response = await axios.post(
         `${apiUrl}/whatsapp/send-report`,
         {
@@ -1250,19 +1293,24 @@ const MedicalReports = () => {
         { headers }
       );
 
-      toast.success("Report sent successfully via WhatsApp!");
+      if (response.data.success) {
+        toast.success(response.data.message || "Report sent successfully via WhatsApp!");
 
-      // Update the local report's whatsapp_sends count so the table reflects it immediately
-      setReports((prevReports) =>
-        prevReports.map((r) =>
-          r.id === reportData.id
-            ? { ...r, whatsapp_sends: (r.whatsapp_sends || 0) + 1 }
-            : r
-        )
-      );
+        // Update the local report's whatsapp_sends count so the table reflects it immediately
+        setReports((prevReports) =>
+          prevReports.map((r) =>
+            r.id === reportData.id
+              ? { ...r, whatsapp_sends: (r.whatsapp_sends || 0) + 1 }
+              : r
+          )
+        );
+      } else {
+        throw new Error(response.data.message || "Backend processed request but delivery status is unknown.");
+      }
     } catch (error) {
       console.error("Error sending WhatsApp:", error);
-      toast.error(error.response?.data?.error || error.response?.data?.message || "Failed to send report via WhatsApp.");
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to send report via WhatsApp.";
+      toast.error(errorMsg);
     } finally {
       setSendingWhatsappId(null);
     }
@@ -2148,8 +2196,24 @@ const MedicalReports = () => {
                           selectedReportForResults.tests.length > 0 && (
                             <div className="mb-4">
                               <h5>Tests</h5>
-                              {selectedReportForResults.tests.map(
-                                (test, testIndex) => {
+                              {(() => {
+                                // Pre-calculate test results map for faster lookup in the loop
+                                const testResultsMap = (resultsData.test_results || []).reduce((acc, tr) => {
+                                  acc[tr.test_id] = tr;
+                                  return acc;
+                                }, {});
+
+                                // Pre-calculate component results maps for faster lookup and stability
+                                const componentResultsMaps = Object.entries(resultsData.test_component_results || {}).reduce((acc, [testId, components]) => {
+                                  acc[testId] = Object.entries(components || {}).reduce((cAcc, [compId, data]) => {
+                                    cAcc[compId] = data?.result;
+                                    return cAcc;
+                                  }, {});
+                                  return acc;
+                                }, {});
+
+                                return selectedReportForResults.tests.map(
+                                  (test, testIndex) => {
                                   const comps = testComponents[test.id] || [];
                                   const patientAge = calculateAge(
                                     selectedReportForResults.patient?.birth_date
@@ -2230,12 +2294,7 @@ const MedicalReports = () => {
                                               age_unit: "years"
                                             }}
                                             antibioticsList={antibiotics}
-                                            value={Object.entries(
-                                              resultsData.test_component_results[test.id] || {}
-                                            ).reduce((acc, [k, data]) => {
-                                              acc[k] = data?.result;
-                                              return acc;
-                                            }, {})}
+                                            value={componentResultsMaps[test.id] || {}}
                                             onChange={(flatResults) => {
                                               handleDynamicResultChange(test.id, flatResults);
                                             }}
@@ -2392,14 +2451,9 @@ const MedicalReports = () => {
                                           <Col md={2}></Col>
                                           <Col md={3}>
                                             <Form.Control
-                                              type="number"
-                                              step="0.01"
+                                              type="text"
                                               placeholder="Enter result"
-                                              value={
-                                                resultsData.test_results.find(
-                                                  (tr) => tr.test_id === test.id
-                                                )?.result || ""
-                                              }
+                                              value={testResultsMap[test.id]?.result || ""}
                                               onChange={(e) =>
                                                 updateTestResult(
                                                   test.id,
@@ -2411,14 +2465,10 @@ const MedicalReports = () => {
                                           <Col md={2}>
                                             <Badge
                                               bg={getStatusBadgeColor(
-                                                resultsData.test_results.find(
-                                                  (tr) => tr.test_id === test.id
-                                                )?.status || "pending"
+                                                testResultsMap[test.id]?.status || "pending"
                                               )}
                                             >
-                                              {resultsData.test_results.find(
-                                                (tr) => tr.test_id === test.id
-                                              )?.status || "pending"}
+                                              {testResultsMap[test.id]?.status || "pending"}
                                             </Badge>
                                           </Col>
                                         </Row>
@@ -2547,8 +2597,8 @@ const MedicalReports = () => {
                                       </div>
                                     </div>
                                   );
-                                }
-                              )}
+                                });
+                              })()}
                             </div>
                           )}
                       </Tab>

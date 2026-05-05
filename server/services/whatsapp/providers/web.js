@@ -1,3 +1,4 @@
+const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const SessionManager = require('../sessionManager');
 
 class WebProvider {
@@ -36,16 +37,42 @@ class WebProvider {
     }
 
     // Format phone number to JID (Jabber ID used by WhatsApp)
-    // Remove '+' and leading zeros
-    let formattedPhone = phone.replace(/\D/g, '');
-    if (formattedPhone.startsWith('00')) formattedPhone = formattedPhone.substring(2);
-    const jid = `${formattedPhone}@s.whatsapp.net`;
+    // We use libphonenumber-js for robust international formatting
+    let jid;
+    try {
+      let phoneNumber = parsePhoneNumberFromString(phone);
+      // Fallback to EG (Egypt) if no country code or invalid as international
+      if (!phoneNumber || !phoneNumber.isValid()) {
+        phoneNumber = parsePhoneNumberFromString(phone, 'EG');
+      }
+
+      if (phoneNumber && phoneNumber.isValid()) {
+        const countryCode = phoneNumber.countryCallingCode;
+        const nationalNumber = phoneNumber.nationalNumber;
+        jid = `${countryCode}${nationalNumber}@s.whatsapp.net`;
+        console.log(`[WebProvider] Formatted phone ${phone} to JID: ${jid} (Country: ${phoneNumber.country})`);
+      } else {
+        // Final fallback to numeric only
+        const formattedPhone = phone.replace(/\D/g, '');
+        jid = `${formattedPhone}@s.whatsapp.net`;
+        console.warn(`[WebProvider] Phone ${phone} is not valid, using fallback JID: ${jid}`);
+      }
+    } catch (err) {
+      const formattedPhone = phone.replace(/\D/g, '');
+      jid = `${formattedPhone}@s.whatsapp.net`;
+      console.error(`[WebProvider] Error formatting phone ${phone}:`, err.message);
+    }
 
     // Ensure the ID exists on WhatsApp
+    console.log(`[WebProvider] Checking registration for JID: ${jid}...`);
     const [result] = await sock.onWhatsApp(jid);
+    
     if (!result || !result.exists) {
+      console.error(`[WebProvider] Registration check failed for ${jid}. Result:`, result);
       throw new Error(`Phone number ${phone} is not registered on WhatsApp.`);
     }
+
+    console.log(`[WebProvider] Registration confirmed for ${jid}. Sending document...`);
 
     const messageContent = {
       document: pdfBuffer,
@@ -76,9 +103,23 @@ class WebProvider {
       throw new Error("WhatsApp is not connected. Please connect it first in the settings.");
     }
 
-    let formattedPhone = phone.replace(/\D/g, '');
-    if (formattedPhone.startsWith('00')) formattedPhone = formattedPhone.substring(2);
-    const jid = `${formattedPhone}@s.whatsapp.net`;
+    let jid;
+    try {
+      let phoneNumber = parsePhoneNumberFromString(phone);
+      if (!phoneNumber || !phoneNumber.isValid()) {
+        phoneNumber = parsePhoneNumberFromString(phone, 'EG');
+      }
+
+      if (phoneNumber && phoneNumber.isValid()) {
+        jid = `${phoneNumber.countryCallingCode}${phoneNumber.nationalNumber}@s.whatsapp.net`;
+      } else {
+        const formattedPhone = phone.replace(/\D/g, '');
+        jid = `${formattedPhone}@s.whatsapp.net`;
+      }
+    } catch (err) {
+      const formattedPhone = phone.replace(/\D/g, '');
+      jid = `${formattedPhone}@s.whatsapp.net`;
+    }
 
     const [result] = await sock.onWhatsApp(jid);
     if (!result || !result.exists) {

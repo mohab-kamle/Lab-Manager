@@ -154,9 +154,20 @@ router.post('/send-report', authenticateUser, async (req, res) => {
       }
     }
 
+    if (!pdfBase64) {
+      return res.status(400).json({ error: 'pdfBase64 is required' });
+    }
+    if (!phone) {
+      return res.status(400).json({ error: 'phone number is required' });
+    }
+
     // Convert base64 back to buffer
     const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
     const pdfBuffer = Buffer.from(base64Data, 'base64');
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+       return res.status(400).json({ error: 'Invalid PDF content' });
+    }
 
     const result = await WhatsAppService.sendReport(labId, patientId, phone, pdfBuffer, caption);
 
@@ -173,7 +184,7 @@ router.post('/send-report', authenticateUser, async (req, res) => {
       }
     }
 
-    res.json({ message: 'Report sent successfully', result });
+    res.json({ success: true, message: 'Report sent successfully', result });
   } catch (error) {
     console.error('WhatsApp Send Report Error:', error);
     res.status(500).json({ error: error.message || 'Failed to send report' });

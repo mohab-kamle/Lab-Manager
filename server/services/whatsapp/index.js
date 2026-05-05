@@ -108,9 +108,11 @@ class WhatsAppService {
     let status = 'pending';
     let errorMessage = null;
     
+    console.log(`[WhatsAppService] Starting sendReport for lab ${labId}, patient ${patientId}, phone ${phone}`);
     try {
       await provider.implementation.sendDocument(labId, phone, pdfBuffer, caption);
       status = 'sent';
+      console.log(`[WhatsAppService] Document sent successfully to ${phone}`);
       
       // Update last used timestamp (Non-critical, don't fail the request if this fails)
       this.updateLastUsed(labId, provider.type).catch(err => 
