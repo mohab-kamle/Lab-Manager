@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { employee, admin } = require('../models'); // Ensure the correct path
+const { employee, admin } = require('../../models'); // Ensure the correct path
 
 const createAdmin = async () => {
     try {
