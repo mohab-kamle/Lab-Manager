@@ -22,7 +22,11 @@
     "run-migrations": "node scripts/runMigrations.js",
     "db:sync": "node syncDatabase.js",
     "db:sync:force": "node syncDatabase.js force",
-    "db:check": "node syncDatabase.js check"
+    "db:check": "node syncDatabase.js check",
+    "db:seed:admin": "sequelize-cli db:seed:all",
+    "db:seed:loinc": "node scripts/seedLoinc.js",
+    "db:seed": "npm run db:seed:admin && npm run db:seed:loinc",
+    "db:seed:undo": "sequelize-cli db:seed:undo:all"
   },
   "keywords": [],
   "author": "Mohab",

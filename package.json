@@ -6,7 +6,8 @@
     "preinstall": "npx only-allow pnpm",
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
-    "install:all": "pnpm install"
+    "install:all": "pnpm install",
+    "db:seed": "pnpm -C server db:seed"
   },
   "devDependencies": {
     "sequelize-cli": "^6.6.3"

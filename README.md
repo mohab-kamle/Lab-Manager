@@ -14,32 +14,46 @@ LabManager is a high-performance, multi-tenant laboratory management system (LIM
 The project uses Docker Compose for seamless environment management.
 
 ### 1. Prerequisites
+
 - Docker & Docker Compose V2
 - PNPM (for local development)
 
 ### 2. Environment Configuration
+
 Copy the template environment files to their respective locations:
 
 ```bash
 # Copy root environment templates
 cp .env.example .env.development
 cp .env.example .env.production
+
+> [!TIP]
+> If running `pnpm db:seed` from your host machine (outside Docker), ensure `DATABASE_URL` in `.env.development` points to `localhost:3306` instead of `mysql:3306`.
 ```
 
 ### 3. Development Mode
+
 Launches the full stack with hot-reloading and local MinIO storage.
+
 ```bash
 docker compose -f docker-compose.dev.yml up -d
+# Once the DB is healthy, seed the initial data (Admin + Antibiotics + LOINC Catalog):
+# Note: LOINC insertion may take a minute due to the large dataset.
+pnpm db:seed
 ```
+
 - **Frontend**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:3001](http://localhost:3001)
 - **MinIO Console**: [http://localhost:9001](http://localhost:9001) (Credentials in `.env.development`)
 
 ### 4. Production Mode
+
 Launches optimized builds with production-ready security.
+
 ```bash
 docker compose -f docker-compose.prod.yml up -d
 ```
+
 - **Frontend**: [http://localhost:80](http://localhost:80)
 - **API**: [http://localhost:3001](http://localhost:3001)
 
@@ -50,11 +64,13 @@ docker compose -f docker-compose.prod.yml up -d
 If you prefer running without Docker for debugging:
 
 ### Root Installation
+
 ```bash
 pnpm install
 ```
 
 ### Backend Setup
+
 ```bash
 cd server
 pnpm install
@@ -65,6 +81,7 @@ pnpm run dev
 ```
 
 ### Frontend Setup
+
 ```bash
 cd client
 pnpm install
@@ -77,6 +94,7 @@ pnpm run dev
 ## 🏗️ System Architecture
 
 ### Technology Stack
+
 - **Monorepo**: PNPM Workspaces
 - **Frontend**: React 18 + Vite + Bootstrap 5 + Lucide Icons
 - **Backend**: Node.js + Express + Sequelize ORM
@@ -86,6 +104,7 @@ pnpm run dev
 - **Auth**: JWT with Role-Based Access Control (RBAC)
 
 ### Project Layout
+
 ```text
 LabManager/
 ├── client/           # React frontend (Vite)
@@ -101,17 +120,20 @@ LabManager/
 ## ✨ Key Features
 
 ### 🧪 Laboratory Management
+
 - **LOINC Integration**: Import standard tests from a global catalog.
 - **Dynamic Test Components**: Demographic-specific reference ranges.
 - **Culture & Sensitivity**: Automated antibiotic mapping.
 - **Sample Tracking**: Barcode generation and status monitoring.
 
 ### 💰 Financial & Billing
+
 - **Atomic Transactions**: Secure billing and refund processing.
 - **Contract Management**: Discount structures for corporate clients.
 - **Insurance/Packages**: Support for service bundles and insurance providers.
 
 ### 📄 Medical Reporting
+
 - **PDF Generation**: Premium React-PDF reports with QR code verification.
 - **AI Scan**: Auto-fill test results from scanned laboratory reports.
 - **Digital Signatures**: Authenticated approvals for medical staff.
@@ -123,6 +145,7 @@ LabManager/
 The system uses a highly normalized MySQL schema managed via Sequelize migrations.
 
 ### Core Modules
+
 - **Identity**: Multi-role users (Admin, Chemist, Doctor, Patient, etc.)
 - **Catalog**: Global LOINC tests, Local Test definitions, and Components.
 - **Medical**: Reports, Results, and Historical Medical Records.

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
 
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../.env.development') });
 const { global_test_catalog, categories_test_and_culture } = require(path.join(__dirname, '../models')); 
 
 const getDataPath = (fileName) => path.join(__dirname, '../data', fileName);
