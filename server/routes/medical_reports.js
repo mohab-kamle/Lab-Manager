@@ -145,7 +145,7 @@ router.get(
               {
                 model: db.phone_number,
                 as: "phones",
-                attributes: ["phone_number", "type"]
+                attributes: [["phone", "phone_number"], "type"]
               }
             ]
           },
