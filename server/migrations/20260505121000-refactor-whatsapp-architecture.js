@@ -4,23 +4,31 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     const transaction = await queryInterface.sequelize.transaction();
     try {
+      const tableInfo = await queryInterface.describeTable('lab_whatsapp_accounts');
+
       // 1. Add new columns
-      await queryInterface.addColumn('lab_whatsapp_accounts', 'is_active', {
-        type: Sequelize.BOOLEAN,
-        defaultValue: false,
-        allowNull: false
-      }, { transaction });
+      if (!tableInfo.is_active) {
+        await queryInterface.addColumn('lab_whatsapp_accounts', 'is_active', {
+          type: Sequelize.BOOLEAN,
+          defaultValue: false,
+          allowNull: false
+        }, { transaction });
+      }
 
-      await queryInterface.addColumn('lab_whatsapp_accounts', 'priority', {
-        type: Sequelize.INTEGER,
-        defaultValue: 0,
-        allowNull: false
-      }, { transaction });
+      if (!tableInfo.priority) {
+        await queryInterface.addColumn('lab_whatsapp_accounts', 'priority', {
+          type: Sequelize.INTEGER,
+          defaultValue: 0,
+          allowNull: false
+        }, { transaction });
+      }
 
-      await queryInterface.addColumn('lab_whatsapp_accounts', 'last_used_at', {
-        type: Sequelize.DATE,
-        allowNull: true
-      }, { transaction });
+      if (!tableInfo.last_used_at) {
+        await queryInterface.addColumn('lab_whatsapp_accounts', 'last_used_at', {
+          type: Sequelize.DATE,
+          allowNull: true
+        }, { transaction });
+      }
 
       // 2. Data Cleanup: Remove duplicates of (lab_id, provider)
       // Keep most recently updated row per (lab_id, provider)
@@ -56,11 +64,16 @@ module.exports = {
       `, { transaction });
 
       // 4. Add composite unique constraint
-      await queryInterface.addIndex('lab_whatsapp_accounts', ['lab_id', 'provider'], {
-        unique: true,
-        name: 'unique_lab_provider',
-        transaction
-      });
+      try {
+        await queryInterface.addIndex('lab_whatsapp_accounts', ['lab_id', 'provider'], {
+          unique: true,
+          name: 'unique_lab_provider',
+          transaction
+        });
+      } catch (e) {
+        console.log('⚠️ Index unique_lab_provider already exists');
+      }
+
 
       await transaction.commit();
     } catch (error) {
@@ -72,14 +85,15 @@ module.exports = {
   async down(queryInterface, Sequelize) {
     const transaction = await queryInterface.sequelize.transaction();
     try {
-      await queryInterface.removeIndex('lab_whatsapp_accounts', 'unique_lab_provider', { transaction });
-      await queryInterface.removeColumn('lab_whatsapp_accounts', 'last_used_at', { transaction });
-      await queryInterface.removeColumn('lab_whatsapp_accounts', 'priority', { transaction });
-      await queryInterface.removeColumn('lab_whatsapp_accounts', 'is_active', { transaction });
+      try { await queryInterface.removeIndex('lab_whatsapp_accounts', 'unique_lab_provider', { transaction }); } catch (e) { }
+      try { await queryInterface.removeColumn('lab_whatsapp_accounts', 'last_used_at', { transaction }); } catch (e) { }
+      try { await queryInterface.removeColumn('lab_whatsapp_accounts', 'priority', { transaction }); } catch (e) { }
+      try { await queryInterface.removeColumn('lab_whatsapp_accounts', 'is_active', { transaction }); } catch (e) { }
       await transaction.commit();
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
   }
+
 };
