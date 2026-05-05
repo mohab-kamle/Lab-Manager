@@ -111,7 +111,7 @@ const TurnaroundTime = () => {
             </Card>
           </Col>
           <Col md={3}>
-            <Card className="h-100 bg-warning text-dark text-center">
+            <Card className="h-100 bg-warning text-black text-center">
               <Card.Body>
                 <Card.Title>Avg. Processing Time</Card.Title>
                 <h3>{formatMinutes(data.metrics.avg_processing_time_minutes)}</h3>
@@ -142,7 +142,9 @@ const TurnaroundTime = () => {
                   <tr>
                     <th>Report ID</th>
                     <th>Patient Name</th>
+                    <th>Phone</th>
                     <th>Registered At</th>
+
                     <th>Status</th>
                     <th>Delay</th>
                   </tr>
@@ -161,7 +163,9 @@ const TurnaroundTime = () => {
                       <tr key={report.id}>
                         <td>#{report.id}</td>
                         <td>{report.patient?.name || 'Unknown'}</td>
+                        <td>{report.patient?.phones?.[0]?.phone_number || 'N/A'}</td>
                         <td>{format(regDate, 'PP pp')}</td>
+
                         <td>{statusBadge}</td>
                         <td className="text-danger fw-bold">{delayHours} hours</td>
                       </tr>

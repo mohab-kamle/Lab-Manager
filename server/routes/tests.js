@@ -122,7 +122,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 });
 
 // Create a new test
-router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const {
       name,
@@ -142,30 +142,40 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
       type,
       tat_hours
     } = req.body;
+    const lab_id = req.tenant.lab_id;
 
     if (!name) return res.status(400).json({ error: 'Name is required' });
 
     // Check if test with same name already exists
-    const existingTest = await db.test.findOne({ where: { name } });
+    const existingTest = await db.test.findOne({ where: { name, lab_id } });
     if (existingTest) {
       return res.status(400).json({ error: `A test with the name "${name}" already exists` });
     }
 
     // Check if shortcut already exists (only for non-empty shortcuts)
     if (shortcut && shortcut.trim()) {
-      const existingShortcut = await db.test.findOne({ where: { shortcut } });
+      const existingShortcut = await db.test.findOne({ where: { shortcut, lab_id } });
       if (existingShortcut) {
         return res.status(400).json({ error: `A test with the shortcut "${shortcut}" already exists` });
       }
     }
 
+    // Normalize and validate Lab-to-Lab fields
+    const normalizedStatus = (lab_to_lab_status && lab_to_lab_status.trim()) ? lab_to_lab_status.trim().toUpperCase() : null;
+    const normalizedLabName = (lab_name && lab_name.trim()) ? lab_name.trim() : null;
+
+    if (normalizedStatus === 'OUT' && !normalizedLabName) {
+      return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
+    }
+
     const test = await db.test.create({
+      lab_id,
       name,
       shortcut: shortcut || null, // Convert empty string to null
       price: price || 0.00, // Default to 0 if no price provided
       cost,
-      lab_to_lab_status,
-      lab_name,
+      lab_to_lab_status: normalizedStatus,
+      lab_name: normalizedLabName,
       category_id,
       precautions,
       decreased_in,
@@ -191,21 +201,28 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
       }
     }
 
-    res.status(500).json({ error: 'Failed to create test' });
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+
+    res.status(500).json({ error: 'Failed to create test', details: error.message });
   }
 });
 
 // Bulk Delete tests
-router.post('/bulk-delete', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.post('/bulk-delete', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { testIds } = req.body;
+    const lab_id = req.tenant.lab_id;
+
     if (!testIds || !Array.isArray(testIds) || testIds.length === 0) {
       return res.status(400).json({ error: 'No valid test IDs provided' });
     }
 
     const deletedCount = await db.test.destroy({
       where: {
-        id: testIds
+        id: testIds,
+        lab_id
       }
     });
 
@@ -217,7 +234,7 @@ router.post('/bulk-delete', authenticateUser, authorizeRoles('admin'), async (re
 });
 
 // Update a test
-router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const {
       name,
@@ -238,7 +255,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
       tat_hours
     } = req.body;
 
-    const test = await db.test.findByPk(req.params.id);
+    const test = await db.test.findOne({ where: { id: req.params.id, lab_id: req.tenant.lab_id } });
     if (!test) return res.status(404).json({ error: 'Test not found' });
 
     // Update fields, allowing empty strings for text fields
@@ -246,8 +263,19 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
     test.shortcut = shortcut !== undefined ? (shortcut || null) : test.shortcut; // Convert empty string to null
     test.price = price !== undefined ? price : test.price;
     test.cost = cost !== undefined ? cost : test.cost;
-    test.lab_to_lab_status = lab_to_lab_status !== undefined ? lab_to_lab_status : test.lab_to_lab_status;
-    test.lab_name = lab_name !== undefined ? lab_name : test.lab_name;
+    
+    // Normalize and validate Lab-to-Lab fields for update
+    if (lab_to_lab_status !== undefined) {
+      test.lab_to_lab_status = (lab_to_lab_status && lab_to_lab_status.trim()) ? lab_to_lab_status.trim().toUpperCase() : null;
+    }
+    
+    if (lab_name !== undefined) {
+      test.lab_name = (lab_name && lab_name.trim()) ? lab_name.trim() : null;
+    }
+
+    if (test.lab_to_lab_status === 'OUT' && !test.lab_name) {
+      return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
+    }
     test.category_id = category_id !== undefined ? category_id : test.category_id;
     test.precautions = precautions !== undefined ? precautions : test.precautions;
     test.decreased_in = decreased_in !== undefined ? decreased_in : test.decreased_in;
@@ -279,9 +307,9 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) =
 });
 
 // Delete a test
-router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.delete('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
-    const testInstance = await db.test.findByPk(req.params.id);
+    const testInstance = await db.test.findOne({ where: { id: req.params.id, lab_id: req.tenant.lab_id } });
     if (!testInstance) return res.status(404).json({ error: 'Test not found' });
 
     console.log(`Deleting test ${req.params.id} and all associated data...`);
@@ -377,9 +405,9 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), async (req, res
 });
 
 // Get test components
-router.get('/:id/components', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
+router.get('/:id/components', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), tenantContext, async (req, res) => {
   try {
-    const test = await db.test.findByPk(req.params.id, { attributes: ['structure_config'] });
+    const test = await db.test.findOne({ where: { id: req.params.id, lab_id: req.tenant.lab_id }, attributes: ['structure_config'] });
     if (!test) return res.status(404).json({ error: 'Test not found' });
 
     let mappedComponents = [];
@@ -408,14 +436,14 @@ router.get('/:id/components', authenticateUser, authorizeRoles('admin', 'chemist
 
 // Create test components
 // Accepts components with nested reference_ranges array for demographic-specific normal values
-router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.post('/:id/components', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { components } = req.body;
     const testId = req.params.id;
 
     console.log('Creating test components for test ID:', testId);
 
-    const test = await db.test.findByPk(testId);
+    const test = await db.test.findOne({ where: { id: testId, lab_id: req.tenant.lab_id } });
     if (!test) return res.status(404).json({ error: 'Test not found' });
 
     const structureConfig = buildStructureConfig(components);
@@ -431,14 +459,14 @@ router.post('/:id/components', authenticateUser, authorizeRoles('admin'), async 
 
 // Update test components
 // Accepts components with nested reference_ranges array for demographic-specific normal values
-router.put('/:id/components', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.put('/:id/components', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { components } = req.body;
     const testId = req.params.id;
 
     console.log('Updating test components for test ID:', testId);
 
-    const test = await db.test.findByPk(testId);
+    const test = await db.test.findOne({ where: { id: testId, lab_id: req.tenant.lab_id } });
     if (!test) return res.status(404).json({ error: 'Test not found' });
 
     const structureConfig = buildStructureConfig(components);
@@ -453,9 +481,10 @@ router.put('/:id/components', authenticateUser, authorizeRoles('admin'), async (
 });
 
 // Optimized endpoint: get all tests with their category and sample_type
-router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemist', 'doctor', 'employee'), async (req, res) => {
+router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemist', 'doctor', 'employee'), tenantContext, async (req, res) => {
   try {
     const tests = await db.test.findAll({
+      where: { lab_id: req.tenant.lab_id },
       include: [
         {
           model: db.categories_test_and_culture,
@@ -516,9 +545,9 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
 });
 
 // Get test count
-router.get('/count', authenticateUser, authorizeRoles('admin'), async (req, res) => {
+router.get('/count', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
-    const count = await db.test.count();
+    const count = await db.test.count({ where: { lab_id: req.tenant.lab_id } });
     res.json({ count });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get test count' });
@@ -526,7 +555,7 @@ router.get('/count', authenticateUser, authorizeRoles('admin'), async (req, res)
 });
 
 // Import tests from Excel/CSV
-router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single('file'), async (req, res) => {
+router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -549,14 +578,24 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
         continue;
       }
       // Try to find by name
-      let test = await db.test.findOne({ where: { name: row.Name } });
+      let test = await db.test.findOne({ where: { name: row.Name, lab_id: req.tenant.lab_id } });
+      
+      // Normalize Lab-to-Lab fields
+      const normalizedStatus = (row['Lab to Lab Status'] && row['Lab to Lab Status'].toString().trim()) 
+        ? row['Lab to Lab Status'].toString().trim().toUpperCase() 
+        : null;
+      const normalizedLabName = (row['Lab Name'] && row['Lab Name'].toString().trim()) 
+        ? row['Lab Name'].toString().trim() 
+        : null;
+
       const testData = {
+        lab_id: req.tenant.lab_id,
         name: row.Name,
         shortcut: row.Shortcut || null,
         price: row.Price || null,
         cost: row.Cost || null,
-        lab_to_lab_status: row['Lab to Lab Status'] || null,
-        lab_name: row['Lab Name'] || null,
+        lab_to_lab_status: normalizedStatus,
+        lab_name: normalizedLabName,
         category_id: row['Category ID'],
         precautions: row.Precautions || null,
         decreased_in: row['Decreased In'] || null,

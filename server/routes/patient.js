@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { medical_report, patient, admin, chemist, phone, diseases, patient_has_diseases, contract, lab_contracts_doctor, bill } = require("../models");
+const { medical_report, patient, admin, chemist, phone_number, diseases, patient_has_diseases, contract, lab_contracts_doctor, bill } = require("../models");
+const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const { sign } = require("jsonwebtoken");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
@@ -41,6 +42,22 @@ const generatePatientCode = async (labId) => {
     return patientCode;
 };
 
+// Helper function to normalize phone number to E.164 format
+const normalizePhone = (phoneStr) => {
+    if (!phoneStr) return null;
+    try {
+        const phoneNumber = parsePhoneNumberFromString(phoneStr);
+        if (phoneNumber && phoneNumber.isValid()) {
+            return phoneNumber.format('E.164');
+        }
+        // If not valid but starts with +, keep as is (best effort)
+        if (phoneStr.startsWith('+')) return phoneStr;
+        return phoneStr; // Fallback
+    } catch (e) {
+        return phoneStr;
+    }
+};
+
 router.post("/login", loginLimiter, async (req, res) => {
     const { patientcode } = req.body;
 
@@ -73,8 +90,8 @@ router.post("/login", loginLimiter, async (req, res) => {
         }, SECRET_KEY, {
             expiresIn: "6h",
         });
-        phones = await phone.findAll({ where: { patient_id: Patient.id } });
-        user = { ...Patient.get(), role: "patient", phones };
+        const phones = await phone_number.findAll({ where: { patient_id: Patient.id } });
+        const user = { ...Patient.get(), role: "patient", phones };
         // ✅ Return patient details with token
         res.json({
             token,
@@ -168,9 +185,8 @@ router.get(
 router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext, async (req, res) => {
     const transaction = await db.sequelize.transaction();
     try {
-        const { name, birth_date, gender, phones, email, address, nationality, passport_no, national_id } = req.body;
-        console.log("Received phones array:", phones);
-        const userId = req.user.id; // Assuming user ID is stored in the auth token
+        const { name, birth_date, gender, phoneNumbers, phones, email, address, nationality, passport_no, national_id } = req.body;
+        const userId = req.user.id;
 
         // Update patient details
         await patient.update(
@@ -185,23 +201,31 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
         );
 
         // Handle phones
-        if (phones && phones.length > 0) {
-            console.log("Attempting to destroy existing phone numbers for patient:", userId);
-            await db.phone.destroy({ where: { patient_id: userId }, transaction });
-            console.log("Existing phone numbers destroyed for patient:", userId);
-            const phoneRecords = phones.map((p, index) => ({
+        const phonesList = phoneNumbers || phones;
+        if (phonesList && phonesList.length > 0) {
+            await phone_number.destroy({ where: { patient_id: userId }, transaction });
+            const phoneRecords = phonesList.map((p, index) => ({
                 patient_id: userId,
-                phone_number: p.phone_number,
-                type: index === 0 ? 'primary' : 'secondary' // Assuming the first phone is primary, second is secondary
+                phone: p.phone || p.phone_number,
+                type: p.type || (index === 0 ? 'personal' : 'work'),
+                is_primary: p.is_primary !== undefined ? p.is_primary : (index === 0)
             }));
-            console.log("Attempting to bulk create new phone numbers:", phoneRecords);
-            await db.phone.bulkCreate(phoneRecords, { transaction });
-            console.log("New phone numbers bulk created for patient:", userId);
+
+            // Normalize phones
+            const normalizedRecords = phoneRecords.map(r => ({
+                ...r,
+                phone: normalizePhone(r.phone)
+            })).filter(r => r.phone !== null);
+
+            if (normalizedRecords.length > 0) {
+                await phone_number.bulkCreate(normalizedRecords, { transaction });
+            }
         }
 
         // Fetch the updated patient with associated phones
         const updatedPatient = await patient.findByPk(userId, {
-            include: [{ model: db.phone, as: 'phones' }],
+            where: { id: userId, lab_id: req.tenant.lab_id },
+            include: [{ model: phone_number, as: 'phones' }],
             transaction
         });
 
@@ -216,10 +240,10 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
 
 // Get all patients
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee", "doctor"), tenantContext,
-    // Add cache headers for 5 minutes
+    // Use no-cache so browsers always revalidate after mutations (e.g. patient updates)
     (req, res, next) => {
         res.set({
-            'Cache-Control': 'public, max-age=300', // 5 minutes
+            'Cache-Control': 'no-cache',
             'ETag': `"patients-${req.tenant?.lab_id || req.user.id}-${Date.now()}"`
         });
         next();
@@ -250,9 +274,9 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 attributes: ['id', 'patientcode', 'name', 'birth_date', 'email', 'national_id', 'nationality', 'passport_no', 'gender', 'address', 'total', 'paid', 'due', 'contract_id', 'createdAt'],
                 include: [
                     {
-                        model: phone,
+                        model: phone_number,
                         as: 'phones',
-                        attributes: ['phone_number', 'type']
+                        attributes: [['phone', 'phone_number'], 'type']
                     },
                     {
                         model: diseases,
@@ -293,12 +317,13 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             nationality,
             passport_no,
             address,
-            primaryPhone,
-            secondaryPhone,
             total,
             paid,
             due,
             contract_id,
+            phoneNumbers = [], // New way: Array of { phone, type, is_primary }
+            primaryPhone,   // Old way: Backward compatibility
+            secondaryPhone, // Old way: Backward compatibility
             diseases = [] // Array of disease IDs
         } = req.body;
 
@@ -355,21 +380,64 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             lab_id: req.tenant.lab_id
         });
 
-        // Add phone numbers if provided
-        if (primaryPhone) {
-            await phone.create({
-                phone_number: primaryPhone,
-                type: 'primary',
-                patient_id: newPatient.id
+        // Add phone numbers
+        const phonesToCreate = [];
+
+        // Handle new format
+        if (phoneNumbers && phoneNumbers.length > 0) {
+            phoneNumbers.forEach(p => {
+                const normalized = normalizePhone(p.phone);
+                if (normalized) {
+                    phonesToCreate.push({
+                        phone: normalized,
+                        type: p.type || 'personal',
+                        is_primary: p.is_primary || false,
+                        patient_id: newPatient.id
+                    });
+                }
             });
+        } else {
+            // Handle old format
+            if (primaryPhone) {
+                const normalized = normalizePhone(primaryPhone);
+                if (normalized) {
+                    phonesToCreate.push({
+                        phone: normalized,
+                        type: 'personal',
+                        is_primary: true,
+                        patient_id: newPatient.id
+                    });
+                }
+            }
+            if (secondaryPhone) {
+                const normalized = normalizePhone(secondaryPhone);
+                if (normalized) {
+                    phonesToCreate.push({
+                        phone: normalized,
+                        type: 'work',
+                        is_primary: false,
+                        patient_id: newPatient.id
+                    });
+                }
+            }
         }
 
-        if (secondaryPhone) {
-            await phone.create({
-                phone_number: secondaryPhone,
-                type: 'secondary',
-                patient_id: newPatient.id
-            });
+        if (phonesToCreate.length > 0) {
+            // Ensure only one is primary if multiple are provided
+            const primaryCount = phonesToCreate.filter(p => p.is_primary).length;
+            if (primaryCount === 0) {
+                phonesToCreate[0].is_primary = true;
+            } else if (primaryCount > 1) {
+                // If multiple primary, keep only the first one as primary
+                let foundPrimary = false;
+                phonesToCreate.forEach(p => {
+                    if (p.is_primary) {
+                        if (foundPrimary) p.is_primary = false;
+                        else foundPrimary = true;
+                    }
+                });
+            }
+            await phone_number.bulkCreate(phonesToCreate);
         }
 
         // Add diseases if provided
@@ -385,7 +453,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         const createdPatient = await patient.findByPk(newPatient.id, {
             include: [
                 {
-                    model: phone,
+                    model: phone_number,
                     as: 'phones'
                 },
                 {
@@ -411,8 +479,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
     }
 });
 
-// Update patient
+// Update patient (uses a transaction to ensure all changes are atomic)
 router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
+    const transaction = await db.sequelize.transaction();
     try {
         const patientId = req.params.id;
         const {
@@ -424,12 +493,9 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             nationality,
             passport_no,
             address,
+            phoneNumbers = [], // Array of { phone, type, is_primary }
             primaryPhone,
             secondaryPhone,
-            total,
-            paid,
-            due,
-            contract_id,
             diseases = [] // Array of disease IDs
         } = req.body;
 
@@ -438,10 +504,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             where: {
                 id: patientId,
                 lab_id: req.tenant.lab_id
-            }
+            },
+            transaction
         });
 
         if (!existingPatient) {
+            await transaction.rollback();
             return res.status(404).json({ error: "Patient not found" });
         }
 
@@ -451,23 +519,31 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         const cleanNationality = nationality && nationality.trim() !== '' ? nationality : null;
         const cleanAddress = address && address.trim() !== '' ? address : null;
 
-        // Check if national ID already exists (if changed and provided)
+        // Check if national ID already exists (if changed and provided) within the same lab
         if (cleanNationalId && cleanNationalId !== existingPatient.national_id) {
-            const existingNationalId = await patient.findOne({ where: { national_id: cleanNationalId } });
+            const existingNationalId = await patient.findOne({
+                where: { national_id: cleanNationalId, lab_id: req.tenant.lab_id },
+                transaction
+            });
             if (existingNationalId) {
+                await transaction.rollback();
                 return res.status(400).json({ error: "National ID already exists" });
             }
         }
 
-        // Check if passport number already exists (if changed and provided)
+        // Check if passport number already exists (if changed and provided) within the same lab
         if (cleanPassportNo && cleanPassportNo !== existingPatient.passport_no) {
-            const existingPassport = await patient.findOne({ where: { passport_no: cleanPassportNo } });
+            const existingPassport = await patient.findOne({
+                where: { passport_no: cleanPassportNo, lab_id: req.tenant.lab_id },
+                transaction
+            });
             if (existingPassport) {
+                await transaction.rollback();
                 return res.status(400).json({ error: "Passport number already exists" });
             }
         }
 
-        // Update the patient
+        // Update the patient record
         await patient.update({
             name,
             email: email || null,
@@ -477,50 +553,91 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             nationality: cleanNationality,
             passport_no: cleanPassportNo,
             address: cleanAddress,
-            total: total !== undefined ? total : existingPatient.total,
-            paid: paid !== undefined ? paid : existingPatient.paid,
-            due: due !== undefined ? due : existingPatient.due,
-            contract_id: contract_id !== undefined ? contract_id : existingPatient.contract_id,
+            total: req.body.total !== undefined ? req.body.total : existingPatient.total,
+            paid: req.body.paid !== undefined ? req.body.paid : existingPatient.paid,
+            due: req.body.due !== undefined ? req.body.due : existingPatient.due,
+            contract_id: req.body.contract_id !== undefined ? req.body.contract_id : existingPatient.contract_id,
         }, { where: { id: patientId } });
 
         // Update phone numbers
-        if (primaryPhone !== undefined) {
-            await phone.destroy({ where: { patient_id: patientId, type: 'primary' } });
-            if (primaryPhone) {
-                await phone.create({
-                    phone_number: primaryPhone,
-                    type: 'primary',
-                    patient_id: patientId
-                });
-            }
-        }
+        if (phoneNumbers !== undefined || primaryPhone !== undefined || secondaryPhone !== undefined) {
+            // Delete existing phone numbers
+            await phone_number.destroy({ where: { patient_id: patientId } });
 
-        if (secondaryPhone !== undefined) {
-            await phone.destroy({ where: { patient_id: patientId, type: 'secondary' } });
-            if (secondaryPhone) {
-                await phone.create({
-                    phone_number: secondaryPhone,
-                    type: 'secondary',
-                    patient_id: patientId
+            const phonesToCreate = [];
+            if (phoneNumbers && phoneNumbers.length > 0) {
+                phoneNumbers.forEach(p => {
+                    const normalized = normalizePhone(p.phone);
+                    if (normalized) {
+                        phonesToCreate.push({
+                            phone: normalized,
+                            type: p.type || 'personal',
+                            is_primary: p.is_primary || false,
+                            patient_id: patientId
+                        });
+                    }
                 });
+            } else {
+                // Backward compatibility
+                if (primaryPhone) {
+                    const normalized = normalizePhone(primaryPhone);
+                    if (normalized) {
+                        phonesToCreate.push({
+                            phone: normalized,
+                            type: 'personal',
+                            is_primary: true,
+                            patient_id: patientId
+                        });
+                    }
+                }
+                if (secondaryPhone) {
+                    const normalized = normalizePhone(secondaryPhone);
+                    if (normalized) {
+                        phonesToCreate.push({
+                            phone: normalized,
+                            type: 'work',
+                            is_primary: false,
+                            patient_id: patientId
+                        });
+                    }
+                }
+            }
+
+            if (phonesToCreate.length > 0) {
+                // Ensure only one is primary
+                const primaryCount = phonesToCreate.filter(p => p.is_primary).length;
+                if (primaryCount === 0) {
+                    phonesToCreate[0].is_primary = true;
+                } else if (primaryCount > 1) {
+                    let foundPrimary = false;
+                    phonesToCreate.forEach(p => {
+                        if (p.is_primary) {
+                            if (foundPrimary) p.is_primary = false;
+                            else foundPrimary = true;
+                        }
+                    });
+                }
+                await phone_number.bulkCreate(phonesToCreate);
             }
         }
 
         // Update diseases
-        await patient_has_diseases.destroy({ where: { patient_id: patientId } });
+        await patient_has_diseases.destroy({ where: { patient_id: patientId }, transaction });
         if (diseases.length > 0) {
             const diseaseRecords = diseases.map(diseaseId => ({
                 patient_id: patientId,
                 diseases_id: diseaseId
             }));
-            await patient_has_diseases.bulkCreate(diseaseRecords);
+            await patient_has_diseases.bulkCreate(diseaseRecords, { transaction });
         }
 
-        // Fetch the updated patient with phone numbers and diseases
+        await transaction.commit();
+
+        // Fetch the updated patient with phone numbers and diseases (after commit)
         const updatedPatient = await patient.findByPk(patientId, {
             include: [
                 {
-                    model: phone,
+                    model: phone_number,
                     as: 'phones'
                 },
                 {
@@ -539,6 +656,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
 
         res.json(updatedPatient);
     } catch (error) {
+        await transaction.rollback();
         console.error('Error updating patient:', error);
         res.status(500).json({
             error: "Internal server error",
@@ -576,7 +694,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
         }
 
         // Delete phone numbers first
-        await phone.destroy({ where: { patient_id: patientId } });
+        await phone_number.destroy({ where: { patient_id: patientId } });
 
         // Delete patient
         await patient.destroy({ where: { id: patientId } });
@@ -650,9 +768,9 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                 }
 
                 // Check if patient already exists by phone number within the current lab
-                const existingPhone = await phone.findOne({
+                const existingPhone = await phone_number.findOne({
                     where: {
-                        phone_number: row['Primary Phone'].toString()
+                        phone: row['Primary Phone'].toString()
                     },
                     include: [{
                         model: patient,
@@ -668,7 +786,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                 }
 
                 // Generate patient code
-                const patientcode = await generatePatientCode();
+                const patientcode = await generatePatientCode(req.tenant.lab_id);
 
                 // Parse birth date if provided
                 let birthDate = null;
@@ -712,16 +830,17 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                 });
 
                 // Add primary phone number
-                await phone.create({
-                    phone_number: row['Primary Phone'].toString(),
-                    type: 'primary',
+                await phone_number.create({
+                    phone: row['Primary Phone'].toString(),
+                    type: 'personal',
+                    is_primary: true,
                     patient_id: newPatient.id
                 });
 
                 // Add secondary phone if provided
                 if (row['Secondary Phone']) {
-                    await phone.create({
-                        phone_number: row['Secondary Phone'].toString(),
+                    await phone_number.create({
+                        phone: row['Secondary Phone'].toString(),
                         type: 'secondary',
                         patient_id: newPatient.id
                     });
@@ -804,7 +923,7 @@ router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist")
                 }
 
                 // Delete phone numbers first
-                await phone.destroy({ where: { patient_id: patientId } });
+                await phone_number.destroy({ where: { patient_id: patientId } });
 
                 // Delete patient
                 await patient.destroy({ where: { id: patientId } });
@@ -905,12 +1024,13 @@ router.put("/bulk", authenticateUser, authorizeRoles("admin", "receptionist"), t
 });
 
 // GET /patient/reports/:id - get full report for authenticated patient
-router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), async (req, res) => {
+router.get('/reports/:id', authenticateUser, authorizeRoles('patient'), tenantContext, async (req, res) => {
     try {
         const reportId = req.params.id;
         const patientId = req.user.id;
+        const lab_id = req.tenant.lab_id;
         const report = await db.medical_report.findOne({
-            where: { id: reportId, patient_id: patientId },
+            where: { id: reportId, patient_id: patientId, lab_id: lab_id },
             include: [
                 {
                     model: db.patient,
@@ -985,5 +1105,83 @@ router.get('/recent', authenticateUser, authorizeRoles('admin'), tenantContext,
             res.status(500).json({ error: 'Failed to get recent patients' });
         }
     });
+
+// Get a single patient by ID
+// IMPORTANT: This parameterized route must come AFTER all literal-path GET routes
+// (e.g. /diseases, /count, /recent) to avoid shadowing them.
+router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "employee", "doctor"), tenantContext, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        let whereClause = { id: patientId };
+
+        // Scope to the user's lab (doctors may access multiple labs)
+        if (req.user.role === 'doctor') {
+            const contracts = await lab_contracts_doctor.findAll({
+                where: { doctor_id: req.user.id },
+                attributes: ['lab_id']
+            });
+            const labIds = contracts.map(c => c.lab_id);
+            if (labIds.length === 0) {
+                return res.status(404).json({ error: "Patient not found" });
+            }
+            whereClause.lab_id = { [sequelize.Sequelize.Op.in]: labIds };
+        } else {
+            whereClause.lab_id = req.tenant.lab_id;
+        }
+
+        const foundPatient = await patient.findOne({
+            where: whereClause,
+            include: [
+                {
+                    model: phone_number,
+                    as: 'phones',
+                    attributes: [['phone', 'phone_number'], 'type', 'is_primary']
+                },
+                {
+                    model: diseases,
+                    as: 'diseases_id_diseases',
+                    through: { attributes: [] },
+                    attributes: ['id', 'name', 'details']
+                },
+                {
+                    model: contract,
+                    as: 'contract',
+                    attributes: ['id', 'name'],
+                    required: false
+                }
+            ]
+        });
+
+        if (!foundPatient) {
+            return res.status(404).json({ error: "Patient not found" });
+        }
+
+        // Calculate gross debt and credit from individual bills
+        const patientBills = await bill.findAll({
+            where: { patient_id: patientId },
+            attributes: ['due']
+        });
+
+        let grossDebt = 0;
+        let grossCredit = 0;
+        patientBills.forEach(b => {
+            const d = parseFloat(b.due || 0);
+            if (d > 0) grossDebt += d;
+            else if (d < 0) grossCredit += Math.abs(d);
+        });
+
+        res.json({
+            ...foundPatient.toJSON(),
+            gross_debt: grossDebt,
+            gross_credit: grossCredit
+        });
+    } catch (error) {
+        console.error('Error fetching patient by ID:', error);
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
+    }
+});
 
 module.exports = router;

@@ -6,12 +6,14 @@ import { useNavigate } from "react-router-dom";
 import { Formik, Field, ErrorMessage, Form as FormikForm } from "formik";
 import * as Yup from "yup";
 import { formatDateForInput } from "../../utils/dateFormatter";
-import { toast } from "react-toastify";
+import { useToast } from "../../components/ui/ToastContext";
 import { motion } from "framer-motion";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Plus, Trash2 } from "lucide-react";
 import "../../styles/PatientProfile.css";
+import PhoneInput from "../../components/ui/PhoneInput";
 
 const PatientUpdateProfile = () => {
+  const { toast } = useToast();
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -27,8 +29,9 @@ const PatientUpdateProfile = () => {
     name: user?.name || "",
     birth_date: formatDateForInput(user?.birth_date) || "",
     gender: user?.gender || "",
-    primaryPhone: user?.phones?.[0]?.phone_number || "",
-    secondaryPhone: user?.phones?.[1]?.phone_number || "",
+    phoneNumbers: user?.phones && user.phones.length > 0 
+      ? user.phones.map(p => ({ ...p, phone: p.phone_number || p.phone })) 
+      : [{ phone: "", type: "personal", is_primary: true }],
     email: user?.email || "",
     address: user?.address || "",
     nationality: user?.nationality || "",
@@ -42,11 +45,6 @@ const PatientUpdateProfile = () => {
     gender: Yup.string()
       .oneOf(["Male", "Female"], "Invalid gender")
       .required("Gender is required"),
-    primaryPhone: Yup.string().matches(/^\d+$/, "Must be a valid phone number"),
-    secondaryPhone: Yup.string().matches(
-      /^\d+$/,
-      "Must be a valid phone number"
-    ),
     email: Yup.string()
       .email("Invalid email format")
       .required("Email is required"),
@@ -68,21 +66,8 @@ const PatientUpdateProfile = () => {
     try {
       const requestData = {
         ...values,
-        phones: [],
+        phoneNumbers: values.phoneNumbers.filter(p => p.phone && p.phone.trim() !== ""),
       };
-
-      if (values.primaryPhone) {
-        requestData.phones.push({
-          phone_number: values.primaryPhone,
-          type: "primary",
-        });
-      }
-      if (values.secondaryPhone) {
-        requestData.phones.push({
-          phone_number: values.secondaryPhone,
-          type: "secondary",
-        });
-      }
 
       const response = await axios.put(
         `${apiUrl}/patient/update`,
@@ -139,6 +124,7 @@ const PatientUpdateProfile = () => {
               variant="link"
               className="text-decoration-none text-muted p-0 d-flex align-items-center gap-2"
               onClick={() => navigate(-1)}
+              aria-label="Go back to profile"
             >
               <ArrowLeft size={20} /> Back to Profile
             </Button>
@@ -158,7 +144,7 @@ const PatientUpdateProfile = () => {
                   onSubmit={handleSubmit}
                   enableReinitialize
                 >
-                  {({ isSubmitting }) => (
+                  {({ isSubmitting, values, setFieldValue }) => (
                     <FormikForm>
                       <Row>
                         <Col md={6}>
@@ -235,40 +221,85 @@ const PatientUpdateProfile = () => {
                             />
                           </Form.Group>
                         </Col>
-                        <Col md={6}>
-                          <Form.Group className="mb-3">
+                        <Col md={12}>
+                          <Form.Group className="mb-4">
                             <Form.Label className="fw-bold small text-uppercase text-muted">
-                              Primary Phone
+                              Phone Numbers
                             </Form.Label>
-                            <Field
-                              type="text"
-                              name="primaryPhone"
-                              className="form-control rounded-pill"
-                              placeholder="01xxxxxxxxx"
-                            />
-                            <ErrorMessage
-                              name="primaryPhone"
-                              component="div"
-                              className="text-danger small mt-1"
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={6}>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="fw-bold small text-uppercase text-muted">
-                              Secondary Phone
-                            </Form.Label>
-                            <Field
-                              type="text"
-                              name="secondaryPhone"
-                              className="form-control rounded-pill"
-                              placeholder="Optiona"
-                            />
-                            <ErrorMessage
-                              name="secondaryPhone"
-                              component="div"
-                              className="text-danger small mt-1"
-                            />
+                            {values.phoneNumbers.map((phoneEntry, index) => (
+                              <div key={index} className="d-flex gap-2 mb-3 align-items-start">
+                                <div style={{ flex: 1 }}>
+                                  <PhoneInput
+                                    value={phoneEntry.phone}
+                                    onChange={(val) => {
+                                      const newPhones = [...values.phoneNumbers];
+                                      newPhones[index].phone = val;
+                                      setFieldValue("phoneNumbers", newPhones);
+                                    }}
+                                    placeholder="Enter phone number"
+                                  />
+                                </div>
+                                <Form.Select
+                                  style={{ width: '130px', borderRadius: '20px' }}
+                                  value={phoneEntry.type}
+                                  onChange={(e) => {
+                                    const newPhones = [...values.phoneNumbers];
+                                    newPhones[index].type = e.target.value;
+                                    setFieldValue("phoneNumbers", newPhones);
+                                  }}
+                                >
+                                  <option value="personal">Personal</option>
+                                  <option value="work">Work</option>
+                                  <option value="home">Home</option>
+                                </Form.Select>
+                                <div className="d-flex flex-column align-items-center">
+                                  <Form.Check
+                                    type="radio"
+                                    name="primaryPhone"
+                                    checked={phoneEntry.is_primary}
+                                    onChange={() => {
+                                      const newPhones = values.phoneNumbers.map((p, i) => ({
+                                        ...p,
+                                        is_primary: i === index
+                                      }));
+                                      setFieldValue("phoneNumbers", newPhones);
+                                    }}
+                                    title="Set as primary"
+                                  />
+                                  <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
+                                </div>
+                                {values.phoneNumbers.length > 1 && (
+                                  <Button 
+                                    variant="outline-danger" 
+                                    size="sm"
+                                    className="rounded-circle p-1"
+                                    style={{ width: '32px', height: '32px' }}
+                                    onClick={() => {
+                                      const newPhones = values.phoneNumbers.filter((_, i) => i !== index);
+                                      if (phoneEntry.is_primary && newPhones.length > 0) {
+                                        newPhones[0].is_primary = true;
+                                      }
+                                      setFieldValue("phoneNumbers", newPhones);
+                                    }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm" 
+                              className="mt-1 rounded-pill"
+                              onClick={() => {
+                                setFieldValue("phoneNumbers", [
+                                  ...values.phoneNumbers,
+                                  { phone: "", type: "personal", is_primary: false }
+                                ]);
+                              }}
+                            >
+                              <Plus size={14} className="me-1" /> Add Another Phone
+                            </Button>
                           </Form.Group>
                         </Col>
                         <Col md={12}>

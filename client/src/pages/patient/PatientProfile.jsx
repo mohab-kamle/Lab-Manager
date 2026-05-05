@@ -14,6 +14,7 @@ import {
   FileEarmarkPerson,
   CardHeading,
   PencilSquare,
+  Receipt,
 } from "react-bootstrap-icons";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../utils/dateFormatter";
@@ -25,20 +26,21 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 // A common path might be "../../assets/animations/lab-logo.json".
 // We will conditionally use a fallback if not found.
 import labLogoAnimation from "../../assets/LabLogoLoading.json";
+import "../../styles/PatientProfile.css";
 
 const InfoBubble = ({ icon: Icon, label, value, delay }) => (
   <motion.div
-    className="d-flex align-items-center mb-3"
+    className="info-bubble"
     initial={{ x: -20, opacity: 0 }}
     animate={{ x: 0, opacity: 1 }}
     transition={{ delay }}
   >
-    <div className="info-icon-wrapper me-3 text-primary">
-      <Icon size={24} />
+    <div className="bubble-icon">
+      <Icon size={22} />
     </div>
-    <div>
-      <div className="text-muted small">{label}</div>
-      <div className="fw-bold">{value || "N/A"}</div>
+    <div className="info-content">
+      <div className="text-muted small opacity-75">{label}</div>
+      <div className="fw-bold text-theme">{value || "N/A"}</div>
     </div>
   </motion.div>
 );
@@ -86,10 +88,10 @@ const PatientProfile = () => {
               style={{ width: "100%", height: "100%" }}
             />
           </div>
-          <h1 className="welcome-text display-4">
+          <h1 className="welcome-text display-4 text-theme">
             Hello, {user.name.split(" ")[0]}!
           </h1>
-          <p className="lead text-muted">
+          <p className="lead text-muted opacity-75">
             Here's a look at your personal dashboard.
           </p>
         </motion.div>
@@ -107,15 +109,23 @@ const PatientProfile = () => {
               <Button
                 as={Link}
                 to={`/patient/reports`}
-                className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2"
+                className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2 text-white"
               >
                 <FileMedical size={20} />
                 My Reports
               </Button>
               <Button
                 as={Link}
+                to={`/patient/invoices`}
+                className="cheerful-btn cheerful-btn-primary d-flex align-items-center gap-2 text-white"
+              >
+                <Receipt size={20} />
+                My Invoices
+              </Button>
+              <Button
+                as={Link}
                 to={`/patient/profile/update`}
-                className="cheerful-btn cheerful-btn-outline d-flex align-items-center gap-2"
+                className="cheerful-btn cheerful-btn-outline d-flex align-items-center gap-2 text-white"
               >
                 <PencilSquare size={20} />
                 Update Profile
@@ -133,7 +143,7 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
-                <h5 className="mb-4 fw-bold text-secondary">
+                <h5 className="mb-4 fw-bold text-primary">
                   Personal Details
                 </h5>
                 <InfoBubble
@@ -165,13 +175,22 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
-                <h5 className="mb-4 fw-bold text-secondary">Contact Info</h5>
+                <h5 className="mb-4 fw-bold text-primary">Contact Info</h5>
                 <InfoBubble
                   icon={Telephone}
                   label="Mobile Number"
-                  value={user.phones?.[0]?.phone_number}
+                  value={user.phones?.find(p => p.is_primary)?.phone || user.phones?.[0]?.phone}
                   delay={0.4}
                 />
+                {user.phones?.filter(p => !p.is_primary).map((p, i) => (
+                  <InfoBubble
+                    key={i}
+                    icon={Telephone}
+                    label={`Secondary Phone (${p.type})`}
+                    value={p.phone}
+                    delay={0.4 + (i + 1) * 0.1}
+                  />
+                ))}
                 <InfoBubble
                   icon={Envelope}
                   label="Email Address"
@@ -191,7 +210,7 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
-                <h5 className="mb-4 fw-bold text-secondary">
+                <h5 className="mb-4 fw-bold text-primary">
                   Official Documents
                 </h5>
                 <InfoBubble

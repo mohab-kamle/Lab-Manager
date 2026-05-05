@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { employee } = require('../models');
 
-router.post('/', async (req, res) => {
-  const { username, email } = req.body;
+const { tenantContext } = require('../middleware/tenantContext');
 
+router.post('/', tenantContext, async (req, res) => {
+  const { username, email } = req.body;
   try {
     const existingAdminByUsername = await employee.findOne({ 
-      where: { username: username, role: 'admin' }
+      where: { username: username }
     });
 
     if (existingAdminByUsername) {
@@ -15,7 +16,7 @@ router.post('/', async (req, res) => {
     }
 
     const existingAdminByEmail = await employee.findOne({
-      where: { email: email, role: 'admin' }
+      where: { email: email }
     });
 
     if (existingAdminByEmail) {

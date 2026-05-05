@@ -16,7 +16,8 @@ const db = require("./models");
 const authenticateUser = require("./middleware/authenticateUser");
 const authorizeFileAccess = require("./middleware/authorizeFileAccess");
 const { globalLimiter } = require("./middleware/rateLimiters");
-const { employee, patient, phone, doctor } = require("./models");
+const { employee, patient, phone_number, doctor } = require("./models");
+const { getS3FileUrl } = require('./services/s3Service');
 
 // Socket.io for Real-Time Events
 const http = require("http");
@@ -143,88 +144,46 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // =========================
-// Static File Serving
 // =========================
-// Serve uploaded files (images, documents, etc.)
-const path = require('path');
-const fs = require('fs');
+// S3 File Access Routes
+// =========================
 
-// Create upload directories if they don't exist
-const uploadsPath = path.join(__dirname, 'uploads');
-const publicUploadsPath = path.join(uploadsPath, 'public');
-const privateUploadsPath = path.join(uploadsPath, 'private');
-const commentImagesPath = path.join(uploadsPath, 'comment-images');
-
-// Create directory structure
-[uploadsPath, publicUploadsPath, privateUploadsPath, commentImagesPath].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-    console.log('📁 Created directory:', dir);
+// Serve PRIVATE files with authentication (medical reports, patient documents) via S3
+app.get('/uploads/private/:filename', authorizeFileAccess, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    
+    // Map to S3 key
+    const s3Key = `private/uploads/${filename}`;
+    const s3Url = await getS3FileUrl(s3Key, false); // false = presigned URL for private
+    
+    // Return the pre-signed URL as JSON instead of a 302 redirect.
+    // A redirect followed by XHR triggers S3 CORS checks.
+    // The client assigns the URL directly to <img src>, which is not an XHR and bypasses CORS.
+    res.json({ url: s3Url });
+  } catch (error) {
+    console.error('Error generating S3 presigned URL for private file:', error);
+    res.status(500).json({ error: 'Failed to access file' });
   }
 });
 
-// Serve PUBLIC files without authentication (avatars, logos, etc.)
-app.use('/uploads/public', express.static(publicUploadsPath, {
-  maxAge: '1d', // Cache for 1 day
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, filePath) => {
-    // Set appropriate headers for different file types
-    if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') || filePath.endsWith('.png') || filePath.endsWith('.gif') || filePath.endsWith('.webp')) {
-      res.setHeader('Content-Type', 'image/' + filePath.split('.').pop());
-    }
-    // Add CORS headers for uploaded files
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+// Serve COMMENT IMAGES with authentication via S3
+app.get('/uploads/comment-images/:filename', authorizeFileAccess, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    
+    // Map to S3 key
+    const s3Key = `private/comment-images/${filename}`;
+    const s3Url = await getS3FileUrl(s3Key, false); // false = presigned URL for private
+    
+    // Return the pre-signed URL as JSON instead of a 302 redirect.
+    // A redirect followed by XHR triggers S3 CORS checks.
+    // The client assigns the URL directly to <img src>, which is not an XHR and bypasses CORS.
+    res.json({ url: s3Url });
+  } catch (error) {
+    console.error('Error generating S3 presigned URL for comment image:', error);
+    res.status(500).json({ error: 'Failed to access comment image' });
   }
-}));
-
-// Serve PRIVATE files with authentication (medical reports, patient documents)
-app.get('/uploads/private/:filename', authorizeFileAccess, (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(privateUploadsPath, filename);
-
-  // Check if file exists
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
-  }
-
-  // Set appropriate headers
-  const ext = path.extname(filename).toLowerCase();
-  if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
-    res.setHeader('Content-Type', `image/${ext.substring(1)}`);
-  } else if (ext === '.pdf') {
-    res.setHeader('Content-Type', 'application/pdf');
-  }
-
-  // Add security headers
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-
-  res.sendFile(filePath);
-});
-
-// Serve COMMENT IMAGES with authentication
-app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(commentImagesPath, filename);
-
-  // Check if file exists
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found' });
-  }
-
-  // Set appropriate headers for images
-  const ext = path.extname(filename).toLowerCase();
-  if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
-    res.setHeader('Content-Type', `image/${ext.substring(1)}`);
-  }
-
-  // Add security headers
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Cache-Control', 'private, max-age=3600'); // Cache for 1 hour
-
-  res.sendFile(filePath);
 });
 
 // 🔒 SECURITY FIX: Legacy support removed to prevent authorization bypass.
@@ -233,10 +192,6 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, (req, res) => 
 // app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
 // Access is now strictly controlled via authenticated route above
 
-console.log('📁 Secure file serving configured:');
-console.log('  - Public files: /uploads/public (no auth required)');
-console.log('  - Private files: /uploads/private (auth required)');
-console.log('  - Comment images: /uploads/comment-images (auth required)');
 
 // Headers for environment info
 app.use((req, res, next) => {
@@ -278,19 +233,6 @@ app.get('/cors-test', (req, res) => {
       'access-control-allow-origin': res.getHeader('Access-Control-Allow-Origin'),
       'access-control-allow-methods': res.getHeader('Access-Control-Allow-Methods'),
       'access-control-allow-headers': res.getHeader('Access-Control-Allow-Headers')
-    }
-  });
-});
-
-// Railway-specific health check
-app.get('/railway-health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    environment: process.env.NODE_ENV,
-    timestamp: new Date().toISOString(),
-    cors: {
-      origin: req.headers.origin,
-      allowed: true
     }
   });
 });
@@ -355,6 +297,7 @@ app.use("/payment-methods", require("./routes/paymentMethods"));
 app.use("/subscriptions", require("./routes/subscriptions"));
 app.use("/invoices", require("./routes/invoices"));
 app.use("/branches", require("./routes/branches"));
+app.use("/outsourced-labs", require("./routes/outsourcedLabs"));
 app.use("/labs", require("./routes/labs"));
 app.use("/packages-and-offers", require("./routes/packages_and_offers"));
 app.use("/statuses", require("./routes/statuses"));
@@ -414,7 +357,7 @@ router.get("/", authenticateUser, async (req, res) => {
         ],
       });
       if (user) {
-        const phones = await phone.findAll({ where: { patient_id: req.user.id } });
+        const phones = await phone_number.findAll({ where: { patient_id: req.user.id } });
         user = { ...user.get(), role: "patient", phones };
       }
     } else if (req.user.role === "doctor") {
@@ -427,7 +370,15 @@ router.get("/", authenticateUser, async (req, res) => {
         user.role = 'doctor';
       }
     } else {
-      user = await employee.findByPk(req.user.id, { attributes: ["id", "name", "username", "role", "lab_id"] });
+      user = await employee.findByPk(req.user.id, {
+        attributes: ["id", "name", "username", "role", "lab_id"],
+        include: [
+          {
+            model: phone_number,
+            as: 'phones'
+          }
+        ]
+      });
     }
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
@@ -447,8 +398,6 @@ console.log('Environment Information:');
 console.log('- NODE_ENV:', process.env.NODE_ENV);
 console.log('- PORT:', process.env.PORT);
 console.log('- Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
-console.log('- Railway Environment:', process.env.RAILWAY_ENVIRONMENT || 'Not set');
-console.log('- Railway Service Name:', process.env.RAILWAY_SERVICE_NAME || 'Not set');
 console.log('- CORS Origins:', [
   'https://mlab-manager.vercel.app',
   'https://www.labdoctors-laboratories.com',
@@ -469,6 +418,7 @@ async function connectDatabase() {
       console.log(`🔌 Database connection attempt ${attempt}/${maxRetries}...`);
       await db.sequelize.authenticate();
       console.log(`✅ Database connection established successfully`);
+      console.log(process.env.testtestato);
       return true;
     } catch (error) {
       console.error(`❌ Database connection attempt ${attempt} failed:`, error.message);
@@ -497,15 +447,15 @@ async function syncDatabase() {
 
     if (!isProduction) {
       console.log("🔧 Development mode: syncing database...");
-      
+
       const forceSync = process.env.FORCE_SYNC === 'true';
       const syncOptions = forceSync ? { force: true } : { alter: true };
-      
+
       if (forceSync) {
         console.log(`⚠️  WARNING: Force sync will drop all tables and recreate them!`);
         console.log(`⚠️  This will DELETE ALL DATA! Only use in development!`);
       }
-      
+
       try {
         await db.sequelize.sync(syncOptions);
         console.log(`✅ Database schema synchronized successfully`);
@@ -544,7 +494,7 @@ async function syncDatabase() {
     if (error.code === 'ECONNREFUSED') {
       console.error("💡 Tip: Make sure your database server is running");
     } else if (error.code === 'ER_ACCESS_DENIED_ERROR') {
-      console.error("💡 Tip: Check your database credentials in config/config.json");
+      console.error("💡 Tip: Check your database credentials in config/config.js");
     } else if (error.message.includes('Unknown column')) {
       console.error("💡 Tip: This might be a schema mismatch. Consider using FORCE_SYNC=true in development");
     }
@@ -690,8 +640,7 @@ async function startServer() {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌐 CORS enabled for production domains`);
     console.log(`🔧 Debug mode: ${!isProduction ? 'ON' : 'OFF'}`);
-    console.log(`🚂 Railway deployment: ${process.env.RAILWAY_ENVIRONMENT ? 'YES' : 'NO'}`);
-    console.log(`📊 Database sync: ${isProduction ? 'DISABLED (using migrations)' : 'ENABLED (dev only)'}`);
+    console.log(` Database sync: ${isProduction ? 'DISABLED (using migrations)' : 'ENABLED (dev only)'}`);
     console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
     console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
     console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);

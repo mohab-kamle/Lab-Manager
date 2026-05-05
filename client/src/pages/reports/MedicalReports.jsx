@@ -23,6 +23,7 @@ import RichTextEditor from "../../components/ui/RichTextEditor";
 import ImageUpload from "../../components/ui/ImageUpload";
 import SecureImage from "../../components/ui/SecureImage";
 import DynamicResultForm from "../../components/tests/DynamicResultForm";
+import SamplesListModal from "../../components/samples/SamplesListModal";
 import {
   Pencil,
   CheckCircle,
@@ -39,9 +40,14 @@ import {
   CircleX,
   Undo,
   MessageCircle,
+  Wand2,
+  Sparkles,
+  Activity,
+  ScanBarcode,
 } from "lucide-react";
+import { extractFromImage } from "../../api/medicalReports";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
-import { toast } from "react-toastify";
+import { useToast } from "../../components/ui/ToastContext";
 import { formatDate } from "../../utils/dateFormatter";
 import {
   exportToExcel,
@@ -50,6 +56,7 @@ import {
 } from "../../utils/excelUtils";
 import { useLab } from "../../context/LabContext";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import SampleQuickInfoModal from "../../components/samples/SampleQuickInfoModal";
 
 function calculateAge(birthDate) {
   if (!birthDate) return null;
@@ -64,6 +71,7 @@ function calculateAge(birthDate) {
 }
 
 const MedicalReports = () => {
+  const { toast, hideToast } = useToast();
   const { user } = useAuth();
   const { labInfo } = useLab();
   const [reports, setReports] = useState([]);
@@ -87,8 +95,11 @@ const MedicalReports = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [showSamplesModal, setShowSamplesModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const [editingReport, setEditingReport] = useState(null);
   const [reportToDelete, setReportToDelete] = useState(null);
+  const [selectedReportForSamples, setSelectedReportForSamples] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedReportForResults, setSelectedReportForResults] =
     useState(null);
@@ -136,6 +147,9 @@ const MedicalReports = () => {
   const [savingResults, setSavingResults] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(null); // reportId for invoice loading
   // Loading states for various operations
+  const [expandedSections, setExpandedSections] = useState({});
+  const [antibioticSearch, setAntibioticSearch] = useState({});
+  const [showAddAntibioticModal, setShowAddAntibioticModal] = useState({});
   const [enteringResults, setEnteringResults] = useState(false);
   const [signingReport, setSigningReport] = useState(null); // reportId being signed
   // Patient data editing states
@@ -144,6 +158,10 @@ const MedicalReports = () => {
     gender: "",
     birth_date: "",
   });
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [showImageDeleteConfirm, setShowImageDeleteConfirm] = useState(false);
+  const [pendingImageDeletion, setPendingImageDeletion] = useState(null);
+  const fileInputRef = useRef(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -226,16 +244,37 @@ const MedicalReports = () => {
       const headers = { Authorization: `Bearer ${token}` };
       const response = await axios.get(`${apiUrl}/medical-reports/${reportId}/comments`, { headers });
 
+      // Map test comments and their images
+      const testComments = (response.data.testComments || []).map(comment => ({
+        ...comment,
+        images: (comment.images || []).map(filename => ({
+          image_name: filename,
+          image_path: `/uploads/comment-images/${filename}`,
+          isExisting: true
+        }))
+      }));
+
       // Organize comments by test/group ID for UI consumption
+      const reportImages = (response.data.reportImages || []).map(img => ({
+        image_name: img,
+        image_path: `/uploads/comment-images/${img}`,
+        isExisting: true,
+        preview: null // No preview for existing images
+      }));
+
       const organizedComments = {
         test: {},
-        testComments: response.data.testComments,
-        reportImages: response.data.reportImages,
-        medicalReport: response.data.reportImages
+        testComments: testComments,
+        reportImages: reportImages,
+        medicalReport: reportImages
       };
 
+      // Set initial values for input fields from existing data if needed
+      // (This avoids clearing the input images if they were already there, 
+      // but usually we want to clear them after successful save)
+
       // Group test comments by test_id
-      response.data.testComments.forEach(comment => {
+      testComments.forEach(comment => {
         if (!organizedComments.test[comment.test_id]) {
           organizedComments.test[comment.test_id] = [];
         }
@@ -249,8 +288,9 @@ const MedicalReports = () => {
       setCommentTexts(newCommentTexts);
 
       // Initialize comment images
-      const newCommentImages = { tests: {}, medicalReport: response.data.reportImages };
-      setCommentImages(newCommentImages);
+      const initialCommentImages = { test: {}, medicalReport: reportImages };
+
+      setCommentImages(initialCommentImages);
     } catch (error) {
       console.error("Error fetching comments:", error);
       toast.error("Failed to fetch comments");
@@ -265,14 +305,26 @@ const MedicalReports = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       const formData = new FormData();
+      formData.append('reportId', selectedReportForResults.id);
       formData.append('test_id', testId);
       formData.append('comment', comment);
 
+      const existingImages = [];
       if (images && images.length > 0) {
         images.forEach(image => {
-          formData.append('images', image);
+          if (image.isExisting) {
+            existingImages.push(image.image_name);
+          } else {
+            const fileToUpload = image.file || image;
+            if (fileToUpload instanceof File) {
+              formData.append('images', fileToUpload);
+            }
+          }
         });
       }
+
+      // Add existing images to keep
+      existingImages.forEach(img => formData.append('existingImages', img));
 
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/test-comments`,
@@ -308,9 +360,25 @@ const MedicalReports = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       const formData = new FormData();
-      images.forEach(image => {
-        formData.append('images', image);
-      });
+      formData.append('reportId', selectedReportForResults.id);
+      formData.append('commentType', 'medical_report');
+
+      const existingImages = [];
+      if (images && images.length > 0) {
+        images.forEach(image => {
+          if (image.isExisting) {
+            existingImages.push(image.image_name);
+          } else {
+            const fileToUpload = image.file || image;
+            if (fileToUpload instanceof File) {
+              formData.append('images', fileToUpload);
+            }
+          }
+        });
+      }
+
+      // Add existing images to keep
+      existingImages.forEach(img => formData.append('existingImages', img));
 
       await axios.post(
         `${apiUrl}/medical-reports/${selectedReportForResults.id}/comment-images`,
@@ -354,6 +422,68 @@ const MedicalReports = () => {
     }
   };
 
+
+  // Handle image changes with deletion confirmation
+  const handleImageChange = (type, newImages, id = null) => {
+    const oldImages = type === 'medicalReport'
+      ? commentImages.medicalReport
+      : (commentImages.test[id] || []);
+
+    // Check if an image was removed
+    if (newImages.length < oldImages.length) {
+      const removedImage = oldImages.find(oldImg => {
+        // If it's a new image, it has a 'preview' property
+        if (oldImg.preview) {
+          return !newImages.some(newImg => newImg.preview === oldImg.preview);
+        }
+        // If it's an existing image, it has 'image_name'
+        return !newImages.some(newImg => newImg.image_name === oldImg.image_name);
+      });
+
+      if (removedImage && removedImage.isExisting) {
+        // Intercept deletion of existing image
+        setPendingImageDeletion({ type, id, newImages, removedImage });
+        setShowImageDeleteConfirm(true);
+        return;
+      }
+    }
+
+    // If it's an addition or a deletion of a new image, update state immediately
+    updateImageState(type, newImages, id);
+  };
+
+  const updateImageState = (type, images, id = null) => {
+    setCommentImages(prev => {
+      if (type === 'medicalReport') {
+        return { ...prev, medicalReport: images };
+      } else {
+        return {
+          ...prev,
+          test: {
+            ...prev.test,
+            [id]: images
+          }
+        };
+      }
+    });
+  };
+
+  const confirmImageDeletion = () => {
+    if (pendingImageDeletion) {
+      updateImageState(
+        pendingImageDeletion.type,
+        pendingImageDeletion.newImages,
+        pendingImageDeletion.id
+      );
+    }
+    setShowImageDeleteConfirm(false);
+    setPendingImageDeletion(null);
+  };
+
+  const cancelImageDeletion = () => {
+    setShowImageDeleteConfirm(false);
+    setPendingImageDeletion(null);
+  };
 
   // Toggle comment section expansion
   const toggleCommentExpansion = (type, id) => {
@@ -710,6 +840,7 @@ const MedicalReports = () => {
       // Re-map the patient correctly from the entry-form response
       const reportForState = {
         ...fullReport,
+        id: rowData.id, // Ensure id is always present for consistent API calls
         date: rowData.date, // keep original date from table
         patient: fullReport.patient,
         tests: tests // use the tests array with structure_config attached
@@ -776,7 +907,7 @@ const MedicalReports = () => {
         // Execute sequentially to avoid MySQL deadlocks from concurrent transaction gap locks
         for (const req of saveRequests) {
           await axios.post(
-            `${apiUrl}/medical-reports/${selectedReportForResults.report_id || selectedReportForResults.id}/results`,
+            `${apiUrl}/medical-reports/${selectedReportForResults.id}/results`,
             { test_id: req.testId, results: req.formattedResults },
             { headers }
           );
@@ -817,6 +948,142 @@ const MedicalReports = () => {
       toast.error("Failed to prepare save request. Please try again.");
     } finally {
       setSavingResults(false);
+    }
+  };
+
+  const handleAiExtraction = async (file) => {
+    if (!file) return;
+
+    try {
+      setIsExtracting(true);
+      const toastId = toast.loading("AI is scanning and extracting data...");
+
+      // Get expected parameters to help the AI map correctly
+      const expectedKeys = selectedReportForResults.tests.flatMap(test => {
+        const configKeys = (test.structure_config || [])
+          .filter(p => p.type !== 'header')
+          .map(p => p.label || p.name || p.key);
+
+        const componentKeys = (testComponents[test.id] || [])
+          .map(c => c.label || c.name);
+
+        return [...configKeys, ...componentKeys];
+      });
+
+      const extractedData = await extractFromImage(file, expectedKeys);
+
+      if (!extractedData || Object.keys(extractedData).length === 0) {
+        toast.update(toastId, {
+          render: "No data could be extracted from this image.",
+          type: "warning",
+          autoClose: 5000
+        });
+        return;
+      }
+
+      let finalMatchCount = 0;
+
+      setResultsData(prev => {
+        const newComponentResults = { ...prev.test_component_results };
+
+        // Map AI data to existing report structure
+        selectedReportForResults.tests.forEach(test => {
+          // Create a new object for this test's results to ensure React detects changes
+          const currentTestResults = { ...(newComponentResults[test.id] || {}) };
+
+          const structureConfig = test.structure_config || [];
+          const comps = testComponents[test.id] || [];
+
+          Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
+            if (aiValue === null || aiValue === undefined) return;
+
+            // Standardize both sides for comparison
+            const normalize = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalizedAiKey = normalize(aiKey);
+
+            // 1. Try to find a matching parameter in the structure config
+            let param = structureConfig.find(p => {
+              const normKey = normalize(p.key);
+              const normName = normalize(p.name);
+              const normLabel = normalize(p.label);
+
+              return normKey === normalizedAiKey ||
+                normName === normalizedAiKey ||
+                normLabel === normalizedAiKey ||
+                (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
+            });
+
+            if (param && param.type !== 'header') {
+              const key = param.key || param.name;
+              currentTestResults[key] = {
+                ...(currentTestResults[key] || {}),
+                result: aiValue
+              };
+              finalMatchCount++;
+              return;
+            }
+
+            // 2. If no structure config match, try matching against simple components
+            const component = comps.find(c => {
+              const normName = normalize(c.name);
+              const normLabel = normalize(c.label);
+              return normName === normalizedAiKey || normLabel === normalizedAiKey;
+            });
+
+            if (component) {
+              // Map to ID (for the form) AND name (for fallback)
+              currentTestResults[component.id] = {
+                ...(currentTestResults[component.id] || {}),
+                result: aiValue
+              };
+              
+              if (component.name && component.name !== component.id) {
+                currentTestResults[component.name] = {
+                  ...(currentTestResults[component.name] || {}),
+                  result: aiValue
+                };
+              }
+              
+              finalMatchCount++;
+            }
+          });
+
+          // Update the top-level copy with our new test results object
+          newComponentResults[test.id] = currentTestResults;
+        });
+
+        return {
+          ...prev,
+          test_component_results: newComponentResults
+        };
+      });
+
+      // Note: finalMatchCount might be slightly inaccurate due to closure, 
+      // but the state update is now guaranteed to be fresh.
+      const matchCount = finalMatchCount;
+
+      if (matchCount > 0) {
+        toast.update(toastId, {
+          render: `Successfully extracted ${matchCount} test results!`,
+          type: "success",
+          autoClose: 5000
+        });
+      } else {
+        toast.update(toastId, {
+          render: "AI finished scanning but couldn't find matches for the tests in this report.",
+          type: "warning",
+          autoClose: 5000
+        });
+      }
+    } catch (error) {
+      console.error("AI Extraction failed:", error);
+      // We can't use toastId here if it failed before toastId was assigned, 
+      // but toast.loading is synchronous so it's fine.
+      toast.error(error.message || "Failed to extract data from image");
+      // Actually, if we use toast.error, the loading toast will stay.
+      // Better to use update if we have the id.
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -990,6 +1257,17 @@ const MedicalReports = () => {
   const ActionComponent = ({ rowData }) => {
     return (
       <div className="d-flex gap-1 justify-content-center">
+        <Button
+          variant="outline-primary"
+          className="action-btn-fixed"
+          onClick={() => {
+            setSelectedReportForSamples(rowData);
+            setShowSamplesModal(true);
+          }}
+          title="Sample Tracking"
+        >
+          <Activity size={16} />
+        </Button>
         <Button
           variant="outline-primary"
           className="action-btn-fixed"
@@ -1247,26 +1525,35 @@ const MedicalReports = () => {
           },
         }
       );
-      alert(
+      toast.success(
         `Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`
       );
       await fetchData();
     } catch (error) {
-      alert(error.response?.data?.error || "Failed to import medical reports");
+      toast.error(error.response?.data?.error || "Failed to import medical reports");
     }
   };
 
   return (
-    <Container fluid className="medical-reports-container">
-      {loading ? (
-        <LoadingSpinner message="Loading medical reports..." />
-      ) : error ? (
-        <Alert variant="danger">{error}</Alert>
-      ) : (
+    <>
+      <SampleQuickInfoModal
+        show={showScanModal}
+        onHide={() => setShowScanModal(false)}
+      />
+      <Container fluid className="medical-reports-container">
+        {loading ? (
+          <LoadingSpinner message="Loading medical reports..." />
+        ) : error ? (
+          <Alert variant="danger">{error}</Alert>
+        ) : (
         <>
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
             <h2>Medical Reports</h2>
             <div className="d-flex gap-2 flex-wrap">
+              <Button variant="outline-primary" onClick={() => setShowScanModal(true)}>
+                <ScanBarcode size={16} className="me-2" />
+                Scan Sample
+              </Button>
               <Button variant="outline-success" as="label">
                 <Download size={16} className="me-2" />
                 Export XLSX
@@ -1648,7 +1935,33 @@ const MedicalReports = () => {
                       <Col>
                         <h5 className="mb-0">Patient Information</h5>
                       </Col>
-                      <Col xs="auto">
+                      <Col xs="auto" className="d-flex gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          ref={fileInputRef}
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleAiExtraction(e.target.files[0]);
+                              e.target.value = null; // Reset for same file selection
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="gradient-primary"
+                          size="sm"
+                          className="d-flex align-items-center ai-scan-btn"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isExtracting}
+                        >
+                          {isExtracting ? (
+                            <Spinner size="sm" className="me-1" />
+                          ) : (
+                            <Sparkles size={16} className="me-1" />
+                          )}
+                          AI Scan Report
+                        </Button>
                         {!editingPatientData ? (
                           <Button
                             variant="outline-primary"
@@ -2153,7 +2466,7 @@ const MedicalReports = () => {
                                                             {comment.images.map((image, idx) => (
                                                               <SecureImage
                                                                 key={idx}
-                                                                src={`/uploads/comment-images/${image}`}
+                                                                src={`/uploads/comment-images/${image.image_name}`}
                                                                 alt={`Comment image ${idx + 1}`}
                                                                 className="img-thumbnail"
                                                                 style={{ width: '80px', height: '80px', objectFit: 'cover' }}
@@ -2194,15 +2507,7 @@ const MedicalReports = () => {
                                                   <Form.Label>Upload Images (Max 3)</Form.Label>
                                                   <ImageUpload
                                                     images={commentImages.test?.[test.id] || []}
-                                                    onImagesChange={(images) => {
-                                                      setCommentImages(prev => ({
-                                                        ...prev,
-                                                        test: {
-                                                          ...prev.test,
-                                                          [test.id]: images
-                                                        }
-                                                      }));
-                                                    }}
+                                                    onImagesChange={(images) => handleImageChange('test', images, test.id)}
                                                     maxImages={3}
                                                   />
                                                 </Form.Group>
@@ -2249,39 +2554,13 @@ const MedicalReports = () => {
                               </h5>
                             </div>
                             <div className="card-body">
-                              {/* Existing Images Display */}
-                              {comments.medicalReport && comments.medicalReport.length > 0 && (
-                                <div className="mb-4">
-                                  <h6 className="text-muted mb-3">Current Images:</h6>
-                                  <div className="d-flex flex-wrap gap-2">
-                                    {comments.medicalReport.map((image, idx) => (
-                                      <div key={idx} className="position-relative">
-                                        <SecureImage
-                                          src={`/uploads/comment-images/${image}`}
-                                          alt={`Medical report image ${idx + 1}`}
-                                          className="img-thumbnail"
-                                          style={{ width: '80px', height: '80px', objectFit: 'cover' }}
-                                          title={`Medical report image ${idx + 1}`}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Upload New Images */}
-                              <div className="border-top pt-3">
-                                <h6 className="text-muted mb-3">Upload New Images:</h6>
+                              {/* Unified Image Management */}
+                              <div>
+                                <h6 className="text-muted mb-3">Manage Images (Max 10):</h6>
                                 <Form.Group className="mb-3">
-                                  <Form.Label>Select Images (Max 10)</Form.Label>
                                   <ImageUpload
                                     images={commentImages.medicalReport || []}
-                                    onImagesChange={(images) => {
-                                      setCommentImages(prev => ({
-                                        ...prev,
-                                        medicalReport: images
-                                      }));
-                                    }}
+                                    onImagesChange={(images) => handleImageChange('medicalReport', images)}
                                     maxImages={10}
                                   />
                                 </Form.Group>
@@ -2289,17 +2568,17 @@ const MedicalReports = () => {
                                 <Button
                                   variant="primary"
                                   onClick={() => saveMedicalReportImages(commentImages.medicalReport || [])}
-                                  disabled={savingComments.medicalReport || !commentImages.medicalReport || commentImages.medicalReport.length === 0}
+                                  disabled={savingComments.medicalReport}
                                 >
                                   {savingComments.medicalReport ? (
                                     <>
                                       <Spinner animation="border" size="sm" className="me-2" />
-                                      Uploading...
+                                      Saving Changes...
                                     </>
                                   ) : (
                                     <>
-                                      <i className="fas fa-upload me-2"></i>
-                                      Upload Images
+                                      <i className="fas fa-save me-2"></i>
+                                      Save Changes
                                     </>
                                   )}
                                 </Button>
@@ -2391,10 +2670,58 @@ const MedicalReports = () => {
             </Modal.Footer>
           </Modal>
 
+          {/* Image Deletion Confirmation Modal */}
+          <Modal
+            show={showImageDeleteConfirm}
+            onHide={cancelImageDeletion}
+            centered
+            size="sm"
+            contentClassName="border-0 shadow"
+          >
+            <Modal.Header closeButton className="bg-white border-0 pb-0 text-dark">
+              <Modal.Title className="h5 fw-bold text-danger">Confirm Deletion</Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="text-center pt-2">
+              <div className="mb-3">
+                <i className="fas fa-exclamation-triangle text-warning fa-3x"></i>
+              </div>
+              <p className="mb-0 text-dark">Are you sure you want to delete this image? This action cannot be undone once saved.</p>
+              {pendingImageDeletion?.removedImage && (
+                <div className="mt-3 p-2 bg-light rounded border">
+                  <SecureImage
+                    src={pendingImageDeletion.removedImage.image_path}
+                    alt="Pending deletion"
+                    style={{ width: '100px', height: '100px', objectFit: 'cover' }}
+                    className="rounded"
+                  />
+                  <div className="small text-muted mt-1 text-truncate">
+                    {pendingImageDeletion.removedImage.image_name}
+                  </div>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer className="border-0 pt-0">
+              <Button variant="light" onClick={cancelImageDeletion} className="fw-medium">
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={confirmImageDeletion} className="fw-medium shadow-sm">
+                Delete Image
+              </Button>
+            </Modal.Footer>
+          </Modal>
 
+          <SamplesListModal
+            show={showSamplesModal}
+            onHide={() => {
+              setShowSamplesModal(false);
+              setSelectedReportForSamples(null);
+            }}
+            report={selectedReportForSamples}
+          />
         </>
       )}
     </Container>
+    </>
   );
 };
 

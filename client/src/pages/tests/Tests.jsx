@@ -8,6 +8,7 @@ import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, X, Download, Upload, CircleX, Search } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
 import GlobalCatalogPickerModal from "./GlobalCatalogPickerModal";
 
 /**
@@ -33,7 +34,7 @@ const RangeAdder = ({ onAdd }) => {
   };
 
   return (
-    <div className="mt-3 p-3 border rounded" style={{ background: '#f8f9fa' }}>
+    <div className="mt-3 p-3 border rounded" style={{ background: 'var(--bg-inset)', borderColor: 'var(--border-default)' }}>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <small className="fw-bold text-secondary">Add Reference Range</small>
       </div>
@@ -92,10 +93,12 @@ RangeAdder.propTypes = {
 
 
 const Tests = () => {
+  const { toast } = useToast();
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [sampleTypes, setSampleTypes] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [outsourcedLabs, setOutsourcedLabs] = useState([]); // Outsourced labs for the "Lab Name" dropdown
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -170,11 +173,12 @@ const Tests = () => {
     const token = localStorage.getItem("token");
     setLoading(true);
     try {
-      const [testsResponse, categoriesResponse, samplesResponse, questionsResponse] = await Promise.all([
+      const [testsResponse, categoriesResponse, samplesResponse, questionsResponse, outsourcedLabsResponse] = await Promise.all([
         axios.get(`${apiUrl}/tests/all-with-components`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${apiUrl}/categories`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${apiUrl}/samples`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${apiUrl}/questions`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${apiUrl}/questions`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${apiUrl}/outsourced-labs`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       if (Array.isArray(testsResponse.data)) {
         setTests(testsResponse.data);
@@ -189,11 +193,17 @@ const Tests = () => {
       setCategories(categoriesResponse.data);
       setSampleTypes(samplesResponse.data);
       setQuestions(questionsResponse.data);
+      // Populate outsourced labs list for the Lab Name dropdown
+      if (Array.isArray(outsourcedLabsResponse.data)) {
+        setOutsourcedLabs(outsourcedLabsResponse.data);
+      }
     } catch (error) {
+      console.error("Fetch error:", error);
       setError("Failed to fetch data. Please try again later.");
+      toast.error(error.response?.data?.error || "Failed to fetch data. Please try again later.");
     }
     setLoading(false);
-  }, [apiUrl]);
+  }, [apiUrl, toast]);
 
   useEffect(() => {
     fetchTestsAndRelated();
@@ -224,13 +234,13 @@ const Tests = () => {
         ? valueA === valueB
           ? 0
           : valueA
-          ? -1
-          : 1
+            ? -1
+            : 1
         : valueA === valueB
-        ? 0
-        : valueA
-        ? 1
-        : -1;
+          ? 0
+          : valueA
+            ? 1
+            : -1;
     }
     return 0;
   });
@@ -258,7 +268,7 @@ const Tests = () => {
   }, [currentTests]);
 
   const handleSelectItem = useCallback((id, checked) => {
-    setSelectedTests(prev => 
+    setSelectedTests(prev =>
       checked ? [...prev, id] : prev.filter(testId => testId !== id)
     );
   }, []);
@@ -273,7 +283,7 @@ const Tests = () => {
       setSelectedTests([]);
       fetchTestsAndRelated();
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to bulk delete tests");
+      toast.error(err.response?.data?.error || "Failed to bulk delete tests");
     }
   };
 
@@ -281,19 +291,19 @@ const Tests = () => {
     if (header === 'Actions') {
       return null; // This will be handled by ActionComponent
     }
-    
+
     // Handle components/structure_config array specifically
     if ((header === 'components' || header === 'structure_config' || header === 'Structure Config') && Array.isArray(data)) {
       if (data.length === 0) return "No components";
-      
+
       const ComponentsCell = () => {
         const [expanded, setExpanded] = useState(false);
-        
+
         return (
           <div>
-            <Button 
-              variant="outline-info" 
-              size="sm" 
+            <Button
+              variant="outline-info"
+              size="sm"
               onClick={() => setExpanded(!expanded)}
               className="mb-1"
             >
@@ -323,10 +333,10 @@ const Tests = () => {
           </div>
         );
       };
-      
+
       return <ComponentsCell />;
     }
-    
+
     // Handle questions array specifically
     if (header === 'questions' && Array.isArray(data)) {
       if (data.length === 0) return "No questions";
@@ -340,7 +350,7 @@ const Tests = () => {
         </ul>
       );
     }
-    
+
     if (Array.isArray(data)) {
       return (
         <ul style={{ listStyleType: "none", padding: 0, margin: 0 }}>
@@ -438,27 +448,27 @@ const Tests = () => {
       type: test.type || "single",
       questions: test.questions ? test.questions.map(q => q.id) : []
     });
-    
+
     // Fetch test components for this test — backend now returns the full reference_ranges array
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(`${apiUrl}/tests/${test.id}/components`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       // Components now come with the full reference_ranges array attached
       const mappedComponents = (response.data || []).map((component, idx) => ({
         ...component,
         id: component.id || Date.now() + idx, // ensure each component has an id for keying
         reference_ranges: Array.isArray(component.reference_ranges) ? component.reference_ranges : [],
       }));
-      
+
       setTestComponents(mappedComponents);
     } catch (error) {
       console.error("Error fetching test components:", error);
       setTestComponents([]);
     }
-    
+
     // Clear search terms
     setCategorySearchTerm("");
     setSampleTypeSearchTerm("");
@@ -527,7 +537,7 @@ const Tests = () => {
 
   const addComponent = () => {
     setComponentError("");
-    
+
     if (!newComponent.name.trim()) {
       setComponentError("Component name is required");
       return;
@@ -555,7 +565,7 @@ const Tests = () => {
   const handleAddQuestion = async () => {
     try {
       if (!newQuestion.text.trim()) {
-        alert('Question text is required');
+        toast.error('Question text is required');
         return;
       }
 
@@ -566,7 +576,7 @@ const Tests = () => {
 
       // Add the new question to the questions list
       setQuestions(prev => [...prev, response.data]);
-      
+
       // Add the new question to the current test's questions
       setFormData(prev => ({
         ...prev,
@@ -578,21 +588,21 @@ const Tests = () => {
         text: "",
         category: ""
       });
-      
+
       // Close the modal
       setShowAddQuestionModal(false);
-      
-      alert('Question created successfully!');
+
+      toast.success('Question created successfully!');
     } catch (error) {
       console.error('Error creating question:', error);
-      alert(error.response?.data?.error || 'Failed to create question');
+      toast.error(error.response?.data?.error || 'Failed to create question');
     }
   };
 
   const handleAddCategory = async () => {
     try {
       if (!newCategory.name.trim()) {
-        alert('Category name is required');
+        toast.error('Category name is required');
         return;
       }
 
@@ -603,7 +613,7 @@ const Tests = () => {
 
       // Add the new category to the categories list
       setCategories(prev => [...prev, response.data]);
-      
+
       // Select the new category automatically
       setFormData(prev => ({
         ...prev,
@@ -615,30 +625,35 @@ const Tests = () => {
         name: "",
         description: ""
       });
-      
+
       // Close the modal
       setShowAddCategoryModal(false);
-      
-      alert('Category created successfully!');
+
+      toast.success('Category created successfully!');
     } catch (error) {
       console.error('Error creating category:', error);
-      alert(error.response?.data?.error || 'Failed to create category');
+      toast.error(error.response?.data?.error || 'Failed to create category');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate required fields
     if (!formData.name.trim()) {
-      alert('Test name is required');
+      toast.error('Test name is required');
       return;
     }
     if (!formData.category_id) {
-      alert('Category is required');
+      toast.error('Category is required');
       return;
     }
-    
+    // When outsourcing, the user must select which lab performs the test
+    if (formData.lab_to_lab === 'OUT' && !formData.lab_name.trim()) {
+      toast.error('Lab Name is required when Lab to Lab is set to "Out"');
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
@@ -650,7 +665,7 @@ const Tests = () => {
         sample_type_id: formData.sample_type_id ? parseInt(formData.sample_type_id) : null,
         lab_to_lab_status: formData.lab_to_lab // Map lab_to_lab to lab_to_lab_status
       };
-      
+
       // Remove questions and lab_to_lab from testData as they will be handled separately
       const { questions, lab_to_lab, ...testDataWithoutQuestions } = testData;
       if (editingTest) {
@@ -671,6 +686,7 @@ const Tests = () => {
           await axios.put(`${apiUrl}/questions/${newTestId}/tests`, { questionIds: questions }, { headers });
         }
       }
+      toast.success(editingTest ? "Test updated successfully!" : "Test created successfully!");
       setShowModal(false);
       setEditingTest(null);
       setFormData({
@@ -704,6 +720,7 @@ const Tests = () => {
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
       await axios.delete(`${apiUrl}/tests/${testToDelete.id}`, { headers });
+      toast.success("Test deleted successfully!");
       setShowDeleteModal(false);
       setTestToDelete(null);
       // Refresh using extracted logic
@@ -775,10 +792,10 @@ const Tests = () => {
           'Content-Type': 'multipart/form-data'
         }
       });
-      alert(`Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`);
+      toast.success(`Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`);
       await fetchTestsAndRelated();
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to import tests');
+      toast.error(error.response?.data?.error || 'Failed to import tests');
     }
   };
 
@@ -796,7 +813,7 @@ const Tests = () => {
             Import Excel
             <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleImportXLSX} />
           </Button>
-          <Button variant="info" onClick={() => setShowGlobalCatalogModal(true)}>
+          <Button variant="primary" onClick={() => setShowGlobalCatalogModal(true)}>
             <Search size={16} className="me-2" />Search Global Catalog
           </Button>
           {selectedTests.length > 0 && (
@@ -811,7 +828,7 @@ const Tests = () => {
       {loading ? (
         <LoadingSpinner message="Loading tests..." />
       ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
+        <p style={{ color: "var(--color-danger)" }}>{error}</p>
       ) : (
         <>
           <Toolbar
@@ -841,8 +858,8 @@ const Tests = () => {
           />
         </>
       )}
-      
-      <GlobalCatalogPickerModal 
+
+      <GlobalCatalogPickerModal
         show={showGlobalCatalogModal}
         onHide={() => setShowGlobalCatalogModal(false)}
         onImportSuccess={() => {
@@ -850,7 +867,7 @@ const Tests = () => {
           fetchTestsAndRelated();
         }}
       />
-      
+
       {/* Test Details Modal */}
       <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">
         <Modal.Header>
@@ -882,15 +899,15 @@ const Tests = () => {
                   <p><strong>Increased In:</strong> {selectedTest.increased_in || 'N/A'}</p>
                 </Col>
               </Row>
-              
+
               <hr />
-              
+
               <h6>Test Components ({selectedTestComponents.length})</h6>
               {selectedTestComponents.length > 0 ? (
                 <div>
                   {selectedTestComponents.map((component, index) => (
                     <Card key={index} className="mb-2 shadow-sm">
-                      <Card.Header className="py-2 bg-light">
+                      <Card.Header className="py-2" style={{ background: 'var(--bg-inset)', borderBottom: '1px solid var(--border-default)' }}>
                         <strong>{component.name}</strong>
                         {component.unit && <span className="text-muted ms-2">({component.unit})</span>}
                         <span className="ms-2 badge bg-secondary">{component.result_type === 'boolean' ? 'Boolean' : component.result_type === 'culture_panel' ? 'Culture' : 'Range'}</span>
@@ -902,7 +919,7 @@ const Tests = () => {
                           <div className="text-info"><em>Dynamic Culture Inputs</em></div>
                         ) : component.reference_ranges && component.reference_ranges.length > 0 ? (
                           <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.85em' }}>
-                            <thead className="table-light">
+                            <thead style={{ backgroundColor: 'var(--table-header-bg)' }}>
                               <tr>
                                 <th>Gender</th>
                                 <th>Age Min</th>
@@ -937,9 +954,9 @@ const Tests = () => {
               ) : (
                 <p className="text-muted">No components defined for this test.</p>
               )}
-              
+
               <hr />
-              
+
               <h6>Questions ({selectedTest?.questions?.length || 0})</h6>
               {selectedTest?.questions && selectedTest.questions.length > 0 ? (
                 <div className="table-responsive">
@@ -1004,32 +1021,32 @@ const Tests = () => {
               <Col md={5}>
                 <Form.Group className="mb-3">
                   <Form.Label>Name *</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.name} 
+                  <Form.Control
+                    type="text"
+                    value={formData.name}
                     onChange={e => {
                       setFormData({ ...formData, name: e.target.value });
                       if (modalError) setModalError(null); // Clear error when user starts typing
-                    }} 
-                    required 
+                    }}
+                    required
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Shortcut</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.shortcut} 
+                  <Form.Control
+                    type="text"
+                    value={formData.shortcut}
                     onChange={e => {
                       setFormData({ ...formData, shortcut: e.target.value });
                       if (modalError) setModalError(null); // Clear error when user starts typing
-                    }} 
+                    }}
                   />
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1051,15 +1068,15 @@ const Tests = () => {
                       <Plus size={16} />
                     </Button>
                   </div>
-                  <Form.Select 
-                    value={formData.category_id} 
+                  <Form.Select
+                    value={formData.category_id}
                     onChange={e => setFormData({ ...formData, category_id: e.target.value })}
                     required
                     isInvalid={!formData.category_id}
                   >
                     <option value="">Select Category</option>
                     {categories
-                      .filter(cat => 
+                      .filter(cat =>
                         cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
                       )
                       .map(cat => (
@@ -1081,13 +1098,13 @@ const Tests = () => {
                     onChange={(e) => setSampleTypeSearchTerm(e.target.value)}
                     className="mb-2"
                   />
-                  <Form.Select 
-                    value={formData.sample_type_id} 
+                  <Form.Select
+                    value={formData.sample_type_id}
                     onChange={e => setFormData({ ...formData, sample_type_id: e.target.value })}
                   >
                     <option value="">Select Sample Type</option>
                     {sampleTypes
-                      .filter(sample => 
+                      .filter(sample =>
                         sample.type.toLowerCase().includes(sampleTypeSearchTerm.toLowerCase())
                       )
                       .map(sample => (
@@ -1097,39 +1114,47 @@ const Tests = () => {
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Price</Form.Label>
-                  <Form.Control 
-                    type="number" 
+                  <Form.Control
+                    type="number"
                     step="0.01"
-                    value={formData.price} 
-                    onChange={e => setFormData({ ...formData, price: e.target.value })} 
+                    value={formData.price}
+                    onChange={e => setFormData({ ...formData, price: e.target.value })}
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Cost</Form.Label>
-                  <Form.Control 
-                    type="number" 
+                  <Form.Control
+                    type="number"
                     step="0.01"
-                    value={formData.cost} 
-                    onChange={e => setFormData({ ...formData, cost: e.target.value })} 
+                    value={formData.cost}
+                    onChange={e => setFormData({ ...formData, cost: e.target.value })}
                   />
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Lab to Lab</Form.Label>
-                  <Form.Select 
-                    value={formData.lab_to_lab} 
-                    onChange={e => setFormData({ ...formData, lab_to_lab: e.target.value })}
+                  <Form.Select
+                    value={formData.lab_to_lab}
+                    onChange={e => {
+                      const newValue = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        lab_to_lab: newValue,
+                        // Clear lab_name when switching away from "OUT" since it no longer applies
+                        lab_name: newValue === 'OUT' ? prev.lab_name : ''
+                      }));
+                    }}
                   >
                     <option value="">Select Lab to Lab Status</option>
                     <option value="IN">In</option>
@@ -1139,48 +1164,68 @@ const Tests = () => {
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>Lab Name</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.lab_name} 
-                    onChange={e => setFormData({ ...formData, lab_name: e.target.value })} 
-                  />
+                  <Form.Label>
+                    Lab Name{formData.lab_to_lab === 'OUT' && <span className="text-danger"> *</span>}
+                  </Form.Label>
+                  {formData.lab_to_lab === 'OUT' ? (
+                    // When outsourcing, show a dropdown populated with outsourced labs
+                    <Form.Select
+                      value={formData.lab_name}
+                      onChange={e => setFormData({ ...formData, lab_name: e.target.value })}
+                      isInvalid={formData.lab_to_lab === 'OUT' && !formData.lab_name}
+                    >
+                      <option value="">Select Outsourced Lab</option>
+                      {outsourcedLabs.map(lab => (
+                        <option key={lab.id} value={lab.name}>
+                          {lab.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    // When not outsourcing, the field is disabled and empty
+                    <Form.Control
+                      type="text"
+                      value=""
+                      disabled
+                      placeholder="Only available when Lab to Lab is 'Out'"
+                    />
+                  )}
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={12}>
                 <Form.Group className="mb-3">
                   <Form.Label>Precautions</Form.Label>
-                  <Form.Control 
-                    as="textarea" 
+                  <Form.Control
+                    as="textarea"
                     rows={2}
-                    value={formData.precautions} 
-                    onChange={e => setFormData({ ...formData, precautions: e.target.value })} 
+                    value={formData.precautions}
+                    onChange={e => setFormData({ ...formData, precautions: e.target.value })}
                   />
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Decreased In</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.decreased_in} 
-                    onChange={e => setFormData({ ...formData, decreased_in: e.target.value })} 
+                  <Form.Control
+                    type="text"
+                    value={formData.decreased_in}
+                    onChange={e => setFormData({ ...formData, decreased_in: e.target.value })}
                   />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Increased In</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={formData.increased_in} 
-                    onChange={e => setFormData({ ...formData, increased_in: e.target.value })} 
+                  <Form.Control
+                    type="text"
+                    value={formData.increased_in}
+                    onChange={e => setFormData({ ...formData, increased_in: e.target.value })}
                   />
                 </Form.Group>
               </Col>
@@ -1193,7 +1238,7 @@ const Tests = () => {
               </Card.Header>
               <Card.Body>
                 {/* ── Step 1: Component Identity ── */}
-                <div className="mb-3 p-3 border rounded bg-light">
+                <div className="mb-3 p-3 border rounded" style={{ background: 'var(--bg-inset)', borderColor: 'var(--border-default)' }}>
                   <h6 className="mb-3">Add New Component</h6>
                   <Row className="g-2 align-items-end">
                     <Col md={4}>
@@ -1318,7 +1363,7 @@ const Tests = () => {
                       {newComponent.reference_ranges.length > 0 && (
                         <div className="mt-2">
                           <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.8em' }}>
-                            <thead className="table-light">
+                            <thead style={{ backgroundColor: 'var(--table-header-bg)' }}>
                               <tr>
                                 <th>Gender</th>
                                 <th>Age Min</th>
@@ -1377,7 +1422,7 @@ const Tests = () => {
                       {testComponents.map((component, index) => (
                         <Col md={12} key={component.id || index}>
                           <Card className="shadow-sm">
-                            <Card.Header className="bg-light">
+                            <Card.Header style={{ background: 'var(--bg-inset)', borderBottom: '1px solid var(--border-default)' }}>
                               {/* Editable identity row: name + unit + type badge + remove */}
                               <Row className="g-2 align-items-center">
                                 <Col md={4}>
@@ -1502,9 +1547,9 @@ const Tests = () => {
                       <Plus size={16} />
                     </Button>
                   </div>
-                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8, background: 'var(--bg-inset)' }}>
                     {questions
-                      .filter(question => 
+                      .filter(question =>
                         question.text.toLowerCase().includes(questionSearchTerm.toLowerCase()) ||
                         (question.category && question.category.toLowerCase().includes(questionSearchTerm.toLowerCase()))
                       )
@@ -1581,8 +1626,8 @@ const Tests = () => {
           <Button variant="secondary" onClick={() => setShowAddQuestionModal(false)}>
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleAddQuestion}
             disabled={!newQuestion.text.trim()}
           >
@@ -1624,8 +1669,8 @@ const Tests = () => {
           <Button variant="secondary" onClick={() => setShowAddCategoryModal(false)}>
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleAddCategory}
             disabled={!newCategory.name.trim()}
           >

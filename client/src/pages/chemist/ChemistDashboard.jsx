@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert, Badge } from 'react-bootstrap';
-import { FlaskConical, FileText, Plus, Activity, TestTube, ClipboardList, Microscope, Beaker, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { FlaskConical, FileText, Plus, Activity, TestTube, ClipboardList, Microscope, Beaker, TrendingUp, AlertTriangle, CheckCircle, ScanBarcode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
+import SampleQuickInfoModal from '../../components/samples/SampleQuickInfoModal';
 
 const ChemistDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showScanModal, setShowScanModal] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -51,25 +53,27 @@ const ChemistDashboard = () => {
 
   const quickActions = [
     {
+      title: 'Scan Sample',
+      description: 'Quick scan a sample barcode',
+      icon: <ScanBarcode size={24} />,
+      action: () => setShowScanModal(true)
+    },
+    {
       title: 'Medical Reports',
       description: 'View and manage reports',
       icon: <FileText size={24} />,
-      variant: 'primary',
       action: () => navigate('/admin/dashboard/medical-reports')
     },
     {
       title: 'Test Groups',
       description: 'Manage test configurations',
       icon: <TestTube size={24} />,
-      variant: 'success',
       action: () => navigate('/admin/dashboard/test-groups')
     },
-
     {
       title: 'Tests',
       description: 'View test catalog',
       icon: <Microscope size={24} />,
-      variant: 'warning',
       action: () => navigate('/admin/dashboard/tests')
     }
   ];
@@ -81,6 +85,8 @@ const ChemistDashboard = () => {
   }
   
   return (
+    <>
+    <SampleQuickInfoModal show={showScanModal} onHide={() => setShowScanModal(false)} />
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
@@ -141,13 +147,12 @@ const ChemistDashboard = () => {
                 {quickActions.map((action, index) => (
                   <Col md={4} key={index} className="mb-3">
                     <Button
-                      variant={action.variant}
-                      className="w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3"
+                      className="btn-dashboard-action w-100"
                       onClick={action.action}
                     >
-                      <div className="mb-2">{action.icon}</div>
+                      <div className="mb-1">{action.icon}</div>
                       <strong>{action.title}</strong>
-                      <small className="d-block mt-1">{action.description}</small>
+                      <small className="d-block text-center mt-1">{action.description}</small>
                     </Button>
                   </Col>
                 ))}
@@ -225,6 +230,7 @@ const ChemistDashboard = () => {
         </Col>
       </Row>
     </Container>
+    </>
   );
 };
 

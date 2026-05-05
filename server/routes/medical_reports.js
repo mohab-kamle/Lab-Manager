@@ -27,65 +27,15 @@ const upload = multer({
   },
 });
 
-// Multer configuration for secure image uploads
-const imageStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Use secure comment-images directory
-    const baseUploadPath = process.env.UPLOAD_BASE_PATH || path.join(__dirname, '../uploads');
-    const uploadPath = path.join(baseUploadPath, 'comment-images');
-
-    // Create directory if it doesn't exist
-    const fs = require('fs');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Generate secure filename with report ID for authorization
-    // Format: reportId_commentType_timestamp_originalName
-
-    // Sanitize input to prevent path traversal
-    const sanitizeFilenamePart = (part) => {
-      if (!part) return '';
-      return String(part).replace(/[^a-zA-Z0-9_-]/g, '');
-    };
-
-    const rawReportId = req.params.id || req.body.reportId || 'unknown';
-    const rawCommentType = req.body.commentType || 'general';
-
-    const reportId = sanitizeFilenamePart(rawReportId);
-    const commentType = sanitizeFilenamePart(rawCommentType);
-
-    const timestamp = Date.now();
-    const randomSuffix = Math.round(Math.random() * 1E9);
-    const sanitizedOriginalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-
-    const secureFilename = `${reportId}_${commentType}_${timestamp}_${randomSuffix}_${sanitizedOriginalName}`;
-    cb(null, secureFilename);
-  }
-});
-
-const imageUpload = multer({
-  storage: imageStorage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit per image
-    files: 3 // Maximum 3 files
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
-  },
-});
+const { s3CommentImageUpload, s3Client, s3Bucket } = require('../services/s3Service');
+const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const {
   readExcelBuffer,
   validateExcelBuffer,
   sanitizeDataForExport,
 } = require("../services/excelService");
-const fs = require("fs");
+const { extractMedicalData } = require("../services/llmService");
+const { extractRawTextFromImage } = require("../services/bedrockService");
 
 // Helper function to update medical report dates based on workflow stage
 async function updateMedicalReportDates(
@@ -600,6 +550,7 @@ router.post(
   "/",
   authenticateUser,
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  tenantContext,
   invalidateListCache, // Invalidate list cache when new medical report is created
   async (req, res) => {
     try {
@@ -613,6 +564,7 @@ router.post(
         received_at,
         reported_at,
       } = req.body;
+      const lab_id = req.tenant.lab_id;
 
       // Validate required fields
       if (!patient_id || !doctor_id || !diagnosis) {
@@ -624,6 +576,7 @@ router.post(
         patient_id,
         doctor_id,
         diagnosis,
+        lab_id,
         date: new Date(),
         registered_at: registered_at || new Date(),
         collected_at: collected_at || null,
@@ -868,9 +821,11 @@ router.get(
   "/test/:testId/components",
   authenticateUser,
   authorizeRoles("admin", "chemist"),
+  tenantContext,
   async (req, res) => {
     try {
-      const test = await db.test.findByPk(req.params.testId, {
+      const test = await db.test.findOne({
+        where: { id: req.params.testId, lab_id: req.tenant.lab_id },
         attributes: ["structure_config"]
       });
 
@@ -908,11 +863,17 @@ router.put(
   "/:id/results",
   authenticateUser,
   authorizeRoles("admin", "chemist"),
+  tenantContext,
   invalidateTestResultsCache, // Invalidate cache when test results are updated
   async (req, res) => {
     try {
       const { test_results, culture_results } = req.body;
       const reportId = req.params.id;
+      const lab_id = req.tenant.lab_id;
+
+      // Verify ownership before proceeding
+      const report = await db.medical_report.findOne({ where: { id: reportId, lab_id } });
+      if (!report) return res.status(404).json({ error: "Medical report not found or you don't have permission." });
 
       // Helper function to calculate test status based on result and normal range
       const calculateTestStatus = (result, normalRange) => {
@@ -1026,9 +987,10 @@ router.get(
   "/pending-count",
   authenticateUser,
   authorizeRoles("admin"),
+  tenantContext,
   async (req, res) => {
     try {
-      const count = await db.medical_report.count({ where: { pending: true } });
+      const count = await db.medical_report.count({ where: { pending: true, lab_id: req.tenant.lab_id } });
       res.json({ count });
     } catch (error) {
       res.status(500).json({ error: "Failed to get pending reports count" });
@@ -1041,9 +1003,11 @@ router.get(
   "/recent",
   authenticateUser,
   authorizeRoles("admin"),
+  tenantContext,
   async (req, res) => {
     try {
       const reports = await db.medical_report.findAll({
+        where: { lab_id: req.tenant.lab_id },
         order: [["date", "DESC"]],
         limit: 5,
         include: [
@@ -1062,9 +1026,10 @@ router.put(
   "/:id/increment-prints",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  tenantContext,
   async (req, res) => {
     try {
-      const report = await db.medical_report.findByPk(req.params.id);
+      const report = await db.medical_report.findOne({ where: { id: req.params.id, lab_id: req.tenant.lab_id } });
       if (!report) {
         return res.status(404).json({ error: "Medical report not found" });
       }
@@ -1299,12 +1264,14 @@ router.get(
   "/:reportId/tests/check",
   authenticateUser,
   authorizeRoles("admin", "chemist", "receptionist"),
+  tenantContext,
   async (req, res) => {
     try {
       const { reportId } = req.params;
 
       // Get the medical report with all its test associations
-      const medicalReport = await db.medical_report.findByPk(reportId, {
+      const medicalReport = await db.medical_report.findOne({
+        where: { id: reportId, lab_id: req.tenant.lab_id },
         include: [
           {
             model: db.test,
@@ -1667,7 +1634,8 @@ router.get(
       const groupImagesByComment = (images) => {
         return images.reduce((acc, img) => {
           if (!acc[img.comment_id]) acc[img.comment_id] = [];
-          acc[img.comment_id].push(img);
+          // Return only the filename (basename of image_path)
+          acc[img.comment_id].push(path.basename(img.image_path));
           return acc;
         }, {});
       };
@@ -1703,7 +1671,7 @@ router.post(
     req.body.commentType = 'test';
     next();
   },
-  imageUpload.array('images', 3),
+  s3CommentImageUpload.array('images', 3),
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
@@ -1729,11 +1697,12 @@ router.post(
       }, { transaction: t });
 
       // Handle image uploads
+      let imageRecords = [];
       if (req.files && req.files.length > 0) {
-        const imageRecords = req.files.map((file, index) => ({
+        imageRecords = req.files.map((file, index) => ({
           comment_type: 'test',
           comment_id: testComment.id,
-          image_path: file.path,
+          image_path: file.key,
           image_name: file.originalname,
           image_size: file.size,
           mime_type: file.mimetype,
@@ -1746,7 +1715,9 @@ router.post(
       await t.commit();
       res.status(201).json({ success: true, comment: testComment });
     } catch (error) {
-      await t.rollback();
+      if (t && !t.finished) {
+        await t.rollback();
+      }
       console.error("Error creating test comment:", error);
       res.status(500).json({ error: "Failed to create test comment" });
     }
@@ -1765,7 +1736,7 @@ router.post(
     req.body.commentType = 'medical_report';
     next();
   },
-  imageUpload.array('images', 3),
+  s3CommentImageUpload.array('images', 3),
   async (req, res) => {
     const t = await db.sequelize.transaction();
     try {
@@ -1781,21 +1752,51 @@ router.post(
         await t.rollback();
         return res.status(404).json({ error: "Medical report not found" });
       }
-      // Delete existing images for this medical report
-      const deletedCount = await db.comment_images.destroy({
-        where: {
-          comment_type: 'medical_report',
-          comment_id: reportId
-        },
+      // Get existing images to keep
+      const keepImages = req.body.existingImages ? (Array.isArray(req.body.existingImages) ? req.body.existingImages : [req.body.existingImages]) : [];
+      console.log('Existing images to keep:', keepImages);
+
+      // Get all current images for this medical report
+      const currentImages = await db.comment_images.findAll({
+        where: { comment_type: 'medical_report', comment_id: reportId },
         transaction: t
       });
 
+      // Filter images to delete
+      const imagesToDelete = currentImages.filter(img => {
+        const filename = path.basename(img.image_path);
+        return !keepImages.includes(filename);
+      });
+
+      console.log('Images to delete:', imagesToDelete.length);
+
+      if (imagesToDelete.length > 0) {
+        for (const img of imagesToDelete) {
+          if (img.image_path) {
+            try {
+              let s3Key = img.image_path;
+              if (!s3Key.includes('/')) s3Key = `private/comment-images/${s3Key}`;
+              else if (s3Key.includes('\\')) s3Key = `private/comment-images/${path.basename(s3Key)}`;
+              await s3Client.send(new DeleteObjectCommand({ Bucket: s3Bucket, Key: s3Key }));
+            } catch (e) {
+              console.error('Failed to delete comment image from S3', e);
+            }
+          }
+        }
+
+        await db.comment_images.destroy({
+          where: { id: imagesToDelete.map(img => img.id) },
+          transaction: t
+        });
+      }
+
       // Handle new image uploads
+      let imageRecords = [];
       if (req.files && req.files.length > 0) {
-        const imageRecords = req.files.map((file, index) => ({
+        imageRecords = req.files.map((file, index) => ({
           comment_type: 'medical_report',
           comment_id: reportId,
-          image_path: file.path,
+          image_path: file.key,
           image_name: file.originalname,
           image_size: file.size,
           mime_type: file.mimetype,
@@ -1806,9 +1807,15 @@ router.post(
       }
 
       await t.commit();
-      res.status(201).json({ success: true, message: "Images uploaded successfully" });
+      res.status(201).json({ 
+        success: true, 
+        message: "Images uploaded successfully",
+        images: imageRecords.map(img => path.basename(img.image_path))
+      });
     } catch (error) {
-      await t.rollback();
+      if (t && !t.finished) {
+        await t.rollback();
+      }
       console.error("Error uploading comment images:", error);
       res.status(500).json({ error: "Failed to upload images" });
     }
@@ -1842,6 +1849,11 @@ router.delete(
         return res.status(404).json({ error: "Comment not found" });
       }
 
+      const imagesToDelete = await db.comment_images.findAll({
+        where: { comment_type: 'test', comment_id: commentId },
+        transaction: t
+      });
+
       // Delete associated images
       await db.comment_images.destroy({
         where: {
@@ -1850,6 +1862,19 @@ router.delete(
         },
         transaction: t
       });
+
+      for (const img of imagesToDelete) {
+        if (img.image_path) {
+          try {
+            let s3Key = img.image_path;
+            if (!s3Key.includes('/')) s3Key = `private/comment-images/${s3Key}`;
+            else if (s3Key.includes('\\')) s3Key = `private/comment-images/${path.basename(s3Key)}`;
+            await s3Client.send(new DeleteObjectCommand({ Bucket: s3Bucket, Key: s3Key }));
+          } catch (e) {
+             console.error('Failed to delete comment image from S3', e);
+          }
+        }
+      }
 
       // Delete comment
       await db.test_comments.destroy({
@@ -1916,7 +1941,7 @@ router.get(
       });
 
       res.json({
-        report_id: report.id,
+        id: report.id,
         patient: report.patient,
         tests: report.tests.map(t => ({
           id: t.id,
@@ -2026,13 +2051,13 @@ router.post(
             if (!isNaN(numVal)) {
               const panicMin = applicableRange.panic_min != null ? Number(applicableRange.panic_min) : null;
               const panicMax = applicableRange.panic_max != null ? Number(applicableRange.panic_max) : null;
-              const rangeMin = applicableRange.min        != null ? Number(applicableRange.min)        : null;
-              const rangeMax = applicableRange.max        != null ? Number(applicableRange.max)        : null;
+              const rangeMin = applicableRange.min != null ? Number(applicableRange.min) : null;
+              const rangeMax = applicableRange.max != null ? Number(applicableRange.max) : null;
 
-              if      (panicMin !== null && numVal <= panicMin) clinical_flag = "panic_low";
+              if (panicMin !== null && numVal <= panicMin) clinical_flag = "panic_low";
               else if (panicMax !== null && numVal >= panicMax) clinical_flag = "panic_high";
-              else if (rangeMin !== null && numVal < rangeMin)  clinical_flag = "low";
-              else if (rangeMax !== null && numVal > rangeMax)  clinical_flag = "high";
+              else if (rangeMin !== null && numVal < rangeMin) clinical_flag = "low";
+              else if (rangeMax !== null && numVal > rangeMax) clinical_flag = "high";
               // else: within normal range — flag stays "normal"
             }
           }
@@ -2090,6 +2115,68 @@ router.post(
     } catch (error) {
       console.error("Error saving dynamic results:", error);
       res.status(500).json({ error: "Failed to save results" });
+    }
+  }
+);
+
+/**
+ * @route POST /medical-reports/extract-ocr-image
+ * @desc Hybrid OCR pipeline: Image (Bedrock) -> Logical Structuring (Local/Groq LLM)
+ * @access Private
+ */
+router.post(
+  "/extract-ocr-image",
+  authenticateUser,
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+  multer({ storage: multer.memoryStorage() }).single('image'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "No image file provided" });
+      }
+
+      // 1. Get hints/expected keys from request body if provided
+      let expectedKeys = [];
+      try {
+        if (req.body.expectedKeys) {
+          expectedKeys = typeof req.body.expectedKeys === 'string' 
+            ? JSON.parse(req.body.expectedKeys) 
+            : req.body.expectedKeys;
+        }
+      } catch (e) {
+        console.warn("Failed to parse expectedKeys, proceeding without hints:", e.message);
+      }
+
+      // Convert buffer to Base64
+      const base64Image = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype;
+
+      // 2. Step 2: The Eyes (Vision) - AWS Bedrock raw text extraction with hints
+      console.log("👁️  Extracting raw text via AWS Bedrock (with hints)...");
+      const rawText = await extractRawTextFromImage(base64Image, mimeType, expectedKeys);
+
+      if (!rawText) {
+        throw new Error("Vision service returned no text");
+      }
+
+      console.log("📄 Raw OCR Text from Bedrock:\n", rawText);
+
+      // 3. Step 3: The Brain (Logic) - Structuring via LLM with expected keys
+      console.log("🧠 Structuring data via LLM (with expected keys)...");
+      const cleanData = await extractMedicalData(rawText, expectedKeys);
+
+      console.log("📦 LLM Structured Data:\n", JSON.stringify(cleanData, null, 2));
+
+      res.json({
+        success: true,
+        data: cleanData
+      });
+    } catch (error) {
+      console.error("Hybrid OCR Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Failed to process medical report OCR"
+      });
     }
   }
 );

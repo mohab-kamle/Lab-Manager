@@ -1,25 +1,36 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, Plus, Printer, Settings, Eye, CircleX, AlertTriangle, Wallet2, History, RotateCcw } from "lucide-react";
+import SettlementModal from "../../components/settlement/SettlementModal";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import InvoicePDF from "../../components/pdf/InvoicePDF";
 import Select from 'react-select';
 import '../../styles/select.css';
-import { toast } from 'react-toastify';
+import { useToast } from '../../components/ui/ToastContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import PhoneInput from '../../components/ui/PhoneInput';
+import RefundModal from "../../components/invoices/RefundModal";
+import InvoiceHistoryDrawer from "../../components/invoices/InvoiceHistoryDrawer";
 
 const Invoices = () => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
-const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
+  const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [discountPercentage, setDiscountPercentage] = useState(0);
+
+  // Refund and History states
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedInvoiceForRefund, setSelectedInvoiceForRefund] = useState(null);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [selectedInvoiceIdForHistory, setSelectedInvoiceIdForHistory] = useState(null);
 
   const [patients, setPatients] = useState([]);
   const [tests, setTests] = useState([]);
@@ -60,6 +71,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     subtotal: 0,
     discount: 0,
     tax: 0,
+    tax_rate: 0,
     total: 0,
     paid: 0,
     due: 0,
@@ -75,7 +87,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredPatients, setFilteredPatients] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]); // Kept for backward compatibility if used elsewhere, but we'll use a memoized version for the Select
   const [testSearchTerm, setTestSearchTerm] = useState("");
 
   const [packageSearchTerm, setPackageSearchTerm] = useState("");
@@ -95,6 +107,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   // Limit warning modal support
   const [limitWarningModal, setLimitWarningModal] = useState(false);
   const [limitWarningData, setLimitWarningData] = useState(null);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [settlementPatientId, setSettlementPatientId] = useState(null);
+  const [settlementPatientName, setSettlementPatientName] = useState("");
+  const [settlementPatientCode, setSettlementPatientCode] = useState("");
+  const [giveChange, setGiveChange] = useState(false);
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -193,35 +210,65 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     fetchData();
   }, [apiUrl, user?.role]);
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = patients.filter(patient => 
-        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const memoizedFilteredPatients = useMemo(() => {
+    if (!searchTerm) return patients;
+    const searchLower = searchTerm.toLowerCase();
+    const searchDigits = searchTerm.replace(/\D/g, "");
+    
+    return patients.filter(patient => {
+      const phones = patient.phones || [];
+      const phoneMatch = phones.some(p => {
+        const pNum = (p.phone_number || p.phone || "").toString();
+        const pDigits = pNum.replace(/\D/g, "");
+        return pNum.includes(searchTerm) || (searchDigits && pDigits.includes(searchDigits));
+      });
+
+      return (
+        patient.name?.toLowerCase().includes(searchLower) ||
         patient.patientcode?.toString().includes(searchTerm) ||
         patient.national_id?.toString().includes(searchTerm) ||
-        patient.phone?.toString().includes(searchTerm)
+        phoneMatch
       );
-      setFilteredPatients(filtered);
-    } else {
-      setFilteredPatients(patients);
-    }
+    });
   }, [searchTerm, patients]);
 
-  const patientOptions = filteredPatients.map((patient) => {
-    const parts = [];
-    if (patient.name) {
-      parts.push(
-        `${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`
-      );
-    }
-    if (patient.national_id) parts.push(patient.national_id);
-    if (patient.phone) parts.push(patient.phone);
+  // Sync state for any other parts of the component using filteredPatients
+  useEffect(() => {
+    setFilteredPatients(memoizedFilteredPatients);
+  }, [memoizedFilteredPatients]);
 
-    return {
-      value: patient.id,
-      label: parts.join(" - "),
-    };
-  });
+  useEffect(() => {
+    if (giveChange) {
+      setGiveChange(false);
+    }
+  }, [invoice.total, invoice.paid, invoice.payments]);
+
+  useEffect(() => {
+    if (showFormErrorAlert) {
+      setShowFormErrorAlert(false);
+    }
+  }, [invoice]);
+
+  const patientOptions = useMemo(() => {
+    return memoizedFilteredPatients.map((patient) => {
+      const parts = [];
+      if (patient.name) {
+        parts.push(`${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`);
+      }
+      if (patient.national_id) parts.push(patient.national_id);
+      
+      const phones = patient.phones || [];
+      phones.forEach(p => {
+        const pNum = p.phone_number || p.phone;
+        if (pNum) parts.push(pNum);
+      });
+
+      return {
+        value: patient.id,
+        label: parts.join(" - "),
+      };
+    });
+  }, [memoizedFilteredPatients]);
 
   // Helper function to calculate total from payment methods
   const calculatePaymentTotal = (payments) => {
@@ -289,7 +336,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [newDoctor, setNewDoctor] = useState({
     name: "",
     specialization: "",
-    phone: "",
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
     email: "",
     commission: 0
   });
@@ -302,6 +349,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         return;
       }
       const token = localStorage.getItem("token");
+      
       // Calculate birth_date based on input method
       let finalBirthDate = null;
       if (patientForm.use_age && patientForm.age) {
@@ -312,14 +360,22 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         finalBirthDate = new Date(patientForm.birth_date).toISOString().split('T')[0];
       }
 
+      const phoneNumbers = [];
+      if (patientForm.primaryPhone) {
+        phoneNumbers.push({ phone: patientForm.primaryPhone, type: 'personal', is_primary: true });
+      }
+      if (patientForm.secondaryPhone) {
+        phoneNumbers.push({ phone: patientForm.secondaryPhone, type: 'personal', is_primary: false });
+      }
+
       const cleanedPatient = {
         ...patientForm,
         birth_date: finalBirthDate,
-        primaryPhone: patientForm.primaryPhone || null,
-        secondaryPhone: patientForm.secondaryPhone || null,
+        phoneNumbers,
         diseases: patientForm.diseases || [], // This should be an array of disease IDs
         contract_id: patientForm.contract_id || null
       };
+
       const response = await axios.post(`${apiUrl}/patient`, cleanedPatient, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -457,6 +513,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
   const handlePatientSelect = (selectedOption) => {
     const pId = selectedOption?.value || "";
+    setSearchTerm("");
     setInvoice(prev => {
       const updatedInvoice = {
         ...prev,
@@ -472,13 +529,14 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const handleAddDoctor = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${apiUrl}/doctor`, newDoctor, {
+      const payload = { ...newDoctor, lab_id: user.lab_id };
+      const res = await axios.post(`${apiUrl}/doctor`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDoctors([...doctors, res.data]);
       handleDoctorSelect(res.data.id);
       setShowDoctorModal(false);
-      setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+      setNewDoctor({ name: "", specialization: "", phoneNumbers: [{ phone: "", type: "personal", is_primary: true }], email: "", commission: 0 });
     } catch (err) {
       console.error("Error creating doctor:", err);
       // Optional: Handle error display
@@ -532,15 +590,18 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     // Calculate discount amount from percentage (use custom percentage if provided, otherwise use state)
     const currentDiscountPercentage = customDiscountPercentage !== null ? customDiscountPercentage : discountPercentage;
     const discountAmount = (subtotal * (currentDiscountPercentage / 100)) || 0;
+
+    // Calculate tax amount from percentage if tax_rate is present
+    const taxAmount = items.tax_rate ? (subtotal * items.tax_rate) : (items.tax || 0);
     
     // Calculate total: subtotal + tax - discount
-    const total = subtotal + (items.tax || 0) - discountAmount;
+    const total = subtotal + taxAmount - discountAmount;
     
     // Use the paid amount from the invoice object
     const paidAmount = Number(items.paid || 0);
     const due = total - paidAmount;
 
-    return { subtotal, discount: discountAmount, total, due, paid: paidAmount };
+    return { subtotal, discount: discountAmount, tax: taxAmount, total, due, paid: paidAmount };
   };
 
   const handleDiscountChange = (discountPercentage) => {
@@ -562,11 +623,12 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
   // Auto-update calculations whenever invoice data changes
   const updateInvoiceCalculations = (newInvoice) => {
-    const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
+    const { subtotal, discount, tax, total, due, paid } = calculateTotals(newInvoice);
     return {
       ...newInvoice,
       subtotal,
       discount,
+      tax,
       total,
       due,
       paid
@@ -605,11 +667,36 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       const filteredTests = (invoice.tests || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredPackages = (invoice.packages || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       
+      // Adjust payments if give change is active
+      let finalPayments = invoice.payments || [];
+      if (giveChange && invoice.due < 0) {
+        const totalReduction = Math.abs(invoice.due);
+        let remainingReduction = totalReduction;
+        
+        // Copy and adjust payments starting from the last one
+        const adjustedPayments = JSON.parse(JSON.stringify(finalPayments));
+        for (let i = adjustedPayments.length - 1; i >= 0 && remainingReduction > 0; i--) {
+          const currentAmount = parseFloat(adjustedPayments[i].paid_amount) || 0;
+          const reduction = Math.min(currentAmount, remainingReduction);
+          adjustedPayments[i].paid_amount = (currentAmount - reduction).toFixed(2);
+          remainingReduction -= reduction;
+        }
+        finalPayments = adjustedPayments;
+      }
+      
       // Determine automatic status
       let finalStatusId = invoice.status_id;
       if (!finalStatusId) {
-        const { due } = calculateTotals(invoice);
-        finalStatusId = determineAutomaticStatus(due, invoice.paid, invoice.total);
+        let { due, total } = calculateTotals(invoice);
+        let paid = invoice.paid || 0;
+        
+        // If give change is active, adjust values for status detection
+        if (giveChange && due < 0) {
+          due = 0;
+          paid = total;
+        }
+        
+        finalStatusId = determineAutomaticStatus(due, paid, total);
         if (!finalStatusId) {
           setStatusDetectionError("No valid status found for this invoice. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
           return;
@@ -620,11 +707,15 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         ...invoice,
         tests: filteredTests,
         packages: filteredPackages,
+        payments: finalPayments,
         subtotal: invoice.subtotal,
         discount: invoice.discount,
         total: invoice.total,
-        paid: invoice.paid || 0,
-        due: invoice.due,
+        paid: (giveChange && invoice.due < 0) ? invoice.total : (invoice.paid || 0),
+        due: (giveChange && invoice.due < 0) ? 0 : invoice.due,
+        give_change: giveChange,
+        original_paid: (giveChange && invoice.due < 0) ? (invoice.paid || 0) : undefined,
+        change_amount: (giveChange && invoice.due < 0) ? Math.abs(invoice.due) : undefined,
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
         branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined,
@@ -645,11 +736,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
           invoiceData,
           { headers }
         );
-        setInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv.id === editingInvoice.id ? response.data : inv
-          )
-        );
+        await fetchData();
       } else {
         response = await axios.post(`${apiUrl}/invoices`, invoiceData, { headers });
         await fetchData();
@@ -670,7 +757,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       resetForm();
       await refreshPatientData();
       const action = editingInvoice ? "updated" : "created";
-      toast.success(`Invoice ${action} successfully! Patient financial information has been updated.`, { autoClose: 5000 });
+      toast.success(`Invoice ${action} successfully! Patient financial information has been updated.`, { duration: 5000 });
     } catch (error) {
       console.error("Error saving invoice:", error);
       
@@ -702,7 +789,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         // Refresh patient data to show updated financial information
         await refreshPatientData();
         // Show success message as a toast
-        toast.success("Invoice deleted successfully! Patient financial information has been updated.", { autoClose: 5000 });
+        toast.success("Invoice deleted successfully! Patient financial information has been updated.", { duration: 5000 });
       } else {
         setError(response.data.error || "Failed to delete invoice");
       }
@@ -793,8 +880,8 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       // Show success message
       if (statusesToCreate.length > 0) {
         setError(null);
-        // You could add a success toast here if you have one
-        console.log(`Created ${statusesToCreate.length} default statuses successfully`);
+        // Add a success toast
+        toast.success(`Created ${statusesToCreate.length} default statuses successfully`);
       }
     } catch (error) {
       console.error("Error creating default statuses:", error);
@@ -861,15 +948,22 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
     });
     setFormErrors({});
     setEditingInvoice(null);
+    setSearchTerm("");
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
+    setGiveChange(false);
   };
 
   const filteredInvoices = invoices.filter(invoice => {
+    const searchLower = searchQuery?.toLowerCase();
+    const searchDigits = searchQuery?.replace(/\D/g, "");
+
     const searchMatch = searchQuery
-      ? invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ? invoice.patient_name?.toLowerCase().includes(searchLower) ||
         invoice.patientcode?.toString().includes(searchQuery) ||
-        invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        invoice.patient_phones?.some(pNum => 
+          pNum?.includes(searchQuery) || (searchDigits && pNum.replace(/\D/g, "").includes(searchDigits))
+        )
       : true;
 
     const dateMatch =
@@ -1069,6 +1163,17 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         }
         return <span className="text-muted">-</span>;
 
+      case 'age':
+        const invoiceDate = new Date(rowData.date);
+        const now = new Date();
+        const diffInTime = now.getTime() - invoiceDate.getTime();
+        const diffInDays = Math.floor(diffInTime / (1000 * 3600 * 24));
+        return (
+          <Badge bg={diffInDays === 0 ? "info" : "secondary"}>
+            {diffInDays === 0 ? "Today" : `${diffInDays} days`}
+          </Badge>
+        );
+
       case 'subtotal':
       case 'total':
       case 'paid':
@@ -1116,9 +1221,11 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             branch_id: rowData.branch_id || "",
             patient_id: rowData.patient_id,
             status_id: rowData.status_id,
-            receptionist_id: rowData.receptionist_id
+            receptionist_id: rowData.receptionist_id ? Number(rowData.receptionist_id) : "",
+            referred_doctor_id: rowData.referred_doctor_id ? Number(rowData.referred_doctor_id) : ""
           });
           setModalSuccessMessage("");
+          setGiveChange(false);
           setShowAddModal(true);
         }}
       >
@@ -1135,6 +1242,29 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         <Trash2 size={16} />
       </Button>
       <Button
+        variant="outline-info"
+        size="sm"
+        onClick={() => {
+          setSelectedInvoiceIdForHistory(rowData.id);
+          setShowHistoryDrawer(true);
+        }}
+        title="View Audit Trail"
+      >
+        <History size={16} />
+      </Button>
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        onClick={() => {
+          setSelectedInvoiceForRefund(rowData);
+          setShowRefundModal(true);
+        }}
+        disabled={rowData.status?.toLowerCase().includes('refunded')}
+        title="Process Refund"
+      >
+        <RotateCcw size={16} />
+      </Button>
+      <Button
         variant="outline-secondary"
         size="sm"
         onClick={() => {
@@ -1145,11 +1275,27 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
       >
         <Eye size={16} />
       </Button>
+      <Button
+        variant="outline-warning"
+        size="sm"
+        onClick={() => {
+          const patient = patients.find(p => p.id === rowData.patient_id);
+          setSettlementPatientId(rowData.patient_id);
+          setSettlementPatientName(rowData.patient_name || "Unknown Patient");
+          setSettlementPatientCode(patient?.patientcode || "");
+          setShowSettlementModal(true);
+        }}
+        disabled={parseFloat(rowData.due || 0) <= 0}
+        title="Reconcile Account"
+      >
+        <Wallet2 size={16} />
+      </Button>
       <InvoicePDF invoiceData={rowData}/>
     </div>
   );
 
   return (
+    <>
     <Container fluid className="invoices-container">
       {loading ? (
         <LoadingSpinner message="Loading invoices..." />
@@ -1217,6 +1363,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             data={currentInvoices}
             columns={[
               "date",
+              "age",
               "patient_name",
               "tests",
               "packages",
@@ -1230,6 +1377,12 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
               "credit",
               "status"
             ]}
+            customHeaders={{
+              age: 'Age',
+              amount_due: 'Due',
+              patient_name: 'Patient',
+              status: 'Status'
+            }}
             formatCellData={formatCellData}
             ActionComponent={ActionComponent}
           />
@@ -1307,6 +1460,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                             isSearchable
                             placeholder="Search patient by name, code, national ID, or phone"
                             onInputChange={(inputValue) => setSearchTerm(inputValue)}
+                            filterOption={() => true} // We are already filtering via filteredPatients
                             className="react-select-container"
                             classNamePrefix="select"
                           />
@@ -1315,8 +1469,55 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                           <Plus size={16} /> {showCreatePatient ? 'Cancel' : 'Create Patient'}
                         </Button>
                       </div>
+                      
+                      {/* Patient Financial Summary */}
+                      {invoice.patient_id && !showCreatePatient && (() => {
+                        const selectedPatient = patients.find(p => p.id === invoice.patient_id);
+                        if (!selectedPatient) return null;
+                        
+                        const pDue = parseFloat(selectedPatient.due || 0);
+                        const hasDebt = pDue > 0.01;
+                        const hasCredit = pDue < -0.01;
+                        
+                        return (
+                          <div className="mt-2 d-flex gap-2">
+                            <div 
+                              className="flex-fill p-2 rounded border d-flex align-items-center justify-content-between" 
+                              style={{ 
+                                background: hasDebt ? 'var(--toast-error-bg)' : 'var(--bg-inset)', 
+                                borderColor: hasDebt ? 'var(--color-danger)' : 'var(--border-default)',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <div className="d-flex align-items-center text-truncate">
+                                <AlertTriangle size={14} className={`me-2 ${hasDebt ? 'text-danger' : 'text-muted'}`} />
+                                <span className="small fw-semibold text-truncate">Patient Due</span>
+                              </div>
+                              <span className={`fw-bold small ms-2 ${hasDebt ? 'text-danger' : ''}`}>
+                                EGP {Math.max(0, pDue).toFixed(2)}
+                              </span>
+                            </div>
+                            <div 
+                              className="flex-fill p-2 rounded border d-flex align-items-center justify-content-between"
+                              style={{ 
+                                background: hasCredit ? 'var(--toast-success-bg)' : 'var(--bg-inset)', 
+                                borderColor: hasCredit ? 'var(--color-success)' : 'var(--border-default)',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <div className="d-flex align-items-center text-truncate">
+                                <Wallet2 size={14} className={`me-2 ${hasCredit ? 'text-success' : 'text-muted'}`} />
+                                <span className="small fw-semibold text-truncate">Patient Credit</span>
+                              </div>
+                              <span className={`fw-bold small ms-2 ${hasCredit ? 'text-success' : ''}`}>
+                                EGP {Math.max(0, -pDue).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {showCreatePatient && (
-                        <div className="border rounded p-3 mt-2 bg-light" onClick={(e) => e.stopPropagation()}>
+                        <div className="border rounded p-3 mt-2 bg-theme-surface" onClick={(e) => e.stopPropagation()}>
                           <div>
                             <Row>
                               <Col md={6}>
@@ -1388,53 +1589,59 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                     <Row>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Day"
                                           value={patientForm.birth_day}
                                           onChange={(e) => {
                                             const day = e.target.value;
-                                            const newForm = { ...patientForm, birth_day: day };
-                                            if (day && patientForm.birth_month && patientForm.birth_year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                            // Strictly allow only digits and validate range (1-31)
+                                            if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_day: day };
+                                              if (day && patientForm.birth_month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1"
-                                          max="31"
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Month"
                                           value={patientForm.birth_month}
                                           onChange={(e) => {
                                             const month = e.target.value;
-                                            const newForm = { ...patientForm, birth_month: month };
-                                            if (patientForm.birth_day && month && patientForm.birth_year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                            // Strictly allow only digits and validate range (1-12)
+                                            if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_month: month };
+                                              if (patientForm.birth_day && month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1"
-                                          max="12"
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
-                                          type="number"
+                                          type="text"
+                                          inputMode="numeric"
                                           placeholder="Year"
                                           value={patientForm.birth_year}
                                           onChange={(e) => {
                                             const year = e.target.value;
-                                            const newForm = { ...patientForm, birth_year: year };
-                                            if (patientForm.birth_day && patientForm.birth_month && year) {
-                                              newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                            // Strictly allow only digits and max 4 digits
+                                            if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
+                                              const newForm = { ...patientForm, birth_year: year };
+                                              if (patientForm.birth_day && patientForm.birth_month && year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                              }
+                                              setPatientForm(newForm);
                                             }
-                                            setPatientForm(newForm);
                                           }}
-                                          min="1900"
-                                          max={new Date().getFullYear()}
                                         />
                                       </Col>
                                     </Row>
@@ -1510,11 +1717,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                               <Col md={6}>
                                 <Form.Group className="mb-3">
                                   <Form.Label>Primary Phone *</Form.Label>
-                                  <Form.Control
-                                    type="text"
+                                  <PhoneInput
                                     value={patientForm.primaryPhone}
-                                    onChange={(e) => setPatientForm({ ...patientForm, primaryPhone: e.target.value })}
-                                    isInvalid={!!patientFormErrors.primaryPhone}
+                                    onChange={(val) => setPatientForm({ ...patientForm, primaryPhone: val })}
                                     placeholder="e.g., +201234567890"
                                   />
                                   <Form.Control.Feedback type="invalid">
@@ -1525,10 +1730,9 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                               <Col md={6}>
                                 <Form.Group className="mb-3">
                                   <Form.Label>Secondary Phone (Optional)</Form.Label>
-                                  <Form.Control
-                                    type="text"
+                                  <PhoneInput
                                     value={patientForm.secondaryPhone}
-                                    onChange={(e) => setPatientForm({ ...patientForm, secondaryPhone: e.target.value })}
+                                    onChange={(val) => setPatientForm({ ...patientForm, secondaryPhone: val })}
                                     placeholder="e.g., +201234567891"
                                   />
                                 </Form.Group>
@@ -1553,7 +1757,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                                    <Plus size={16} />
                                  </Button>
                                </div>
-                               <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                               <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8 }}>
                                  {diseases
                                    .filter(disease => disease.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase()))
                                    .map(disease => (
@@ -1769,7 +1973,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         onChange={e => setTestSearchTerm(e.target.value)}
                         className="mb-2"
                       />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8 }}>
                         {tests
                           .filter(test => test.name.toLowerCase().includes(testSearchTerm.toLowerCase()))
                           .map(test => (
@@ -1803,7 +2007,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         onChange={e => setPackageSearchTerm(e.target.value)}
                         className="mb-2"
                       />
-                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8 }}>
                         {packages
                           .filter(pkg => pkg.name.toLowerCase().includes(packageSearchTerm.toLowerCase()))
                           .map(pkg => (
@@ -1833,7 +2037,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                 {(invoice.tests.length > 0 || invoice.packages.length > 0) && (
                   <Row className="mb-4">
                     <Col md={12}>
-                      <div className="border rounded p-3 bg-light">
+                      <div className="border rounded p-3 bg-theme-surface">
                         <h6 className="mb-3 text-primary">📋 Selected Items Summary</h6>
                         
                         {/* Tests Selection */}
@@ -1928,16 +2132,35 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                       )}
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col md={3}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Tax</Form.Label>
+                      <Form.Label>Tax (%)</Form.Label>
                       <Form.Control
                         type="number"
-                        value={invoice.tax || ""}
+                        min="0"
+                        step="0.01"
+                        value={invoice.tax_rate ? (invoice.tax_rate * 100).toFixed(2) : ""}
                         onChange={(e) => {
-                          const tax = Number(e.target.value) || 0;
+                          const rate = (Number(e.target.value) || 0) / 100;
                           setInvoice(prev => {
-                            const newInvoice = { ...prev, tax };
+                            const newInvoice = { ...prev, tax_rate: rate };
+                            return updateInvoiceCalculations(newInvoice);
+                          });
+                        }}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Tax (Amount)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        value={invoice.tax ? invoice.tax.toFixed(2) : ""}
+                        onChange={(e) => {
+                          const taxAmount = Number(e.target.value) || 0;
+                          const rate = invoice.subtotal > 0 ? taxAmount / invoice.subtotal : 0;
+                          setInvoice(prev => {
+                            const newInvoice = { ...prev, tax: taxAmount, tax_rate: rate };
                             return updateInvoiceCalculations(newInvoice);
                           });
                         }}
@@ -1948,7 +2171,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
 
                 <Row>
                   <Col md={12}>
-                    <div className="border rounded p-3 bg-light">
+                    <div className="border rounded p-3 bg-theme-surface">
                       <h6 className="mb-3">Invoice Summary</h6>
                       <Row>
                         <Col md={3}>
@@ -2012,7 +2235,20 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                         </Col>
                         <Col md={6}>
                           <Form.Group className="mb-3">
-                            <Form.Label>{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <Form.Label className="mb-0">{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
+                              {(invoice.due || 0) < -0.01 && (
+                                <Button 
+                                  variant={giveChange ? "success" : "outline-primary"} 
+                                  size="sm" 
+                                  onClick={() => setGiveChange(!giveChange)}
+                                  className="py-0 px-2"
+                                  style={{ fontSize: '0.8rem' }}
+                                >
+                                  {giveChange ? "✓ Change Given" : "Give Change"}
+                                </Button>
+                              )}
+                            </div>
                             <Form.Control
                               type="text"
                               value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
@@ -2029,7 +2265,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                 {/* Payment Methods Section - Final Step */}
                 <Row className="mt-4">
                   <Col md={12}>
-                    <div className="border rounded p-3 bg-light">
+                    <div className="border rounded p-3 bg-theme-surface">
                       <h6 className="mb-3 text-primary">💳 Payment Methods - Final Step</h6>
                       <p className="text-muted mb-3">Now that you know the total amount (EGP {invoice.total?.toFixed(2) || "0.00"}), choose how the payment will be made:</p>
                       
@@ -2062,6 +2298,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                               const newInvoice = { ...invoice, payments: newPayments };
                               setInvoice(updatePaidFromPayments(newInvoice));
                             }}
+                            disabled={!payment.payment_method_id}
                             style={{ minWidth: '150px' }}
                           />
                           <Button
@@ -2117,6 +2354,16 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                     </div>
                   </Col>
                 </Row>
+
+                {showFormErrorAlert && Object.keys(formErrors).length > 0 && (
+                  <Alert variant="danger" className="mt-3 mb-0" onClose={() => setShowFormErrorAlert(false)} dismissible>
+                    <ul className="mb-0">
+                      {Object.entries(formErrors).map(([field, msg]) => (
+                        <li key={field}>{msg}</li>
+                      ))}
+                    </ul>
+                  </Alert>
+                )}
               </Form>
             </Modal.Body>
             <Modal.Footer>
@@ -2498,7 +2745,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             show={showDoctorModal}
             onHide={() => {
               setShowDoctorModal(false);
-              setNewDoctor({ name: "", specialization: "", phone: "", email: "", commission: 0 });
+              setNewDoctor({ name: "", specialization: "", phoneNumbers: [{ phone: "", type: "personal", is_primary: true }], email: "", commission: 0 });
             }}
             size="lg"
           >
@@ -2548,10 +2795,13 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={newDoctor.phone}
-                        onChange={(e) => setNewDoctor({ ...newDoctor, phone: e.target.value })}
+                      <PhoneInput
+                        value={newDoctor.phoneNumbers[0].phone}
+                        onChange={(val) => {
+                          const newPhones = [...newDoctor.phoneNumbers];
+                          newPhones[0].phone = val;
+                          setNewDoctor({ ...newDoctor, phoneNumbers: newPhones });
+                        }}
                         placeholder="Enter phone number"
                       />
                     </Form.Group>
@@ -2593,7 +2843,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
             keyboard={false}
             centered
           >
-            <Modal.Header className="border-0 pb-0 bg-white justify-content-center">
+            <Modal.Header className="border-0 pb-0 bg-theme-surface justify-content-center">
               <Modal.Title className="d-flex align-items-center text-danger">
                 <AlertTriangle size={24} className="me-2" />
                 Limit Exceeded
@@ -2606,7 +2856,7 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
                     This action will increase the patient's due balance beyond the allowed limit.
                   </p>
                   
-                  <div className="bg-light rounded-3 p-3 mb-4">
+                  <div className="bg-theme-surface rounded-3 p-3 mb-4">
                     <div className="d-flex justify-content-between mb-2">
                       <span className="text-muted">Current Due</span>
                       <span className="fw-medium">{limitWarningData.current_due?.toFixed(2)}</span>
@@ -2658,8 +2908,38 @@ const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
         </>
       )}
     </Container>
+
+      {/* Settlement Modal */}
+      <SettlementModal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
+        initialPatientId={settlementPatientId}
+        patientName={settlementPatientName}
+        patientCode={settlementPatientCode}
+      />
+
+      {/* Refund Modal */}
+      <RefundModal
+        show={showRefundModal}
+        onHide={() => {
+          setShowRefundModal(false);
+          setSelectedInvoiceForRefund(null);
+        }}
+        invoice={selectedInvoiceForRefund}
+        onRefundProcessed={fetchData}
+      />
+
+      {/* Invoice History Drawer */}
+      <InvoiceHistoryDrawer
+        show={showHistoryDrawer}
+        onHide={() => {
+          setShowHistoryDrawer(false);
+          setSelectedInvoiceIdForHistory(null);
+        }}
+        invoiceId={selectedInvoiceIdForHistory}
+      />
+    </>
   );
 };
 
 export default Invoices;
-

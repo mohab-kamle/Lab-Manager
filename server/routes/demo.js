@@ -3,9 +3,9 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const { lab, employee,admin, lab_settings, sequelize } = require('../models');
+const { lab, employee, admin, lab_settings, sequelize, phone_number } = require('../models');
 
-// Configure email transporter (you'll need to set up your email service)
+// Configure email transporter 
 var transporter = nodemailer.createTransport({
   host: 'smtp.zoho.com',
   port: 465,
@@ -33,9 +33,9 @@ router.post('/request', async (req, res) => {
     }
 
     // Phone validation
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
-      return res.status(400).json({ error: 'Invalid phone number format' });
+    const phonesToValidate = req.body.phoneNumbers || [{ phone: req.body.phone }];
+    if (phonesToValidate.some(p => !p.phone)) {
+      return res.status(400).json({ error: 'Phone number is required' });
     }
 
     // Check if lab name already exists
@@ -78,12 +78,39 @@ router.post('/request', async (req, res) => {
       name: labName,
       path: labPath,
       contact_person: contactPerson,
-      phone: phone,
+      lab_phone: req.body.phoneNumbers?.[0]?.phone || phone,
       region: region || 'Unknown',
       subscription_status: 'trial',
       trial_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       is_active: true
     }, { transaction: t });
+
+    // Create phone records
+    const { parsePhoneNumberFromString } = require('libphonenumber-js');
+    const normalizePhone = (phoneStr) => {
+      if (!phoneStr) return null;
+      try {
+        const phoneNumber = parsePhoneNumberFromString(phoneStr);
+        if (phoneNumber && phoneNumber.isValid()) {
+          return phoneNumber.format('E.164');
+        }
+        return phoneStr;
+      } catch (error) {
+        return phoneStr;
+      }
+    };
+
+    // Lab phones
+    const labPhones = req.body.phoneNumbers || [{ phone, type: 'work', is_primary: true }];
+    await phone_number.bulkCreate(
+      labPhones.map(p => ({
+        phone: normalizePhone(p.phone),
+        type: p.type || 'work',
+        is_primary: p.is_primary,
+        lab_id: trialLab.id
+      })),
+      { transaction: t }
+    );
       
     // Create admin user in the employee table with generated username
     const username = email.split('@')[0];
@@ -96,6 +123,17 @@ router.post('/request', async (req, res) => {
       role: 'admin',
       is_active: true
     }, { transaction: t });
+
+    // Admin phones (same as lab for demo initially or whatever is provided)
+    await phone_number.bulkCreate(
+      labPhones.map(p => ({
+        phone: normalizePhone(p.phone),
+        type: p.type || 'personal',
+        is_primary: p.is_primary,
+        employee_id: adminUser.id
+      })),
+      { transaction: t }
+    );
 
     // Create admin user in the admin table containing the id only of the employee
     const adminUserAdmin = await admin.create({

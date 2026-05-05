@@ -4,110 +4,407 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
+  useMemo,
 } from "react";
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import "../../styles/Toast.css";
 
-// Create Context
 const ToastContext = createContext(null);
 
-// Default positions by type
 const DEFAULT_POSITIONS = {
   success: "center",
   info: "center",
   error: "right",
   warning: "right",
+  loading: "center",
 };
 
-// Toast Provider Component
+const TOAST_TYPES = ["success", "error", "warning", "info", "loading"];
+const MAX_ITEMS_PER_GROUP = 10;
+const MAX_TOTAL_TOAST_GROUPS = 10;
+
+const createEmptyToastGroups = () => ({
+  success: [],
+  error: [],
+  warning: [],
+  info: [],
+  loading: [],
+});
+
 export const ToastProvider = ({ children }) => {
-  // ============================================
-  // TOAST STATE & FUNCTIONS
-  // ============================================
-  const [toastData, setToastData] = useState({
-    show: false,
-    message: "",
-    type: "success",
-    position: "center",
-    isHiding: false,
-    showCloseBtn: false,
-    clickToClose: true,
-    duration: 3000,
-  });
+  const [toastGroups, setToastGroups] = useState(createEmptyToastGroups);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const toastTimeoutsRef = useRef(new Map());
+  const toastTimerMetaRef = useRef(new Map());
 
-  const [toastTimeout, setToastTimeout] = useState(null);
+  const clearToastTimer = useCallback((id) => {
+    const timer = toastTimeoutsRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      toastTimeoutsRef.current.delete(id);
+    }
+  }, []);
 
-  // Show Toast Function
-  const showToast = useCallback(
-    (message, type = "success", options = {}) => {
-      const {
-        position = DEFAULT_POSITIONS[type] || "right",
-        duration = 3000,
-        showCloseBtn = false,
-        clickToClose = true,
-      } = options;
+  const removeToastById = useCallback(
+    (id) => {
+      clearToastTimer(id);
+      toastTimerMetaRef.current.delete(id);
+      setToastGroups((prev) => {
+        const next = { ...prev };
+        let changed = false;
 
-      // Clear any existing timeout
-      if (toastTimeout) {
-        clearTimeout(toastTimeout);
+        TOAST_TYPES.forEach((type) => {
+          const filtered = prev[type].filter((item) => item.id !== id);
+          if (filtered.length !== prev[type].length) {
+            next[type] = filtered;
+            changed = true;
+          }
+        });
+
+        return changed ? next : prev;
+      });
+    },
+    [clearToastTimer]
+  );
+
+  const removeGroup = useCallback(
+    (type, position) => {
+      setToastGroups((prev) => {
+        const itemsToRemove = prev[type].filter((item) => item.position === position);
+        if (!itemsToRemove.length) return prev;
+
+        itemsToRemove.forEach((item) => {
+          clearToastTimer(item.id);
+          toastTimerMetaRef.current.delete(item.id);
+        });
+
+        return {
+          ...prev,
+          [type]: prev[type].filter((item) => item.position !== position),
+        };
+      });
+
+      setExpandedGroups((prev) => {
+        const key = `${position}-${type}`;
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    },
+    [clearToastTimer]
+  );
+
+  const scheduleToastExpiry = useCallback(
+    (id, duration) => {
+      clearToastTimer(id);
+      if (!duration || duration <= 0) return;
+
+      toastTimerMetaRef.current.set(id, {
+        remaining: duration,
+        startedAt: Date.now(),
+        paused: false,
+      });
+
+      const timer = setTimeout(() => {
+        removeToastById(id);
+      }, duration);
+
+      toastTimeoutsRef.current.set(id, timer);
+    },
+    [clearToastTimer, removeToastById]
+  );
+
+  const pausePositionTimers = useCallback(
+    (position) => {
+      setToastGroups((prev) => {
+        TOAST_TYPES.forEach((type) => {
+          const targetItems = prev[type].filter((item) => item.position === position);
+          targetItems.forEach((item) => {
+            const meta = toastTimerMetaRef.current.get(item.id);
+            if (!meta || meta.paused) return;
+
+            const elapsed = Date.now() - meta.startedAt;
+            const remaining = Math.max(0, meta.remaining - elapsed);
+
+            clearToastTimer(item.id);
+            toastTimerMetaRef.current.set(item.id, {
+              remaining,
+              startedAt: Date.now(),
+              paused: true,
+            });
+          });
+        });
+        return prev;
+      });
+    },
+    [clearToastTimer]
+  );
+
+  const resumePositionTimers = useCallback(
+    (position) => {
+      const expiredIds = [];
+      setToastGroups((prev) => {
+        TOAST_TYPES.forEach((type) => {
+          const targetItems = prev[type].filter((item) => item.position === position);
+          targetItems.forEach((item) => {
+            const meta = toastTimerMetaRef.current.get(item.id);
+            if (!meta || !meta.paused) return;
+
+            if (meta.remaining <= 0) {
+              expiredIds.push(item.id);
+              return;
+            }
+
+            scheduleToastExpiry(item.id, meta.remaining);
+          });
+        });
+        return prev;
+      });
+      expiredIds.forEach((id) => removeToastById(id));
+    },
+    [removeToastById, scheduleToastExpiry]
+  );
+
+  const hideToast = useCallback(
+    (id) => {
+      if (id === undefined || id === null) {
+        setToastGroups((prev) => {
+          TOAST_TYPES.forEach((type) => {
+            prev[type].forEach((item) => clearToastTimer(item.id));
+          });
+          return createEmptyToastGroups();
+        });
+        toastTimerMetaRef.current.clear();
+        setExpandedGroups({});
+        return;
       }
 
-      setToastData({
-        show: true,
+      removeToastById(id);
+    },
+    [clearToastTimer, removeToastById]
+  );
+
+  const toggleGroupExpanded = useCallback((groupKey) => {
+    setExpandedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
+  }, []);
+
+  const showToast = useCallback(
+    (message, type = "success", options = {}) => {
+      const normalizedType = TOAST_TYPES.includes(type) ? type : "info";
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      let mappedDuration = 5000;
+      if (options.autoClose === false) {
+        mappedDuration = 0;
+      } else if (typeof options.autoClose === "number") {
+        mappedDuration = options.autoClose;
+      } else if (options.duration !== undefined) {
+        mappedDuration = options.duration;
+      }
+
+      let mappedClickToClose = true;
+      if (options.closeOnClick !== undefined) {
+        mappedClickToClose = options.closeOnClick;
+      } else if (options.clickToClose !== undefined) {
+        mappedClickToClose = options.clickToClose;
+      }
+
+      const position = options.position || DEFAULT_POSITIONS[normalizedType] || "right";
+      const showCloseBtn = options.showCloseBtn !== undefined ? options.showCloseBtn : false;
+      const duration = mappedDuration;
+      const clickToClose = mappedClickToClose;
+
+      const newToast = {
+        id,
         message,
-        type,
+        type: normalizedType,
         position,
-        isHiding: false,
         showCloseBtn,
         clickToClose,
         duration,
+        createdAt: Date.now(),
+      };
+
+      let removedIds = [];
+      setToastGroups((prev) => {
+        // 1. Calculate total active groups across all types
+        const allItems = TOAST_TYPES.flatMap(t => prev[t]);
+        const uniqueGroups = new Set(allItems.map(item => `${item.position}-${item.type}`));
+
+        const next = { ...prev };
+
+        // 2. If we're at the limit of total groups, remove the oldest group that isn't the one we're adding to
+        if (uniqueGroups.size >= MAX_TOTAL_TOAST_GROUPS && !uniqueGroups.has(`${position}-${normalizedType}`)) {
+          // Find the oldest toast among all groups
+          const oldestToast = allItems.sort((a, b) => a.createdAt - b.createdAt)[0];
+          if (oldestToast) {
+            next[oldestToast.type] = next[oldestToast.type].filter(item => item.id !== oldestToast.id);
+            removedIds.push(oldestToast.id);
+          }
+        }
+
+        // 3. Add the new toast
+        const updated = [...next[normalizedType], newToast];
+
+        if (updated.length > MAX_ITEMS_PER_GROUP) {
+          const overflow = updated.slice(0, updated.length - MAX_ITEMS_PER_GROUP);
+          removedIds.push(...overflow.map((item) => item.id));
+        }
+
+        next[normalizedType] = updated.slice(-MAX_ITEMS_PER_GROUP);
+        return next;
       });
+
+      if (removedIds.length) {
+        removedIds.forEach((removedId) => clearToastTimer(removedId));
+      }
 
       if (duration > 0) {
-        const timeout = setTimeout(() => {
-          hideToast();
-        }, duration);
-        setToastTimeout(timeout);
+        scheduleToastExpiry(id, duration);
+      } else {
+        toastTimerMetaRef.current.delete(id);
       }
+
+      return id;
     },
-    [toastTimeout]
+    [clearToastTimer, scheduleToastExpiry]
   );
 
-  // Hide Toast Function
-  const hideToast = useCallback(() => {
-    setToastData((prev) => ({ ...prev, isHiding: true }));
-    setTimeout(() => {
-      setToastData({
-        show: false,
-        message: "",
-        type: "success",
-        position: "center",
-        isHiding: false,
-        showCloseBtn: false,
-        clickToClose: true,
-        duration: 3000,
+  const updateToast = useCallback(
+    (idOrOptions, options = {}) => {
+      let targetId;
+      let updateOptions;
+
+      if (typeof idOrOptions === "string" || typeof idOrOptions === "number") {
+        targetId = idOrOptions;
+        updateOptions = options;
+      } else {
+        updateOptions = idOrOptions || {};
+      }
+
+      let targetToast = null;
+
+      setToastGroups((prev) => {
+        const findById = () => {
+          if (!targetId) return null;
+
+          for (const type of TOAST_TYPES) {
+            const found = prev[type].find((item) => item.id === targetId);
+            if (found) return found;
+          }
+
+          return null;
+        };
+
+        const findLatestLoading = () => {
+          const loadingToasts = prev.loading;
+          if (!loadingToasts.length) return null;
+          return loadingToasts[loadingToasts.length - 1];
+        };
+
+        const current = findById() || findLatestLoading();
+        if (!current) return prev;
+
+        targetToast = current;
+
+        const {
+          render,
+          message,
+          type,
+          isLoading,
+          autoClose,
+          duration,
+          position,
+          showCloseBtn,
+          closeOnClick,
+          clickToClose,
+          ...rest
+        } = updateOptions;
+
+        const resolvedType = isLoading
+          ? "loading"
+          : TOAST_TYPES.includes(type)
+            ? type
+            : current.type;
+
+        const resolvedDuration =
+          autoClose === false
+            ? 0
+            : typeof autoClose === "number"
+              ? autoClose
+              : duration !== undefined
+                ? duration
+                : current.duration;
+
+        const nextToast = {
+          ...current,
+          ...rest,
+          message: render || message || current.message,
+          type: resolvedType,
+          position: position || current.position || DEFAULT_POSITIONS[resolvedType] || "right",
+          showCloseBtn: showCloseBtn !== undefined ? showCloseBtn : current.showCloseBtn,
+          clickToClose:
+            closeOnClick !== undefined
+              ? closeOnClick
+              : clickToClose !== undefined
+                ? clickToClose
+                : current.clickToClose,
+          duration: resolvedDuration,
+        };
+
+        const next = { ...prev };
+        next[current.type] = prev[current.type].filter((item) => item.id !== current.id);
+        next[resolvedType] = [...next[resolvedType], nextToast].slice(-MAX_ITEMS_PER_GROUP);
+
+        return next;
       });
-    }, 300);
-  }, []);
 
-  // Shorthand toast functions
-  const toast = {
-    success: (message, options = {}) =>
-      showToast(message, "success", { position: "center", ...options }),
+      if (!targetToast) return;
 
-    error: (message, options = {}) =>
-      showToast(message, "error", { position: "right", ...options }),
+      const { autoClose, duration } = updateOptions || {};
+      const nextDuration =
+        autoClose === false
+          ? 0
+          : typeof autoClose === "number"
+            ? autoClose
+            : duration !== undefined
+              ? duration
+              : targetToast.duration;
 
-    warning: (message, options = {}) =>
-      showToast(message, "warning", { position: "right", ...options }),
+      if (nextDuration > 0) {
+        scheduleToastExpiry(targetToast.id, nextDuration);
+      } else {
+        clearToastTimer(targetToast.id);
+        toastTimerMetaRef.current.delete(targetToast.id);
+      }
+    },
+    [clearToastTimer, scheduleToastExpiry]
+  );
 
-    info: (message, options = {}) =>
-      showToast(message, "info", { position: "center", ...options }),
-  };
+  const toast = useMemo(
+    () => ({
+      success: (message, options = {}) =>
+        showToast(message, "success", { position: "center", ...options }),
+      error: (message, options = {}) =>
+        showToast(message, "error", { position: "right", ...options }),
+      warning: (message, options = {}) =>
+        showToast(message, "warning", { position: "right", ...options }),
+      info: (message, options = {}) =>
+        showToast(message, "info", { position: "center", ...options }),
+      loading: (message, options = {}) =>
+        showToast(message, "loading", {
+          position: "center",
+          duration: 0,
+          clickToClose: false,
+          ...options,
+        }),
+      update: updateToast,
+    }),
+    [showToast, updateToast]
+  );
 
-  // ============================================
-  // CONFIRM STATE & FUNCTIONS
-  // ============================================
   const [confirmData, setConfirmData] = useState({
     show: false,
     title: "",
@@ -119,7 +416,6 @@ export const ToastProvider = ({ children }) => {
     resolvePromise: null,
   });
 
-  // Show Confirm Function (Promise-based)
   const showConfirm = useCallback(
     ({
       title,
@@ -127,8 +423,9 @@ export const ToastProvider = ({ children }) => {
       type = "danger",
       confirmText,
       cancelText = "Cancel",
+      requireMatch = null,
+      inputField = null,
     }) => {
-      // Default confirm text based on type
       const defaultConfirmText = {
         danger: "Yes, Delete",
         warning: "Continue",
@@ -145,15 +442,26 @@ export const ToastProvider = ({ children }) => {
           cancelText,
           isLoading: false,
           resolvePromise: resolve,
+          requireMatch,
+          inputField,
+          matchValue: "",
+          inputValue: "",
         });
       });
     },
     []
   );
 
-  // Handle Confirm Click
   const handleConfirm = useCallback(
     async (asyncCallback) => {
+      // If requireMatch is set, check if matchValue matches
+      if (confirmData.requireMatch && confirmData.matchValue !== confirmData.requireMatch) {
+        return;
+      }
+      
+      // If inputField is set and required, we could check here too, but we'll let the user decide.
+      // We pass the inputValue back in the resolve.
+
       if (asyncCallback && typeof asyncCallback === "function") {
         setConfirmData((prev) => ({ ...prev, isLoading: true }));
         try {
@@ -163,12 +471,15 @@ export const ToastProvider = ({ children }) => {
         }
       }
 
-      // Resolve promise with true
+      // Resolve promise with true or data
       if (confirmData.resolvePromise) {
-        confirmData.resolvePromise(true);
+        if (confirmData.inputField) {
+          confirmData.resolvePromise({ confirmed: true, inputValue: confirmData.inputValue });
+        } else {
+          confirmData.resolvePromise(true);
+        }
       }
 
-      // Close dialog
       setConfirmData({
         show: false,
         title: "",
@@ -178,19 +489,22 @@ export const ToastProvider = ({ children }) => {
         cancelText: "Cancel",
         isLoading: false,
         resolvePromise: null,
+        requireMatch: null,
+        inputField: null,
       });
     },
-    [confirmData.resolvePromise]
+    [confirmData.resolvePromise, confirmData.requireMatch, confirmData.matchValue, confirmData.inputField, confirmData.inputValue]
   );
 
-  // Handle Cancel Click
   const handleCancel = useCallback(() => {
-    // Resolve promise with false
     if (confirmData.resolvePromise) {
-      confirmData.resolvePromise(false);
+      if (confirmData.inputField) {
+        confirmData.resolvePromise({ confirmed: false });
+      } else {
+        confirmData.resolvePromise(false);
+      }
     }
 
-    // Close dialog
     setConfirmData({
       show: false,
       title: "",
@@ -200,16 +514,28 @@ export const ToastProvider = ({ children }) => {
       cancelText: "Cancel",
       isLoading: false,
       resolvePromise: null,
+      requireMatch: null,
+      inputField: null,
     });
-  }, [confirmData.resolvePromise]);
+  }, [confirmData.resolvePromise, confirmData.inputField]);
 
-  // Escape key handler
+  // Handle Input Changes
+  const handleMatchChange = useCallback((e) => {
+    const value = e.target.value;
+    setConfirmData(prev => ({ ...prev, matchValue: value }));
+  }, []);
+
+  const handleInputChange = useCallback((e) => {
+    const value = e.target.value;
+    setConfirmData(prev => ({ ...prev, inputValue: value }));
+  }, []);
+
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape") {
         if (confirmData.show && !confirmData.isLoading) {
           handleCancel();
-        } else if (toastData.show) {
+        } else {
           hideToast();
         }
       }
@@ -217,17 +543,17 @@ export const ToastProvider = ({ children }) => {
 
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [
-    confirmData.show,
-    confirmData.isLoading,
-    toastData.show,
-    handleCancel,
-    hideToast,
-  ]);
+  }, [confirmData.show, confirmData.isLoading, handleCancel, hideToast]);
 
-  // Shorthand confirm functions
+  useEffect(() => {
+    return () => {
+      toastTimeoutsRef.current.forEach((timer) => clearTimeout(timer));
+      toastTimeoutsRef.current.clear();
+      toastTimerMetaRef.current.clear();
+    };
+  }, []);
+
   const confirm = {
-    // Delete confirmation
     delete: (itemName, onConfirm) => {
       return new Promise(async (resolve) => {
         const result = await showConfirm({
@@ -243,14 +569,9 @@ export const ToastProvider = ({ children }) => {
       });
     },
 
-    // Warning confirmation
     warning: (title, message, onConfirm) => {
       return new Promise(async (resolve) => {
-        const result = await showConfirm({
-          title,
-          message,
-          type: "warning",
-        });
+        const result = await showConfirm({ title, message, type: "warning" });
 
         if (result && onConfirm) {
           await onConfirm();
@@ -259,14 +580,9 @@ export const ToastProvider = ({ children }) => {
       });
     },
 
-    // Info confirmation
     info: (title, message, onConfirm) => {
       return new Promise(async (resolve) => {
-        const result = await showConfirm({
-          title,
-          message,
-          type: "info",
-        });
+        const result = await showConfirm({ title, message, type: "info" });
 
         if (result && onConfirm) {
           await onConfirm();
@@ -275,7 +591,6 @@ export const ToastProvider = ({ children }) => {
       });
     },
 
-    // Custom confirmation
     custom: (options, onConfirm) => {
       return new Promise(async (resolve) => {
         const result = await showConfirm(options);
@@ -291,11 +606,9 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider
       value={{
-        // Toast
         showToast,
         hideToast,
         toast,
-        // Confirm
         showConfirm,
         handleConfirm,
         handleCancel,
@@ -304,98 +617,203 @@ export const ToastProvider = ({ children }) => {
     >
       {children}
 
-      {/* Toast Component */}
-      <ToastComponent toastData={toastData} hideToast={hideToast} />
+      <div
+        className="toast-container-right"
+        onMouseEnter={() => pausePositionTimers("right")}
+        onMouseLeave={() => resumePositionTimers("right")}
+      >
+        <ToastGroupsByPosition
+          position="right"
+          toastGroups={toastGroups}
+          expandedGroups={expandedGroups}
+          hideToast={hideToast}
+          removeGroup={removeGroup}
+          toggleGroupExpanded={toggleGroupExpanded}
+        />
+      </div>
 
-      {/* Confirm Component */}
+      <div
+        className="toast-container-center"
+        onMouseEnter={() => pausePositionTimers("center")}
+        onMouseLeave={() => resumePositionTimers("center")}
+      >
+        <ToastGroupsByPosition
+          position="center"
+          toastGroups={toastGroups}
+          expandedGroups={expandedGroups}
+          hideToast={hideToast}
+          removeGroup={removeGroup}
+          toggleGroupExpanded={toggleGroupExpanded}
+        />
+      </div>
+
       <ConfirmComponent
         confirmData={confirmData}
         handleConfirm={handleConfirm}
         handleCancel={handleCancel}
+        handleMatchChange={handleMatchChange}
+        handleInputChange={handleInputChange}
       />
     </ToastContext.Provider>
   );
 };
 
-// ============================================
-// TOAST UI COMPONENT
-// ============================================
-const ToastComponent = ({ toastData, hideToast }) => {
-  if (!toastData.show) return null;
+const getToastMeta = (type) => {
+  switch (type) {
+    case "success":
+      return { title: "Success", icon: CheckCircle };
+    case "error":
+      return { title: "Error", icon: AlertCircle };
+    case "warning":
+      return { title: "Warning", icon: AlertTriangle };
+    case "info":
+      return { title: "Info", icon: Info };
+    case "loading":
+      return { title: "Loading", icon: null };
+    default:
+      return { title: "Notification", icon: CheckCircle };
+  }
+};
 
-  const getIcon = () => {
-    const size = toastData.position === "center" ? 28 : 22;
-    switch (toastData.type) {
-      case "success":
-        return <CheckCircle size={size} />;
-      case "error":
-        return <AlertCircle size={size} />;
-      case "warning":
-        return <AlertTriangle size={size} />;
-      case "info":
-        return <Info size={size} />;
-      default:
-        return <CheckCircle size={size} />;
+const ToastGroupsByPosition = ({
+  position,
+  toastGroups,
+  expandedGroups,
+  hideToast,
+  removeGroup,
+  toggleGroupExpanded,
+}) => {
+  const grouped = TOAST_TYPES.map((type) => ({
+    type,
+    items: toastGroups[type].filter((item) => item.position === position),
+  })).filter((entry) => entry.items.length > 0);
+
+  return grouped.map(({ type, items }) => {
+    const groupKey = `${position}-${type}`;
+    return (
+      <ToastGroup
+        key={groupKey}
+        groupKey={groupKey}
+        type={type}
+        items={items}
+        expanded={!!expandedGroups[groupKey]}
+        hideToast={hideToast}
+        removeGroup={removeGroup}
+        toggleGroupExpanded={toggleGroupExpanded}
+        position={position}
+      />
+    );
+  });
+};
+
+const ToastGroup = ({
+  groupKey,
+  type,
+  items,
+  expanded,
+  hideToast,
+  removeGroup,
+  toggleGroupExpanded,
+  position,
+}) => {
+  const { title, icon: Icon } = getToastMeta(type);
+  const collapsedMessage = items[items.length - 1]?.message || "";
+  const canExpand = items.length > 1;
+
+  const summarizedItems = useMemo(() => {
+    const map = new Map();
+    items.forEach((item) => {
+      if (!map.has(item.message)) {
+        map.set(item.message, { message: item.message, count: 1, id: item.id });
+      } else {
+        const current = map.get(item.message);
+        map.set(item.message, { ...current, count: current.count + 1 });
+      }
+    });
+    return Array.from(map.values()).reverse();
+  }, [items]);
+
+  const handleMainClick = () => {
+    if (canExpand) {
+      toggleGroupExpanded(groupKey);
+      return;
     }
-  };
 
-  const getTitle = () => {
-    switch (toastData.type) {
-      case "success":
-        return "Success!";
-      case "error":
-        return "Error!";
-      case "warning":
-        return "Warning!";
-      case "info":
-        return "Info";
-      default:
-        return "Notification";
-    }
-  };
-
-  const handleClick = () => {
-    if (toastData.clickToClose) {
-      hideToast();
+    const latest = items[items.length - 1];
+    if (latest?.clickToClose) {
+      hideToast(latest.id);
     }
   };
 
   return (
-    <div
-      className={`
-        toast-container-${toastData.position}
-        ${toastData.isHiding ? "hiding" : ""}
-      `}
-      onClick={handleClick}
-      style={{ cursor: toastData.clickToClose ? "pointer" : "default" }}
-    >
-      <div className={`toast-card ${toastData.type}`}>
-        <div className="icon-box">{getIcon()}</div>
+    <div className={`toast-group ${expanded ? "expanded" : ""}`}>
+      <div className={`toast-card-wrapper ${position} ${type}`}>
+        <div
+          className={`toast-card ${type}`}
+          onClick={handleMainClick}
+          style={{ cursor: canExpand || items[items.length - 1]?.clickToClose ? "pointer" : "default" }}
+        >
+          <div className="icon-box">
+            {type === "loading" ? (
+              <span className="toast-spinner" style={{ width: 22, height: 22, borderTopColor: "white" }}></span>
+            ) : (
+              Icon && <Icon size={position === "center" ? 28 : 22} />
+            )}
+          </div>
 
-        <div className="toast-content">
-          <h5 className="toast-title">{getTitle()}</h5>
-          <p className="toast-message">{toastData.message}</p>
-        </div>
+          <div className="toast-content">
+            <h5 className="toast-title">
+              {title}
+              {items.length > 1 ? ` (${items.length})` : ""}
+            </h5>
+            <div className="toast-message">{collapsedMessage}</div>
+          </div>
 
-        {toastData.showCloseBtn && (
+          {items[items.length - 1]?.duration > 0 && (
+            <div className="toast-progress">
+              <div
+                className="toast-progress-fill"
+                style={{
+                  animationDuration: `${items[items.length - 1].duration}ms`,
+                  animationPlayState: expanded ? 'paused' : 'running'
+                }}
+              />
+            </div>
+          )}
+
           <button
+            type="button"
             className="toast-close-btn"
             onClick={(e) => {
               e.stopPropagation();
-              hideToast();
+              removeGroup(type, position);
             }}
           >
             <X size={18} />
           </button>
-        )}
-
-        <div
-          className="toast-progress"
-          style={{
-            animationDuration: `${toastData.duration}ms`,
-          }}
-        />
+        </div>
       </div>
+
+      {canExpand ? (
+        <button
+          type="button"
+          className="toast-group-toggle"
+          onClick={() => toggleGroupExpanded(groupKey)}
+        >
+          {expanded ? "Hide details" : "Show details"}
+        </button>
+      ) : null}
+
+      {canExpand && expanded ? (
+        <div className="toast-group-dropdown">
+          {summarizedItems.map((item) => (
+            <div key={`${groupKey}-${item.id}`} className="toast-sub-item">
+              <span>{item.message}</span>
+              {item.count > 1 ? <span className="toast-sub-count">x{item.count}</span> : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -403,7 +821,7 @@ const ToastComponent = ({ toastData, hideToast }) => {
 // ============================================
 // CONFIRM UI COMPONENT
 // ============================================
-const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
+const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel, handleMatchChange, handleInputChange }) => {
   if (!confirmData.show) return null;
 
   const getIcon = () => {
@@ -419,6 +837,11 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
     }
   };
 
+  const isConfirmDisabled = 
+    (confirmData.requireMatch && confirmData.matchValue !== confirmData.requireMatch) || 
+    (confirmData.inputField && !confirmData.inputValue?.trim()) ||
+    confirmData.isLoading;
+
   return (
     <div
       className="confirm-overlay"
@@ -428,16 +851,45 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
         }
       }}
     >
-      <div
-        className={`confirm-card ${confirmData.type}`}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={`confirm-card ${confirmData.type}`} onClick={(e) => e.stopPropagation()}>
         <div className={`confirm-icon ${confirmData.type}`}>{getIcon()}</div>
 
         <h3 className="confirm-title">{confirmData.title}</h3>
-        <p className="confirm-message">{confirmData.message}</p>
+        <div className="confirm-message">{confirmData.message}</div>
 
-        <div className="confirm-buttons">
+        {confirmData.requireMatch && (
+          <div className="confirm-input-group mt-3">
+            <label className="small text-muted mb-1 text-start d-block">
+              Type <strong>{confirmData.requireMatch}</strong> to confirm:
+            </label>
+            <input
+              type="text"
+              className="confirm-input form-control"
+              value={confirmData.matchValue}
+              onChange={handleMatchChange}
+              placeholder={confirmData.requireMatch}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {confirmData.inputField && (
+          <div className="confirm-input-group mt-3">
+            <label className="small text-muted mb-1 text-start d-block">
+              {confirmData.inputField.label || 'Authorization Key'}:
+            </label>
+            <input
+              type={confirmData.inputField.type || 'text'}
+              className="confirm-input form-control"
+              value={confirmData.inputValue}
+              onChange={handleInputChange}
+              placeholder={confirmData.inputField.placeholder || ''}
+              autoFocus={!confirmData.requireMatch}
+            />
+          </div>
+        )}
+
+        <div className="confirm-buttons mt-4">
           <button
             className="confirm-btn cancel"
             onClick={handleCancel}
@@ -448,11 +900,11 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
           <button
             className={`confirm-btn ${confirmData.type}`}
             onClick={() => handleConfirm()}
-            disabled={confirmData.isLoading}
+            disabled={isConfirmDisabled}
           >
             {confirmData.isLoading ? (
               <span className="confirm-loading">
-                <span className="spinner"></span>
+                <span className="toast-spinner"></span>
                 Loading...
               </span>
             ) : (
@@ -465,9 +917,6 @@ const ConfirmComponent = ({ confirmData, handleConfirm, handleCancel }) => {
   );
 };
 
-// ============================================
-// CUSTOM HOOK
-// ============================================
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {

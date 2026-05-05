@@ -10,7 +10,7 @@ const { Op } = require('sequelize');
 router.get(
   '/tat',
   authenticateUser,
-  authorizeRoles(['admin', 'doctor', 'chemist']),
+  authorizeRoles('admin', 'chemist'),
   tenantContext,
   async (req, res) => {
     try {
@@ -127,7 +127,15 @@ router.get(
             {
               model: db.patient,
               as: 'patient',
-              attributes: ['id', 'name', 'phone']
+              attributes: ['id', 'name'],
+              include: [
+                {
+                  model: db.phone_number,
+                  as: 'phones',
+                  attributes: [['phone', 'phone_number']]
+                }
+              ]
+
             }
           ],
           order: [['registered_at', 'ASC']]

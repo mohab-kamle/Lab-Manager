@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert, Badge } from 'react-bootstrap';
-import { Users, FileText, Plus, Activity, UserPlus, ClipboardList, DollarSign, CreditCard, TrendingUp, Phone, Calendar } from 'lucide-react';
+import { Users, FileText, Plus, Activity, UserPlus, ClipboardList, DollarSign, CreditCard, TrendingUp, Phone, Calendar, Receipt, ScanBarcode } from 'lucide-react';
+import SettlementModal from '../../components/settlement/SettlementModal';
+import SampleQuickInfoModal from '../../components/samples/SampleQuickInfoModal';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +19,8 @@ const ReceptionistDashboard = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -52,32 +56,40 @@ const ReceptionistDashboard = () => {
 
   const quickActions = [
     {
+      title: 'Scan Sample',
+      description: 'Quick scan a sample barcode',
+      icon: <ScanBarcode size={24} />,
+      action: () => setShowScanModal(true)
+    },
+    {
       title: 'New Patient',
       description: 'Register a new patient',
       icon: <UserPlus size={24} />,
-      variant: 'primary',
       action: () => navigate('/admin/dashboard/patients')
     },
     {
       title: 'Create Invoice',
       description: 'Generate new invoice',
       icon: <FileText size={24} />,
-      variant: 'success',
       action: () => navigate('/admin/dashboard/invoices')
     },
     {
       title: 'View Reports',
       description: 'Check medical reports',
       icon: <ClipboardList size={24} />,
-      variant: 'info',
       action: () => navigate('/admin/dashboard/medical-reports')
     },
     {
       title: 'Patient List',
       description: 'Manage patients',
       icon: <Users size={24} />,
-      variant: 'warning',
       action: () => navigate('/admin/dashboard/patients')
+    },
+    {
+      title: 'Settlement',
+      description: 'Settle patient bills',
+      icon: <Receipt size={24} />,
+      action: () => setShowSettlementModal(true)
     }
   ];
 
@@ -88,6 +100,8 @@ const ReceptionistDashboard = () => {
   }
 
   return (
+    <>
+    <SampleQuickInfoModal show={showScanModal} onHide={() => setShowScanModal(false)} />
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
@@ -155,15 +169,14 @@ const ReceptionistDashboard = () => {
             <Card.Body>
               <Row>
                 {quickActions.map((action, index) => (
-                  <Col md={3} key={index} className="mb-3">
+                  <Col md={12} lg={true} key={index} className="mb-3">
                     <Button
-                      variant={action.variant}
-                      className="w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3"
+                      className="btn-dashboard-action w-100"
                       onClick={action.action}
                     >
-                      <div className="mb-2">{action.icon}</div>
+                      <div className="mb-1">{action.icon}</div>
                       <strong>{action.title}</strong>
-                      <small className="d-block mt-1">{action.description}</small>
+                      <small className="d-block text-center mt-1">{action.description}</small>
                     </Button>
                   </Col>
                 ))}
@@ -233,6 +246,12 @@ const ReceptionistDashboard = () => {
         </Col>
       </Row>
     </Container>
+
+      <SettlementModal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
+      />
+    </>
   );
 };
 

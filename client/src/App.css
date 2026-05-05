@@ -56,16 +56,16 @@
 
 /* Custom properties for lab branding */
 :root {
-  --lab-primary-color: #284889;
-  --lab-secondary-color: #6c757d;
+  --lab-primary-color: var(--color-primary);
+  --lab-secondary-color: var(--text-secondary);
 }
 
 /* Dark mode auto-lightening for lab branding.
    Labs can override --lab-primary-color in their dark mode settings.
    If not provided, this auto-lightened value is used. */
-body.dark {
-  --lab-primary-color: #6b8fd4;
-  --lab-secondary-color: #9ca3af;
+[data-bs-theme="dark"] {
+  --lab-primary-color: var(--color-primary-hover);
+  --lab-secondary-color: var(--text-subtle);
 }
 
 /* Apply lab colors to various components */
@@ -94,9 +94,9 @@ body.dark {
 
 /* Trial warning styles */
 .lab-layout .alert-warning {
-  background-color: var(--color-warning);
+  background-color: var(--toast-warning-bg);
   border-color: var(--color-warning);
-  color: #856404;
+  color: var(--toast-text);
 }
 
 .lab-layout .alert-danger {
@@ -119,7 +119,7 @@ body.dark {
 /* Navigation adjustments for lab context */
 .lab-layout .navbar {
   background-color: var(--bg-surface);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .lab-layout .navbar-brand {
@@ -130,18 +130,18 @@ body.dark {
 /* Form elements with lab branding */
 .lab-layout .form-control:focus {
   border-color: var(--lab-primary-color);
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--pill-bg);
 }
 
 .lab-layout .form-select:focus {
   border-color: var(--lab-primary-color);
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--pill-bg);
 }
 
 /* Card styles with lab branding */
 .lab-layout .card {
   border: 1px solid var(--border-muted);
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  box-shadow: var(--shadow-sm);
 }
 
 .lab-layout .card-header {
@@ -210,21 +210,21 @@ body.dark {
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #004a93 0%, #0056b3 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
     border: none;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 20px rgba(0, 74, 147, 0.3);
+    box-shadow: var(--shadow-md);
     z-index: 1000;
     transition: all 0.3s ease;
 }
 
 .scroll-to-top-btn:hover {
-    background: linear-gradient(135deg, #0056b3 0%, #0066cc 100%);
-    box-shadow: 0 6px 25px rgba(0, 74, 147, 0.4);
+    filter: brightness(1.1);
+    box-shadow: var(--shadow-lg);
     transform: translateY(-2px);
 }
 
@@ -258,10 +258,15 @@ body.dark {
 .modal-header {
   background-color: var(--color-primary) !important;
   color: white !important;
-  border-bottom: none !important;
+  border-bottom: 1px solid var(--glass-border) !important;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+[data-bs-theme="dark"] .modal-header {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
 }
 
 .modal-title {
@@ -271,14 +276,14 @@ body.dark {
 .modal-close-btn {
   background: transparent;
   border: none;
-  color: white;
+  color: currentColor;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 .modal-close-btn:hover {
@@ -294,8 +299,8 @@ body.dark {
 
 .image-preview-item:focus {
   outline: none;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); /* Bootstrap focus style */
-  border-color: #86b7fe; /* Bootstrap focus border color */
+  box-shadow: 0 0 0 0.25rem var(--pill-bg);
+  border-color: var(--color-primary);
 }
 
 .image-preview-remove-btn {
@@ -315,13 +320,13 @@ body.dark {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--bg-surface);
   font-size: 0.75rem;
   padding: 4px;
   text-align: center;
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
-  border-top: 1px solid rgba(0,0,0,0.1);
+  border-top: 1px solid var(--border-muted);
 }
 
 .image-preview-item:hover .image-preview-name,

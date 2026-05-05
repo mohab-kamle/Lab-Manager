@@ -9,7 +9,7 @@ import {
   Dropdown,
   NavbarText,
 } from "react-bootstrap";
-import { toast } from "react-toastify";
+import { useToast } from "../ui/ToastContext";
 
 import ThemeToggle from "../ui/ThemeToggle";
 
@@ -27,14 +27,17 @@ import {
   ChevronDown,
   Boxes,
   Bell,
+  Receipt,
 } from "lucide-react";
 
 import api from "../../utils/api";
 
-import labIcon from "../../assets/LabIconWithRoundedWhiteBg_sm.webp";
+import labIcon from "../../assets/BlueLogoIconWithWhiteRoundBg.webp";
+import labIconDark from "../../assets/WhiteLogoWithTransparentRoundBg.webp";
 import { getSubdomain } from "../../utils/subdomain";
 import { useAuth } from "../../context/AuthContext";
 import { useLab } from "../../context/LabContext";
+import { useTheme } from "../../context/ThemeContext";
 import VersionBadge from "../ui/VersionBadge";
 
 import "../../styles/MainNavBar.css";
@@ -87,11 +90,14 @@ export const resetNavbarActiveState = () => {
  * @returns {JSX.Element} The main navigation bar component.
  */
 const MainNavBar = () => {
+  const { toast } = useToast();
   const { user, loading: authLoading, refreshUser, logout } = useAuth();
-  const { terminateLabInfo, loading: labLoading, labInfo } = useLab(); // Added labInfo destructuring
+  const { terminateLabInfo, loading: labLoading, labInfo } = useLab();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const logoutTimerRef = useRef(null);
 
   const [titles, setTitles] = useState(() => {
     const saved = localStorage.getItem("navbar-titles");
@@ -107,10 +113,6 @@ const MainNavBar = () => {
     return localStorage.getItem("active-dropdown-item") || null;
   });
   const [expanded, setExpanded] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem("darkMode");
-    return saved ? JSON.parse(saved) : false;
-  });
   const [isInitialized, setIsInitialized] = useState(false);
 
   // --- Notification Bell State ---
@@ -206,6 +208,19 @@ const MainNavBar = () => {
     }
   }, [activeItem]);
 
+  // Sync active item and dropdown title with current route dynamically.
+  // This ensures the navbar correctly highlights when navigating via URL
+  // (e.g., clicking a Kanban card) rather than clicking a navbar dropdown item.
+  useEffect(() => {
+    if (location.pathname.includes("/samples-kanban")) {
+      setActiveItem("samples-kanban");
+      setTitles(prev => ({ ...prev, MedicalReports: "Samples Kanban" }));
+    } else if (location.pathname.includes("/medical-reports")) {
+      setActiveItem("all-medical-reports");
+      setTitles(prev => ({ ...prev, MedicalReports: "All Medical Reports" }));
+    }
+  }, [location.pathname]);
+
   // Handle user refresh and token expiration
   useEffect(() => {
     if (!user && !authLoading) refreshUser();
@@ -221,18 +236,23 @@ const MainNavBar = () => {
       };
       const payload = parseJwt(token);
       if (!payload || payload.exp < Date.now() / 1000) {
-        toast.error("Your session has expired. Please login again.", {
-          position: "top-right",
-          autoClose: 3000,
-          theme: "colored",
-          onClose: () => {
-            logout();
-            terminateLabInfo();
-            window.location.href = "/login";
-          },
-        });
+        if (logoutTimerRef.current) return;
+
+        toast.error("Your session has expired. Please login again.", { duration: 3000 });
+        logoutTimerRef.current = setTimeout(() => {
+          logout();
+          terminateLabInfo();
+          window.location.href = "/login";
+        }, 3000);
       }
     }
+
+    return () => {
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+        logoutTimerRef.current = null;
+      }
+    };
   }, [user, authLoading, refreshUser, logout, terminateLabInfo]);
 
   useEffect(() => {
@@ -265,20 +285,13 @@ const MainNavBar = () => {
   };
 
   const handleLogout = () => {
-    toast.success("You have been logged out successfully.", {
-      position: "top-right",
-      autoClose: 3000,
-      theme: "colored",
-    });
+    toast.success("You have been logged out successfully.");
     logout();
     terminateLabInfo();
     navigate("/login");
     setExpanded(false);
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -290,18 +303,27 @@ const MainNavBar = () => {
       setShowWelcome(false);
     }, 5000);
 
-    // Hide permanently if user scrolls down
-    const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setShowWelcome(false);
-      }
-    };
+    // Use IntersectionObserver instead of scroll listener to toggle welcome label
+    // This watches a sentinel element at the top of the page (usually in Layout or HomePage)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // If sentinel is not intersecting, it means we've scrolled down
+        if (!entry.isIntersecting) {
+          setShowWelcome(false);
+        }
+      },
+      { threshold: 0 }
+    );
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) {
+      observer.observe(sentinel);
+    }
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener("scroll", handleScroll);
+      if (sentinel) observer.unobserve(sentinel);
+      observer.disconnect();
     };
   }, [user]);
 
@@ -323,6 +345,7 @@ const MainNavBar = () => {
           zIndex: 1050,
           WebkitBackdropFilter: "blur(12px)",
           backdropFilter: "blur(12px)",
+          willChange: "transform, backdrop-filter", // Hardware acceleration
         }}
       >
         <Container fluid>
@@ -333,7 +356,7 @@ const MainNavBar = () => {
             onClick={() => setExpanded(false)}
           >
             <img
-              src={labIcon}
+              src={theme === 'dark' ? labIconDark : labIcon}
               alt=""
               style={{ width: "50px", height: "50px", borderRadius: "50%" }}
             />
@@ -441,15 +464,15 @@ const MainNavBar = () => {
                           <Dropdown.Toggle
                             id="dropdown-basic"
                             className={`nav-button ${[
-                                "categories-tests",
-                                "tests-tests",
-                                "sample-types-tests",
-                                "packages-offers",
+                              "categories-tests",
+                              "tests-tests",
+                              "sample-types-tests",
+                              "packages-offers",
 
-                                "diseases-tests",
-                              ].includes(activeItem)
-                                ? "active-dropdown"
-                                : ""
+                              "diseases-tests",
+                            ].includes(activeItem)
+                              ? "active-dropdown"
+                              : ""
                               }`}
                           >
                             <Database size={18} className="me-1 mb-1" />
@@ -587,6 +610,7 @@ const MainNavBar = () => {
                             id="dropdown-basic"
                             className={`nav-button ${[
                               "vault",
+                              "transactions-vault",
                               "invoices",
                               "patients",
                               "patients-analytics",
@@ -603,13 +627,13 @@ const MainNavBar = () => {
                             {user?.role === "admin" && (
                               <Dropdown.Item
                                 as={Link}
-                                to={`/${user?.role}/vault`}
+                                to={`/admin/transactions`}
                                 data-dropdown-key="Rec"
-                                data-title="Vault(under construction)"
-                                data-id="vault"
-                                active={activeItem === "vault"}
+                                data-title="Transactions Vault"
+                                data-id="transactions-vault"
+                                active={activeItem === "transactions-vault"}
                               >
-                                Vault(under construction)
+                                Transactions Vault
                               </Dropdown.Item>
                             )}
                             <Dropdown.Item
@@ -660,7 +684,7 @@ const MainNavBar = () => {
                           <Dropdown.Toggle
                             variant="outline-light"
                             id="dropdown-basic"
-                            className={`nav-button ${["all-medical-reports"].includes(activeItem)
+                            className={`nav-button ${["all-medical-reports", "samples-kanban"].includes(activeItem)
                               ? "active-dropdown"
                               : ""
                               }`}
@@ -679,6 +703,16 @@ const MainNavBar = () => {
                               active={activeItem === "all-medical-reports"}
                             >
                               All Medical Reports
+                            </Dropdown.Item>
+                            <Dropdown.Item
+                              as={Link}
+                              to={`/${user?.role}/samples-kanban`}
+                              data-dropdown-key="MedicalReports"
+                              data-title="Samples Kanban"
+                              data-id="samples-kanban"
+                              active={activeItem === "samples-kanban"}
+                            >
+                              Samples Kanban
                             </Dropdown.Item>
                           </Dropdown.Menu>
                         </Dropdown>
@@ -745,34 +779,6 @@ const MainNavBar = () => {
                       </Dropdown>
                     )}
 
-                    {/* Accounting - Admin only */}
-                    {user?.role === "admin" && (
-                      <Dropdown className="mx-1 mb-1">
-                        <Dropdown.Toggle
-                          id="dropdown-basic"
-                          className={`nav-button ${["payment-methods"].includes(activeItem)
-                            ? "active-dropdown"
-                            : ""
-                            }`}
-                        >
-                          <DollarSignIcon size={18} className="me-1 mb-1" />
-                          {titles.Accounting}
-                        </Dropdown.Toggle>
-
-                        <Dropdown.Menu>
-                          <Dropdown.Item
-                            as={Link}
-                            to={`/${user?.role}/payment-methods`}
-                            data-dropdown-key="Accounting"
-                            data-title="Payment Methods"
-                            data-id="payment-methods"
-                            active={activeItem === "payment-methods"}
-                          >
-                            Payment Methods
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    )}
 
                     {/* Inventory & Stock - Admin, Chemist */}
                     {(user?.role === "admin" || user?.role === "chemist") && (
@@ -823,12 +829,25 @@ const MainNavBar = () => {
                       </Dropdown>
                     )}
 
+                    {/* Outsourced Labs — Chemist & Employee (Admin sees it in Manage Branches dropdown below) */}
+                    {(user?.role === "chemist" || user?.role === "employee") && (
+                      <Nav.Link
+                        as={Link}
+                        to={`/${user?.role}/outsourced-labs`}
+                        className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
+                        data-id="outsourced-labs"
+                        onClick={() => setExpanded(false)}
+                      >
+                        Outsourced Labs
+                      </Nav.Link>
+                    )}
+
                     {/* Admin-only links */}
                     {user?.role === "admin" && (
                       <Dropdown className="mx-1 mb-1">
                         <Dropdown.Toggle
                           id="dropdown-basic"
-                          className={`nav-button ${["branches", "employees", "lab-management"].includes(
+                          className={`nav-button ${["branches", "employees", "lab-management", "outsourced-labs", "payment-methods", "manager-keys"].includes(
                             activeItem
                           )
                             ? "active-dropdown"
@@ -869,6 +888,36 @@ const MainNavBar = () => {
                           >
                             Lab Ops Center
                           </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/admin/manager-keys`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Manager Key Management"
+                            data-id="manager-keys"
+                            active={activeItem === "manager-keys"}
+                          >
+                            Manager Key Management
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/payment-methods`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Payment Methods"
+                            data-id="payment-methods"
+                            active={activeItem === "payment-methods"}
+                          >
+                            Payment Methods
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            as={Link}
+                            to={`/${user?.role}/outsourced-labs`}
+                            data-dropdown-key="Manage_B"
+                            data-title="Outsourced Labs"
+                            data-id="outsourced-labs"
+                            active={activeItem === "outsourced-labs"}
+                          >
+                            Outsourced Labs
+                          </Dropdown.Item>
                         </Dropdown.Menu>
                       </Dropdown>
                     )}
@@ -891,6 +940,20 @@ const MainNavBar = () => {
                     className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
                   >
                     <FileText size={18} className="mb-1" /> Reports
+                  </Nav.Link>
+                  <Nav.Link
+                    as={Link}
+                    to={`/patient/invoices`}
+                    className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
+                  >
+                    <Receipt size={18} className="mb-1" /> Invoices
+                  </Nav.Link>
+                  <Nav.Link
+                    as={Link}
+                    to={`/patient/transactions`}
+                    className="d-flex flex-column align-items-center mx-2 mb-1 nav-button"
+                  >
+                    <DollarSignIcon size={18} className="mb-1" /> Financial History
                   </Nav.Link>
                 </>
               )}

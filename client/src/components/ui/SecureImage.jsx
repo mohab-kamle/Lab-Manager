@@ -17,13 +17,14 @@ const SecureImage = ({
   ...props 
 }) => {
   const [imageSrc, setImageSrc] = useState(null);
+  const [isLocalBlob, setIsLocalBlob] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    if (!src || !user?.token) {
+    if (!src) {
       setLoading(false);
       setError(true);
       return;
@@ -33,25 +34,48 @@ const SecureImage = ({
       try {
         setLoading(true);
         setError(false);
+
+        // If it's already a blob or data URL, use it directly
+        if (src.startsWith('blob:') || src.startsWith('data:')) {
+          setImageSrc(src);
+          setIsLocalBlob(false);
+          setLoading(false);
+          return;
+        }
+
+        // For server URLs, we need a token
+        const userToken = user?.token || localStorage.getItem("token");
+        if (!userToken) {
+          console.warn('SecureImage: No authentication token available for server URL:', src);
+          setError(true);
+          setLoading(false);
+          return;
+        }
         
         // Construct the full URL if it's a relative path
         const imageUrl = src.startsWith('http') ? src : `${apiUrl}${src}`;
         
+        // The backend now returns { url: presignedS3Url } as JSON instead of a 302 redirect.
+        // We assign it directly to <img src> which is NOT an XHR request and therefore
+        // is never subject to S3 CORS policy checks.
         const response = await axios.get(imageUrl, {
           headers: {
-            Authorization: `Bearer ${user.token}`
-          },
-          responseType: 'blob'
+            Authorization: `Bearer ${userToken}`
+          }
         });
 
-        // Create blob URL for the image
-        const imageBlob = new Blob([response.data], { type: response.headers['content-type'] });
-        const imageObjectURL = URL.createObjectURL(imageBlob);
-        
-        setImageSrc(imageObjectURL);
+        // Backend returns { url: <presigned S3 URL> }
+        const presignedUrl = response.data?.url;
+        if (!presignedUrl) {
+          throw new Error('No URL returned from server');
+        }
+
+        // Set the presigned URL directly — img src load is NOT an XHR, no CORS issue
+        setImageSrc(presignedUrl);
+        setIsLocalBlob(false); // Not a local blob, just a remote URL
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching secure image:', err);
+        console.error('Error fetching secure image:', err.message, 'for URL:', src);
         setError(true);
         setLoading(false);
         if (onError) {
@@ -62,22 +86,17 @@ const SecureImage = ({
 
     fetchImage();
 
-    // Cleanup function to revoke blob URL
-    return () => {
-      if (imageSrc) {
-        URL.revokeObjectURL(imageSrc);
-      }
-    };
+    // No blob URL cleanup needed — we now use direct pre-signed S3 URLs, not local blobs
   }, [src, user?.token, apiUrl, onError]);
 
   // Cleanup blob URL when component unmounts
   useEffect(() => {
     return () => {
-      if (imageSrc) {
+      if (imageSrc && isLocalBlob) {
         URL.revokeObjectURL(imageSrc);
       }
     };
-  }, [imageSrc]);
+  }, [imageSrc, isLocalBlob]);
 
   if (loading) {
     return (

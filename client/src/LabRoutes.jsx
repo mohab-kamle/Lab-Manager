@@ -13,6 +13,8 @@ const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard'));
 const PatientReports = lazy(() => import('./pages/reports/PatientReports'));
 const PatientProfile = lazy(() => import('./pages/patient/PatientProfile'));
 const PatientUpdateProfile = lazy(() => import('./pages/patient/PatientUpdateProfile'));
+const PatientInvoices = lazy(() => import('./pages/patient/PatientInvoices'));
+const PatientTransactions = lazy(() => import('./pages/patient/PatientTransactions'));
 
 // Admin & Shared pages
 const Categories = lazy(() => import('./pages/tests/Categories'));
@@ -23,15 +25,23 @@ const Diseases = lazy(() => import('./pages/tests/Diseases'));
 const Invoices = lazy(() => import('./pages/invoices/Invoices'));
 const PaymentMethods = lazy(() => import('./pages/invoices/PaymentMethods'));
 const Branches = lazy(() => import('./pages/branches/Branches'));
+const OutsourcedLabs = lazy(() => import('./pages/branches/OutsourcedLabs'));
 const PackagesAndOffers = lazy(() => import('./pages/packages/PackagesAndOffers'));
 const PatientsAdminView = lazy(() => import('./pages/admin/PatientsAdminView'));
 const PatientsAnalytics = lazy(() => import('./pages/admin/PatientsAnalytics'));
 const KnowUs = lazy(() => import('./pages/info/KnowUs'));
 const MedicalReports = lazy(() => import('./pages/reports/MedicalReports'));
+const MedicalReportDetails = lazy(() => import('./pages/reports/MedicalReportDetails'));
 const EmployeeManagement = lazy(() => import('./pages/branches/EmployeeManagement'));
 const LabManagement = lazy(() => import('./pages/lab/LabManagement'));
 const Vault = lazy(() => import('./pages/admin/Vault'));
+const TransactionsVault = lazy(() => import('./pages/admin/TransactionsVault'));
 const TurnaroundTime = lazy(() => import('./pages/admin/TurnaroundTime'));
+const PatientProfileAdminView = lazy(() => import('./pages/admin/PatientProfileAdminView'));
+const ManagerKeyManagement = lazy(() => import('./pages/admin/ManagerKeyManagement'));
+const SamplesKanban = lazy(() => import('./pages/samples/SamplesKanban'));
+const ToastTestPage = lazy(() => import('./pages/test/ToastTestPage'));
+
 
 // Profile pages
 const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
@@ -68,6 +78,14 @@ const LabRoutes = () => (
         path="/patient/profile/update"
         element={<PrivateRoute element={<PatientUpdateProfile />} allowedRoles={["patient"]} />}
       />
+      <Route
+        path="/patient/invoices"
+        element={<PrivateRoute element={<PatientInvoices />} allowedRoles={["patient"]} />}
+      />
+      <Route
+        path="/patient/transactions"
+        element={<PrivateRoute element={<PatientTransactions />} allowedRoles={["patient"]} />}
+      />
 
       {/* Role dashboards */}
       <Route
@@ -97,9 +115,14 @@ const LabRoutes = () => (
       <Route path="/:role/invoices" element={<PrivateRoute element={<Invoices />} allowedRoles={["admin", "receptionist", "employee"]} />} />
       <Route path="/:role/payment-methods" element={<PrivateRoute element={<PaymentMethods />} allowedRoles={["admin", "employee"]} />} />
       <Route path="/:role/patients" element={<PrivateRoute element={<PatientsAdminView />} allowedRoles={["admin", "receptionist", "doctor"]} />} />
+      <Route path="/:role/patients/:id" element={<PrivateRoute element={<PatientProfileAdminView />} allowedRoles={["admin", "receptionist", "doctor"]} />} />
+
       <Route path="/:role/know-us" element={<PrivateRoute element={<KnowUs />} allowedRoles={["admin"]} />} />
       <Route path="/:role/medical-reports" element={<PrivateRoute element={<MedicalReports />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
+      <Route path="/:role/medical-reports/:id" element={<PrivateRoute element={<MedicalReportDetails />} allowedRoles={["admin", "chemist", "receptionist", "doctor", "employee"]} />} />
+      <Route path="/:role/samples-kanban" element={<PrivateRoute element={<SamplesKanban />} allowedRoles={["admin", "chemist", "receptionist", "employee", "doctor"]} />} />
       <Route path="/:role/branches" element={<PrivateRoute element={<Branches />} allowedRoles={["admin"]} />} />
+      <Route path="/:role/outsourced-labs" element={<PrivateRoute element={<OutsourcedLabs />} allowedRoles={["admin", "employee", "chemist"]} />} />
       <Route path="/:role/patients-analytics" element={<PrivateRoute element={<PatientsAnalytics />} allowedRoles={["admin"]} />} />
       <Route path="/:role/employees" element={<PrivateRoute element={<EmployeeManagement />} allowedRoles={["admin"]} />} />
 
@@ -112,7 +135,9 @@ const LabRoutes = () => (
 
       {/* Management routes */}
       <Route path="/admin/lab-management" element={<PrivateRoute element={<LabManagement />} allowedRoles={["admin"]} />} />
+      <Route path="/admin/manager-keys" element={<PrivateRoute element={<ManagerKeyManagement />} allowedRoles={["admin"]} />} />
       <Route path="/:role/vault" element={<PrivateRoute element={<Vault />} allowedRoles={["admin"]} />} />
+      <Route path="/admin/transactions" element={<PrivateRoute element={<TransactionsVault />} allowedRoles={["admin"]} />} />
       <Route path="/:role/tat-analytics" element={<PrivateRoute element={<TurnaroundTime />} allowedRoles={["admin", "doctor", "chemist"]} />} />
 
       {/* Inventory Routes */}
@@ -120,6 +145,9 @@ const LabRoutes = () => (
       <Route path="/:role/inventory/suppliers" element={<PrivateRoute element={<Suppliers />} allowedRoles={["admin", "chemist"]} />} />
       <Route path="/:role/inventory/items" element={<PrivateRoute element={<InventoryItems />} allowedRoles={["admin", "chemist"]} />} />
       <Route path="/:role/inventory/items/:itemId/batches" element={<PrivateRoute element={<InventoryBatches />} allowedRoles={["admin", "chemist"]} />} />
+      
+      {/* Test & Debug routes */}
+      <Route path="/toast-test" element={<ToastTestPage />} />
     </Route>
   </Routes>
 );

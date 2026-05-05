@@ -118,7 +118,7 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
       <Modal.Header closeButton>
         <Modal.Title>Import from Global Catalog (LOINC)</Modal.Title>
       </Modal.Header>
-      <Modal.Body className="bg-light">
+      <Modal.Body>
         {importResult && (
           <Alert variant={importResult.variant} className="mb-2">
             {importResult.text}
@@ -142,7 +142,7 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
           </Button>
         </Form>
 
-        <div className="bg-white rounded border shadow-sm overflow-auto" style={{ minHeight: '400px' }}>
+        <div className="rounded border shadow-sm overflow-auto" style={{ minHeight: '400px', background: 'var(--bg-surface)', borderColor: 'var(--border-default)' }}>
           {loading ? (
             <div className="d-flex justify-content-center p-5">
               <Spinner animation="border" variant="primary" />
@@ -151,7 +151,7 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
             <div className="text-center p-5 text-muted">No global tests found matching your search.</div>
           ) : (
             <Table hover responsive className="mb-0">
-              <thead className="bg-light sticky-top">
+              <thead className="sticky-top" style={{ backgroundColor: 'var(--table-header-bg)' }}>
                 <tr>
                   <th width="40" className="text-center">
                     <Form.Check 

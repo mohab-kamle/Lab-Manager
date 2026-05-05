@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
@@ -10,12 +12,16 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
-import { toast } from 'react-toastify';
+import { useToast } from "../../components/ui/ToastContext";
+import PhoneInput from "../../components/ui/PhoneInput";
 
 
 
 const PatientsAdminView = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
   const [patients, setPatients] = useState([]);
   const [diseases, setDiseases] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -47,8 +53,7 @@ const PatientsAdminView = () => {
     nationality: "",
     passport_no: "",
     address: "",
-    primaryPhone: "",
-    secondaryPhone: "",
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
     diseases: [],
     total: "",
     paid: "",
@@ -116,7 +121,7 @@ const PatientsAdminView = () => {
   const [newReferral, setNewReferral] = useState({
     doctor_name: "",
     specialization: "",
-    phone: "",
+    phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
     email: "",
     address: ""
   });
@@ -158,6 +163,7 @@ const PatientsAdminView = () => {
           { field: 'nationality', label: 'Nationality', sortable: true },
           { field: 'passport_no', label: 'Passport No', sortable: true },
           { field: 'address', label: 'Address', sortable: true },
+          { field: 'phones', label: 'Phones', sortable: false },
           { field: 'total', label: 'Total', sortable: true },
           { field: 'paid', label: 'Paid', sortable: true },
 
@@ -196,8 +202,7 @@ const PatientsAdminView = () => {
       const cleanedPatient = {
         ...patient,
         birth_date: finalBirthDate,
-        primaryPhone: patient.primaryPhone || null,
-        secondaryPhone: patient.secondaryPhone || null,
+        phoneNumbers: patient.phoneNumbers.filter(p => p.phone && p.phone.trim() !== ""),
         diseases: patient.diseases || [],
         total: patient.total ? parseFloat(patient.total) : null,
         paid: patient.paid ? parseFloat(patient.paid) : null,
@@ -223,7 +228,7 @@ const PatientsAdminView = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         // Update the patients state by replacing the old patient with the updated one
-        setPatients(prevPatients => prevPatients.map(p => 
+        setPatients(prevPatients => prevPatients.map(p =>
           p.id === editingPatient.id ? response.data : p
         ));
       } else {
@@ -236,6 +241,7 @@ const PatientsAdminView = () => {
       }
 
       console.log('Server response:', response.data);
+      toast.success(editingPatient ? "Patient updated successfully!" : "Patient added successfully!");
       setShowAddModal(false);
       handleResetForm();
     } catch (error) {
@@ -258,12 +264,14 @@ const PatientsAdminView = () => {
       }
       const token = localStorage.getItem("token");
       setLoading(true);
-      
+
       const payload = {
         name: newReferral.doctor_name,
         specialization: newReferral.specialization,
-        phone: newReferral.phone,
-        email: newReferral.email
+        phoneNumbers: newReferral.phoneNumbers,
+        email: newReferral.email,
+        address: newReferral.address,
+        lab_id: user.lab_id
       };
 
       const response = await axios.post(`${apiUrl}/doctor`, payload, {
@@ -282,7 +290,7 @@ const PatientsAdminView = () => {
       setNewReferral({
         doctor_name: "",
         specialization: "",
-        phone: "",
+        phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
         email: "",
         address: ""
       });
@@ -323,7 +331,7 @@ const PatientsAdminView = () => {
         'Patient Code': patient.patientcode,
         'Name': patient.name,
         'Email': patient.email,
-        'Gender': patient.gender? patient.gender :'',
+        'Gender': patient.gender ? patient.gender : '',
         'Birth Date': patient.birth_date ? new Date(patient.birth_date).toLocaleDateString() : '',
         'National ID': patient.national_id,
         'Nationality': patient.nationality,
@@ -366,7 +374,7 @@ const PatientsAdminView = () => {
       setError(null);
 
       const response = await axios.post(`${apiUrl}/patient/import`, formData, {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         }
@@ -380,7 +388,7 @@ const PatientsAdminView = () => {
 
       setShowImportModal(false);
       setImportFile(null);
-      alert(`Successfully imported ${response.data.imported} patients`);
+      toast.success(`Successfully imported ${response.data.imported} patients`);
     } catch (error) {
       console.error('Error importing patients:', error);
       toast.error(error.response?.data?.error || 'Failed to import patients');
@@ -409,7 +417,7 @@ const PatientsAdminView = () => {
       setPatients(prevPatients => prevPatients.filter(p => !selectedPatients.includes(p.id)));
       setSelectedPatients([]);
       setShowBulkDeleteModal(false);
-      alert(`Successfully deleted ${selectedPatients.length} patients`);
+      toast.success(`Successfully deleted ${selectedPatients.length} patients`);
     } catch (error) {
       console.error("Error bulk deleting patients:", error);
       toast.error("Failed to delete patients. Please try again.");
@@ -449,7 +457,7 @@ const PatientsAdminView = () => {
       setSelectedPatients([]);
       setShowBulkUpdateModal(false);
       setBulkUpdateData({ nationality: "", diseases: [] });
-      alert(`Successfully updated ${selectedPatients.length} patients`);
+      toast.success(`Successfully updated ${selectedPatients.length} patients`);
     } catch (error) {
       console.error("Error bulk updating patients:", error);
       toast.error("Failed to update patients. Please try again.");
@@ -475,39 +483,50 @@ const PatientsAdminView = () => {
   };
 
   const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const searchLower = searchQuery.toLowerCase();
+    const searchDigits = searchQuery.replace(/\D/g, "");
+    
+    const phones = patient.phones || [];
+    const phoneMatch = phones.some(p => {
+        const pNum = p.phone_number || p.phone || "";
+        return pNum.includes(searchQuery) || (searchDigits && pNum.replace(/\D/g, "").includes(searchDigits));
+    });
+
+    const matchesSearch = patient.name?.toLowerCase().includes(searchLower) ||
       patient.patientcode?.toString().includes(searchQuery) ||
-      patient.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.national_id?.includes(searchQuery);
+      patient.email?.toLowerCase().includes(searchLower) ||
+      patient.national_id?.includes(searchQuery) ||
+      phoneMatch;
+      
     return matchesSearch;
   });
 
   const sortedPatients = [...filteredPatients].sort((a, b) => {
     if (!sortConfig.field) return 0;
-    
+
     const aValue = a[sortConfig.field];
     const bValue = b[sortConfig.field];
-    
+
     // Handle different data types
     if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortConfig.direction === "asc" 
+      return sortConfig.direction === "asc"
         ? aValue.localeCompare(bValue)
         : bValue.localeCompare(aValue);
     }
-    
+
     if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return sortConfig.direction === "asc" 
+      return sortConfig.direction === "asc"
         ? aValue - bValue
         : bValue - aValue;
     }
-    
+
     // Handle dates
     if (aValue instanceof Date && bValue instanceof Date) {
       return sortConfig.direction === "asc"
         ? aValue.getTime() - bValue.getTime()
         : bValue.getTime() - aValue.getTime();
     }
-    
+
     return 0;
   });
 
@@ -522,9 +541,10 @@ const PatientsAdminView = () => {
       <Button
         variant="outline-primary"
         size="sm"
+        aria-label={`Edit patient ${rowData?.name || 'unknown'}`}
         onClick={() => {
           setEditingPatient(rowData);
-          
+
           // Parse birth date components if birth_date exists
           let birthComponents = { birth_day: "", birth_month: "", birth_year: "", age: "", use_age: false };
           if (rowData.birth_date) {
@@ -537,7 +557,7 @@ const PatientsAdminView = () => {
               use_age: false
             };
           }
-          
+
           setPatient({
             ...rowData,
             name: rowData.name || "",
@@ -549,8 +569,9 @@ const PatientsAdminView = () => {
             nationality: rowData.nationality || "",
             passport_no: rowData.passport_no || "",
             address: rowData.address || "",
-            primaryPhone: rowData.phones?.[0]?.phone_number || "",
-            secondaryPhone: rowData.phones?.[1]?.phone_number || "",
+            phoneNumbers: rowData.phones && rowData.phones.length > 0 
+              ? rowData.phones.map(p => ({ ...p, phone: p.phone_number || p.phone })) 
+              : [{ phone: "", type: "personal", is_primary: true }],
             diseases: rowData.diseases_id_diseases?.map(d => d.id) || [],
             total: rowData.total || "",
             paid: rowData.paid || "",
@@ -565,6 +586,7 @@ const PatientsAdminView = () => {
       <Button
         variant="outline-danger"
         size="sm"
+        aria-label={`Delete patient ${rowData?.name || 'unknown'}`}
         onClick={() => {
           setPatientToDelete(rowData);
           setShowDeleteModal(true);
@@ -577,7 +599,7 @@ const PatientsAdminView = () => {
 
   const validateForm = (patient) => {
     const errors = {};
-    
+
     if (!patient.name) errors.name = 'Name is required';
 
     // Email validation (optional)
@@ -586,13 +608,10 @@ const PatientsAdminView = () => {
       errors.email = 'Invalid email format';
     }
 
-    // Phone validation (optional fields)
-    if (patient.primaryPhone && !/^\d+$/.test(patient.primaryPhone)) {
-      errors.primaryPhone = 'Primary phone must contain only numbers';
+    if (patient.email && !emailRegex.test(patient.email)) {
+      errors.email = 'Invalid email format';
     }
-    if (patient.secondaryPhone && !/^\d+$/.test(patient.secondaryPhone)) {
-      errors.secondaryPhone = 'Secondary phone must contain only numbers';
-    }
+
 
     return errors;
   };
@@ -600,16 +619,41 @@ const PatientsAdminView = () => {
   const formatCellData = (value, field, rowData) => {
     // Determine if we should skip the check for computed columns
     const isComputedColumn = ['amount_due', 'credit'].includes(field);
-    
+
     if ((value === null || value === undefined) && !isComputedColumn) return '-';
-    
+
     switch (field) {
       case 'birth_date':
         return value ? new Date(value).toLocaleDateString() : '-';
       case 'gender':
         return value;
+      case 'phones':
+        if (!value || value.length === 0) return "-";
+        const primary = value.find(p => p.is_primary) || value[0];
+        return (
+          <div className="d-flex flex-column gap-1">
+            <span className="fw-bold">{primary.phone_number || primary.phone}</span>
+            {value.length > 1 && (
+              <Badge bg="secondary" pill style={{ fontSize: '10px', width: 'fit-content' }}>
+                +{value.length - 1} more
+              </Badge>
+            )}
+          </div>
+        );
       case 'patientcode':
-        return value ? value.toString() : '-';
+        return value ? (
+          <span 
+            className="text-primary fw-bold cursor-pointer hover-underline" 
+            style={{ cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/${user.role}/patients/${rowData.id}`);
+            }}
+          >
+            {value.toString()}
+          </span>
+        ) : '-';
+
       case 'total':
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
       case 'paid':
@@ -639,9 +683,9 @@ const PatientsAdminView = () => {
         return (
           <div className="d-flex flex-wrap gap-1">
             {value.map((disease, index) => (
-              <Badge 
-                key={index} 
-                bg="primary" 
+              <Badge
+                key={index}
+                bg="primary"
                 className="text-wrap cursor-pointer"
                 style={{ cursor: 'pointer' }}
                 onClick={() => {
@@ -675,8 +719,7 @@ const PatientsAdminView = () => {
       nationality: "",
       passport_no: "",
       address: "",
-      primaryPhone: "",
-      secondaryPhone: "",
+      phoneNumbers: [{ phone: "", type: "personal", is_primary: true }],
       diseases: [],
       total: "",
       paid: "",
@@ -686,7 +729,7 @@ const PatientsAdminView = () => {
     setFormErrors({});
   };
 
-    const handleAddContract = async () => {
+  const handleAddContract = async () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
@@ -698,10 +741,10 @@ const PatientsAdminView = () => {
 
       // Add new contract to the list
       setContracts(prevContracts => [...prevContracts, response.data]);
-      
+
       // Set the new contract as selected
       setPatient(prev => ({ ...prev, contract_id: response.data.id }));
-      
+
       setShowContractModal(false);
       setNewContract({
         name: "",
@@ -736,10 +779,10 @@ const PatientsAdminView = () => {
 
       // Add new disease to the list
       setDiseases(prevDiseases => [...prevDiseases, response.data]);
-      
+
       // Set the new disease as selected
       setPatient(prev => ({ ...prev, diseases: [...prev.diseases, response.data.id] }));
-      
+
       setShowDiseaseCreateModal(false);
       setNewDisease({
         name: "",
@@ -764,14 +807,14 @@ const PatientsAdminView = () => {
             <div className="d-flex gap-2 flex-wrap">
               {selectedPatients.length > 0 && (
                 <>
-                  <Button 
+                  <Button
                     variant="outline-warning"
                     onClick={() => setShowBulkUpdateModal(true)}
                   >
                     <Pencil size={16} className="me-2" />
                     Bulk Update ({selectedPatients.length})
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline-danger"
                     onClick={() => setShowBulkDeleteModal(true)}
                   >
@@ -780,43 +823,25 @@ const PatientsAdminView = () => {
                   </Button>
                 </>
               )}
-              <Button 
+              <Button
                 variant="outline-success"
                 onClick={handleExport}
               >
                 <Download size={16} className="me-2" />
                 Export XLSX
               </Button>
-              <Button 
+              <Button
                 variant="outline-info"
                 onClick={() => setShowImportModal(true)}
               >
                 <Upload size={16} className="me-2" />
                 Import Excel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={() => {
                   setEditingPatient(null);
-                  setPatient({
-                    lab_id: user.lab_id,
-                    name: "",
-                    email: "",
-                    gender: "",
-                    birth_date: "",
-                    national_id: "",
-                    nationality: "",
-                    passport_no: "",
-                    address: "",
-                    primaryPhone: "",
-                    secondaryPhone: "",
-                    diseases: [],
-                    total: "",
-                    paid: "",
-                    due: "",
-                    contract_id: "",
-
-                  });
+                  handleResetForm();
                   setShowAddModal(true);
                 }}
               >
@@ -836,7 +861,7 @@ const PatientsAdminView = () => {
             sortConfig={sortConfig}
             setSortConfig={setSortConfig}
           />
-          
+
           <DynamicTable
             data={currentPatients}
             columns={tableHeaders.map(header => header.field)}
@@ -851,7 +876,7 @@ const PatientsAdminView = () => {
               return acc;
             }, {})}
           />
-          
+
           <TablePagination
             currentPage={currentPage}
             pageCount={pageCount}
@@ -867,7 +892,7 @@ const PatientsAdminView = () => {
               <Modal.Title>
                 {editingPatient ? "Edit" : "Add"} Patient
               </Modal.Title>
-              <button className="modal-close-btn" onClick={() => {
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => {
                 setShowAddModal(false);
                 setFormErrors({});
               }}>
@@ -886,7 +911,7 @@ const PatientsAdminView = () => {
                           type="text"
                           value={editingPatient.patientcode || ''}
                           readOnly
-                          className="bg-light"
+                          className="bg-theme-surface"
                         />
                         <Form.Text className="text-muted">
                           Patient code is auto-generated and cannot be changed
@@ -895,7 +920,7 @@ const PatientsAdminView = () => {
                     </Col>
                   </Row>
                 )}
-                
+
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
@@ -983,58 +1008,62 @@ const PatientsAdminView = () => {
                         <Row>
                           <Col xs={4}>
                             <Form.Control
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="Day"
                               value={patient.birth_day}
                               onChange={(e) => {
                                 const day = e.target.value;
-                                const newPatient = { ...patient, birth_day: day };
-                                if (day && patient.birth_month && patient.birth_year) {
-                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
+                                // Strictly allow only digits and validate range (1-31)
+                                if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
+                                  const newPatient = { ...patient, birth_day: day };
+                                  if (day && patient.birth_month && patient.birth_year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                                 }
-                                setPatient(newPatient);
-                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                               }}
-                              min="1"
-                              max="31"
-                              className={formErrors.birth_date ? 'is-invalid' : ''}
                             />
                           </Col>
                           <Col xs={4}>
                             <Form.Control
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="Month"
                               value={patient.birth_month}
                               onChange={(e) => {
                                 const month = e.target.value;
-                                const newPatient = { ...patient, birth_month: month };
-                                if (patient.birth_day && month && patient.birth_year) {
-                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
+                                // Strictly allow only digits and validate range (1-12)
+                                if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
+                                  const newPatient = { ...patient, birth_month: month };
+                                  if (patient.birth_day && month && patient.birth_year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                                 }
-                                setPatient(newPatient);
-                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                               }}
-                              min="1"
-                              max="12"
-                              className={formErrors.birth_date ? 'is-invalid' : ''}
                             />
                           </Col>
                           <Col xs={4}>
                             <Form.Control
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder="Year"
                               value={patient.birth_year}
                               onChange={(e) => {
                                 const year = e.target.value;
-                                const newPatient = { ...patient, birth_year: year };
-                                if (patient.birth_day && patient.birth_month && year) {
-                                  newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
+                                // Strictly allow only digits and max 4 digits
+                                if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
+                                  const newPatient = { ...patient, birth_year: year };
+                                  if (patient.birth_day && patient.birth_month && year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                                 }
-                                setPatient(newPatient);
-                                if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
                               }}
-                              min="1900"
-                              max={new Date().getFullYear()}
                               className={formErrors.birth_date ? 'is-invalid' : ''}
                             />
                           </Col>
@@ -1111,7 +1140,7 @@ const PatientsAdminView = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col md={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Address</Form.Label>
                       <Form.Control
@@ -1124,42 +1153,84 @@ const PatientsAdminView = () => {
                   </Col>
                 </Row>
 
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Primary Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter primary phone"
-                        value={patient.primaryPhone || ''}
-                        onChange={(e) => {
-                          setPatient({ ...patient, primaryPhone: e.target.value });
-                          if (formErrors.primaryPhone) setFormErrors({ ...formErrors, primaryPhone: null });
-                        }}
-                        isInvalid={!!formErrors.primaryPhone}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {formErrors.primaryPhone}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Secondary Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter secondary phone"
-                        value={patient.secondaryPhone || ''}
-                        onChange={(e) => {
-                          setPatient({ ...patient, secondaryPhone: e.target.value });
-                          if (formErrors.secondaryPhone) setFormErrors({ ...formErrors, secondaryPhone: null });
-                        }}
-                        isInvalid={!!formErrors.secondaryPhone}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {formErrors.secondaryPhone}
-                      </Form.Control.Feedback>
-                    </Form.Group>
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Label>Phone Numbers *</Form.Label>
+                    {patient.phoneNumbers.map((phoneEntry, index) => (
+                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
+                        <div style={{ flex: 1 }}>
+                          <PhoneInput
+                            value={phoneEntry.phone}
+                            onChange={(val) => {
+                              const newPhones = [...patient.phoneNumbers];
+                              newPhones[index].phone = val;
+                              setPatient({ ...patient, phoneNumbers: newPhones });
+                            }}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <Form.Select
+                          style={{ width: '130px' }}
+                          value={phoneEntry.type}
+                          onChange={(e) => {
+                            const newPhones = [...patient.phoneNumbers];
+                            newPhones[index].type = e.target.value;
+                            setPatient({ ...patient, phoneNumbers: newPhones });
+                          }}
+                        >
+                          <option value="personal">Personal</option>
+                          <option value="work">Work</option>
+                          <option value="home">Home</option>
+                        </Form.Select>
+                        <div className="d-flex flex-column align-items-center">
+                          <Form.Check
+                            type="radio"
+                            name="primaryPhone"
+                            checked={phoneEntry.is_primary}
+                            onChange={() => {
+                              const newPhones = patient.phoneNumbers.map((p, i) => ({
+                                ...p,
+                                is_primary: i === index
+                              }));
+                              setPatient({ ...patient, phoneNumbers: newPhones });
+                            }}
+                            title="Set as primary"
+                          />
+                          <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
+                        </div>
+                        {patient.phoneNumbers.length > 1 && (
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => {
+                              const newPhones = patient.phoneNumbers.filter((_, i) => i !== index);
+                              if (phoneEntry.is_primary && newPhones.length > 0) {
+                                newPhones[0].is_primary = true;
+                              }
+                              setPatient({ ...patient, phoneNumbers: newPhones });
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="mt-1"
+                      onClick={() => {
+                        setPatient({
+                          ...patient,
+                          phoneNumbers: [
+                            ...patient.phoneNumbers,
+                            { phone: "", type: "personal", is_primary: false }
+                          ]
+                        });
+                      }}
+                    >
+                      <Plus size={14} className="me-1" /> Add Another Phone
+                    </Button>
                   </Col>
                 </Row>
 
@@ -1204,7 +1275,12 @@ const PatientsAdminView = () => {
                         step="0.01"
                         placeholder="Enter total amount"
                         value={patient.total || ''}
-                        onChange={(e) => setPatient({ ...patient, total: e.target.value })}
+                        onChange={(e) => {
+                          const total = e.target.value;
+                          const paid = patient.paid || 0;
+                          const calculatedDue = (parseFloat(total) || 0) - (parseFloat(paid) || 0);
+                          setPatient({ ...patient, total, due: calculatedDue.toString() });
+                        }}
                       />
                     </Form.Group>
                   </Col>
@@ -1216,7 +1292,12 @@ const PatientsAdminView = () => {
                         step="0.01"
                         placeholder="Enter paid amount"
                         value={patient.paid || ''}
-                        onChange={(e) => setPatient({ ...patient, paid: e.target.value })}
+                        onChange={(e) => {
+                          const paid = e.target.value;
+                          const total = patient.total || 0;
+                          const calculatedDue = (parseFloat(total) || 0) - (parseFloat(paid) || 0);
+                          setPatient({ ...patient, paid, due: calculatedDue.toString() });
+                        }}
                       />
                     </Form.Group>
                   </Col>
@@ -1229,43 +1310,58 @@ const PatientsAdminView = () => {
                       <Form.Control
                         type="number"
                         step="0.01"
-                        placeholder="Enter due amount"
-                        value={patient.due || ''}
+                        placeholder={(!editingPatient || !patient.due || parseFloat(patient.due) === 0) ? "Enter due amount" : "0.00"}
+                        value={parseFloat(patient.due) > 0 ? patient.due : ''}
                         onChange={(e) => setPatient({ ...patient, due: e.target.value })}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Contract</Form.Label>
-                      <div className="d-flex gap-2">
-                        <Form.Select
-                          value={patient.contract_id || ""}
-                          onChange={(e) => setPatient({ ...patient, contract_id: e.target.value || null })}
-                        >
-                          <option value="">Select Contract</option>
-                          {Array.isArray(contracts) && contracts.map(contract => (
-                            <option key={contract.id} value={contract.id}>
-                              {contract.name || `${contract.region} - ${contract.governorate}`} ({contract.discount_type})
-                            </option>
-                          ))}
-                        </Form.Select>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => setShowContractModal(true)}
-                          title="Add New Contract"
-                        >
-                          <Plus size={16} />
-                        </Button>
-                      </div>
-                      <Form.Text className="text-muted">
-                        Select an existing contract or add a new one
-                      </Form.Text>
+                      <Form.Label>Credit Amount</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        placeholder={(!editingPatient || !patient.due || parseFloat(patient.due) === 0) ? "Enter credit amount" : "0.00"}
+                        value={parseFloat(patient.due) < 0 ? Math.abs(parseFloat(patient.due)) : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPatient({ ...patient, due: val ? (-(Math.abs(parseFloat(val)))).toString() : "0" });
+                        }}
+                      />
                     </Form.Group>
                   </Col>
-                </Row>
 
+                </Row>
+                <Row><Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Contract</Form.Label>
+                    <div className="d-flex gap-2">
+                      <Form.Select
+                        value={patient.contract_id || ""}
+                        onChange={(e) => setPatient({ ...patient, contract_id: e.target.value || null })}
+                      >
+                        <option value="">Select Contract</option>
+                        {Array.isArray(contracts) && contracts.map(contract => (
+                          <option key={contract.id} value={contract.id}>
+                            {contract.name || `${contract.region} - ${contract.governorate}`} ({contract.discount_type})
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setShowContractModal(true)}
+                        title="Add New Contract"
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                    <Form.Text className="text-muted">
+                      Select an existing contract or add a new one
+                    </Form.Text>
+                  </Form.Group>
+                </Col></Row>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
@@ -1309,8 +1405,8 @@ const PatientsAdminView = () => {
               }}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 type="submit"
                 form="patient-form"
                 disabled={loading}
@@ -1324,7 +1420,7 @@ const PatientsAdminView = () => {
           <Modal show={showImportModal} onHide={() => setShowImportModal(false)}>
             <Modal.Header>
               <Modal.Title>Import Patients</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowImportModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1345,8 +1441,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowImportModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleImport}
                 disabled={!importFile || loading}
               >
@@ -1359,7 +1455,7 @@ const PatientsAdminView = () => {
           <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
             <Modal.Header>
               <Modal.Title>Confirm Delete</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowDeleteModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1373,8 +1469,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="danger" 
+              <Button
+                variant="danger"
                 onClick={() => handleDelete(patientToDelete?.id)}
               >
                 Delete
@@ -1386,7 +1482,7 @@ const PatientsAdminView = () => {
           <Modal show={showBulkDeleteModal} onHide={() => setShowBulkDeleteModal(false)}>
             <Modal.Header>
               <Modal.Title>Confirm Bulk Delete</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowBulkDeleteModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowBulkDeleteModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1400,8 +1496,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="danger" 
+              <Button
+                variant="danger"
                 onClick={handleBulkDelete}
                 disabled={loading}
               >
@@ -1414,7 +1510,7 @@ const PatientsAdminView = () => {
           <Modal show={showBulkUpdateModal} onHide={() => setShowBulkUpdateModal(false)} size="lg">
             <Modal.Header>
               <Modal.Title>Bulk Update Patients</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowBulkUpdateModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowBulkUpdateModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1464,8 +1560,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowBulkUpdateModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleBulkUpdate}
                 disabled={loading}
               >
@@ -1478,7 +1574,7 @@ const PatientsAdminView = () => {
           <Modal show={showDiseaseModal} onHide={() => setShowDiseaseModal(false)}>
             <Modal.Header>
               <Modal.Title>Disease Details</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowDiseaseModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowDiseaseModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1505,7 +1601,7 @@ const PatientsAdminView = () => {
           <Modal show={showContractModal} onHide={() => setShowContractModal(false)}>
             <Modal.Header>
               <Modal.Title>Add New Contract</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowContractModal(false)}>
+              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowContractModal(false)}>
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -1605,8 +1701,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowContractModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleAddContract}
                 disabled={loading || !newContract.region || !newContract.governorate}
               >
@@ -1656,8 +1752,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowDiseaseCreateModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleAddDisease}
                 disabled={loading || !newDisease.name.trim()}
               >
@@ -1701,18 +1797,87 @@ const PatientsAdminView = () => {
                   </Col>
                 </Row>
                 <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter phone number"
-                        value={newReferral.phone}
-                        onChange={(e) => setNewReferral({ ...newReferral, phone: e.target.value })}
-                      />
-                    </Form.Group>
+                  <Col md={12}>
+                    <Form.Label>Phone Numbers *</Form.Label>
+                    {newReferral.phoneNumbers.map((phoneEntry, index) => (
+                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
+                        <div style={{ flex: 1 }}>
+                          <PhoneInput
+                            value={phoneEntry.phone}
+                            onChange={(val) => {
+                              const newPhones = [...newReferral.phoneNumbers];
+                              newPhones[index].phone = val;
+                              setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                            }}
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+                        <Form.Select
+                          style={{ width: '130px' }}
+                          value={phoneEntry.type}
+                          onChange={(e) => {
+                            const newPhones = [...newReferral.phoneNumbers];
+                            newPhones[index].type = e.target.value;
+                            setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                          }}
+                        >
+                          <option value="personal">Personal</option>
+                          <option value="work">Work</option>
+                          <option value="home">Home</option>
+                        </Form.Select>
+                        <div className="d-flex flex-column align-items-center">
+                          <Form.Check
+                            type="radio"
+                            name="referralPrimaryPhone"
+                            checked={phoneEntry.is_primary}
+                            onChange={() => {
+                              const newPhones = newReferral.phoneNumbers.map((p, i) => ({
+                                ...p,
+                                is_primary: i === index
+                              }));
+                              setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                            }}
+                            title="Set as primary"
+                          />
+                          <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
+                        </div>
+                        {newReferral.phoneNumbers.length > 1 && (
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => {
+                              const newPhones = newReferral.phoneNumbers.filter((_, i) => i !== index);
+                              if (phoneEntry.is_primary && newPhones.length > 0) {
+                                newPhones[0].is_primary = true;
+                              }
+                              setNewReferral({ ...newReferral, phoneNumbers: newPhones });
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline-primary" 
+                      size="sm" 
+                      className="mt-1"
+                      onClick={() => {
+                        setNewReferral({
+                          ...newReferral,
+                          phoneNumbers: [
+                            ...newReferral.phoneNumbers,
+                            { phone: "", type: "personal", is_primary: false }
+                          ]
+                        });
+                      }}
+                    >
+                      <Plus size={14} className="me-1" /> Add Another Phone
+                    </Button>
                   </Col>
-                  <Col md={6}>
+                </Row>
+                <Row>
+                  <Col md={12}>
                     <Form.Group className="mb-3">
                       <Form.Label>Email</Form.Label>
                       <Form.Control
@@ -1743,8 +1908,8 @@ const PatientsAdminView = () => {
               <Button variant="secondary" onClick={() => setShowReferralModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={handleAddReferral}
                 disabled={loading || !newReferral.doctor_name.trim() || !newReferral.specialization.trim()}
               >

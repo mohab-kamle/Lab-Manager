@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.data) {
-        const userData = response.data;
+        const userData = { ...response.data, token };
         setUser(userData);
         // Store user data in localStorage for persistence
         localStorage.setItem('userData', JSON.stringify(userData));
@@ -56,6 +56,10 @@ export const AuthProvider = ({ children }) => {
         // If server fetch fails, try to use stored data
         if (!freshUserData && storedUserData) {
           const parsedUserData = JSON.parse(storedUserData);
+          // Ensure token is included even from storage if missing
+          if (!parsedUserData.token) {
+            parsedUserData.token = token;
+          }
           setUser(parsedUserData);
         }
       } catch (error) {
