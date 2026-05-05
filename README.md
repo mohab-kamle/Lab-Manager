@@ -18,29 +18,37 @@ The project uses Docker Compose for seamless environment management.
 - Docker & Docker Compose V2
 - PNPM (for local development)
 
-### 2. Environment Configuration
-
 Copy the template environment files to their respective locations:
 
 ```bash
 # Copy root environment templates
 cp .env.example .env.development
 cp .env.example .env.production
-
-> [!TIP]
-> If running `pnpm db:seed` from your host machine (outside Docker), ensure `DATABASE_URL` in `.env.development` points to `localhost:3306` instead of `mysql:3306`.
 ```
 
 ### 3. Development Mode
 
 Launches the full stack with hot-reloading and local MinIO storage.
 
-```bash
-docker compose -f docker-compose.dev.yml up -d
-# Once the DB is healthy, seed the initial data (Admin + Antibiotics + LOINC Catalog):
-# Note: LOINC insertion may take a minute due to the large dataset.
-pnpm db:seed
-```
+1.  **Prerequisites**: Ensure you have **Docker**, **Node.js (v18+)**, and **pnpm** installed.
+2.  **Environment Setup**: Copy the example file to your development environment:
+    ```bash
+    cp .env.example .env.development
+    ```
+3.  **Launch Stack**: Start the containers (this handles MySQL, Redis, MinIO, Backend, and Frontend):
+    ```bash
+    docker compose -f docker-compose.dev.yml up -d
+    ```
+4.  **Database Seeding**: Once the containers are running, enter the backend container to sync the database and seed the initial data (Admin, Antibiotics, and LOINC Catalog):
+    ```bash
+    docker exec -it labmanager-backend-dev sh
+    pnpm db:seed
+    ```
+5.  **Access & Login**: Open [http://localhost:5173](http://localhost:5173) and log in with the default administrator account:
+    *   **Username**: `admin`
+    *   **Password**: `admin123`
+
+🎉 **Congratulations! You are in!**
 
 - **Frontend**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:3001](http://localhost:3001)
