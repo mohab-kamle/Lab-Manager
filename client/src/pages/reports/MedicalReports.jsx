@@ -984,7 +984,8 @@ const MedicalReports = () => {
 
       // Map AI data to existing report structure
       selectedReportForResults.tests.forEach(test => {
-        if (!newComponentResults[test.id]) newComponentResults[test.id] = {};
+        // Create a new object for this test's results to ensure React detects changes
+        const currentTestResults = { ...(newComponentResults[test.id] || {}) };
 
         const structureConfig = test.structure_config || [];
         const comps = testComponents[test.id] || [];
@@ -1011,8 +1012,8 @@ const MedicalReports = () => {
 
           if (param && param.type !== 'header') {
             const key = param.key || param.name;
-            newComponentResults[test.id][key] = {
-              ...(newComponentResults[test.id][key] || {}),
+            currentTestResults[key] = {
+              ...(currentTestResults[key] || {}),
               result: aiValue
             };
             matchCount++;
@@ -1028,13 +1029,16 @@ const MedicalReports = () => {
 
           if (component) {
             const key = component.id;
-            newComponentResults[test.id][key] = {
-              ...(newComponentResults[test.id][key] || {}),
+            currentTestResults[key] = {
+              ...(currentTestResults[key] || {}),
               result: aiValue
             };
             matchCount++;
           }
         });
+
+        // Update the top-level copy with our new test results object
+        newComponentResults[test.id] = currentTestResults;
       });
 
       setResultsData(prev => ({
