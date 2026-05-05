@@ -660,10 +660,11 @@ function initModels(sequelize) {
     inventory_transaction,
     inventory_notification,
     lab_whatsapp_account,
-    whatsapp_message
+    whatsapp_message,
     outsourced_lab
   };
 }
+
 module.exports = initModels;
 module.exports.initModels = initModels;
 module.exports.default = initModels;
