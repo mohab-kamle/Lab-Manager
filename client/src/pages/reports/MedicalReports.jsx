@@ -958,7 +958,9 @@ const MedicalReports = () => {
 
       // Get expected parameters to help the AI map correctly
       const expectedKeys = selectedReportForResults.tests.flatMap(test =>
-        (test.structure_config || []).map(p => p.label || p.name || p.key)
+        (test.structure_config || [])
+          .filter(p => p.type !== 'header')
+          .map(p => p.label || p.name || p.key)
       );
 
       const extractedData = await extractFromImage(file, expectedKeys);
