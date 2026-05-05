@@ -957,11 +957,16 @@ const MedicalReports = () => {
       const toastId = toast.loading("AI is scanning and extracting data...");
 
       // Get expected parameters to help the AI map correctly
-      const expectedKeys = selectedReportForResults.tests.flatMap(test =>
-        (test.structure_config || [])
+      const expectedKeys = selectedReportForResults.tests.flatMap(test => {
+        const configKeys = (test.structure_config || [])
           .filter(p => p.type !== 'header')
-          .map(p => p.label || p.name || p.key)
-      );
+          .map(p => p.label || p.name || p.key);
+
+        const componentKeys = (testComponents[test.id] || [])
+          .map(c => c.label || c.name);
+
+        return [...configKeys, ...componentKeys];
+      });
 
       const extractedData = await extractFromImage(file, expectedKeys);
 
@@ -982,16 +987,17 @@ const MedicalReports = () => {
         if (!newComponentResults[test.id]) newComponentResults[test.id] = {};
 
         const structureConfig = test.structure_config || [];
+        const comps = testComponents[test.id] || [];
 
         Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
           if (aiValue === null || aiValue === undefined) return;
 
           // Standardize both sides for comparison
-          const normalize = (str) => str?.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const normalize = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
           const normalizedAiKey = normalize(aiKey);
 
-          // Try to find a matching parameter in the structure config
-          const param = structureConfig.find(p => {
+          // 1. Try to find a matching parameter in the structure config
+          let param = structureConfig.find(p => {
             const normKey = normalize(p.key);
             const normName = normalize(p.name);
             const normLabel = normalize(p.label);
@@ -1003,8 +1009,25 @@ const MedicalReports = () => {
               (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
           });
 
-          if (param) {
+          if (param && param.type !== 'header') {
             const key = param.key || param.name;
+            newComponentResults[test.id][key] = {
+              ...(newComponentResults[test.id][key] || {}),
+              result: aiValue
+            };
+            matchCount++;
+            return;
+          }
+
+          // 2. If no structure config match, try matching against simple components
+          const component = comps.find(c => {
+            const normName = normalize(c.name);
+            const normLabel = normalize(c.label);
+            return normName === normalizedAiKey || normLabel === normalizedAiKey;
+          });
+
+          if (component) {
+            const key = component.id;
             newComponentResults[test.id][key] = {
               ...(newComponentResults[test.id][key] || {}),
               result: aiValue
