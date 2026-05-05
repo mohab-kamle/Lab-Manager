@@ -46,6 +46,20 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.TEXT,
       allowNull: true,
       defaultValue: 'Hello! Here is your lab report from {{lab_name}}. If you have any questions, please contact us.'
+    },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    priority: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
+    last_used_at: {
+      type: DataTypes.DATE,
+      allowNull: true
     }
   }, {
     sequelize,
@@ -53,6 +67,18 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
+    scopes: {
+      active: {
+        where: { is_active: true }
+      },
+      ordered: {
+        order: [
+          ['priority', 'DESC'],
+          ['last_used_at', 'DESC'],
+          ['updated_at', 'DESC']
+        ]
+      }
+    },
     indexes: [
       {
         name: "PRIMARY",
@@ -60,6 +86,15 @@ module.exports = function(sequelize, DataTypes) {
         using: "BTREE",
         fields: [
           { name: "id" },
+        ]
+      },
+      {
+        name: "unique_lab_provider",
+        unique: true,
+        using: "BTREE",
+        fields: [
+          { name: "lab_id" },
+          { name: "provider" },
         ]
       },
       {

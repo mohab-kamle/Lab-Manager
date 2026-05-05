@@ -4,20 +4,58 @@ const MetaProvider = require('./providers/meta');
 
 class WhatsAppService {
   /**
-   * Determine provider for a given lab
+   * Determine the best provider for a given lab deterministically
    */
   static async getProvider(labId) {
-    const account = await db.lab_whatsapp_account.findOne({ where: { lab_id: labId } });
+    // 1. Try to find the active provider
+    let account = await db.lab_whatsapp_account.scope('active').findOne({ where: { lab_id: labId } });
+    
+    // 2. Fallback to the best available provider using priority/last_used ordering
     if (!account) {
-      // Default to web provider if no configuration exists
-      return { type: 'web', implementation: WebProvider };
+      account = await db.lab_whatsapp_account.scope('ordered').findOne({ where: { lab_id: labId } });
+    }
+
+    if (!account) {
+      return null;
     }
     
-    if (account.provider === 'meta') {
-      return { type: 'meta', implementation: MetaProvider };
-    }
-    
-    return { type: 'web', implementation: WebProvider };
+    const implementation = account.provider === 'meta' ? MetaProvider : WebProvider;
+    return { 
+      type: account.provider, 
+      implementation,
+      account // exposing the account record if needed
+    };
+  }
+
+  /**
+   * Set the active provider for a lab
+   */
+  static async setActiveProvider(labId, provider) {
+    return await db.sequelize.transaction(async (t) => {
+      // Deactivate all providers for this lab
+      await db.lab_whatsapp_account.update(
+        { is_active: false },
+        { where: { lab_id: labId }, transaction: t }
+      );
+
+      // Activate the requested provider
+      const [updated] = await db.lab_whatsapp_account.update(
+        { is_active: true },
+        { where: { lab_id: labId, provider }, transaction: t }
+      );
+
+      return updated > 0;
+    });
+  }
+
+  /**
+   * Update the last used timestamp for a provider
+   */
+  static async updateLastUsed(labId, provider) {
+    return await db.lab_whatsapp_account.update(
+      { last_used_at: new Date() },
+      { where: { lab_id: labId, provider } }
+    );
   }
 
   /**
@@ -26,6 +64,10 @@ class WhatsAppService {
    */
   static async connect(labId, onQrCallback, onConnectedCallback, onDisconnectedCallback) {
     const provider = await this.getProvider(labId);
+    
+    if (!provider) {
+      throw new Error('No WhatsApp provider configuration found for this lab. Please configure one in settings.');
+    }
     
     if (provider.type === 'web') {
       await provider.implementation.connect(labId, onQrCallback, onConnectedCallback, onDisconnectedCallback);
@@ -40,6 +82,8 @@ class WhatsAppService {
    */
   static async getStatus(labId) {
     const provider = await this.getProvider(labId);
+    if (!provider) return { provider: 'none', status: 'disconnected' };
+
     return {
       provider: provider.type,
       status: provider.implementation.getStatus(labId)
@@ -57,12 +101,19 @@ class WhatsAppService {
   static async sendReport(labId, patientId, phone, pdfBuffer, caption = "Your Lab Report") {
     const provider = await this.getProvider(labId);
     
+    if (!provider) {
+      throw new Error('No active WhatsApp provider found for this lab.');
+    }
+
     let status = 'pending';
     let errorMessage = null;
     
     try {
       await provider.implementation.sendDocument(labId, phone, pdfBuffer, caption);
       status = 'sent';
+      
+      // Update last used timestamp
+      await this.updateLastUsed(labId, provider.type);
     } catch (error) {
       status = 'failed';
       errorMessage = error.message;

@@ -17,13 +17,23 @@ router.post('/connect/:labId', authenticateUser, async (req, res) => {
   }
 
   try {
-    // Ensure a whatsapp account row exists for this lab so the session manager
-    // can update its status during connection lifecycle events
+    const { provider = 'web', setActive = true } = req.body;
     const db = require('../models');
-    await db.lab_whatsapp_account.findOrCreate({
-      where: { lab_id: labId, provider: 'web' },
-      defaults: { status: 'disconnected' }
+
+    // Ensure a whatsapp account row exists for this lab and provider
+    // If it exists, it will be updated; otherwise, it will be created.
+    // This maintains exactly one configuration per provider per lab.
+    await db.lab_whatsapp_account.upsert({
+      lab_id: labId,
+      provider: provider,
+      status: 'disconnected',
+      is_active: setActive // Optionally set as active on connect
     });
+
+    // If setting as active, ensure other providers for this lab are deactivated
+    if (setActive) {
+      await WhatsAppService.setActiveProvider(labId, provider);
+    }
 
     const onQrCallback = async (qr) => {
       // Convert raw QR string to base64 image
@@ -120,14 +130,12 @@ router.post('/send-report', authenticateUser, async (req, res) => {
       }
     }
 
-    // Fetch the lab's custom message template for the PDF caption
-    const account = await db.lab_whatsapp_account.findOne({
-      where: { lab_id: labId, provider: 'web' },
-      attributes: ['message_template']
-    });
+    // Fetch the best provider for this lab to get the correct message template
+    const provider = await WhatsAppService.getProvider(labId);
+    const captionTemplate = provider?.account?.message_template || 'Here is your lab report.';
 
     // Build caption: replace {{lab_name}} placeholder with actual lab name
-    let caption = account?.message_template || 'Here is your lab report.';
+    let caption = captionTemplate;
     const lab = await db.lab.findByPk(labId, { attributes: ['name'] });
     if (lab) {
       caption = caption.replace(/\{\{lab_name\}\}/g, lab.name);
@@ -193,14 +201,11 @@ router.get('/message-template/:labId', authenticateUser, async (req, res) => {
   }
 
   try {
-    const db = require('../models');
-    const account = await db.lab_whatsapp_account.findOne({
-      where: { lab_id: labId, provider: 'web' },
-      attributes: ['message_template']
-    });
+    const provider = await WhatsAppService.getProvider(labId);
 
     res.json({
-      message_template: account?.message_template || 'Hello! Here is your lab report from {{lab_name}}. If you have any questions, please contact us.'
+      provider: provider?.type || 'none',
+      message_template: provider?.account?.message_template || 'Hello! Here is your lab report from {{lab_name}}. If you have any questions, please contact us.'
     });
   } catch (error) {
     console.error('Error fetching message template:', error);
@@ -222,15 +227,17 @@ router.put('/message-template/:labId', authenticateUser, async (req, res) => {
   }
 
   try {
-    const db = require('../models');
-    const [updated] = await db.lab_whatsapp_account.update(
-      { message_template },
-      { where: { lab_id: labId, provider: 'web' } }
-    );
-
-    if (updated === 0) {
-      return res.status(404).json({ error: 'WhatsApp account not found for this lab. Connect WhatsApp first.' });
+    const providerInfo = await WhatsAppService.getProvider(labId);
+    
+    if (!providerInfo) {
+      return res.status(404).json({ error: 'No WhatsApp configuration found for this lab. Connect WhatsApp first.' });
     }
+
+    const db = require('../models');
+    await db.lab_whatsapp_account.update(
+      { message_template },
+      { where: { lab_id: labId, provider: providerInfo.type } }
+    );
 
     res.json({ message: 'Message template updated successfully', message_template });
   } catch (error) {
