@@ -1469,6 +1469,53 @@ const Invoices = () => {
                           <Plus size={16} /> {showCreatePatient ? 'Cancel' : 'Create Patient'}
                         </Button>
                       </div>
+                      
+                      {/* Patient Financial Summary */}
+                      {invoice.patient_id && !showCreatePatient && (() => {
+                        const selectedPatient = patients.find(p => p.id === invoice.patient_id);
+                        if (!selectedPatient) return null;
+                        
+                        const pDue = parseFloat(selectedPatient.due || 0);
+                        const hasDebt = pDue > 0.01;
+                        const hasCredit = pDue < -0.01;
+                        
+                        return (
+                          <div className="mt-2 d-flex gap-2">
+                            <div 
+                              className="flex-fill p-2 rounded border d-flex align-items-center justify-content-between" 
+                              style={{ 
+                                background: hasDebt ? 'var(--toast-error-bg)' : 'var(--bg-inset)', 
+                                borderColor: hasDebt ? 'var(--color-danger)' : 'var(--border-default)',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <div className="d-flex align-items-center text-truncate">
+                                <AlertTriangle size={14} className={`me-2 ${hasDebt ? 'text-danger' : 'text-muted'}`} />
+                                <span className="small fw-semibold text-truncate">Patient Due</span>
+                              </div>
+                              <span className={`fw-bold small ms-2 ${hasDebt ? 'text-danger' : ''}`}>
+                                EGP {Math.max(0, pDue).toFixed(2)}
+                              </span>
+                            </div>
+                            <div 
+                              className="flex-fill p-2 rounded border d-flex align-items-center justify-content-between"
+                              style={{ 
+                                background: hasCredit ? 'var(--toast-success-bg)' : 'var(--bg-inset)', 
+                                borderColor: hasCredit ? 'var(--color-success)' : 'var(--border-default)',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <div className="d-flex align-items-center text-truncate">
+                                <Wallet2 size={14} className={`me-2 ${hasCredit ? 'text-success' : 'text-muted'}`} />
+                                <span className="small fw-semibold text-truncate">Patient Credit</span>
+                              </div>
+                              <span className={`fw-bold small ms-2 ${hasCredit ? 'text-success' : ''}`}>
+                                EGP {Math.max(0, -pDue).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {showCreatePatient && (
                         <div className="border rounded p-3 mt-2 bg-theme-surface" onClick={(e) => e.stopPropagation()}>
                           <div>

@@ -158,16 +158,16 @@ const ChangePassword = () => {
 
   return (
     <div className="min-vh-100 d-flex align-items-center" style={{
-      background: 'var(--bg-dark)',
+      background: 'var(--bg-base)',
       padding: '20px 0'
     }}>
       <Container className="position-relative">
         <Row className="justify-content-center">
           <Col lg={8} md={10} sm={12}>
-            <Card className="shadow-lg" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+            <Card className="shadow-lg bg-theme-surface" style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-muted)' }}>
               <div className="text-center pt-4" style={{
-                background: 'var(--bg)',
-                color: 'var(--text)'
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)'
               }}>
                 <div className="mb-3">
                   <div
@@ -176,7 +176,7 @@ const ChangePassword = () => {
                       width: '80px',
                       height: '80px',
                       borderRadius: '50%',
-                      backgroundColor: 'var(--bg)',
+                      backgroundColor: 'var(--bg-surface)',
                       backdropFilter: 'blur(10px)',
                     }}
                   >
@@ -205,7 +205,7 @@ const ChangePassword = () => {
                     <Form.Group className="mb-4">
 
 
-                      <Form.Label className="fw-semibold text-dark">
+                      <Form.Label className="fw-semibold text-theme">
                         <Lock size={18} className="me-2" />Current Password
                       </Form.Label>
 
@@ -216,9 +216,9 @@ const ChangePassword = () => {
                           value={oldPassword}
                           onChange={(e) => setOldPassword(e.target.value)}
                           required
-                          className="py-3 px-4 border-0"
+                          className="py-3 px-4 border-0 text-theme"
                           style={{
-                            backgroundColor: '#f8f9fa',
+                            backgroundColor: 'var(--bg-inset)',
                             borderRadius: '12px',
                             fontSize: '1.1em',
                             paddingRight: '50px'
@@ -240,7 +240,7 @@ const ChangePassword = () => {
                   )}
                   {/* New Password */}
                   <Form.Group className="mb-4">
-                    <Form.Label className="fw-semibold text-dark">
+                    <Form.Label className="fw-semibold text-theme">
                       <Lock size={18} className="me-2" />
                       New Password
                     </Form.Label>
@@ -251,9 +251,9 @@ const ChangePassword = () => {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
-                        className="py-3 px-4 border-0"
+                        className="py-3 px-4 border-0 text-theme"
                         style={{
-                          backgroundColor: '#f8f9fa',
+                          backgroundColor: 'var(--bg-inset)',
                           borderRadius: '12px',
                           fontSize: '1.1em',
                           paddingRight: '50px'
@@ -291,7 +291,7 @@ const ChangePassword = () => {
 
                   {/* Confirm Password */}
                   <Form.Group className="mb-4">
-                    <Form.Label className="fw-semibold text-dark">
+                    <Form.Label className="fw-semibold text-theme">
                       <Lock size={18} className="me-2" />
                       Confirm New Password
                     </Form.Label>
@@ -302,9 +302,9 @@ const ChangePassword = () => {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
-                        className="py-3 px-4 border-0"
+                        className="py-3 px-4 border-0 text-theme"
                         style={{
-                          backgroundColor: '#f8f9fa',
+                          backgroundColor: 'var(--bg-inset)',
                           borderRadius: '12px',
                           fontSize: '1.1em',
                           paddingRight: '50px'

@@ -34,7 +34,7 @@ const RangeAdder = ({ onAdd }) => {
   };
 
   return (
-    <div className="mt-3 p-3 border rounded" style={{ background: '#f8f9fa' }}>
+    <div className="mt-3 p-3 border rounded" style={{ background: 'var(--bg-inset)', borderColor: 'var(--border-default)' }}>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <small className="fw-bold text-secondary">Add Reference Range</small>
       </div>
@@ -828,7 +828,7 @@ const Tests = () => {
       {loading ? (
         <LoadingSpinner message="Loading tests..." />
       ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
+        <p style={{ color: "var(--color-danger)" }}>{error}</p>
       ) : (
         <>
           <Toolbar
@@ -907,7 +907,7 @@ const Tests = () => {
                 <div>
                   {selectedTestComponents.map((component, index) => (
                     <Card key={index} className="mb-2 shadow-sm">
-                      <Card.Header className="py-2 bg-light">
+                      <Card.Header className="py-2" style={{ background: 'var(--bg-inset)', borderBottom: '1px solid var(--border-default)' }}>
                         <strong>{component.name}</strong>
                         {component.unit && <span className="text-muted ms-2">({component.unit})</span>}
                         <span className="ms-2 badge bg-secondary">{component.result_type === 'boolean' ? 'Boolean' : component.result_type === 'culture_panel' ? 'Culture' : 'Range'}</span>
@@ -919,7 +919,7 @@ const Tests = () => {
                           <div className="text-info"><em>Dynamic Culture Inputs</em></div>
                         ) : component.reference_ranges && component.reference_ranges.length > 0 ? (
                           <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.85em' }}>
-                            <thead className="table-light">
+                            <thead style={{ backgroundColor: 'var(--table-header-bg)' }}>
                               <tr>
                                 <th>Gender</th>
                                 <th>Age Min</th>
@@ -1238,7 +1238,7 @@ const Tests = () => {
               </Card.Header>
               <Card.Body>
                 {/* ── Step 1: Component Identity ── */}
-                <div className="mb-3 p-3 border rounded bg-light">
+                <div className="mb-3 p-3 border rounded" style={{ background: 'var(--bg-inset)', borderColor: 'var(--border-default)' }}>
                   <h6 className="mb-3">Add New Component</h6>
                   <Row className="g-2 align-items-end">
                     <Col md={4}>
@@ -1363,7 +1363,7 @@ const Tests = () => {
                       {newComponent.reference_ranges.length > 0 && (
                         <div className="mt-2">
                           <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.8em' }}>
-                            <thead className="table-light">
+                            <thead style={{ backgroundColor: 'var(--table-header-bg)' }}>
                               <tr>
                                 <th>Gender</th>
                                 <th>Age Min</th>
@@ -1422,7 +1422,7 @@ const Tests = () => {
                       {testComponents.map((component, index) => (
                         <Col md={12} key={component.id || index}>
                           <Card className="shadow-sm">
-                            <Card.Header className="bg-light">
+                            <Card.Header style={{ background: 'var(--bg-inset)', borderBottom: '1px solid var(--border-default)' }}>
                               {/* Editable identity row: name + unit + type badge + remove */}
                               <Row className="g-2 align-items-center">
                                 <Col md={4}>
@@ -1547,7 +1547,7 @@ const Tests = () => {
                       <Plus size={16} />
                     </Button>
                   </div>
-                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #ddd', borderRadius: 4, padding: 8 }}>
+                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 4, padding: 8, background: 'var(--bg-inset)' }}>
                     {questions
                       .filter(question =>
                         question.text.toLowerCase().includes(questionSearchTerm.toLowerCase()) ||

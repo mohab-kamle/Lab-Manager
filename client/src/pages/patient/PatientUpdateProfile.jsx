@@ -144,7 +144,7 @@ const PatientUpdateProfile = () => {
                   onSubmit={handleSubmit}
                   enableReinitialize
                 >
-                  {({ isSubmitting }) => (
+                  {({ isSubmitting, values, setFieldValue }) => (
                     <FormikForm>
                       <Row>
                         <Col md={6}>

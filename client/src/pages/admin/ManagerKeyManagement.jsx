@@ -196,26 +196,27 @@ const ManagerKeyManagement = () => {
       </Card>
 
       <Modal show={showGenerateModal} onHide={() => setShowGenerateModal(false)} backdrop="static" centered size="lg">
-        <Modal.Header closeButton className="bg-primary text-white" data-bs-theme="dark">
+        <Modal.Header closeButton className="bg-theme-surface border-bottom" data-bs-theme="dark">
           <Modal.Title>Generate New Authorization Key</Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4">
           {!generatedKey ? (
             <Form>
               <Form.Group className="mb-4">
-                <Form.Label>Key Name (Optional)</Form.Label>
+                <Form.Label className="text-theme">Key Name (Optional)</Form.Label>
                 <Form.Control
                   type="text"
                   placeholder={`Default: ${user?.name || 'Admin'}_key${keys.length + 1}`}
                   value={keyName}
                   onChange={(e) => setKeyName(e.target.value)}
+                  className="bg-theme-inset text-theme border-muted"
                 />
                 <Form.Text className="text-muted">
                   A custom name to help you identify where this key is used.
                 </Form.Text>
               </Form.Group>
 
-              <Alert variant="info" className="d-flex align-items-center border-0 bg-light-blue shadow-sm">
+              <Alert variant="info" className="d-flex align-items-center border-0 bg-subtle shadow-sm">
                 <div className="me-3 fs-4 text-primary">
                   <AlertTriangle />
                 </div>
@@ -224,7 +225,7 @@ const ManagerKeyManagement = () => {
                   <br />
                   All generated keys automatically expire after 6 months.
                   <br />
-                  Estimated Expiry: <strong>{formatDate(new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000))}</strong>
+                  Estimated Expiry: <strong className="text-theme">{formatDate(new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000))}</strong>
                 </div>
               </Alert>
 
@@ -237,7 +238,7 @@ const ManagerKeyManagement = () => {
           ) : (
             <div className="text-center">
               <div className="mb-4 mt-2">
-                <h3>Key Generated Successfully!</h3>
+                <h3 className="text-theme">Key Generated Successfully!</h3>
               </div>
 
               <Alert variant="warning" className="text-start border-0 shadow-sm mb-4">
@@ -256,10 +257,10 @@ const ManagerKeyManagement = () => {
                 </div>
               </Alert>
 
-              <div className="p-4 bg-light rounded border mb-4">
+              <div className="p-4 bg-theme-inset rounded border border-muted mb-4">
                 <p className="text-muted small mb-2 text-uppercase fw-bold ls-wider">Your Authorization Key</p>
                 <div className="d-flex align-items-center justify-content-center">
-                  <code className="fs-3 fw-bold text-dark me-3 ls-wide">{generatedKey.fullKey}</code>
+                  <code className="fs-3 fw-bold text-theme me-3 ls-wide">{generatedKey.fullKey}</code>
                   <Button variant="outline-primary" onClick={() => copyToClipboard(generatedKey.fullKey)}>
                     <Copy className="me-2" /> Copy
                   </Button>

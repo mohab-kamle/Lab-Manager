@@ -610,6 +610,7 @@ const MainNavBar = () => {
                             id="dropdown-basic"
                             className={`nav-button ${[
                               "vault",
+                              "transactions-vault",
                               "invoices",
                               "patients",
                               "patients-analytics",
