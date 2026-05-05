@@ -28,17 +28,18 @@ function getOpenAIClient() {
 const getSystemPrompt = (expectedKeys = []) => {
   let prompt = `You are an expert clinical data extraction agent. Extract test results from OCR text and output them strictly as a JSON object.
 STRICT RULES:
-1. ONLY include keys that have a CLEARLY found value in the text.
-2. DO NOT include any key with a null, zero, or N/A value unless that '0' is explicitly written as the result.
-3. If a test name is mentioned with a value (e.g., 'CBC is 450'), extract that value even if the test is usually a panel.
-4. Test names might be split across lines or joined by bridge words like 'is', 'at', '->'.
-5. Map tests to the provided HINTS list if they match.
-6. If no valid results are found, return an empty object {}.
-7. Your response must be valid JSON without any commentary.`;
+1. ONLY include keys that have a CLEARLY found numerical or categorical value in the text.
+2. NEVER invent, guess, or hallucinate numerical values. If a value is not explicitly present, skip that key.
+3. If a general category (e.g., 'Lipid Profile', 'Complete Blood Count') is mentioned with a single value but no sub-test values, DO NOT distribute that value across specific components (e.g., Cholesterol, HDL) unless they are also explicitly present.
+4. DO NOT include any key with a null, zero, or N/A value unless that '0' is explicitly written as the result.
+5. If a test name is mentioned with a clear value (e.g., 'Glucose 110'), extract it.
+6. Map tests to the provided HINTS list if they match. Use the hint name as the JSON key.
+7. If no valid results are found, return an empty object {}.
+8. Your response must be valid JSON without any commentary.`;
 
   if (expectedKeys && expectedKeys.length > 0) {
     prompt += `\n\nHINTS (Expected Tests): ${expectedKeys.join(", ")}. 
-Search for these tests. If you find a result, use the name from this HINTS list as the key. If you don't find a result for a hint, DO NOT include it in the JSON.`;
+Search for these tests. If you find a clear result, use the name from this HINTS list as the key. If you don't find a result for a hint, DO NOT include it in the JSON.`;
   }
 
   return prompt;
@@ -63,7 +64,7 @@ async function extractMedicalData(rawOcrText, expectedKeys = []) {
 
   try {
     const response = await client.chat.completions.create({
-      model: "llama-3.1-8b-instant", // Keep Groq model for now
+      model: "llama-3.3-70b-versatile", // Upgraded for better instruction following and reliability
       temperature: 0.0,
       response_format: { type: "json_object" },
       messages: [

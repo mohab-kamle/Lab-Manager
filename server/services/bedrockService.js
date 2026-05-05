@@ -23,10 +23,10 @@ const client = new BedrockRuntimeClient({
 async function extractRawTextFromImage(base64Image, mimeType, hints = []) {
   const modelId = "amazon.nova-lite-v1:0";
 
-  let prompt = "Extract all text from this image exactly as you see it. Do not format it. Do not add markdown. Do not answer questions. Just output the raw text.";
+  let prompt = "OCR Task: Extract all legible text from this image exactly as you see it. Do not format it. Do not add markdown. Do not answer questions. Just output the raw text. If no text is found, output an empty string. Do not hallucinate or guess any text.";
 
   if (hints && hints.length > 0) {
-    prompt += `\n\nNote: The image may contain results for these tests: ${hints.join(", ")}.`;
+    prompt += `\n\nNote: The image may contain results for these tests: ${hints.join(", ")}. Use these as context for recognition, but do not invent values for them if they are not visible.`;
   }
 
   const payload = {
