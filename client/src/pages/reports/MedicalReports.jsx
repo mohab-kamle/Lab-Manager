@@ -855,7 +855,7 @@ const MedicalReports = () => {
       setTestComponents({}); // Not needed in new architecture
       setSelectedReportForResults(reportForState);
       setResultsData(initialResultsData);
-      setActiveTab(activeTabToSet);
+      setActiveTab("tests");
 
       // Culture states cleared - using structure_config from tests instead
 
@@ -2443,7 +2443,7 @@ const MedicalReports = () => {
                                         </div>
                                       ) : (
                                         // Fallback for tests without components
-                                        <Row className="mb-2">
+                                        <Row key={test.id} className="mb-2">
                                           <Col md={3}>
                                             <strong>{test.name}</strong>
                                           </Col>
