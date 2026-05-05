@@ -105,6 +105,12 @@ router.post('/send-report', authenticateUser, async (req, res) => {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
 
+  // Explicit maximum size check for pdfBase64 (approx 50MB of base64 data)
+  // This prevents high memory pressure during Buffer.from conversion
+  if (pdfBase64.length > 70 * 1024 * 1024) { 
+    return res.status(413).json({ error: 'Payload too large: PDF exceeds allowed limit' });
+  }
+
   try {
     const db = require('../models');
 
