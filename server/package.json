@@ -17,16 +17,16 @@
     "delete": "pm2 delete ecosystem.config.js",
     "status": "pm2 status",
     "logs": "pm2 logs",
-    "migrate": "sequelize-cli db:migrate",
-    "migrate:undo": "sequelize-cli db:migrate:undo",
+    "migrate": "npx sequelize-cli db:migrate",
+    "migrate:undo": "npx sequelize-cli db:migrate:undo",
     "run-migrations": "node scripts/runMigrations.js",
-    "db:sync": "node syncDatabase.js",
-    "db:sync:force": "node syncDatabase.js force",
-    "db:check": "node syncDatabase.js check",
-    "db:seed:admin": "sequelize-cli db:seed:all",
+    "db:sync": "node scripts/setup/syncDatabase.js",
+    "db:sync:force": "node scripts/setup/syncDatabase.js force",
+    "db:check": "node scripts/setup/syncDatabase.js check",
+    "db:seed:admin": "npx sequelize-cli db:seed:all",
     "db:seed:loinc": "node scripts/seedLoinc.js",
-    "db:seed": "npm run db:seed:admin && npm run db:seed:loinc",
-    "db:seed:undo": "sequelize-cli db:seed:undo:all"
+    "db:seed": "pnpm run db:sync && pnpm run migrate && pnpm run db:seed:admin && pnpm run db:seed:loinc",
+    "db:seed:undo": "npx sequelize-cli db:seed:undo:all"
   },
   "keywords": [],
   "author": "Mohab",
@@ -63,6 +63,7 @@
     "qrcode": "^1.5.4",
     "redis": "^5.10.0",
     "sequelize": "^6.37.8",
+    "sequelize-cli": "^6.6.3",
     "socket.io": "^4.8.3"
   }
 }
