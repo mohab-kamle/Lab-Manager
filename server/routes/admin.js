@@ -280,4 +280,46 @@ router.post('/keys', authenticateUser, authorizeRoles("admin"), tenantContext, t
   }
 });
 
+router.get('/keys', authenticateUser, authorizeRoles("admin"), tenantContext, tenantIsolation, async (req, res) => {
+  try {
+    const keys = await manager_key.findAll({
+      where: { lab_id: req.labId }, // Tenant isolation: only their lab's keys
+      attributes: ['id', 'key_name', 'first_four', 'expires_at', 'is_active', 'createdAt'], // Hide the key_hash!
+      order: [['createdAt', 'DESC']] // Newest keys at the top
+    });
+
+    return res.status(200).json({ success: true, data: keys });
+  } catch (error) {
+    console.error("Error fetching keys:", error);
+    return res.status(500).json({ error: "Failed to fetch manager keys." });
+  }
+});
+
+router.delete('/keys/:id', authenticateUser, authorizeRoles("admin"), tenantContext, tenantIsolation, async (req, res) => {
+  try {
+    const keyId = req.params.id;
+
+    // Find the key, double-checking tenant isolation
+    const key = await manager_key.findOne({
+      where: { 
+        id: keyId,
+        lab_id: req.labId 
+      }
+    });
+
+    if (!key) {
+      return res.status(404).json({ error: "Key not found." });
+    }
+
+    // Soft delete: deactivate the key
+    await key.update({ is_active: false });
+
+    return res.status(200).json({ success: true, message: "Key revoked successfully." });
+  } catch (error) {
+    console.error("Error revoking key:", error);
+    return res.status(500).json({ error: "Failed to revoke manager key." });
+  }
+});
+
+
 module.exports = router; 

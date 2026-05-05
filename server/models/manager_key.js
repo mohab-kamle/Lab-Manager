@@ -44,7 +44,7 @@ module.exports = function(sequelize, DataTypes) {
     }
   }, {
     sequelize,
-    tableName: 'manager_keys',
+    tableName: 'manager_key',
     timestamps: true,
   });
 };

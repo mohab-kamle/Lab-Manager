@@ -238,6 +238,94 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
     }
 });
 
+// get all patient's transactions in current lab for the admin view
+router.get("/:id/transactions", authenticateUser, authorizeRoles("admin"),tenantContext, async (req, res) => {
+    try {
+        const { id } = req.params
+        
+        // 1. Build Dynamic Filter Object
+        let whereClause = {
+            lab_id: req.tenant.lab_id, // Always restrict data to the current lab context
+            patient_id: id
+        };
+
+        // 2. Query the Database
+        const transactions = await financial_transaction.findAll({
+            where: whereClause,
+            include: [
+                { 
+                    model: payment_method, 
+                    as: 'payment_method',
+                    attributes: ['name'] 
+                },
+                {
+                    model: bill,
+                    as: 'bill',
+                    include: [
+                        { 
+                            model: test, 
+                            as: "test_id_tests", 
+                            attributes: ['name'], 
+                            through: { attributes: [] } 
+                        },
+                        { 
+                            model: packages_and_offers, 
+                            as: "package_id_packages_and_offers", 
+                            attributes: ['name'], 
+                            through: { attributes: [] } 
+                        }
+                    ]
+                },
+                {
+                    model: branch,
+                    as: 'branch',
+                    attributes: ['name']
+                }
+            ],
+            order: [['date', 'DESC']] // Newest transactions first
+        });
+
+        // 3. Map to a flat, UI-friendly JSON format for the frontend
+        const formattedResponse = transactions.map(txn => {
+            
+            // Build a quick summary string (e.g., "CBC, Liver Profile")
+            let summaryItems = [];
+            if (txn.bill) {
+                if (txn.bill.test_id_tests) {
+                    summaryItems.push(...txn.bill.test_id_tests.map(t => t.name));
+                }
+                if (txn.bill.package_id_packages_and_offers) {
+                    summaryItems.push(...txn.bill.package_id_packages_and_offers.map(p => p.name));
+                }
+            }
+            
+            const summaryString = summaryItems.length > 0 
+                ? summaryItems.join(', ') 
+                : 'Account Adjustment';
+
+            return {
+                transactionId: txn.transaction_code,
+                date: txn.date,
+                amount: parseFloat(txn.amount),
+                processType: txn.process_type,
+                paidWith: txn.payment_method ? txn.payment_method.name : null,
+                branchName: txn.branchName ? txn.branchName.name : null,
+                invoiceId: txn.bill_id,
+                summary: summaryString
+            };
+        });
+
+        return res.status(200).json(formattedResponse);
+
+    } catch (error) {
+        console.error("Error fetching transactions:", error);
+        return res.status(500).json({ 
+            error: "Failed to fetch transactions",
+            message: error.message 
+        });
+    }
+});
+
 // get all patient's transactions in current lab
 router.get("/transactions", authenticateUser, authorizeRoles("patient"),tenantContext, async (req, res) => {
     try {
@@ -1253,5 +1341,8 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
         });
     }
 });
+
+
+
 
 module.exports = router;

@@ -1,3 +1,4 @@
+
 # Technical Implementation Guide: Invoice Refund & Authorization System
 
 This document provides detailed frontend instructions for implementing the secure refund system, authorization key management, and comprehensive invoice history tracking.

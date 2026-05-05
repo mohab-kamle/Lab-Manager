@@ -4,7 +4,9 @@ const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, pa
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
+const { tenantIsolation } = require('../middleware/tenantContext');
 const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
+const { validateRefundKey } = require('../middleware/authKeyValidator');
 require("dotenv").config();
 
 /**
@@ -134,6 +136,102 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         // Return empty array on error to prevent frontend crashes
         res.json([]);
     }
+});
+
+router.post('/:id/refund', authenticateUser, authorizeRoles("admin", "receptionist"),tenantContext, tenantIsolation, async (req, res) => {
+  // Start a managed database transaction
+  const t = await sequelize.transaction();
+
+  try {
+    const billId = req.params.id;
+    const { items, amountLabPays, authKey, payment_method_id } = req.body;
+    
+    // Using your tenant isolation variables
+    const labId = req.labId; 
+    const receptionistId = req.user.id;
+
+    // 1. Fetch the Bill and associated Patient within the transaction
+    const currentBill = await bill.findByPk(billId, { transaction: t });
+    if (!currentBill) {
+      throw new Error("Invoice not found.");
+    }
+
+    const currentPatient = await patient.findByPk(currentBill.patient_id, { transaction: t });
+
+    // 2. The 24-Hour Age Check
+    // Calculate the difference in hours between now and when the bill was created
+    const invoiceAgeHours = (new Date() - new Date(currentBill.createdAt)) / (1000 * 60 * 60);
+    let validKeyId = null;
+
+    if (invoiceAgeHours > 24) {
+      // If it's old, validate the key using the utility from Phase 2
+      const matchedKey = await validateRefundKey(authKey, labId);
+      validKeyId = matchedKey.id;
+    }
+
+    // 3. The Financial Math
+    // Calculate total value of the items being refunded (Assuming items.tests is an array)
+    let totalRefundAmount = 0;
+    if (items && items.tests) {
+      totalRefundAmount += items.tests.reduce((sum, test) => sum + Number(test.price), 0);
+    }
+    // Note: If you have packages, you would add a similar loop here for items.packages
+    if (items && items.packages) {
+      totalRefundAmount += items.packages.reduce((sum, package) => sum + Number(package.price), 0);
+    }
+
+    let creditAmount = 0;
+    // If the lab hands back less cash than the refund is worth, the rest becomes digital credit
+    if (amountLabPays < totalRefundAmount) {
+      creditAmount = totalRefundAmount - amountLabPays;
+    }
+
+    // 4. Update the Patient's Credit Balance
+    if (creditAmount > 0) {
+      await currentPatient.increment('credit', { 
+        by: creditAmount, 
+        transaction: t 
+      });
+    }
+
+    // 5. Update the Bill details
+    // Ensure we don't drop the paid amount below zero
+    const newPaidAmount = Math.max(0, currentBill.paid - totalRefundAmount);
+    await currentBill.update({
+      paid: newPaidAmount,
+      refunded_amount: Number(currentBill.refunded_amount) + totalRefundAmount,
+    }, { transaction: t });
+
+    // 6. Record the transaction in the ledger
+    await financial_transaction.create({
+      lab_id: labId,
+      branch_id: currentBill.branch_id || null, // Optional depending on your setup
+      bill_id: currentBill.id,
+      patient_id: currentPatient.id,
+      processed_by_id: receptionistId,
+      manager_key_id: validKeyId, // Will be null if invoice was under 24 hours
+      amount: -Math.abs(totalRefundAmount), // Refunds are stored as negative amounts
+      process_type: 'Refund',
+      payment_method_id: req.body.payment_method_id, 
+      refund_items: items // Store the JSON of what was returned
+    }, { transaction: t });
+
+    // 7. Commit the transaction to save everything permanently
+    await t.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Refund processed successfully.",
+      refundedAmount: totalRefundAmount,
+      creditAdded: creditAmount
+    });
+
+  } catch (error) {
+    // If ANY step fails, rollback the transaction so the database remains unchanged
+    await t.rollback();
+    console.error("Refund Error:", error);
+    return res.status(400).json({ error: error.message || "Failed to process refund." });
+  }
 });
 
 /**
