@@ -958,6 +958,8 @@ const MedicalReports = () => {
 
       // Get expected parameters to help the AI map correctly
       const expectedKeys = selectedReportForResults.tests.flatMap(test => {
+        const testKeys = [test.name]; // Include test name itself for simple tests
+
         const configKeys = (test.structure_config || [])
           .filter(p => p.type !== 'header')
           .map(p => p.label || p.name || p.key);
@@ -965,7 +967,7 @@ const MedicalReports = () => {
         const componentKeys = (testComponents[test.id] || [])
           .map(c => c.label || c.name);
 
-        return [...configKeys, ...componentKeys];
+        return [...testKeys, ...configKeys, ...componentKeys];
       });
 
       const extractedData = await extractFromImage(file, expectedKeys);
@@ -982,24 +984,38 @@ const MedicalReports = () => {
       let finalMatchCount = 0;
 
       setResultsData(prev => {
+        const newTestResults = [...prev.test_results];
         const newComponentResults = { ...prev.test_component_results };
 
-        // Map AI data to existing report structure
-        selectedReportForResults.tests.forEach(test => {
-          // Create a new object for this test's results to ensure React detects changes
-          const currentTestResults = { ...(newComponentResults[test.id] || {}) };
+        // Standardize both sides for comparison
+        const normalize = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
 
-          const structureConfig = test.structure_config || [];
-          const comps = testComponents[test.id] || [];
+        Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
+          if (aiValue === null || aiValue === undefined) return;
+          const normalizedAiKey = normalize(aiKey);
 
-          Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
-            if (aiValue === null || aiValue === undefined) return;
+          // Map AI data to existing report structure
+          selectedReportForResults.tests.forEach(test => {
+            const normalizedTestName = normalize(test.name);
+            
+            // 1. Try to match the test itself (for simple tests without components)
+            if (normalizedTestName === normalizedAiKey) {
+              const existingIndex = newTestResults.findIndex(tr => tr.test_id === test.id);
+              if (existingIndex !== -1) {
+                newTestResults[existingIndex] = { ...newTestResults[existingIndex], result: aiValue };
+              } else {
+                newTestResults.push({ test_id: test.id, result: aiValue, status: 'pending' });
+              }
+              finalMatchCount++;
+            }
 
-            // Standardize both sides for comparison
-            const normalize = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
-            const normalizedAiKey = normalize(aiKey);
+            // Create a new object for this test's component results
+            const currentTestResults = { ...(newComponentResults[test.id] || {}) };
+            const structureConfig = test.structure_config || [];
+            const comps = testComponents[test.id] || [];
+            let testComponentMatched = false;
 
-            // 1. Try to find a matching parameter in the structure config
+            // 2. Try to find a matching parameter in the structure config
             let param = structureConfig.find(p => {
               const normKey = normalize(p.key);
               const normName = normalize(p.name);
@@ -1017,11 +1033,10 @@ const MedicalReports = () => {
                 ...(currentTestResults[key] || {}),
                 result: aiValue
               };
-              finalMatchCount++;
-              return;
+              testComponentMatched = true;
             }
 
-            // 2. If no structure config match, try matching against simple components
+            // 3. If no structure config match, try matching against simple components
             const component = comps.find(c => {
               const normName = normalize(c.name);
               const normLabel = normalize(c.label);
@@ -1029,7 +1044,6 @@ const MedicalReports = () => {
             });
 
             if (component) {
-              // Map to ID (for the form) AND name (for fallback)
               currentTestResults[component.id] = {
                 ...(currentTestResults[component.id] || {}),
                 result: aiValue
@@ -1041,23 +1055,23 @@ const MedicalReports = () => {
                   result: aiValue
                 };
               }
-              
+              testComponentMatched = true;
+            }
+
+            if (testComponentMatched) {
               finalMatchCount++;
+              newComponentResults[test.id] = currentTestResults;
             }
           });
-
-          // Update the top-level copy with our new test results object
-          newComponentResults[test.id] = currentTestResults;
         });
 
         return {
           ...prev,
+          test_results: newTestResults,
           test_component_results: newComponentResults
         };
       });
 
-      // Note: finalMatchCount might be slightly inaccurate due to closure, 
-      // but the state update is now guaranteed to be fresh.
       const matchCount = finalMatchCount;
 
       if (matchCount > 0) {
