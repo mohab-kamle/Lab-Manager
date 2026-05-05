@@ -12,7 +12,7 @@ router.post('/connect/:labId', authenticateUser, async (req, res) => {
   const { labId } = req.params;
   
   // Basic authorization: ensure user belongs to this lab
-  if (req.user.role !== 'admin' && req.user.lab_id != labId) {
+  if (String(req.user.lab_id) !== String(labId)) {
     return res.status(403).json({ error: 'Unauthorized to configure WhatsApp for this lab' });
   }
 
@@ -57,7 +57,7 @@ router.post('/connect/:labId', authenticateUser, async (req, res) => {
 router.get('/qr/:labId', authenticateUser, (req, res) => {
   const { labId } = req.params;
   
-  if (req.user.role !== 'admin' && req.user.lab_id != labId) {
+  if (String(req.user.lab_id) !== String(labId)) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -73,7 +73,7 @@ router.get('/qr/:labId', authenticateUser, (req, res) => {
 router.get('/status/:labId', authenticateUser, async (req, res) => {
   const { labId } = req.params;
   
-  if (req.user.role !== 'admin' && req.user.lab_id != labId) {
+  if (String(req.user.lab_id) !== String(labId)) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -88,18 +88,37 @@ router.get('/status/:labId', authenticateUser, async (req, res) => {
 
 // Endpoint to send a report
 router.post('/send-report', authenticateUser, async (req, res) => {
-  const { labId, patientId, reportId, phone, pdfBase64 } = req.body;
+  const { patientId, reportId, phone, pdfBase64 } = req.body;
+  const labId = req.user.lab_id; // Derived from authenticated user context
   
-  if (!labId || !phone || !pdfBase64) {
+  if (!phone || !pdfBase64) {
     return res.status(400).json({ error: 'Missing required parameters' });
-  }
-
-  if (req.user.role !== 'admin' && req.user.lab_id != labId) {
-    return res.status(403).json({ error: 'Unauthorized' });
   }
 
   try {
     const db = require('../models');
+
+    // Security: Validate that the report belongs to this lab
+    if (reportId) {
+      const report = await db.medical_report.findOne({
+        where: { id: reportId, lab_id: labId },
+        attributes: ['id']
+      });
+      if (!report) {
+        return res.status(403).json({ error: 'Unauthorized: Report does not belong to your lab' });
+      }
+    }
+
+    // Security: Validate that the patient belongs to this lab
+    if (patientId) {
+      const patient = await db.patient.findOne({
+        where: { id: patientId, lab_id: labId },
+        attributes: ['id']
+      });
+      if (!patient) {
+        return res.status(403).json({ error: 'Unauthorized: Patient does not belong to your lab' });
+      }
+    }
 
     // Fetch the lab's custom message template for the PDF caption
     const account = await db.lab_whatsapp_account.findOne({
@@ -132,7 +151,7 @@ router.post('/send-report', authenticateUser, async (req, res) => {
       try {
         await db.medical_report.increment('whatsapp_sends', {
           by: 1,
-          where: { id: reportId }
+          where: { id: reportId, lab_id: labId } // Extra safety in where clause
         });
       } catch (incErr) {
         // Non-critical: log but don't fail the whole request
@@ -151,7 +170,7 @@ router.post('/send-report', authenticateUser, async (req, res) => {
 router.post('/disconnect/:labId', authenticateUser, async (req, res) => {
   const { labId } = req.params;
   
-  if (req.user.role !== 'admin' && req.user.lab_id != labId) {
+  if (String(req.user.lab_id) !== String(labId)) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -169,7 +188,7 @@ router.post('/disconnect/:labId', authenticateUser, async (req, res) => {
 router.get('/message-template/:labId', authenticateUser, async (req, res) => {
   const { labId } = req.params;
 
-  if (req.user.role !== 'admin' && req.user.lab_id != labId) {
+  if (String(req.user.lab_id) !== String(labId)) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -194,7 +213,7 @@ router.put('/message-template/:labId', authenticateUser, async (req, res) => {
   const { labId } = req.params;
   const { message_template } = req.body;
 
-  if (req.user.role !== 'admin' && req.user.lab_id != labId) {
+  if (String(req.user.lab_id) !== String(labId)) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
