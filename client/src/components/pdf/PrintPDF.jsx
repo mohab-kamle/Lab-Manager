@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from "react";
+import QRCode from "qrcode";
 import {
   Document,
   Page,
