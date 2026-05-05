@@ -143,7 +143,7 @@ router.get(
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
             include: [
               {
-                model: db.phone,
+                model: db.phone_number,
                 as: "phones",
                 attributes: ["phone_number", "type"]
               }
