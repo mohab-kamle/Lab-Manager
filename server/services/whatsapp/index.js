@@ -112,22 +112,33 @@ class WhatsAppService {
       await provider.implementation.sendDocument(labId, phone, pdfBuffer, caption);
       status = 'sent';
       
-      // Update last used timestamp
-      await this.updateLastUsed(labId, provider.type);
+      // Update last used timestamp (Non-critical, don't fail the request if this fails)
+      this.updateLastUsed(labId, provider.type).catch(err => 
+        console.error('[WhatsApp] Failed to update last_used_at:', err.message)
+      );
     } catch (error) {
       status = 'failed';
       errorMessage = error.message;
       throw error;
     } finally {
-      // Log message to database
-      await db.whatsapp_message.create({
-        lab_id: labId,
-        patient_id: patientId || null,
-        phone_number: phone,
-        message_type: 'document',
-        status: status,
-        error: errorMessage
-      });
+      // Log message to database (Non-critical, don't fail the request if this fails)
+      try {
+        await db.whatsapp_message.create({
+          lab_id: labId,
+          patient_id: patientId || null,
+          phone_number: phone,
+          message_type: 'document',
+          status: status,
+          error: errorMessage
+        });
+      } catch (logErr) {
+        console.error('[WhatsApp] Failed to log message to DB:', logErr.message, {
+          lab_id: labId,
+          patient_id: patientId,
+          phone: phone,
+          status: status
+        });
+      }
     }
     
     return { success: status === 'sent', error: errorMessage };
