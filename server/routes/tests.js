@@ -93,11 +93,13 @@ function buildStructureConfig(components) {
   return structureConfig;
 }
 
-router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
   try {
-    console.log('Tests route accessed by user:', req.user.id, 'with role:', req.user.role);
+    const lab_id = req.tenant.lab_id;
+    console.log('Tests route accessed by user:', req.user.id, 'for lab:', lab_id);
 
     const testsList = await db.test.findAll({
+      where: { lab_id },
       include: [
         {
           model: db.categories_test_and_culture,
@@ -520,11 +522,11 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
             return {
               name: c.label || c.name || '',
               unit: c.unit || '',
-              normal_from: firstRange.min !== null && firstRange.min !== undefined ? firstRange.min : '',
-              normal_to: firstRange.max !== null && firstRange.max !== undefined ? firstRange.max : '',
-              c_low: '',
-              c_high: '',
-              gender: firstRange.gender === 'Male' ? 'Male' : firstRange.gender === 'Female' ? 'Female' : 'Any',
+              normal_from: (firstRange.min !== null && firstRange.min !== undefined) ? firstRange.min : (c.normal_from !== undefined ? c.normal_from : ''),
+              normal_to: (firstRange.max !== null && firstRange.max !== undefined) ? firstRange.max : (c.normal_to !== undefined ? c.normal_to : ''),
+              c_low: c.c_low || '',
+              c_high: c.c_high || '',
+              gender: firstRange.gender === 'Male' ? 'Male' : firstRange.gender === 'Female' ? 'Female' : (c.gender || 'Any'),
               age_start: c.age_start || '',
               age_end: c.age_end || '',
               reference_range: c.reference_range || '',
