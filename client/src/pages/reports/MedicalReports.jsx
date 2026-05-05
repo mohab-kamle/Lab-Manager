@@ -18,7 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import PrintPDF, { DirectPDFDownload } from "../../components/pdf/PrintPDF";
+import PrintPDF, { DirectPDFDownload, generatePdfBase64 } from "../../components/pdf/PrintPDF";
 import RichTextEditor from "../../components/ui/RichTextEditor";
 import ImageUpload from "../../components/ui/ImageUpload";
 import SecureImage from "../../components/ui/SecureImage";
@@ -39,6 +39,7 @@ import {
   ArrowUpWideNarrow,
   CircleX,
   Undo,
+  MessageCircle,
   Wand2,
   Sparkles,
   Activity,
@@ -141,6 +142,7 @@ const MedicalReports = () => {
   const [savingComments, setSavingComments] = useState({ test: false, medicalReport: false });
   const [updatingReport, setUpdatingReport] = useState(false);
   const [deletingReport, setDeletingReport] = useState(false);
+  const [sendingWhatsappId, setSendingWhatsappId] = useState(null); // reportId being sent via WhatsApp
   const [markingCollected, setMarkingCollected] = useState(null); // reportId being marked
   const [savingResults, setSavingResults] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(null); // reportId for invoice loading
@@ -1221,6 +1223,51 @@ const MedicalReports = () => {
     currentPage * itemsPerPage
   );
 
+  const handleSendWhatsapp = async (reportData) => {
+    try {
+      if (!reportData.patient?.phone) {
+        toast.warning("Patient does not have a registered phone number.");
+        return;
+      }
+      setSendingWhatsappId(reportData.id);
+
+      // Extract Base64 from PrintPDF
+      const pdfBase64 = await generatePdfBase64(reportData.id, reportData.patient, apiUrl);
+
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Make request to backend
+      const response = await axios.post(
+        `${apiUrl}/whatsapp/send-report`,
+        {
+          labId: labInfo?.id || user.lab_id,
+          patientId: reportData.patient.id,
+          reportId: reportData.id,
+          phone: reportData.patient.phone,
+          pdfBase64: pdfBase64,
+        },
+        { headers }
+      );
+
+      toast.success("Report sent successfully via WhatsApp!");
+
+      // Update the local report's whatsapp_sends count so the table reflects it immediately
+      setReports((prevReports) =>
+        prevReports.map((r) =>
+          r.id === reportData.id
+            ? { ...r, whatsapp_sends: (r.whatsapp_sends || 0) + 1 }
+            : r
+        )
+      );
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      toast.error(error.response?.data?.error || error.response?.data?.message || "Failed to send report via WhatsApp.");
+    } finally {
+      setSendingWhatsappId(null);
+    }
+  };
+
   const ActionComponent = ({ rowData }) => {
     return (
       <div className="d-flex gap-1 justify-content-center">
@@ -1336,6 +1383,25 @@ const MedicalReports = () => {
             className="action-btn-fixed"
           />
         </div>
+
+        {/* Send via WhatsApp Button */}
+        <Button
+          variant="outline-success"
+          className="action-btn-fixed"
+          onClick={() => handleSendWhatsapp(rowData)}
+          title="Send via WhatsApp"
+          disabled={sendingWhatsappId === rowData.id}
+        >
+          {sendingWhatsappId === rowData.id ? (
+            <div
+              className="spinner-border spinner-border-sm"
+              role="status"
+              style={{ width: "12px", height: "12px" }}
+            />
+          ) : (
+            <MessageCircle size={16} />
+          )}
+        </Button>
 
         {/* PDF Preview Button */}
         <Button

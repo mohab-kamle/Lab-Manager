@@ -109,7 +109,12 @@ const corsOptions = {
   maxAge: 86400 // 24 hours
 };
 
-app.use(express.json());
+// Apply specific large body limit only to WhatsApp report sending
+app.use("/whatsapp/send-report", express.json({ limit: '50mb' }));
+
+// Revert global limits to a safer default
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
 
 // Apply security headers with CSP for Socket.io
 app.use(helmet({
@@ -317,6 +322,7 @@ app.use("/register", require("./routes/register"));
 app.use("/payments", require("./routes/paymentsGateway"));
 app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
+app.use("/whatsapp", require("./routes/whatsapp.routes"));
 
 // Global error handler
 app.use((error, req, res, next) => {

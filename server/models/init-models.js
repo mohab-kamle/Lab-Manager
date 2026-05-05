@@ -58,6 +58,8 @@ var _inventory_item = require("./inventory_item");
 var _inventory_batch = require("./inventory_batch");
 var _inventory_transaction = require("./inventory_transaction");
 var _inventory_notification = require("./inventory_notification");
+var _lab_whatsapp_account = require("./lab_whatsapp_account");
+var _whatsapp_message = require("./whatsapp_message");
 var _outsourced_lab = require("./outsourced_lab");
 
 function initModels(sequelize) {
@@ -114,6 +116,8 @@ function initModels(sequelize) {
   var inventory_batch = _inventory_batch(sequelize, DataTypes);
   var inventory_transaction = _inventory_transaction(sequelize, DataTypes);
   var inventory_notification = _inventory_notification(sequelize, DataTypes);
+  var lab_whatsapp_account = _lab_whatsapp_account(sequelize, DataTypes);
+  var whatsapp_message = _whatsapp_message(sequelize, DataTypes);
   var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
 
   // ── Inventory associations ──────────────────────────────────────────────
@@ -553,11 +557,14 @@ function initModels(sequelize) {
   lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });
 
   // Define associations for the new models
+  lab_whatsapp_account.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasOne(lab_whatsapp_account, { as: "whatsapp_account", foreignKey: "lab_id" });
 
+  whatsapp_message.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(whatsapp_message, { as: "whatsapp_messages", foreignKey: "lab_id" });
 
-
-
-
+  whatsapp_message.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
+  patient.hasMany(whatsapp_message, { as: "whatsapp_messages", foreignKey: "patient_id" });
 
   // Test Group Result associations
   // Test Comments associations
@@ -652,6 +659,8 @@ function initModels(sequelize) {
     inventory_batch,
     inventory_transaction,
     inventory_notification,
+    lab_whatsapp_account,
+    whatsapp_message
     outsourced_lab
   };
 }

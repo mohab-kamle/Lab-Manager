@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useLab } from '../../context/LabContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/ToastContext';
 import {
   Palette, Settings, CreditCard, Upload, Eye, EyeOff,
-  Save, RefreshCw, AlertTriangle, CheckCircle, Info, Trash2, Plus
+  Save, RefreshCw, AlertTriangle, CheckCircle, Info, Trash2, Plus , MessageCircle
 } from 'lucide-react';
 import PhoneInput from '../../components/ui/PhoneInput';
 import styles from '../../styles/LabManagement.module.css';
@@ -87,6 +87,14 @@ const LabManagement = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [logoPreview, setLogoPreview] = useState('');
+
+  // WhatsApp states
+  const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
+  const [whatsappQR, setWhatsappQR] = useState(null);
+  const [isWhatsappLoading, setIsWhatsappLoading] = useState(false);
+  const qrPollingRef = useRef(null);
+  const [messageTemplate, setMessageTemplate] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
     if (labInfo) {
@@ -344,8 +352,132 @@ const LabManagement = () => {
     if (activeTab === 'activity') {
       fetchActivityLog(1);
     }
+    if (activeTab === 'whatsapp') {
+      fetchWhatsappStatus();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, labInfo?.id]);
+
+  const fetchWhatsappStatus = async () => {
+    if (!labInfo?.id) return;
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/whatsapp/status/${labInfo.id}`, { headers });
+      setWhatsappStatus(response.data.status || 'disconnected');
+      
+      if (response.data.status === 'initializing') {
+        startQrPolling();
+      } else {
+        stopQrPolling();
+        setWhatsappQR(null);
+      }
+
+      // Also fetch the custom message template
+      try {
+        const templateRes = await axios.get(
+          `${import.meta.env.VITE_API_URL}/whatsapp/message-template/${labInfo.id}`,
+          { headers }
+        );
+        setMessageTemplate(templateRes.data.message_template || '');
+      } catch (templateErr) {
+        // Non-critical — template may not exist yet if WhatsApp was never connected
+        console.warn('Could not fetch message template:', templateErr.message);
+      }
+    } catch (error) {
+      console.error('Error fetching WhatsApp status:', error);
+    }
+  };
+
+  // Save the customized WhatsApp message template
+  const handleSaveTemplate = async () => {
+    if (!labInfo?.id) return;
+    setSavingTemplate(true);
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/whatsapp/message-template/${labInfo.id}`,
+        { message_template: messageTemplate },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      toast.success('Message template saved successfully!');
+    } catch (error) {
+      console.error('Error saving message template:', error);
+      toast.error(error.response?.data?.error || 'Failed to save message template.');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const startQrPolling = () => {
+    if (qrPollingRef.current) return;
+    qrPollingRef.current = setInterval(async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/whatsapp/qr/${labInfo.id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (response.data.qr) {
+          setWhatsappQR(response.data.qr);
+        } else {
+          // Check status again to see if we connected
+          fetchWhatsappStatus();
+        }
+      } catch (error) {
+        console.error('Error polling QR:', error);
+      }
+    }, 5000);
+  };
+
+  const stopQrPolling = () => {
+    if (qrPollingRef.current) {
+      clearInterval(qrPollingRef.current);
+      qrPollingRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (qrPollingRef.current) {
+        clearInterval(qrPollingRef.current);
+      }
+    };
+  }, []);
+
+  const handleConnectWhatsapp = async () => {
+    if (!labInfo?.id) return;
+    try {
+      setIsWhatsappLoading(true);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/whatsapp/connect/${labInfo.id}`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setWhatsappStatus(response.data.status || 'initializing');
+      if (response.data.status === 'initializing') {
+        startQrPolling();
+      }
+    } catch (error) {
+      console.error('Error connecting WhatsApp:', error);
+      toast.error('Failed to initiate WhatsApp connection.');
+    } finally {
+      setIsWhatsappLoading(false);
+    }
+  };
+
+  const handleDisconnectWhatsapp = async () => {
+    if (!labInfo?.id) return;
+    try {
+      setIsWhatsappLoading(true);
+      await axios.post(`${import.meta.env.VITE_API_URL}/whatsapp/disconnect/${labInfo.id}`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setWhatsappStatus('disconnected');
+      stopQrPolling();
+      setWhatsappQR(null);
+      toast.success('WhatsApp disconnected successfully.');
+    } catch (error) {
+      console.error('Error disconnecting WhatsApp:', error);
+      toast.error('Failed to disconnect WhatsApp.');
+    } finally {
+      setIsWhatsappLoading(false);
+    }
+  };
 
   if (labLoading) {
     return (
@@ -445,6 +577,13 @@ const LabManagement = () => {
           >
             <Eye size={20} />
             Activity Log
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === 'whatsapp' ? styles.active : ''}`}
+            onClick={() => setActiveTab('whatsapp')}
+          >
+            <MessageCircle size={20} />
+            WhatsApp
           </button>
         </div>
 
@@ -1015,6 +1154,92 @@ const LabManagement = () => {
                   {loading ? 'Processing...' : (isSubscriptionActive() ? 'Already Subscribed' : 'Upgrade Now')}
                 </button>
               </form>
+            </div>
+          )}
+
+          {activeTab === 'whatsapp' && (
+            <div className={styles.tabPanel}>
+              <h2>WhatsApp Integration</h2>
+              <p>Connect your lab's WhatsApp number to automatically send medical reports to patients.</p>
+              
+              <div className="card mt-4 p-4">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <div>
+                    <h4 className="m-0">Connection Status</h4>
+                    <span className={`badge ${whatsappStatus === 'connected' ? 'bg-success' : whatsappStatus === 'initializing' ? 'bg-warning' : 'bg-secondary'} mt-2`}>
+                      {whatsappStatus.toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    {whatsappStatus === 'disconnected' && (
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={handleConnectWhatsapp}
+                        disabled={isWhatsappLoading}
+                      >
+                        {isWhatsappLoading ? <LoadingSpinner size={20} containerClassName="" /> : 'Connect WhatsApp'}
+                      </button>
+                    )}
+                    {whatsappStatus === 'connected' && (
+                      <button 
+                        className="btn btn-danger" 
+                        onClick={handleDisconnectWhatsapp}
+                        disabled={isWhatsappLoading}
+                      >
+                        {isWhatsappLoading ? <LoadingSpinner size={20} containerClassName="" /> : 'Disconnect'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {whatsappStatus === 'initializing' && whatsappQR && (
+                  <div className="text-center mt-4">
+                    <h5>Scan this QR Code with your WhatsApp</h5>
+                    <p className="text-muted small">Open WhatsApp on your phone &gt; Settings &gt; Linked Devices &gt; Link a Device</p>
+                    <img src={whatsappQR} alt="WhatsApp QR Code" style={{ border: '1px solid #ccc', borderRadius: '8px', padding: '10px' }} />
+                  </div>
+                )}
+                {whatsappStatus === 'initializing' && !whatsappQR && (
+                  <div className="text-center mt-4">
+                    <LoadingSpinner message="Generating QR code..." />
+                  </div>
+                )}
+
+                {/* Message Template Customization — only show when connected */}
+                {whatsappStatus === 'connected' && (
+                  <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color, #dee2e6)' }}>
+                    <h5 className="mb-2">
+                      <MessageCircle size={18} className="me-2" style={{ verticalAlign: 'text-bottom' }} />
+                      Customize WhatsApp Message
+                    </h5>
+                    <p className="text-muted small mb-3">
+                      This message is sent as a caption with the PDF report. You can use these placeholders:
+                    </p>
+                    <div className="d-flex flex-wrap gap-2 mb-3">
+                      <span className="badge bg-info text-dark">{'{{lab_name}}'}</span>
+                      <span className="badge bg-info text-dark">{'{{patient_name}}'}</span>
+                    </div>
+                    <textarea
+                      className="form-control mb-3"
+                      rows={4}
+                      value={messageTemplate}
+                      onChange={(e) => setMessageTemplate(e.target.value)}
+                      placeholder="Hello! Here is your lab report from {{lab_name}}. If you have any questions, please contact us."
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveTemplate}
+                      disabled={savingTemplate}
+                    >
+                      {savingTemplate ? (
+                        <><LoadingSpinner size={18} containerClassName="" /> Saving...</>
+                      ) : (
+                        <><Save size={16} className="me-1" /> Save Template</>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
