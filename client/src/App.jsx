@@ -48,6 +48,7 @@ function App() {
     <ToastProvider>
       <Router>
 
+        <div id="scroll-sentinel" style={{ position: 'absolute', top: 0, height: '1px', width: '1px', pointerEvents: 'none' }}></div>
         <MainNavBar />
         <Suspense fallback={<LoadingSpinner />}>
           {/* IF NO SUBDOMAIN: Show Public Landing Site */}

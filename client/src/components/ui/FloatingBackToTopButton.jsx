@@ -14,12 +14,25 @@ const FloatingBackToTopButton = () => {
     };
 
     useEffect(() => {
-        const handleScroll = () => {
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            setShowScrollTop(scrollTop > 300);
+        // Use IntersectionObserver to show/hide the back-to-top button
+        // It watches the sentinel at the top of the page.
+        // When sentinel is NOT intersecting, it means we've scrolled down.
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setShowScrollTop(!entry.isIntersecting);
+            },
+            { threshold: 0 }
+        );
+
+        const sentinel = document.getElementById('scroll-sentinel');
+        if (sentinel) {
+            observer.observe(sentinel);
+        }
+
+        return () => {
+            if (sentinel) observer.unobserve(sentinel);
+            observer.disconnect();
         };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     const renderTooltip = (props) => (
