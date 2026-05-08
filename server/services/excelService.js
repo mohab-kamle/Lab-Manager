@@ -10,14 +10,21 @@ const ExcelJS = require('exceljs');
 
 /**
  * Read Excel file buffer and convert to JSON
- * @param {Buffer} buffer - The Excel file buffer
+ * @param {Buffer} buffer - The file buffer
+ * @param {string} mimetype - The file mimetype (optional)
  * @param {string} sheetName - Name of the worksheet to read (optional)
  * @returns {Promise<Array>} - Array of objects representing the data
  */
-async function readExcelBuffer(buffer, sheetName = null) {
+async function readExcelBuffer(buffer, mimetype = null, sheetName = null) {
   try {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    
+    if (mimetype === 'text/csv' || (mimetype === null && !buffer.slice(0, 4).equals(Buffer.from([0x50, 0x4B, 0x03, 0x04])) && !buffer.slice(0, 4).equals(Buffer.from([0xD0, 0xCF, 0x11, 0xE0])))) {
+      // Try loading as CSV if mimetype is text/csv or if no Excel signature is found
+      await workbook.csv.readBuffer(buffer);
+    } else {
+      await workbook.xlsx.load(buffer);
+    }
 
     // Get the specified worksheet or the first one
     const worksheet = sheetName 

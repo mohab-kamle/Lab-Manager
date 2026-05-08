@@ -170,29 +170,24 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-    if (data.length < 2) {
-      return res.status(400).json({ error: 'File must contain at least a header row and one data row' });
+    // Read Excel file using secure ExcelJS service
+    const data = await readExcelBuffer(req.file.buffer, req.file.mimetype);
+    
+    if (!data || data.length === 0) {
+      return res.status(400).json({ error: 'No data found in the file' });
     }
-
-    const headers = data[0];
-    const rows = data.slice(1);
 
     let imported = 0;
     let errors = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row.length === 0) continue;
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      if (!row || Object.keys(row).length === 0) continue;
 
       try {
-        const name = row[headers.indexOf('Name')] || row[0];
-        const shortcut = row[headers.indexOf('Shortcut')] || row[1] || null;
-        const commercial_name = row[headers.indexOf('Commercial Name')] || row[2] || null;
+        const name = row['Name'] || row['name'] || row[Object.keys(row)[0]];
+        const shortcut = row['Shortcut'] || row['shortcut'] || null;
+        const commercial_name = row['Commercial Name'] || row['commercial_name'] || null;
 
         if (!name || name.toString().trim() === '') {
           errors.push(`Row ${i + 2}: Name is required`);

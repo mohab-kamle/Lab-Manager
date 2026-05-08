@@ -264,7 +264,7 @@ router.post('/import', authenticateUser, upload.single('file'), async (req, res)
     }
 
     // Read Excel file using secure ExcelJS service
-    const data = await readExcelBuffer(req.file.buffer);
+    const data = await readExcelBuffer(req.file.buffer, req.file.mimetype);
 
     if (data.length === 0) {
       return res.status(400).json({ error: 'No data found in the file' });
@@ -337,11 +337,7 @@ router.get('/export/excel', authenticateUser, async (req, res) => {
       'Created At': q.createdAt ? new Date(q.createdAt).toLocaleDateString() : ''
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-
-    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const buffer = await createExcelBuffer(exportData, 'Questions');
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=questions_${new Date().toISOString().split('T')[0]}.xlsx`);
