@@ -3,6 +3,10 @@
 # -----------------------------------------------------------------------------
 FROM node:lts-alpine AS base
 WORKDIR /app
+# Install git for pnpm to fetch git dependencies
+RUN apk add --no-cache git
+# Force git to use HTTPS instead of SSH
+RUN git config --global url."https://github.com/".insteadOf git@github.com:
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm install -g pnpm
