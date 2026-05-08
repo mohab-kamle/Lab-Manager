@@ -26,7 +26,7 @@ module.exports = function (sequelize, DataTypes) {
         },
         status: {
             type: DataTypes.STRING(50),
-            allowNull: true,
+            allowNull: false,
             defaultValue: 'Pending Collection'
         },
         status_history: {

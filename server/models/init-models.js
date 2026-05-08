@@ -611,18 +611,6 @@ function initModels(sequelize) {
   });
 
 
-  // manager_key associations
-  manager_key.belongsTo(lab, { as: "lab", foreignKey: "lab_id"});
-  lab.hasMany(manager_key, { as: "manager_keys", foreignKey: "lab_id"});
-
-  manager_key.belongsTo(employee, { as: "admin", foreignKey: "admin_id"});
-  employee.hasMany(manager_key, { as: "manager_keys", foreignKey: "admin_id"});
-
-  // Financial Transactions belong to a Manager Key (optional)
-  financial_transaction.belongsTo(manager_key, { as: "manager_key", foreignKey: "manager_key_id"});
-  manager_key.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "manager_key_id"});
-
-
   // lab_samples associations
   lab_samples.belongsTo(medical_report, { as: "medical_report", foreignKey: "medical_report_id"});
   medical_report.hasMany(lab_samples, { as: "lab_samples", foreignKey: "medical_report_id"});

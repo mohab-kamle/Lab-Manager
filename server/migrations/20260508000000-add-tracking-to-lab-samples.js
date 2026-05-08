@@ -28,9 +28,11 @@ module.exports = {
       allowNull: true
     });
 
+    await queryInterface.sequelize.query(`UPDATE lab_samples SET status = 'Pending Collection' WHERE status IS NULL`);
+
     await queryInterface.changeColumn('lab_samples', 'status', {
       type: Sequelize.STRING(50),
-      allowNull: true,
+      allowNull: false,
       defaultValue: 'Pending Collection'
     });
   },
