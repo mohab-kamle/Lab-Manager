@@ -22,13 +22,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 FROM configs AS server-deps
 COPY server/package.json ./server/
 RUN pnpm config set store-dir /pnpm/store
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter server... --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter server... --frozen-lockfile --config.only-built-dependencies-soft-fail=true
 
 # 2b. Client Dependencies
 FROM configs AS client-deps
 COPY client/package.json ./client/
 RUN pnpm config set store-dir /pnpm/store
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter client... --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter client... --frozen-lockfile --config.only-built-dependencies-soft-fail=true
 
 # -----------------------------------------------------------------------------
 # 3. DEVELOPMENT: Server
@@ -74,7 +74,7 @@ CMD ["nginx", "-g", "daemon off;"]
 FROM configs AS server-prod
 COPY server/package.json ./server/
 # Re-install only production dependencies to keep image small
-RUN pnpm install --prod --frozen-lockfile --filter server...
+RUN pnpm install --prod --frozen-lockfile --filter server... --config.only-built-dependencies-soft-fail=true
 
 COPY server/ ./server/
 WORKDIR /app/server
