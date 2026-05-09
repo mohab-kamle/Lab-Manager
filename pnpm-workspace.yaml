@@ -1,3 +1,5 @@
 packages:
   - 'client'
   - 'server'
+
+only-built-dependencies-soft-fail: true
