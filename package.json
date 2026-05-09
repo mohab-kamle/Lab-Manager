@@ -15,20 +15,7 @@
   "pnpm": {
     "overrides": {
       "@emotion/react": "^11.11.4"
-    },
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "@swc/core",
-      "@whiskeysockets/baileys",
-      "bcrypt",
-      "core-js",
-      "es5-ext",
-      "esbuild",
-      "libsignal-node",
-      "protobufjs",
-      "puppeteer",
-      "sharp"
-    ]
+    }
   },
   "dependencies": {
     "csv-parser": "^3.2.0",
