@@ -19,10 +19,13 @@
     "onlyBuiltDependencies": [
       "@parcel/watcher",
       "@swc/core",
+      "@whiskeysockets/baileys",
       "bcrypt",
       "core-js",
       "es5-ext",
       "esbuild",
+      "libsignal-node",
+      "protobufjs",
       "puppeteer",
       "sharp"
     ]

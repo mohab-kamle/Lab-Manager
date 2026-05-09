@@ -13,7 +13,7 @@ RUN npm install -g pnpm
 
 # Copy workspace configs (the structure fixed)
 FROM base AS configs
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 # -----------------------------------------------------------------------------
 # 2. DEPENDENCIES: Install modules (Cached & Parallel)
