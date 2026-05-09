@@ -9,11 +9,13 @@ RUN apk add --no-cache git
 RUN git config --global url."https://github.com/".insteadOf git@github.com:
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm install -g pnpm
+ENV PNPM_ONLY_BUILT_DEPENDENCIES_SOFT_FAIL=true
+RUN npm install -g pnpm@10.17.1
 
 # Copy workspace configs (the structure fixed)
 FROM base AS configs
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm approve-builds
 
 # -----------------------------------------------------------------------------
 # 2. DEPENDENCIES: Install modules (Cached & Parallel)

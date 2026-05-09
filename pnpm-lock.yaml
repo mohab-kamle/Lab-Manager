@@ -3,18 +3,6 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
-  onlyBuiltDependencies:
-    - "@parcel/watcher"
-    - "@swc/core"
-    - "@whiskeysockets/baileys"
-    - bcrypt
-    - core-js
-    - es5-ext
-    - esbuild
-    - libsignal-node
-    - protobufjs
-    - puppeteer
-    - sharp
 
 overrides:
   '@emotion/react': ^11.11.4
