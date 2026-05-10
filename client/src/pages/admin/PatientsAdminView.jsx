@@ -114,6 +114,7 @@ const PatientsAdminView = () => {
     discount_amount: 0,
     details: ""
   });
+  const [diseaseSearchTerm, setDiseaseSearchTerm] = useState("");
   const [newDisease, setNewDisease] = useState({
     name: "",
     details: ""
@@ -307,7 +308,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       await axios.delete(`${apiUrl}/patient/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -371,7 +371,6 @@ const PatientsAdminView = () => {
 
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/patient/import`, formData, {
         headers: {
@@ -406,7 +405,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       await axios.delete(`${apiUrl}/patient/bulk`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -435,7 +433,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const updateData = {};
       if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
@@ -733,7 +730,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/contracts`, newContract, {
         headers: { Authorization: `Bearer ${token}` }
@@ -771,23 +767,31 @@ const PatientsAdminView = () => {
 
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/diseases`, newDisease, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Add new disease to the list
-      setDiseases(prevDiseases => [...prevDiseases, response.data]);
+      // Refetch diseases from server to ensure full synchronization
+      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const updatedDiseases = diseasesRes.data || [];
+      setDiseases(updatedDiseases);
 
-      // Set the new disease as selected
-      setPatient(prev => ({ ...prev, diseases: [...prev.diseases, response.data.id] }));
+      // Set the new disease as selected (using the ID from the POST response)
+      const newDiseaseId = response.data.id;
+      if (!patient.diseases.includes(newDiseaseId)) {
+        setPatient(prev => ({ ...prev, diseases: [...prev.diseases, newDiseaseId] }));
+      }
 
       setShowDiseaseCreateModal(false);
       setNewDisease({
         name: "",
         details: ""
       });
+      setDiseaseSearchTerm(""); // Clear search to show the new disease
+      toast.success("Disease added and selected");
     } catch (error) {
       console.error('Error creating disease:', error);
       toast.error(error.response?.data?.error || 'Failed to create disease');
@@ -1236,34 +1240,57 @@ const PatientsAdminView = () => {
 
                 <Form.Group className="mb-3">
                   <Form.Label>Diseases</Form.Label>
-                  <div className="d-flex gap-2">
-                    <Form.Select
-                      multiple
-                      value={patient.diseases}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                        setPatient({ ...patient, diseases: selected });
-                      }}
-                      className="flex-grow-1"
-                    >
-                      {Array.isArray(diseases) && diseases.map(disease => (
-                        <option key={disease.id} value={disease.id}>
-                          {disease.name} {disease.details && `(${disease.details})`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => setShowDiseaseCreateModal(true)}
-                      title="Add New Disease"
-                    >
-                      <Plus size={16} />
-                    </Button>
+                  <div className="mb-2">
+                    <div className="d-flex gap-2 mb-2">
+                      <Form.Control
+                        type="text"
+                        placeholder="Search diseases..."
+                        value={diseaseSearchTerm}
+                        onChange={(e) => setDiseaseSearchTerm(e.target.value)}
+                        className="flex-grow-1"
+                      />
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setShowDiseaseCreateModal(true)}
+                        title="Add New Disease"
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                    <div style={{ 
+                      maxHeight: "150px", 
+                      overflowY: "auto", 
+                      border: "1px solid var(--border-default)", 
+                      borderRadius: "4px", 
+                      padding: "8px",
+                      backgroundColor: "var(--bg-secondary)"
+                    }}>
+                      {Array.isArray(diseases) && diseases
+                        .filter(d => d.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase()))
+                        .map(disease => (
+                          <Form.Check
+                            key={disease.id}
+                            type="checkbox"
+                            id={`disease-${disease.id}`}
+                            label={`${disease.name}${disease.details ? ` (${disease.details})` : ""}`}
+                            checked={patient.diseases.includes(disease.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              const currentDiseases = patient.diseases || [];
+                              const updatedDiseases = isChecked
+                                ? [...currentDiseases, disease.id]
+                                : currentDiseases.filter(id => id !== disease.id);
+                              setPatient({ ...patient, diseases: updatedDiseases });
+                            }}
+                          />
+                        ))}
+                      {Array.isArray(diseases) && diseases.filter(d => d.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase())).length === 0 && (
+                        <div className="text-muted small text-center py-2">No diseases found</div>
+                      )}
+                    </div>
                   </div>
-                  <Form.Text className="text-muted">
-                    Hold Ctrl (or Cmd on Mac) to select multiple diseases
-                  </Form.Text>
+
                 </Form.Group>
 
                 <Row>
@@ -1398,7 +1425,6 @@ const PatientsAdminView = () => {
             <Modal.Footer>
               <Button variant="secondary" onClick={() => {
                 setShowAddModal(false);
-                setError(null);
                 setShowRetryButton(false);
                 setLastAttemptedPatient(null);
                 setFormErrors({});

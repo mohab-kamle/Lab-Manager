@@ -485,13 +485,25 @@ const Invoices = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Add new disease to the list (we need to fetch diseases list)
-      const diseasesRes = await axios.get(`${apiUrl}/diseases`, {
+      // Add new disease to the list
+      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Note: We don't have diseases state in Invoices.jsx, so we'll just close the modal
+      const updatedDiseases = diseasesRes.data || [];
+      console.log('Updated diseases list:', updatedDiseases);
+      setDiseases(updatedDiseases);
+      
+      // Automatically select the new disease
+      const newDiseaseId = response.data.id;
+      if (!patientForm.diseases.includes(newDiseaseId)) {
+        setPatientForm(prev => ({
+          ...prev,
+          diseases: [...prev.diseases, newDiseaseId]
+        }));
+      }
       
       setShowDiseaseCreateModal(false);
+      setDiseaseSearchTerm(""); // Clear search term to show the new disease
       setNewDisease({
         name: "",
         details: ""
