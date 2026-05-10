@@ -450,7 +450,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             await bill_has_payment_method.create({
                 bill_id: newBill.id,
                 payment_method_id: parseInt(payment.payment_method_id),
-                paid_amount: paidAmount
+                paid_amount: payment.amount
             }, { transaction });
 
         }
