@@ -4,7 +4,10 @@ const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, pa
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
+const { tenantIsolation } = require('../middleware/tenantContext');
 const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
+const { validateRefundKey } = require('../middleware/authKeyValidator');
+const integrityService = require("../services/integrityService");
 require("dotenv").config();
 
 /**
@@ -144,6 +147,102 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         // Return empty array on error to prevent frontend crashes
         res.json([]);
     }
+});
+
+router.post('/:id/refund', authenticateUser, authorizeRoles("admin", "receptionist"),tenantContext, tenantIsolation, async (req, res) => {
+  // Start a managed database transaction
+  const t = await sequelize.transaction();
+
+  try {
+    const billId = req.params.id;
+    const { items, amountLabPays, authKey, payment_method_id } = req.body;
+    
+    // Using your tenant isolation variables
+    const labId = req.labId; 
+    const receptionistId = req.user.id;
+
+    // 1. Fetch the Bill and associated Patient within the transaction
+    const currentBill = await bill.findByPk(billId, { transaction: t });
+    if (!currentBill) {
+      throw new Error("Invoice not found.");
+    }
+
+    const currentPatient = await patient.findByPk(currentBill.patient_id, { transaction: t });
+
+    // 2. The 24-Hour Age Check
+    // Calculate the difference in hours between now and when the bill was created
+    const invoiceAgeHours = (new Date() - new Date(currentBill.createdAt)) / (1000 * 60 * 60);
+    let validKeyId = null;
+
+    if (invoiceAgeHours > 24) {
+      // If it's old, validate the key using the utility from Phase 2
+      const matchedKey = await validateRefundKey(authKey, labId);
+      validKeyId = matchedKey.id;
+    }
+
+    // 3. The Financial Math
+    // Calculate total value of the items being refunded (Assuming items.tests is an array)
+    let totalRefundAmount = 0;
+    if (items && items.tests) {
+      totalRefundAmount += items.tests.reduce((sum, test) => sum + Number(test.price), 0);
+    }
+    // Note: If you have packages, you would add a similar loop here for items.packages
+    if (items && items.packages) {
+      totalRefundAmount += items.packages.reduce((sum, package) => sum + Number(package.price), 0);
+    }
+
+    let creditAmount = 0;
+    // If the lab hands back less cash than the refund is worth, the rest becomes digital credit
+    if (amountLabPays < totalRefundAmount) {
+      creditAmount = totalRefundAmount - amountLabPays;
+    }
+
+    // 4. Update the Patient's Credit Balance
+    if (creditAmount > 0) {
+      await currentPatient.increment('credit', { 
+        by: creditAmount, 
+        transaction: t 
+      });
+    }
+
+    // 5. Update the Bill details
+    // Ensure we don't drop the paid amount below zero
+    const newPaidAmount = Math.max(0, currentBill.paid - totalRefundAmount);
+    await currentBill.update({
+      paid: newPaidAmount,
+      refunded_amount: Number(currentBill.refunded_amount) + totalRefundAmount,
+    }, { transaction: t });
+
+    // 6. Record the transaction in the ledger
+    await financial_transaction.create({
+      lab_id: labId,
+      branch_id: currentBill.branch_id || null, // Optional depending on your setup
+      bill_id: currentBill.id,
+      patient_id: currentPatient.id,
+      processed_by_id: receptionistId,
+      manager_key_id: validKeyId, // Will be null if invoice was under 24 hours
+      amount: -Math.abs(totalRefundAmount), // Refunds are stored as negative amounts
+      process_type: 'Refund',
+      payment_method_id: req.body.payment_method_id, 
+      refund_items: items // Store the JSON of what was returned
+    }, { transaction: t });
+
+    // 7. Commit the transaction to save everything permanently
+    await t.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Refund processed successfully.",
+      refundedAmount: totalRefundAmount,
+      creditAdded: creditAmount
+    });
+
+  } catch (error) {
+    // If ANY step fails, rollback the transaction so the database remains unchanged
+    await t.rollback();
+    console.error("Refund Error:", error);
+    return res.status(400).json({ error: error.message || "Failed to process refund." });
+  }
 });
 
 /**
@@ -312,7 +411,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             }
         }
 
-        // Add tests with their current prices
+        // Add tests with their current prices and signatures
         for (const testId of tests) {
             const testRecord = await test.findByPk(parseInt(testId), { transaction });
             let price = 0.00;
@@ -320,14 +419,16 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 const parsedPrice = parseFloat(testRecord.price);
                 price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
             }
+            const signature = integrityService.signItem(newBill.id, testId, price);
             await bill_has_test.create({
                 bill_id: newBill.id,
                 test_id: parseInt(testId),
-                price: price
+                price: price,
+                signature: signature
             }, { transaction });
         }
 
-        // Add packages with their current prices
+        // Add packages with their current prices and signatures
         for (const packageId of packages) {
             const packageItem = await packages_and_offers.findByPk(parseInt(packageId), { transaction });
             let price = 0.00;
@@ -335,10 +436,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 const parsedPrice = parseFloat(packageItem.price);
                 price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
             }
+            const signature = integrityService.signItem(newBill.id, packageId, price);
             await bill_has_package.create({
                 bill_id: newBill.id,
                 package_id: parseInt(packageId),
-                price: price
+                price: price,
+                signature: signature
             }, { transaction });
         }
 
@@ -347,9 +450,26 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             await bill_has_payment_method.create({
                 bill_id: newBill.id,
                 payment_method_id: parseInt(payment.payment_method_id),
-                paid_amount: parseFloat(payment.paid_amount)
+                paid_amount: payment.amount
             }, { transaction });
+
         }
+
+
+        // --- Integrity Signing ---
+        const allItemsForSigning = [];
+        const createdTests = await bill_has_test.findAll({ where: { bill_id: newBill.id }, transaction });
+        const createdPackages = await bill_has_package.findAll({ where: { bill_id: newBill.id }, transaction });
+        
+        createdTests.forEach(t => allItemsForSigning.push({ signature: t.signature }));
+        createdPackages.forEach(p => allItemsForSigning.push({ signature: p.signature }));
+
+        const billIntegrityHash = integrityService.signBill({
+            id: newBill.id,
+            total: newBill.total
+        }, allItemsForSigning);
+
+        await newBill.update({ integrity_hash: billIntegrityHash }, { transaction });
 
 
 
@@ -642,8 +762,49 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
     const lab_id = req.tenant.lab_id;
 
     try {
-        const existingBill = await bill.findOne({ where: { id, lab_id } });
+        const lab_id = req.tenant.lab_id;
+        const existingBill = await bill.findOne({ 
+            where: { id, lab_id },
+            include: [
+                { model: bill_has_test, as: 'bill_has_tests' },
+                { model: bill_has_package, as: 'bill_has_packages' }
+            ]
+        });
         if (!existingBill) return res.status(404).json({ error: "Bill not found or you don't have permission to edit it." });
+
+        // 1. Lock-in Rule: Check if any items are being removed
+        const currentTestIds = existingBill.bill_has_tests.map(t => t.test_id);
+        const currentPackageIds = existingBill.bill_has_packages.map(p => p.package_id);
+
+        if (tests) {
+            const removedTests = currentTestIds.filter(tid => !tests.includes(tid.toString()));
+            if (removedTests.length > 0) {
+                return res.status(403).json({ error: "Cannot remove existing tests. Use the refund module instead." });
+            }
+        }
+
+        if (packages) {
+            const removedPackages = currentPackageIds.filter(pid => !packages.includes(pid.toString()));
+            if (removedPackages.length > 0) {
+                return res.status(403).json({ error: "Cannot remove existing packages. Use the refund module instead." });
+            }
+        }
+
+        // 2. Manager Key Rule: 2-hour restriction for paid amount update
+        const invoiceAgeHours = (new Date() - new Date(existingBill.createdAt || existingBill.date)) / (1000 * 60 * 60);
+        if (paid !== undefined && parseFloat(paid) !== parseFloat(existingBill.paid) && invoiceAgeHours > 2) {
+            const { manager_key } = req.body;
+            if (!manager_key) {
+                return res.status(403).json({ 
+                    error: "Manager's Key required to update paid amount after 2 hours.",
+                    requires_manager_key: true
+                });
+            }
+            const matchedKey = await validateRefundKey(manager_key, lab_id);
+            if (!matchedKey) {
+                return res.status(403).json({ error: "Invalid Manager's Key." });
+            }
+        }
 
         // Get the old values before updating
         const oldTotal = parseFloat(existingBill.total || 0);
@@ -653,16 +814,15 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         const patientId = existingBill.patient_id;
 
         await existingBill.update({
-            date,
-            paid,
-            due,
-            subtotal,
-            discount,
-            tax: finalTax,
-            tax_rate: finalTaxRate,
-            total: finalTotal,
-            status_id,
-            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null
+            date: date || existingBill.date,
+            paid: paid !== undefined ? paid : existingBill.paid,
+            due: due !== undefined ? due : existingBill.due,
+            subtotal: subtotal !== undefined ? subtotal : existingBill.subtotal,
+            discount: discount !== undefined ? discount : existingBill.discount,
+            tax: tax !== undefined ? tax : existingBill.tax,
+            total: total !== undefined ? total : existingBill.total,
+            status_id: status_id || existingBill.status_id,
+            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : existingBill.referred_doctor_id
         });
 
         // Update patient's financial information
@@ -721,47 +881,41 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         }
 
         if (tests) {
-            await bill_has_test.destroy({ where: { bill_id: id } });
-            const validTests = tests.filter(test_id => !isNaN(Number(test_id)) && test_id !== '' && test_id !== null);
-            // Get current prices for each test
-            const testRecords = [];
-            for (const testId of validTests) {
+            const newTests = tests.filter(tid => !currentTestIds.includes(parseInt(tid)));
+            for (const testId of newTests) {
                 const testItem = await test.findByPk(parseInt(testId));
                 let price = 0.00;
                 if (testItem && testItem.price !== null && testItem.price !== undefined) {
                     const parsedPrice = parseFloat(testItem.price);
                     price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
                 }
-                testRecords.push({
+                const signature = integrityService.signItem(id, testId, price);
+                await bill_has_test.create({
                     bill_id: id,
                     test_id: parseInt(testId),
-                    price: price
+                    price: price,
+                    signature: signature
                 });
             }
-            await bill_has_test.bulkCreate(testRecords);
         }
 
-
-
         if (packages) {
-            await bill_has_package.destroy({ where: { bill_id: id } });
-            const validPackages = packages.filter(package_id => !isNaN(Number(package_id)) && package_id !== '' && package_id !== null);
-            // Get current prices for each package
-            const packageRecords = [];
-            for (const packageId of validPackages) {
+            const newPackages = packages.filter(pid => !currentPackageIds.includes(parseInt(pid)));
+            for (const packageId of newPackages) {
                 const packageItem = await packages_and_offers.findByPk(parseInt(packageId));
                 let price = 0.00;
                 if (packageItem && packageItem.price !== null && packageItem.price !== undefined) {
                     const parsedPrice = parseFloat(packageItem.price);
                     price = isNaN(parsedPrice) ? 0.00 : parsedPrice;
                 }
-                packageRecords.push({
+                const signature = integrityService.signItem(id, packageId, price);
+                await bill_has_package.create({
                     bill_id: id,
                     package_id: parseInt(packageId),
-                    price: price
+                    price: price,
+                    signature: signature
                 });
             }
-            await bill_has_package.bulkCreate(packageRecords);
         }
 
         if (payments) {
@@ -773,40 +927,42 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             })));
         }
 
-
-
         // Find the associated medical report
         const medicalReport = await medical_report.findOne({ where: { bill_id: id } });
 
         if (medicalReport) {
-            // Update medical_report_has_test
+            // Update medical_report_has_test - ONLY ADD, NEVER REMOVE
             if (tests) {
-                // Get existing medical report tests
                 const existingMedicalReportTests = await medical_report_has_test.findAll({ where: { medical_report_id: medicalReport.id } });
                 const existingTestIds = new Set(existingMedicalReportTests.map(t => t.test_id));
 
-                // Identify tests to add
                 const testsToAdd = tests.filter(test_id => !existingTestIds.has(parseInt(test_id)))
                     .map(test_id => ({
                         medical_report_id: medicalReport.id,
                         test_id: parseInt(test_id),
-                        status: 'pending' // Default status
+                        status: 'pending'
                     }));
 
-                // Identify tests to remove
-                const testsToRemoveIds = existingMedicalReportTests.filter(existingTest => !tests.includes(existingTest.test_id.toString()))
-                    .map(t => t.id);
-
-                // Perform deletions and additions
-                if (testsToRemoveIds.length > 0) {
-                    await medical_report_has_test.destroy({ where: { id: testsToRemoveIds } });
-                }
                 if (testsToAdd.length > 0) {
                     await medical_report_has_test.bulkCreate(testsToAdd);
                 }
             }
-
         }
+
+        // 3. Recalculate Integrity Hash
+        const allItems = [];
+        const updatedTests = await bill_has_test.findAll({ where: { bill_id: id } });
+        const updatedPackages = await bill_has_package.findAll({ where: { bill_id: id } });
+        
+        updatedTests.forEach(t => allItems.push({ signature: t.signature }));
+        updatedPackages.forEach(p => allItems.push({ signature: p.signature }));
+
+        const newIntegrityHash = integrityService.signBill({
+            id: existingBill.id,
+            total: existingBill.total
+        }, allItems);
+
+        await existingBill.update({ integrity_hash: newIntegrityHash });
 
         // Fetch the updated bill with all associations
         const updatedBill = await bill.findOne({
@@ -890,6 +1046,153 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             message: error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
+    }
+});
+
+/**
+ * PATCH /invoices/:id/add-test - Add new tests to an existing invoice
+ */
+router.patch("/:id/add-test", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, invalidateInvoicesList, async (req, res) => {
+    const { id } = req.params;
+    const { tests = [] } = req.body;
+    const lab_id = req.tenant.lab_id;
+
+    const transaction = await sequelize.transaction();
+    try {
+        const existingBill = await bill.findOne({ 
+            where: { id, lab_id },
+            include: [{ model: bill_has_test, as: 'bill_has_tests' }],
+            transaction 
+        });
+        if (!existingBill) {
+            await transaction.rollback();
+            return res.status(404).json({ error: "Invoice not found." });
+        }
+
+        // 1. Fetch existing tests in the medical report to avoid duplicates (e.g., tests from packages)
+        let existingReportTestIds = [];
+        const medicalReport = await medical_report.findOne({ where: { bill_id: id }, transaction });
+        if (medicalReport) {
+            const reportTests = await medical_report_has_test.findAll({
+                where: { medical_report_id: medicalReport.id },
+                transaction
+            });
+            existingReportTestIds = reportTests.map(t => t.test_id);
+        }
+
+        // 2. Deduplicate input and filter against both Bill and Medical Report
+        const currentBillTestIds = existingBill.bill_has_tests.map(t => t.test_id);
+        const uniqueInputTests = [...new Set(tests.map(tid => parseInt(tid)))];
+        
+        const newTests = uniqueInputTests.filter(tid => 
+            !currentBillTestIds.includes(tid) && 
+            !existingReportTestIds.includes(tid)
+        );
+
+        if (newTests.length === 0) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "No new tests to add. Tests might already exist in the bill or be part of an existing package." });
+        }
+
+        let additionalSubtotal = 0;
+        const testRecords = [];
+
+        for (const testId of newTests) {
+            const testItem = await test.findByPk(parseInt(testId), { transaction });
+            if (!testItem) continue;
+
+            const price = parseFloat(testItem.price || 0);
+            additionalSubtotal += price;
+
+            const signature = integrityService.signItem(id, testId, price);
+            testRecords.push({
+                bill_id: id,
+                test_id: parseInt(testId),
+                price: price,
+                signature: signature
+            });
+        }
+
+        // Add to bill_has_test
+        await bill_has_test.bulkCreate(testRecords, { transaction });
+
+        // Calculate new Bill totals (Subtotal and Total)
+        const newSubtotal = parseFloat(existingBill.subtotal) + additionalSubtotal;
+        const newTotal = parseFloat(existingBill.total) + additionalSubtotal;
+
+        // Update Patient and Bill Financials
+        const currentPatient = await patient.findByPk(existingBill.patient_id, { transaction });
+        if (currentPatient) {
+            const originalInvoiceDue = parseFloat(existingBill.due);
+            const newInvoiceDue = originalInvoiceDue + additionalSubtotal;
+            
+            const newPatientDue = parseFloat(currentPatient.due || 0) + additionalSubtotal;
+            const newPatientTotal = parseFloat(currentPatient.total || 0) + additionalSubtotal;
+
+            // Update patient records
+            await currentPatient.update({
+                total: newPatientTotal,
+                due: newPatientDue
+            }, { transaction });
+
+            // Update bill records (Subtotal, Total, and Due)
+            await existingBill.update({
+                subtotal: newSubtotal,
+                total: newTotal,
+                due: newInvoiceDue
+            }, { transaction });
+
+        }
+
+        // 4. Update Medical Report
+        let finalMedicalReport = medicalReport;
+        if (!finalMedicalReport) {
+            // Create if missing
+            finalMedicalReport = await medical_report.create({
+                lab_id: lab_id,
+                patient_id: existingBill.patient_id,
+                bill_id: id,
+                date: existingBill.date,
+                done: false,
+                pending: true,
+                registered_at: new Date()
+            }, { transaction });
+        }
+
+        const medicalReportTests = newTests.map(testId => ({
+            medical_report_id: finalMedicalReport.id,
+            test_id: parseInt(testId),
+            status: 'pending'
+        }));
+        await medical_report_has_test.bulkCreate(medicalReportTests, { transaction });
+
+        // Recalculate Integrity Hash
+        const allItems = [];
+        const updatedTests = await bill_has_test.findAll({ where: { bill_id: id }, transaction });
+        const updatedPackages = await bill_has_package.findAll({ where: { bill_id: id }, transaction });
+        
+        updatedTests.forEach(t => allItems.push({ signature: t.signature }));
+        updatedPackages.forEach(p => allItems.push({ signature: p.signature }));
+
+        const newIntegrityHash = integrityService.signBill({
+            id: existingBill.id,
+            total: existingBill.total
+        }, allItems);
+
+        await existingBill.update({ integrity_hash: newIntegrityHash }, { transaction });
+
+        await transaction.commit();
+
+        res.json({
+            success: true,
+            message: `${newTests.length} tests added successfully.`,
+            added_count: newTests.length,
+            new_total: newTotal
+        });
+    } catch (error) {
+        if (transaction) await transaction.rollback();
+        console.error('Error adding tests to invoice:', error);
+        res.status(500).json({ error: "Failed to add tests", message: error.message });
     }
 });
 
