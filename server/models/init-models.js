@@ -48,7 +48,6 @@ var _test_has_question = require("./test_has_question");
 
 
 
-
 var _lab_payment = require("./lab_payment");
 var _subscription = require("./subscription");
 var _test_comments = require("./test_comments");
@@ -61,6 +60,7 @@ var _inventory_notification = require("./inventory_notification");
 var _lab_whatsapp_account = require("./lab_whatsapp_account");
 var _whatsapp_message = require("./whatsapp_message");
 var _outsourced_lab = require("./outsourced_lab");
+var _financial_transaction = require("./financial_transaction");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -119,6 +119,7 @@ function initModels(sequelize) {
   var lab_whatsapp_account = _lab_whatsapp_account(sequelize, DataTypes);
   var whatsapp_message = _whatsapp_message(sequelize, DataTypes);
   var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
+  var financial_transaction = _financial_transaction(sequelize, DataTypes);
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -565,8 +566,26 @@ function initModels(sequelize) {
 
   whatsapp_message.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
   patient.hasMany(whatsapp_message, { as: "whatsapp_messages", foreignKey: "patient_id" });
+  // ── Financial Transaction associations ──────────────────────────────────
+  financial_transaction.belongsTo(employee, { as: "processed_by", foreignKey: "processed_by_id" });
+  employee.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "processed_by_id" });
 
-  // Test Group Result associations
+  financial_transaction.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
+  patient.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "patient_id" });
+
+  financial_transaction.belongsTo(bill, { as: "bill", foreignKey: "bill_id" });
+  bill.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "bill_id" });
+
+  financial_transaction.belongsTo(payment_method, { as: "payment_method", foreignKey: "payment_method_id" });
+  payment_method.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "payment_method_id" });
+
+  financial_transaction.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "lab_id" });
+
+  financial_transaction.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
+  branch.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "branch_id" });
+
+
   // Test Comments associations
   test_comments.belongsTo(medical_report, {
     as: "medical_report",
@@ -648,7 +667,6 @@ function initModels(sequelize) {
     sample_type,
     status,
     subscription,
-
     global_test_catalog,
     test,
     test_has_question,
@@ -661,8 +679,10 @@ function initModels(sequelize) {
     inventory_notification,
     lab_whatsapp_account,
     whatsapp_message,
-    outsourced_lab
+    outsourced_lab,
+    financial_transaction
   };
+
 }
 
 module.exports = initModels;

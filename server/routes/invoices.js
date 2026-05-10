@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, financial_transaction } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -449,8 +449,10 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             }, { transaction });
         }
 
-        // Add payments
         for (const payment of payments) {
+            const paidAmount = parseFloat(payment.paid_amount);
+            
+            // Add payments
             await bill_has_payment_method.create({
                 bill_id: newBill.id,
                 payment_method_id: parseInt(payment.payment_method_id),
