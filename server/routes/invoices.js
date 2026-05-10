@@ -315,6 +315,10 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         // Debug log for branch_id
         console.log('[INVOICE DEBUG] Incoming branch_id:', branch_id, 'Type:', typeof branch_id);
         // Create the bill
+        // 0. Deduplicate input tests and packages
+        const uniqueTestIds = tests ? [...new Set(tests.map(tid => parseInt(tid)))] : [];
+        const uniquePackageIds = packages ? [...new Set(packages.map(pid => parseInt(pid)))] : [];
+
         const newBill = await bill.create({
             date: date ? new Date(date) : new Date(),
             paid,
@@ -474,12 +478,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
 
 
         // Create medical report if invoice contains tests
-        let allTests = [...tests];
+        let allTests = [...uniqueTestIds.map(id => id.toString())];
 
         // Get tests from packages
-        for (const packageId of packages) {
+        for (const packageId of uniquePackageIds) {
             const packageTests = await pao_has_test.findAll({
-                where: { packages_and_offers_id: parseInt(packageId) },
+                where: { packages_and_offers_id: packageId },
                 attributes: ['test_id']
             });
 
@@ -776,15 +780,18 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         const currentTestIds = existingBill.bill_has_tests.map(t => t.test_id);
         const currentPackageIds = existingBill.bill_has_packages.map(p => p.package_id);
 
+        const uniqueInputTests = tests ? [...new Set(tests.map(tid => parseInt(tid)))] : [];
+        const uniqueInputPackages = packages ? [...new Set(packages.map(pid => parseInt(pid)))] : [];
+
         if (tests) {
-            const removedTests = currentTestIds.filter(tid => !tests.includes(tid.toString()));
+            const removedTests = currentTestIds.filter(tid => !uniqueInputTests.includes(tid));
             if (removedTests.length > 0) {
                 return res.status(403).json({ error: "Cannot remove existing tests. Use the refund module instead." });
             }
         }
 
         if (packages) {
-            const removedPackages = currentPackageIds.filter(pid => !packages.includes(pid.toString()));
+            const removedPackages = currentPackageIds.filter(pid => !uniqueInputPackages.includes(pid));
             if (removedPackages.length > 0) {
                 return res.status(403).json({ error: "Cannot remove existing packages. Use the refund module instead." });
             }
@@ -881,9 +888,21 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         }
 
         if (tests) {
-            const newTests = tests.filter(tid => !currentTestIds.includes(parseInt(tid)));
+            // Fetch existing tests in report to avoid duplicates
+            let existingReportTestIds = [];
+            const medReport = await medical_report.findOne({ where: { bill_id: id } });
+            if (medReport) {
+                const rTests = await medical_report_has_test.findAll({ where: { medical_report_id: medReport.id } });
+                existingReportTestIds = rTests.map(rt => rt.test_id);
+            }
+
+            const newTests = uniqueInputTests.filter(tid => 
+                !currentTestIds.includes(tid) && 
+                !existingReportTestIds.includes(tid)
+            );
+
             for (const testId of newTests) {
-                const testItem = await test.findByPk(parseInt(testId));
+                const testItem = await test.findByPk(testId);
                 let price = 0.00;
                 if (testItem && testItem.price !== null && testItem.price !== undefined) {
                     const parsedPrice = parseFloat(testItem.price);
@@ -892,7 +911,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                 const signature = integrityService.signItem(id, testId, price);
                 await bill_has_test.create({
                     bill_id: id,
-                    test_id: parseInt(testId),
+                    test_id: testId,
                     price: price,
                     signature: signature
                 });
@@ -900,9 +919,9 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         }
 
         if (packages) {
-            const newPackages = packages.filter(pid => !currentPackageIds.includes(parseInt(pid)));
+            const newPackages = uniqueInputPackages.filter(pid => !currentPackageIds.includes(pid));
             for (const packageId of newPackages) {
-                const packageItem = await packages_and_offers.findByPk(parseInt(packageId));
+                const packageItem = await packages_and_offers.findByPk(packageId);
                 let price = 0.00;
                 if (packageItem && packageItem.price !== null && packageItem.price !== undefined) {
                     const parsedPrice = parseFloat(packageItem.price);
@@ -911,7 +930,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                 const signature = integrityService.signItem(id, packageId, price);
                 await bill_has_package.create({
                     bill_id: id,
-                    package_id: parseInt(packageId),
+                    package_id: packageId,
                     price: price,
                     signature: signature
                 });
@@ -927,25 +946,39 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             })));
         }
 
-        // Find the associated medical report
-        const medicalReport = await medical_report.findOne({ where: { bill_id: id } });
+        // 4. Update Medical Report - ADD tests from standalone and packages
+        const mReport = await medical_report.findOne({ where: { bill_id: id } });
+        if (mReport) {
+            let testsForReport = uniqueInputTests ? [...uniqueInputTests.map(tid => tid.toString())] : [];
 
-        if (medicalReport) {
-            // Update medical_report_has_test - ONLY ADD, NEVER REMOVE
-            if (tests) {
-                const existingMedicalReportTests = await medical_report_has_test.findAll({ where: { medical_report_id: medicalReport.id } });
-                const existingTestIds = new Set(existingMedicalReportTests.map(t => t.test_id));
-
-                const testsToAdd = tests.filter(test_id => !existingTestIds.has(parseInt(test_id)))
-                    .map(test_id => ({
-                        medical_report_id: medicalReport.id,
-                        test_id: parseInt(test_id),
-                        status: 'pending'
-                    }));
-
-                if (testsToAdd.length > 0) {
-                    await medical_report_has_test.bulkCreate(testsToAdd);
+            // Add tests from packages
+            if (uniqueInputPackages && uniqueInputPackages.length > 0) {
+                for (const pId of uniqueInputPackages) {
+                    const pTests = await pao_has_test.findAll({
+                        where: { packages_and_offers_id: pId },
+                        attributes: ['test_id']
+                    });
+                    testsForReport.push(...pTests.map(pt => pt.test_id.toString()));
                 }
+            }
+
+            // Deduplicate
+            const uniqueTestsForReport = [...new Set(testsForReport.map(tid => parseInt(tid)))];
+
+            const existingMedicalReportTests = await medical_report_has_test.findAll({ 
+                where: { medical_report_id: mReport.id } 
+            });
+            const existingTestIdsInReport = new Set(existingMedicalReportTests.map(t => t.test_id));
+
+            const testsToAdd = uniqueTestsForReport.filter(tid => !existingTestIdsInReport.has(tid))
+                .map(tid => ({
+                    medical_report_id: mReport.id,
+                    test_id: tid,
+                    status: 'pending'
+                }));
+
+            if (testsToAdd.length > 0) {
+                await medical_report_has_test.bulkCreate(testsToAdd);
             }
         }
 
