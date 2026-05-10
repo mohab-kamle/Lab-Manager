@@ -9,7 +9,7 @@ This section covers the LabManager frontend — a React single-page application 
 
 ## Key Areas
 
-- **Role-Based Routing:** The application dynamically routes users to the correct dashboard based on their authenticated role (admin, chemist, doctor, employee, receptionist, or patient).
+- **Role-Based Routing:** The application dynamically routes users to the correct dashboard based on their authenticated role (admin, chemist, employee, receptionist, or patient).
 - **State Management:** Uses React Context for global state (authentication, lab context, theme) with component-level state for UI interactions.
 - **UI Framework:** React-Bootstrap provides the component library, enhanced with custom CSS variables for consistent lab branding and theming (light/dark mode).
 - **Code Splitting:** Lazy-loaded routes with React Suspense for optimized initial load times.

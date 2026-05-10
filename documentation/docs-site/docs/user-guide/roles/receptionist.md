@@ -21,5 +21,10 @@ As a **Receptionist**, you manage the front-desk operations of the medical labor
 *   **Invoicing:** Generate PDF invoices and manage payment methods.
 
 ## Report Distribution
-*   **Handing Out Results:** View completed medical reports once they are finalized by the Chemists/Doctors and provide them to patients.
+*   **Handing Out Results:** View completed medical reports once they are finalized by the Chemists and provide them to patients.
+*   **WhatsApp Sharing:** Quickly and securely generate PDF reports to be automatically transmitted to the patient's registered WhatsApp number.
 *   **Printing:** Generate physical copies of invoices and medical reports directly from the system.
+
+## AI Scan Integration (OCR)
+*   **Automated Data Entry:** Rather than typing out entire test results manually, you can upload a high-resolution scan or photo of a physical medical report.
+*   **AI Processing:** The system will process the image and automatically extract values, mapping them to the correct fields in the patient's record seamlessly.

@@ -1,7 +1,7 @@
 # LabManager Client Documentation
 
 ## Overview
-The LabManager client is a React-based frontend application that provides a comprehensive laboratory management system interface. It supports multiple user roles including patients, admins, doctors, chemists, receptionists, and employees.
+The LabManager client is a React-based frontend application that provides a comprehensive laboratory management system interface. It supports multiple user roles including patients, admins, chemists, receptionists, and employees.
 
 ## Technology Stack
 
@@ -149,7 +149,7 @@ Implements role-based access control:
 ### User Roles
 1. **patient** - Can view reports, update profile
 2. **admin** - Full system access
-3. **doctor** - Medical report access
+
 4. **chemist** - Laboratory operations
 5. **receptionist** - Patient management
 6. **employee** - Limited administrative access
