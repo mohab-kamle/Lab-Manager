@@ -184,6 +184,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
       onHide={onHide} 
       size="lg" 
       centered 
+      scrollable={true}
       backdrop="static"
       enforceFocus={false}
     >
@@ -264,134 +265,136 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
             </Card>
           </Col>
           <Col md={5}>
-            <h6 className="text-uppercase small fw-bold text-muted mb-3 ls-wide">Refund Summary</h6>
-            <Card className="border-0 shadow-sm bg-theme-inset">
-              <Card.Body className="p-4">
-                <div className="mb-4">
-                  <div className="d-flex justify-content-between mb-2">
-                    <span className="text-muted">Selected Items:</span>
-                    <span className="fw-bold text-theme">EGP {totalRefundableAmount.toFixed(2)}</span>
-                  </div>
-                  
-                  {patientData && (
-                    <div className="mt-3 pt-3 border-top border-secondary-subtle">
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted small">Gross Debt:</span>
-                        <span className="fw-bold text-danger">EGP {parseFloat(patientData.gross_debt || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted small">Gross Credit:</span>
-                        <span className="fw-bold text-success">EGP {parseFloat(patientData.gross_credit || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between mt-2 pt-2 border-top border-muted">
-                        <span className="fw-bold small">Net Patient Balance:</span>
-                        <span className={`fw-bold ${(ignoreDue && patientTotalBalance > 0) ? 'text-decoration-line-through text-muted' : (patientTotalBalance > 0 ? 'text-danger' : 'text-success')}`}>
-                          EGP {Math.abs(patientTotalBalance).toFixed(2)} {patientTotalBalance > 0 ? '(Debt)' : '(Credit)'}
-                        </span>
-                      </div>
-                      
-                      {patientTotalBalance > 0 && (
-                        <Form.Group className="mt-3 mb-2">
-                          <Form.Check 
-                            type="checkbox"
-                            id="ignore-due-checkbox"
-                            label={
-                              <span className={`small ${isLimitExceeded ? 'text-muted' : 'text-theme fw-medium'}`}>
-                                Ignore whole debt (Net) for this refund
-                              </span>
-                            }
-                            checked={ignoreDue}
-                            disabled={isLimitExceeded || fetchingPatient}
-                            onChange={(e) => setIgnoreDue(e.target.checked)}
-                            className="user-select-none"
-                          />
-                          {isLimitExceeded && (
-                            <div className="text-danger small mt-1 d-flex align-items-center bg-danger-subtle p-2 rounded">
-                              <AlertTriangle size={14} className="me-2" />
-                              <span>
-                                <strong>Limit Exceeded:</strong> Whole due (EGP {patientTotalBalance.toFixed(2)}) 
-                                exceeds the lab limit (EGP {patientDueLimit.toFixed(2)}).
-                              </span>
-                            </div>
-                          )}
-                        </Form.Group>
-                      )}
+            <div className="sticky-top" style={{ top: '1.5rem', zIndex: 1 }}>
+              <h6 className="text-uppercase small fw-bold text-muted mb-3 ls-wide">Refund Summary</h6>
+              <Card className="border-0 shadow-sm bg-theme-inset">
+                <Card.Body className="p-4">
+                  <div className="mb-4">
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Selected Items:</span>
+                      <span className="fw-bold text-theme">EGP {totalRefundableAmount.toFixed(2)}</span>
                     </div>
-                  )}
-                  <hr className="border-secondary" />
-                  <div className="d-flex justify-content-between align-items-center">
-                    <span className="fs-6 fw-bold text-theme">Total Refund:</span>
-                    <span className="fs-5 fw-bold text-primary">EGP {totalRefundDue.toFixed(2)}</span>
+                    
+                    {patientData && (
+                      <div className="mt-3 pt-3 border-top border-secondary-subtle">
+                        <div className="d-flex justify-content-between mb-1">
+                          <span className="text-muted small">Gross Debt:</span>
+                          <span className="fw-bold text-danger">EGP {parseFloat(patientData.gross_debt || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between mb-1">
+                          <span className="text-muted small">Gross Credit:</span>
+                          <span className="fw-bold text-success">EGP {parseFloat(patientData.gross_credit || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between mt-2 pt-2 border-top border-muted">
+                          <span className="fw-bold small">Net Patient Balance:</span>
+                          <span className={`fw-bold ${(ignoreDue && patientTotalBalance > 0) ? 'text-decoration-line-through text-muted' : (patientTotalBalance > 0 ? 'text-danger' : 'text-success')}`}>
+                            EGP {Math.abs(patientTotalBalance).toFixed(2)} {patientTotalBalance > 0 ? '(Debt)' : '(Credit)'}
+                          </span>
+                        </div>
+                        
+                        {patientTotalBalance > 0 && (
+                          <Form.Group className="mt-3 mb-2">
+                            <Form.Check 
+                              type="checkbox"
+                              id="ignore-due-checkbox"
+                              label={
+                                <span className={`small ${isLimitExceeded ? 'text-muted' : 'text-theme fw-medium'}`}>
+                                  Ignore whole debt (Net) for this refund
+                                </span>
+                              }
+                              checked={ignoreDue}
+                              disabled={isLimitExceeded || fetchingPatient}
+                              onChange={(e) => setIgnoreDue(e.target.checked)}
+                              className="user-select-none"
+                            />
+                            {isLimitExceeded && (
+                              <div className="text-danger small mt-1 d-flex align-items-center bg-danger-subtle p-2 rounded">
+                                <AlertTriangle size={14} className="me-2" />
+                                <span>
+                                  <strong>Limit Exceeded:</strong> Whole due (EGP {patientTotalBalance.toFixed(2)}) 
+                                  exceeds the lab limit (EGP {patientDueLimit.toFixed(2)}).
+                                </span>
+                              </div>
+                            )}
+                          </Form.Group>
+                        )}
+                      </div>
+                    )}
+                    <hr className="border-secondary" />
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="fs-6 fw-bold text-theme">Total Refund:</span>
+                      <span className="fs-5 fw-bold text-primary">EGP {totalRefundDue.toFixed(2)}</span>
+                    </div>
                   </div>
-                </div>
 
-                <Form.Group className="mb-4">
-                  <Form.Label className="small fw-bold text-theme">Amount Lab will pay now (Cash)</Form.Label>
-                  <InputGroup>
-                    <InputGroup.Text className="bg-theme-surface border-end-0">EGP</InputGroup.Text>
-                    <Form.Control 
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={totalRefundDue}
-                      value={amountLabPays}
-                      onChange={(e) => setAmountLabPays(e.target.value)}
-                      onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
-                      className="border-start-0"
-                    />
-                  </InputGroup>
-                  <Form.Text className="text-muted small">
-                    Remaining <strong>EGP {creditToAdd.toFixed(2)}</strong> will be added to patient credit.
-                  </Form.Text>
-                </Form.Group>
-
-                {isOlderThan24Hours && (
-                  <Form.Group className="mb-3">
-                    <Form.Check 
-                      type="checkbox"
-                      id="sure-checkbox"
-                      label={<span className="small fw-bold text-danger">I am sure I want to process this refund</span>}
-                      checked={isSure}
-                      onChange={(e) => {
-                        setIsSure(e.target.checked);
-                        // Clear auth key when unchecking for security
-                        if (!e.target.checked) setAuthKey('');
-                      }}
-                      className="user-select-none"
-                    />
-                  </Form.Group>
-                )}
-
-                {/* Authorization Key input — revealed only when the checkbox is checked */}
-                {isOlderThan24Hours && isSure && (
                   <Form.Group className="mb-4">
-                    <Form.Label className="small fw-bold d-flex align-items-center">
-                      <KeyRound size={14} className="me-1 text-warning" />
-                      Manager Authorization Key
-                    </Form.Label>
-                    <Form.Control 
-                      type="password"
-                      placeholder="Enter 16-digit authorization key"
-                      value={authKey}
-                      onChange={(e) => setAuthKey(e.target.value)}
-                      autoFocus
-                    />
+                    <Form.Label className="small fw-bold text-theme">Amount Lab will pay now (Cash)</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text className="bg-theme-surface border-end-0">EGP</InputGroup.Text>
+                      <Form.Control 
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={totalRefundDue}
+                        value={amountLabPays}
+                        onChange={(e) => setAmountLabPays(e.target.value)}
+                        onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
+                        className="border-start-0"
+                      />
+                    </InputGroup>
+                    <Form.Text className="text-muted small">
+                      Remaining <strong>EGP {creditToAdd.toFixed(2)}</strong> will be added to patient credit.
+                    </Form.Text>
                   </Form.Group>
-                )}
 
-                <div className="d-grid">
-                  <Button 
-                    variant="primary" 
-                    size="lg" 
-                    onClick={handleRefund}
-                    disabled={loading || totalRefundDue <= 0 || (isOlderThan24Hours && (!isSure || !authKey.trim()))}
-                    className="shadow-sm"
-                  >
-                    {loading ? 'Processing...' : 'Proceed to Confirm'}
-                  </Button>
-                </div>
-              </Card.Body>
-            </Card>
+                  {isOlderThan24Hours && (
+                    <Form.Group className="mb-3">
+                      <Form.Check 
+                        type="checkbox"
+                        id="sure-checkbox"
+                        label={<span className="small fw-bold text-danger">I am sure I want to process this refund</span>}
+                        checked={isSure}
+                        onChange={(e) => {
+                          setIsSure(e.target.checked);
+                          // Clear auth key when unchecking for security
+                          if (!e.target.checked) setAuthKey('');
+                        }}
+                        className="user-select-none"
+                      />
+                    </Form.Group>
+                  )}
+
+                  {/* Authorization Key input — revealed only when the checkbox is checked */}
+                  {isOlderThan24Hours && isSure && (
+                    <Form.Group className="mb-4">
+                      <Form.Label className="small fw-bold d-flex align-items-center">
+                        <KeyRound size={14} className="me-1 text-warning" />
+                        Manager Authorization Key
+                      </Form.Label>
+                      <Form.Control 
+                        type="password"
+                        placeholder="Enter 16-digit authorization key"
+                        value={authKey}
+                        onChange={(e) => setAuthKey(e.target.value)}
+                        autoFocus
+                      />
+                    </Form.Group>
+                  )}
+
+                  <div className="d-grid">
+                    <Button 
+                      variant="primary" 
+                      size="lg" 
+                      onClick={handleRefund}
+                      disabled={loading || totalRefundDue <= 0 || (isOlderThan24Hours && (!isSure || !authKey.trim()))}
+                      className="shadow-sm"
+                    >
+                      {loading ? 'Processing...' : 'Proceed to Confirm'}
+                    </Button>
+                  </div>
+                </Card.Body>
+              </Card>
+            </div>
           </Col>
         </Row>
       </Modal.Body>
