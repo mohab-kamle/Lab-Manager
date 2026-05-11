@@ -2454,8 +2454,9 @@ const Invoices = () => {
                           ))}
                         </Form.Select>
                         <Form.Text className="text-muted ">
-                          Leave empty to automatically set: Pending (if due),
-                          Done (if fully paid), or Overpaid (if negative due)
+                          Leave empty to automatically set: Pending (if
+                          outstanding balance), Paid (if fully paid), or
+                          Overpaid (if positive credits)
                         </Form.Text>
                         <Form.Control.Feedback type="invalid">
                           {formErrors.status_id}
@@ -3393,11 +3394,11 @@ const Invoices = () => {
                   <Alert variant="info">
                     <strong>Automatic Status Detection:</strong>
                     <br />• <strong>Pending:</strong> When invoice has
-                    outstanding balance
-                    <br />• <strong>Done/Paid:</strong> When invoice is fully
-                    paid (due = 0)
+                    outstanding balance (due {">"} 0)
+                    <br />• <strong>Paid:</strong> When invoice is fully paid
+                    (due = 0)
                     <br />• <strong>Overpaid:</strong> When payment exceeds
-                    total (have a positive due)
+                    total (positive credits )
                   </Alert>
                 </div>
               </Modal.Body>
