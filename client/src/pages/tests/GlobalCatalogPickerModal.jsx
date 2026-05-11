@@ -2,13 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Table, Alert, Spinner } from "react-bootstrap";
 import { Search } from "lucide-react";
 import axios from "axios";
+import { useToast } from "../../components/ui/ToastContext";
 
 const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
+  const { toast } = useToast();
   const [tests, setTests] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -18,7 +19,6 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
   const fetchGlobalTests = async (search = "", pageNum = 1) => {
     try {
       setLoading(true);
-      setError(null);
       const token = localStorage.getItem("token");
       const res = await axios.get(`${apiUrl}/global-catalog`, {
         params: { search, page: pageNum, limit: 15 },
@@ -28,7 +28,7 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
       setTotalPages(res.data.totalPages);
       setPage(res.data.page);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to fetch global catalog");
+      toast.error(err.response?.data?.error || "Failed to fetch global catalog");
     } finally {
       setLoading(false);
     }
@@ -38,8 +38,6 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
     if (show) {
       fetchGlobalTests(searchQuery, 1);
       setSelectedIds([]);
-      setError(null);
-      setImportResult(null); // Clear any previous import result when reopening
     }
   }, [show]); // Refetch when opened
 
@@ -64,40 +62,37 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
     }
   };
 
-  const [importResult, setImportResult] = useState(null); // holds last import summary
-
   const handleImport = async () => {
     if (selectedIds.length === 0) return;
     
+    const toastId = toast.loading("Importing selected tests from global catalog...");
     try {
       setImporting(true);
-      setError(null);
-      setImportResult(null);
       const token = localStorage.getItem("token");
       
       const res = await axios.post(`${apiUrl}/global-catalog/import-bulk`, {
         global_test_ids: selectedIds
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      const { importedCount, skippedCount, message } = res.data;
+      const { importedCount, skippedCount } = res.data;
 
       if (importedCount === 0 && skippedCount > 0) {
-        // All selected tests already exist — stay on modal and warn the user
-        setImportResult({
-          variant: 'warning',
-          text: `⚠️ ${skippedCount === 1 ? 'This test is' : `All ${skippedCount} tests are`} already imported in your lab catalog. No new tests were added.`
+        toast.update(toastId, {
+          type: 'warning',
+          render: `⚠️ ${skippedCount === 1 ? 'This test is' : `All ${skippedCount} tests are`} already imported.`,
+          autoClose: 5000
         });
         setImporting(false);
         return;
       }
 
       if (importedCount > 0 && skippedCount > 0) {
-        // Partial success — some new, some already existed. Close with a note.
-        setImportResult({
-          variant: 'info',
-          text: `Imported ${importedCount} new ${importedCount === 1 ? 'test' : 'tests'}. ${skippedCount} ${skippedCount === 1 ? 'was' : 'were'} skipped (already exist).`
+        toast.update(toastId, {
+          type: 'info',
+          render: `Imported ${importedCount} new ${importedCount === 1 ? 'test' : 'tests'}. ${skippedCount} skipped (already exist).`,
+          autoClose: 4000
         });
-        // Give user a moment to read the message, then close
+        
         setTimeout(() => {
           onImportSuccess();
         }, 2000);
@@ -105,10 +100,19 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
         return;
       }
 
-      // All imported successfully — close immediately
+      toast.update(toastId, {
+        type: 'success',
+        render: `Successfully imported ${importedCount} tests!`,
+        autoClose: 3000
+      });
       onImportSuccess();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to import selected tests");
+      const errorMessage = err.response?.data?.details || err.response?.data?.error || "Failed to import selected tests";
+      toast.update(toastId, {
+        type: 'error',
+        render: errorMessage,
+        autoClose: 6000
+      });
       setImporting(false);
     }
   };
@@ -119,13 +123,6 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
         <Modal.Title>Import from Global Catalog (LOINC)</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {importResult && (
-          <Alert variant={importResult.variant} className="mb-2">
-            {importResult.text}
-          </Alert>
-        )}
-        {error && <Alert variant="danger">{error}</Alert>}
-        
         <Form onSubmit={handleSearch} className="mb-3 d-flex gap-2">
           <div className="flex-grow-1 position-relative">
             <Search className="position-absolute text-muted" size={18} style={{ left: 10, top: 10 }} />

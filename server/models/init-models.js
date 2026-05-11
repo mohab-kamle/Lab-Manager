@@ -558,6 +558,9 @@ function initModels(sequelize) {
   lab.hasMany(outsourced_lab, { as: "outsourced_labs", foreignKey: "lab_id" });
   outsourced_lab.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
 
+  lab.hasMany(categories_test_and_culture, { as: "categories", foreignKey: "lab_id" });
+  categories_test_and_culture.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
   // Lab Payment relationships
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });

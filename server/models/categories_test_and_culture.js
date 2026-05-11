@@ -8,9 +8,17 @@ module.exports = function(sequelize, DataTypes) {
       primaryKey: true
     },
     name: {
-      type: DataTypes.STRING(45),
+      type: DataTypes.STRING(255),
       allowNull: false,
-      unique: "name_UNIQUE"
+      unique: "category_name_lab_unique"
+    },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
@@ -26,11 +34,12 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "name_UNIQUE",
+        name: "category_name_lab_unique",
         unique: true,
         using: "BTREE",
         fields: [
           { name: "name" },
+          { name: "lab_id" },
         ]
       },
     ]

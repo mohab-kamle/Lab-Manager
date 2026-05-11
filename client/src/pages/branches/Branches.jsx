@@ -195,6 +195,7 @@ const Branches = () => {
       return;
     }
 
+    setImportLoading(true);
     const loadingToast = toast.loading("Importing branches...");
     try {
       const formData = new FormData();
@@ -226,6 +227,8 @@ const Branches = () => {
       console.error('Import error:', error);
       toast.dismiss(loadingToast);
       toast.error(error.response?.data?.error || 'Failed to import branches');
+    } finally {
+      setImportLoading(false);
     }
   };
 

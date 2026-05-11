@@ -422,7 +422,7 @@ export const ToastProvider = ({ children }) => {
       update: updateToast,
       dismiss: hideToast,
     }),
-    [showToast, updateToast]
+    [showToast, updateToast, hideToast]
   );
 
   const [confirmData, setConfirmData] = useState({

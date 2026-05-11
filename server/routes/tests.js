@@ -601,7 +601,13 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
         if (categoryName) {
           const trimmedCatName = categoryName.toString().trim();
           const [cat] = await db.categories_test_and_culture.findOrCreate({
-            where: { name: trimmedCatName }
+            where: { 
+              name: trimmedCatName, 
+              lab_id: req.tenant.lab_id 
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            }
           });
           
           if (cat) {

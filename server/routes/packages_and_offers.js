@@ -96,74 +96,6 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
     }
 });
 
-// Create a new package/offer
-router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
-    const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
-    console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type });
-
-    // Validate required fields
-    if (!name || !price || !type) {
-        console.log('Missing required fields:', { name, price, type });
-        return res.status(400).json({ error: 'Name, price, and type are required fields' });
-    }
-
-    // Start a transaction to ensure data consistency
-    const transaction = await packages_and_offers.sequelize.transaction();
-    console.log('Transaction started');
-
-    try {
-        const newPackageAndOffer = await packages_and_offers.create({
-            name,
-            shortcut,
-            price,
-            start_date,
-            end_date,
-            type,
-            lab_id: req.tenant.lab_id
-        }, { transaction });
-        console.log('Created new package/offer:', newPackageAndOffer.toJSON());
-
-        if (!newPackageAndOffer || !newPackageAndOffer.id) {
-            throw new Error('Failed to create package/offer - ID is null');
-        }
-
-        // Create admin association
-        await admin_packages_and_offers.create({
-            admin_id: req.user.id,
-            package_and_offer_id: newPackageAndOffer.id
-        }, { transaction });
-
-        // Handle tests
-        if (tests && tests.length > 0) {
-            // First verify that all test IDs exist and are valid numbers
-            const testIds = tests.map(id => parseInt(id));
-            if (testIds.some(isNaN)) {
-                await transaction.rollback();
-                return res.status(400).json({ error: 'Invalid test IDs provided' });
-            }
-
-            const existingTests = await test.findAll({
-                where: { id: testIds }
-            });
-
-            if (existingTests.length !== tests.length) {
-                await transaction.rollback();
-                return res.status(400).json({ error: 'One or more test IDs do not exist' });
-            }
-
-            await Promise.all(tests.map(testId =>
-                pao_has_test.create({
-                    packages_and_offers_id: newPackageAndOffer.id,
-                    test_id: parseInt(testId)
-                })));
-
-            res.json(result);
-        }
-    } catch (error) {
-        console.error('Error fetching package/offer:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 // Create a new package/offer
 router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
@@ -338,7 +270,6 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                     ));
                 }
 
-
             } else if (type === "offer") {
                 // Handle offer item
                 if (item_id && item_type) {
@@ -347,28 +278,27 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                             packages_and_offers_id: req.params.id,
                             test_id: item_id
                         }, { transaction });
-
                     }
                 }
-
-                // Commit the transaction
-                await transaction.commit();
-
-                // Get the updated item with its associations
-                const testAssociations = await pao_has_test.findAll({
-                    where: { packages_and_offers_id: req.params.id }
-                });
-
-                const testIds = testAssociations.map(t => t.test_id);
-                const updatedTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
-
-                const result = {
-                    ...packageAndOffer.toJSON(),
-                    tests: updatedTests
-                };
-
-                res.json(result);
             }
+
+            // Commit the transaction
+            await transaction.commit();
+
+            // Get the updated item with its associations
+            const testAssociations = await pao_has_test.findAll({
+                where: { packages_and_offers_id: req.params.id }
+            });
+
+            const testIds = testAssociations.map(t => t.test_id);
+            const updatedTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
+
+            const result = {
+                ...packageAndOffer.toJSON(),
+                tests: updatedTests
+            };
+
+            res.json(result);
         } catch (error) {
             // Rollback the transaction if anything fails
             await transaction.rollback();
