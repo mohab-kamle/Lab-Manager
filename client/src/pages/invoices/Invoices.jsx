@@ -979,29 +979,28 @@ const Invoices = () => {
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
     if (!sortConfig.field) return 0;
 
-    const valueA = a[sortConfig.field] ?? "";
-    const valueB = b[sortConfig.field] ?? "";
+    let valueA = a[sortConfig.field];
+    let valueB = b[sortConfig.field];
 
-    if (typeof valueA === "string" && typeof valueB === "string") {
-      return sortConfig.direction === "asc"
-        ? valueA.localeCompare(valueB)
-        : valueB.localeCompare(valueA);
-    } else if (typeof valueA === "number" && typeof valueB === "number") {
-      return sortConfig.direction === "asc" ? valueA - valueB : valueB - valueA;
-    } else if (typeof valueA === "boolean" && typeof valueB === "boolean") {
-      return sortConfig.direction === "asc"
-        ? valueA === valueB
-          ? 0
-          : valueA
-          ? -1
-          : 1
-        : valueA === valueB
-        ? 0
-        : valueA
-        ? 1
-        : -1;
+    // Handle null/undefined
+    if (valueA === null || valueA === undefined) valueA = "";
+    if (valueB === null || valueB === undefined) valueB = "";
+
+    // Handle numeric fields specifically
+    const numericFields = ["subtotal", "total", "paid", "due", "discount", "tax", "patientcode"];
+    if (numericFields.includes(sortConfig.field)) {
+      const numA = parseFloat(valueA) || 0;
+      const numB = parseFloat(valueB) || 0;
+      return sortConfig.direction === "asc" ? numA - numB : numB - numA;
     }
-    return 0;
+
+    // Default string comparison (case-insensitive, numeric-aware)
+    const strA = String(valueA).toLowerCase();
+    const strB = String(valueB).toLowerCase();
+
+    return sortConfig.direction === "asc"
+      ? strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' })
+      : strB.localeCompare(strA, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   const pageCount = Math.ceil(sortedInvoices.length / itemsPerPage);

@@ -1,6 +1,7 @@
 import React from "react";
 import { Form } from "react-bootstrap";
 import { motion } from "framer-motion";
+import PhoneInput from "../ui/PhoneInput";
 
 /**
  * InfoCard - Reusable profile info display/edit field.
@@ -17,7 +18,7 @@ import { motion } from "framer-motion";
  * @param {boolean} [props.isEditing=false] - Whether the field is in edit mode
  * @param {string} [props.name] - Form field name for editing
  * @param {function} [props.onChange] - Change handler for edit mode
- * @param {string} [props.type="text"] - Input type ("text", "email", "date", "select")
+ * @param {string} [props.type="text"] - Input type ("text", "email", "date", "select", "phone")
  * @param {Array} [props.options=[]] - Options array for select type: [{value, label}]
  * @param {string} [props.error] - Validation error message
  */
@@ -69,6 +70,14 @@ const InfoCard = ({
               {error}
             </Form.Control.Feedback>
           </>
+        ) : type === "phone" ? (
+          <div className="mt-1">
+            <PhoneInput
+              value={value}
+              onChange={(val) => onChange({ target: { name, value: val } })}
+              error={error}
+            />
+          </div>
         ) : (
           <>
             <Form.Control

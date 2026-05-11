@@ -87,8 +87,10 @@ const StaffProfile = () => {
     };
 
     fetchProfile();
-  }, [user, apiUrl]);
-
+  VenusAndMars,
+  Phone,
+  } from "lucide-react";
+  // ...
   /**
    * Enter edit mode: populate form data from the current profile.
    */
@@ -101,6 +103,7 @@ const StaffProfile = () => {
       national_id: profile.national_id || "",
       nationality: profile.nationality || "",
       passport_no: profile.passport_no || "",
+      phone: profile.phones?.find(p => p.is_primary)?.phone || "",
     });
     setErrors({});
     setIsEditing(true);
@@ -193,7 +196,13 @@ const StaffProfile = () => {
     try {
       const token = localStorage.getItem("token");
 
-      const response = await axios.put(`${apiUrl}/emp/${user.id}`, formData, {
+      // Format phone numbers for the backend
+      const payload = {
+        ...formData,
+        phoneNumbers: formData.phone ? [{ phone: formData.phone, type: 'personal', is_primary: true }] : []
+      };
+
+      const response = await axios.put(`${apiUrl}/emp/${user.id}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -374,6 +383,20 @@ const StaffProfile = () => {
                       type="email"
                       onChange={handleChange}
                       error={errors.email}
+                    />
+                  </Col>
+                  <Col md={6} className="mb-3">
+                    <InfoCard
+                      icon={Phone}
+                      label="Phone Number"
+                      value={isEditing ? formData.phone : profile.phones?.find(p => p.is_primary)?.phone}
+                      color="primary"
+                      delay={0.45}
+                      isEditing={isEditing}
+                      name="phone"
+                      type="phone"
+                      onChange={handleChange}
+                      error={errors.phone}
                     />
                   </Col>
                   <Col md={6} className="mb-3">
