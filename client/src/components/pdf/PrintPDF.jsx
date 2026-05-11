@@ -20,6 +20,7 @@ import { usePDF } from "@react-pdf/renderer";
 import CairoFont from "../../assets/fonts/Cairo.ttf";
 import { FileText } from "lucide-react";
 import RichTextPdfRenderer, { htmlToPlainText } from "./HtmlToPdfRenderer";
+import { formatDate, formatDateTime } from "../../utils/dateFormatter";
 
 // Register Cairo font for Arabic support
 Font.register({
@@ -82,7 +83,7 @@ const renderTestComments = (testId, comments) => {
         <View key={comment.id || index} style={styles.commentItem}>
           <Text style={styles.commentText}>{comment.comment_text}</Text>
           <Text style={styles.commentDate}>
-            {new Date(comment.created_at).toLocaleDateString()}
+            {formatDate(comment.created_at)}
           </Text>
           {comment.images && comment.images.length > 0 ? (
             <View style={styles.commentImages}>
@@ -780,19 +781,9 @@ function StatusBarFirstPage({ report }) {
   const pageNumber = pdfContext.pageNumber || 1;
   if (pageNumber !== 1) return null;
 
-  // Helper function to format date
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date
-      .toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-      .replace(",", "");
+  // Use centralized formatDateTime
+  const formatDateTimeLocal = (dateString) => {
+    return formatDateTime(dateString);
   };
 
   const statusData = [
@@ -807,7 +798,7 @@ function StatusBarFirstPage({ report }) {
       {statusData.map((item, index) => (
         <View style={styles.statusItem} key={item.label}>
           <Text style={styles.statusLabel}>{item.label}</Text>
-          <Text style={styles.statusValue}>{formatDate(item.date)}</Text>
+          <Text style={styles.statusValue}>{formatDateTimeLocal(item.date)}</Text>
         </View>
       ))}
     </View>

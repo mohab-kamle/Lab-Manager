@@ -18,6 +18,7 @@ import {
   Line
 } from "recharts";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { formatDate } from "../../utils/dateFormatter";
 
 const PatientsAnalytics = () => {
   const { user } = useAuth();
@@ -116,7 +117,7 @@ const PatientsAnalytics = () => {
     const now = new Date();
     for (let i = 11; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      const monthKey = date.toLocaleDateString('en-GB', { year: 'numeric', month: 'short' });
       monthlyStats[monthKey] = 0;
     }
 
@@ -124,7 +125,7 @@ const PatientsAnalytics = () => {
       // Use createdAt for registration trend
       if (patient.createdAt) {
         const patientDate = new Date(patient.createdAt);
-        const monthKey = patientDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        const monthKey = patientDate.toLocaleDateString('en-GB', { year: 'numeric', month: 'short' });
         if (monthlyStats.hasOwnProperty(monthKey)) {
           monthlyStats[monthKey]++;
         }

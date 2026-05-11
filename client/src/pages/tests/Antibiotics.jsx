@@ -12,6 +12,7 @@ import {
 } from "../../utils/excelUtils";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
+import { formatDate } from "../../utils/dateFormatter";
 
 const Antibiotics = () => {
   const { toast, confirm } = useToast();
@@ -134,7 +135,7 @@ const Antibiotics = () => {
       );
     }
     if (header.toLowerCase().includes("date") && data) {
-      return new Date(data).toLocaleDateString();
+      return formatDate(data);
     }
     if (typeof data === "boolean") {
       return data ? "Yes" : "No";

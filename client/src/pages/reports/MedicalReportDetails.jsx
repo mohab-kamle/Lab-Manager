@@ -4,6 +4,7 @@ import { Container, Row, Col, Card, Badge, Spinner, Table, Button } from "react-
 import { useToast } from "../../components/ui/ToastContext";
 import { Activity, FlaskConical, FileText, User, Calendar, Receipt, Search } from "lucide-react";
 import axios from "axios";
+import { formatDateTime } from "../../utils/dateFormatter";
 import SampleQuickInfoModal from "../../components/samples/SampleQuickInfoModal";
 
 const MedicalReportDetails = () => {
@@ -160,14 +161,14 @@ const MedicalReportDetails = () => {
               <Row>
                 <Col sm={6}>
                   <ul className="list-unstyled mb-0 small">
-                    <li className="mb-2"><strong>Registered:</strong> {report.registered_at ? new Date(report.registered_at).toLocaleString() : "-"}</li>
-                    <li className="mb-2"><strong>Collected:</strong> {report.collected_at ? new Date(report.collected_at).toLocaleString() : "-"}</li>
+                    <li className="mb-2"><strong>Registered:</strong> {formatDateTime(report.registered_at)}</li>
+                    <li className="mb-2"><strong>Collected:</strong> {formatDateTime(report.collected_at)}</li>
                   </ul>
                 </Col>
                 <Col sm={6}>
                   <ul className="list-unstyled mb-0 small">
-                    <li className="mb-2"><strong>Received:</strong> {report.received_at ? new Date(report.received_at).toLocaleString() : "-"}</li>
-                    <li className="mb-2"><strong>Reported:</strong> {report.reported_at ? new Date(report.reported_at).toLocaleString() : "-"}</li>
+                    <li className="mb-2"><strong>Received:</strong> {formatDateTime(report.received_at)}</li>
+                    <li className="mb-2"><strong>Reported:</strong> {formatDateTime(report.reported_at)}</li>
                   </ul>
                 </Col>
               </Row>

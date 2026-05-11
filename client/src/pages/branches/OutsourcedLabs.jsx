@@ -8,6 +8,7 @@ import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from "../../utils/excelUtils";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
+import { formatDate } from "../../utils/dateFormatter";
 
 /**
  * OutsourcedLabs — CRUD management page for outsourced (third-party) labs.
@@ -298,7 +299,7 @@ const OutsourcedLabs = () => {
 
   const formatCellData = (data, header) => {
     if (header.toLowerCase().includes("date") && data) {
-      return new Date(data).toLocaleDateString();
+      return formatDate(data);
     }
     return data ?? "N/A";
   };

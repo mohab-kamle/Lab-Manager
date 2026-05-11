@@ -38,6 +38,7 @@ import {
   resetNavbarTitles,
   resetNavbarActiveState,
 } from "../../components/layout/MainNavBar";
+import { formatDate } from "../../utils/dateFormatter";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -268,7 +269,7 @@ const AdminDashboard = () => {
                       <span>
                         Report #{report.id} for{" "}
                         {report.patient?.name || "Unknown"} (
-                        {new Date(report.date).toLocaleDateString()})
+                        {formatDate(report.date)})
                       </span>
                       <span className="text-muted small ms-2">
                         {report.done
@@ -293,7 +294,7 @@ const AdminDashboard = () => {
                       <span>New patient: {patient.name}</span>
                       <span className="text-muted small ms-2">
                         {patient.birth_date
-                          ? new Date(patient.birth_date).toLocaleDateString()
+                          ? formatDate(patient.birth_date)
                           : ""}
                       </span>
                     </ListGroup.Item>

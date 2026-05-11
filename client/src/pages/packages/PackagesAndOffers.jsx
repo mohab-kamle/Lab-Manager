@@ -13,11 +13,12 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
-import { Pencil, Trash2, Plus, CircleX } from "lucide-react";
+import { Pencil, Trash2, Plus, CircleX, Search } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
+import { formatDate } from "../../utils/dateFormatter";
 
 const PackagesAndOffers = () => {
   const { user } = useAuth();
@@ -326,7 +327,7 @@ const PackagesAndOffers = () => {
     switch (field) {
       case "start_date":
       case "end_date":
-        return value ? new Date(value).toLocaleDateString() : "-";
+        return formatDate(value);
       case "tests":
         if (!Array.isArray(value) || value.length === 0) return "-";
         return (
@@ -399,6 +400,7 @@ const PackagesAndOffers = () => {
       item_type: "",
     });
     setFormErrors({});
+    setTestSearch("");
   };
 
   return (
@@ -415,17 +417,7 @@ const PackagesAndOffers = () => {
               variant="primary"
               onClick={() => {
                 setEditingItem(null);
-                setItem({
-                  name: "",
-                  shortcut: "",
-                  price: "",
-                  start_date: "",
-                  end_date: "",
-                  type: "package",
-                  tests: [],
-                  item_id: "",
-                  item_type: "",
-                });
+                handleResetForm();
                 setShowAddModal(true);
               }}
             >
@@ -470,6 +462,7 @@ const PackagesAndOffers = () => {
               setShowRetryButton(false);
               setLastAttemptedItem(null);
               setFormErrors({});
+              setTestSearch("");
             }}
             size="lg"
           >
@@ -486,6 +479,7 @@ const PackagesAndOffers = () => {
                   setShowRetryButton(false);
                   setLastAttemptedItem(null);
                   setFormErrors({});
+                  setTestSearch("");
                 }}
               >
                 <CircleX size={24} />
@@ -689,33 +683,92 @@ const PackagesAndOffers = () => {
                       <Col md={12}>
                         <Form.Group className="mb-3">
                           <Form.Label>Select Test *</Form.Label>
-                          <Form.Select
-                            value={item.item_id ? `test-${item.item_id}` : ""}
-                            onChange={(e) => {
-                              const [type, id] = e.target.value.split("-");
-                              setItem({
-                                ...item,
-                                item_type: "test",
-                                item_id: id,
-                              });
-                              if (formErrors.item_id)
-                                setFormErrors({ ...formErrors, item_id: null });
+                          
+                          {/* Search Input Field */}
+                          <Form.Control
+                            type="text"
+                            placeholder="Search for a test..."
+                            value={testSearch}
+                            onChange={(e) => setTestSearch(e.target.value)}
+                            className="mb-2"
+                          />
+
+                          {/* Scrollable container for single test selection */}
+                          <div
+                            className={`form-control ${!!formErrors.item_id ? "is-invalid" : ""}`}
+                            style={{
+                              height: "200px",
+                              overflowY: "auto",
+                              padding: "0.5rem",
+                              background: 'var(--bg-inset, #f8f9fa)'
                             }}
-                            isInvalid={!!formErrors.item_id}
                           >
-                            <option value="">Select a Test</option>
-                            {tests.map((test) => (
-                              <option
-                                key={`test-${test.id}`}
-                                value={`test-${test.id}`}
-                              >
-                                {test.name} (Original Price: ${test.price})
-                              </option>
-                            ))}
-                          </Form.Select>
-                          <Form.Control.Feedback type="invalid">
-                            {formErrors.item_id}
-                          </Form.Control.Feedback>
+                            {tests
+                              .filter((test) =>
+                                test.name
+                                  .toLowerCase()
+                                  .includes(testSearch.toLowerCase()),
+                              )
+                              .map((test) => {
+                                const isSelected = String(item.item_id) === String(test.id);
+                                return (
+                                  <div
+                                    key={`offer-test-${test.id}`}
+                                    className={`p-2 mb-1 rounded d-flex justify-content-between align-items-center cursor-pointer transition-all ${
+                                      isSelected 
+                                        ? "bg-primary text-white shadow-sm" 
+                                        : "bg-white border hover-bg-light shadow-sm-hover"
+                                    }`}
+                                    onClick={() => {
+                                      setItem({
+                                        ...item,
+                                        item_type: "test",
+                                        item_id: String(test.id),
+                                      });
+                                      if (formErrors.item_id)
+                                        setFormErrors({ ...formErrors, item_id: null });
+                                    }}
+                                    style={{ cursor: 'pointer', border: isSelected ? '1px solid transparent' : '1px solid #dee2e6' }}
+                                  >
+                                    <div className="d-flex align-items-center">
+                                      <Form.Check
+                                        type="radio"
+                                        readOnly
+                                        checked={isSelected}
+                                        className="me-2 pointer-events-none"
+                                        style={{ pointerEvents: 'none' }}
+                                      />
+                                      <span className="fw-medium">{test.name}</span>
+                                    </div>
+                                    <span className={isSelected ? "text-white-50 small" : "text-muted small"}>
+                                      ${test.price}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+
+                            {/* No results message */}
+                            {tests.filter((test) =>
+                              test.name
+                                .toLowerCase()
+                                .includes(testSearch.toLowerCase()),
+                            ).length === 0 && (
+                              <div className="text-center py-4 text-muted small">
+                                <Search size={20} className="mb-2 opacity-50" /><br/>
+                                No tests match your search.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Display validation errors */}
+                          {!!formErrors.item_id && (
+                            <Form.Control.Feedback
+                              type="invalid"
+                              className="d-block"
+                            >
+                              {formErrors.item_id}
+                            </Form.Control.Feedback>
+                          )}
                         </Form.Group>
                       </Col>
                     </>
@@ -734,7 +787,7 @@ const PackagesAndOffers = () => {
                             setFormErrors({ ...formErrors, start_date: null });
                         }}
                         className={`form-control ${formErrors.start_date ? "is-invalid" : ""}`}
-                        dateFormat="yyyy-MM-dd"
+                        dateFormat="dd/MM/yyyy"
                       />
                       {formErrors.start_date && (
                         <div className="invalid-feedback d-block">
@@ -754,7 +807,7 @@ const PackagesAndOffers = () => {
                             setFormErrors({ ...formErrors, end_date: null });
                         }}
                         className={`form-control ${formErrors.end_date ? "is-invalid" : ""}`}
-                        dateFormat="yyyy-MM-dd"
+                        dateFormat="dd/MM/yyyy"
                       />
                       {formErrors.end_date && (
                         <div className="invalid-feedback d-block">
@@ -775,6 +828,7 @@ const PackagesAndOffers = () => {
                   setShowRetryButton(false);
                   setLastAttemptedItem(null);
                   setFormErrors({});
+                  setTestSearch("");
                 }}
               >
                 Cancel

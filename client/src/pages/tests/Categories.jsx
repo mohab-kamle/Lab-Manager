@@ -5,9 +5,14 @@ import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
-import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
+import {
+  exportToExcel,
+  importFromExcel,
+  validateExcelFile,
+} from "../../utils/excelUtils";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
+import { formatDate } from "../../utils/dateFormatter";
 
 const Categories = () => {
   const { toast, confirm } = useToast();
@@ -17,7 +22,10 @@ const Categories = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({
+    field: null,
+    direction: "asc",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -25,7 +33,6 @@ const Categories = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
-  const { toast, confirm } = useToast();
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -85,7 +92,17 @@ const Categories = () => {
     } else if (typeof valueA === "number" && typeof valueB === "number") {
       return sortConfig.direction === "asc" ? valueA - valueB : valueB - valueA;
     } else if (typeof valueA === "boolean" && typeof valueB === "boolean") {
-      return sortConfig.direction === "asc" ? (valueA === valueB ? 0 : valueA ? -1 : 1) : (valueA === valueB ? 0 : valueA ? 1 : -1);
+      return sortConfig.direction === "asc"
+        ? valueA === valueB
+          ? 0
+          : valueA
+            ? -1
+            : 1
+        : valueA === valueB
+          ? 0
+          : valueA
+            ? 1
+            : -1;
     }
     return 0; // Default no sorting for unhandled types
   });
@@ -93,7 +110,7 @@ const Categories = () => {
   const pageCount = Math.ceil(sortedCategories.length / itemsPerPage);
   const currentCategories = sortedCategories.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
@@ -109,7 +126,7 @@ const Categories = () => {
       );
     }
     if (header.toLowerCase().includes("date") && data) {
-      return new Date(data).toLocaleDateString();
+      return formatDate(data);
     }
     if (typeof data === "boolean") {
       return data ? "Yes" : "No";
@@ -152,7 +169,11 @@ const Categories = () => {
       const headers = { Authorization: `Bearer ${token}` };
       if (editingCategory) {
         // Update
-        await axios.put(`${apiUrl}/categories/${editingCategory.id}`, formData, { headers });
+        await axios.put(
+          `${apiUrl}/categories/${editingCategory.id}`,
+          formData,
+          { headers },
+        );
         toast.success("Category updated successfully");
       } else {
         // Create
@@ -162,7 +183,11 @@ const Categories = () => {
       setShowModal(false);
       setEditingCategory(null);
       setFormData({ name: "" });
-      toast.success(editingCategory ? "Category updated successfully" : "Category added successfully");
+      toast.success(
+        editingCategory
+          ? "Category updated successfully"
+          : "Category added successfully",
+      );
       // Refresh using extracted function
       await fetchCategories();
     } catch (error) {
@@ -171,25 +196,27 @@ const Categories = () => {
     }
   };
 
-
-
   // Excel Export Handler
   const handleExportXLSX = async () => {
     try {
-      const exportData = filteredCategories.map(category => ({
-        'Name': category.name,
-        'Details': category.details
+      const exportData = filteredCategories.map((category) => ({
+        Name: category.name,
+        Details: category.details,
       }));
 
-      const result = await exportToExcel(exportData, 'categories', 'Categories');
+      const result = await exportToExcel(
+        exportData,
+        "categories",
+        "Categories",
+      );
       if (result.success) {
         toast.success("Categories exported successfully");
       } else {
         toast.error(`Export failed: ${result.message}`);
       }
     } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export categories');
+      console.error("Export error:", error);
+      toast.error("Failed to export categories");
     }
   };
 
@@ -201,36 +228,40 @@ const Categories = () => {
     }
 
     const formData = new FormData();
-    formData.append('file', importFile);
-    
+    formData.append("file", importFile);
+
     setImportLoading(true);
     const loadingToast = toast.loading("Importing categories...");
-    
+
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${apiUrl}/categories/import`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${apiUrl}/categories/import`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
       const { summary, errorDetails, message } = response.data;
-      
+
       setShowImportModal(false);
       setImportFile(null);
-      
+
       if (summary.errors > 0) {
         toast.warning(message);
-        console.log('Import errors:', errorDetails);
+        console.log("Import errors:", errorDetails);
       } else {
         toast.success(message);
       }
-      
+
       await fetchCategories();
     } catch (error) {
       console.error("Import error:", error);
-      toast.error(error.response?.data?.error || 'Failed to import categories');
+      toast.error(error.response?.data?.error || "Failed to import categories");
     } finally {
       setImportLoading(false);
       toast.dismiss(loadingToast);
@@ -239,8 +270,22 @@ const Categories = () => {
 
   const ActionComponent = ({ rowData }) => (
     <div className="d-flex gap-2">
-      <Button variant="outline-primary" size="sm" onClick={() => handleEdit(rowData)} title="Edit Category"><Pencil size={16} /></Button>
-      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)} title="Delete Category"><Trash2 size={16} /></Button>
+      <Button
+        variant="outline-primary"
+        size="sm"
+        onClick={() => handleEdit(rowData)}
+        title="Edit Category"
+      >
+        <Pencil size={16} />
+      </Button>
+      <Button
+        variant="outline-danger"
+        size="sm"
+        onClick={() => handleDelete(rowData)}
+        title="Delete Category"
+      >
+        <Trash2 size={16} />
+      </Button>
     </div>
   );
 
@@ -253,11 +298,17 @@ const Categories = () => {
             <Download size={16} className="me-2" />
             Export XLSX
           </Button>
-          <Button variant="outline-info" onClick={() => setShowImportModal(true)}>
+          <Button
+            variant="outline-info"
+            onClick={() => setShowImportModal(true)}
+          >
             <Upload size={16} className="me-2" />
             Import Excel
           </Button>
-          <Button variant="primary" onClick={handleAdd}><Plus size={16} className="me-2" />Add Category</Button>
+          <Button variant="primary" onClick={handleAdd}>
+            <Plus size={16} className="me-2" />
+            Add Category
+          </Button>
         </div>
       </div>
       {loading ? (
@@ -287,12 +338,17 @@ const Categories = () => {
           />
         </>
       )}
-      
+
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header>
-          <Modal.Title>{editingCategory ? "Edit Category" : "Add New Category"}</Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+          <Modal.Title>
+            {editingCategory ? "Edit Category" : "Add New Category"}
+          </Modal.Title>
+          <button
+            className="modal-close-btn"
+            onClick={() => setShowModal(false)}
+          >
             <CircleX size={24} />
           </button>
         </Modal.Header>
@@ -300,39 +356,59 @@ const Categories = () => {
           <Modal.Body>
             <Form.Group className="mb-3">
               <Form.Label>Name *</Form.Label>
-              <Form.Control 
-                type="text" 
-                value={formData.name} 
-                onChange={e => setFormData({ ...formData, name: e.target.value })} 
-                required 
+              <Form.Control
+                type="text"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
               />
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button variant="primary" type="submit">{editingCategory ? "Update" : "Add"}</Button>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              {editingCategory ? "Update" : "Add"}
+            </Button>
           </Modal.Footer>
         </Form>
       </Modal>
-      
+
       {/* Import Modal */}
-      <Modal show={showImportModal} onHide={() => setShowImportModal(false)} size="lg">
+      <Modal
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        size="lg"
+      >
         <Modal.Header>
           <Modal.Title>Import Categories</Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+          <button
+            className="modal-close-btn"
+            onClick={() => setShowImportModal(false)}
+          >
             <CircleX size={24} />
           </button>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="info" className="mb-3">
             <h6>Excel File Format Requirements:</h6>
-            <p className="mb-2">Your Excel file should have the following columns:</p>
+            <p className="mb-2">
+              Your Excel file should have the following columns:
+            </p>
             <ul className="mb-2">
-              <li><strong>Name</strong> (required) - The category name</li>
+              <li>
+                <strong>Name</strong> (required) - The category name
+              </li>
             </ul>
-            <p className="mb-0"><strong>Note:</strong> The first row should contain the column headers. Duplicate names will be skipped.</p>
+            <p className="mb-0">
+              <strong>Note:</strong> The first row should contain the column
+              headers. Duplicate names will be skipped.
+            </p>
           </Alert>
-          
+
           <Form.Group className="mb-3">
             <Form.Label>Select Excel/CSV File</Form.Label>
             <Form.Control
@@ -346,14 +422,17 @@ const Categories = () => {
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => {
-            setShowImportModal(false);
-            setImportFile(null);
-          }}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowImportModal(false);
+              setImportFile(null);
+            }}
+          >
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleImportXLSX}
             disabled={!importFile || importLoading}
           >

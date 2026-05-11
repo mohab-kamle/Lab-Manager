@@ -40,6 +40,7 @@ import { useLab } from "../../context/LabContext";
 import { useTheme } from "../../context/ThemeContext";
 import VersionBadge from "../ui/VersionBadge";
 
+import { formatDateTime } from "../../utils/dateFormatter";
 import "../../styles/MainNavBar.css";
 
 export const defaultTitles = {
@@ -1018,7 +1019,7 @@ const MainNavBar = () => {
                                     </span>
                                     <p className="notification-item-message">{notification.message}</p>
                                     <span className="notification-item-time">
-                                      {new Date(notification.createdAt).toLocaleString()}
+                                      {formatDateTime(notification.createdAt)}
                                     </span>
                                   </div>
                                 </div>
