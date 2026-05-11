@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 require("dotenv").config();
 const { Op } = require('sequelize');
-const { patient, test, medical_report, bill, financial_transaction, payment_method, packages_and_offers } = require("../models");
+const { patient, test, medical_report, bill, financial_transaction, payment_method, packages_and_offers, employee } = require("../models");
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext, tenantIsolation, addLabFilter } = require('../middleware/tenantContext');

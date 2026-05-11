@@ -40,6 +40,16 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.ENUM('Payment', 'Refund', 'Due', 'Credit'),
       allowNull: false
     },
+    from: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: 'Source of the transaction'
+    },
+    to: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      comment: 'Destination of the transaction'
+    },
     processed_by_id: {
       type: DataTypes.INTEGER,
       allowNull: true,

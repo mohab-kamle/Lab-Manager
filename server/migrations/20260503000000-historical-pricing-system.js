@@ -3,7 +3,7 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // Add integrity columns to bills table
-    await queryInterface.addColumn('bills', 'integrity_hash', {
+    await queryInterface.addColumn('bill', 'integrity_hash', {
       type: Sequelize.STRING,
       allowNull: true
     });

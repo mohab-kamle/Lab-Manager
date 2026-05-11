@@ -108,6 +108,12 @@ module.exports = function (sequelize, DataTypes) {
         onUpdate: 'CASCADE',
         onDelete: 'SET NULL',
       },
+      change_amount: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Amount returned to patient in case of overpayment'
+      },
     },
     {
       sequelize,

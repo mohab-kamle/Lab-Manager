@@ -1,12 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, financial_transaction } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, financial_transaction, lab } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const { tenantIsolation } = require('../middleware/tenantContext');
 const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
-const { validateRefundKey } = require('../middleware/authKeyValidator');
+//const { validateRefundKey } = require('../middleware/authKeyValidator');
 const integrityService = require("../services/integrityService");
 require("dotenv").config();
 
@@ -264,6 +264,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             total = 0,
             paid = 0,
             due = 0,
+            original_paid,
+            change_amount,
+            give_change,
             status_id,
             receptionist_id,
             branch_id,
@@ -332,8 +335,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             patient_id,
             status_id,
             lab_id: lab_id,
-            branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null, // <-- robust handling of branch_id
-            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null
+            branch_id: (branch_id !== undefined && branch_id !== '') ? branch_id : null,
+            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null,
+            change_amount: (give_change && change_amount) ? change_amount : 0
         }, { transaction });
 
         // Update patient's financial information
@@ -449,16 +453,33 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             }, { transaction });
         }
 
+        const currentLab = await lab.findByPk(lab_id, { transaction });
+        const labName = currentLab ? currentLab.name : 'Lab';
+
         for (const payment of payments) {
-            const paidAmount = parseFloat(payment.paid_amount);
+            const paidAmount = parseFloat(payment.paid_amount || payment.amount || 0);
+            if (paidAmount <= 0) continue;
             
             // Add payments
             await bill_has_payment_method.create({
                 bill_id: newBill.id,
                 payment_method_id: parseInt(payment.payment_method_id),
-                paid_amount: payment.amount
+                paid_amount: isNaN(paidAmount) ? 0 : paidAmount
             }, { transaction });
-
+            
+            // Create Financial Transactions
+            await financial_transaction.create({
+                lab_id: lab_id,
+                branch_id: branch_id || null,
+                bill_id: newBill.id,
+                patient_id: patient_id,
+                processed_by_id: user.id,
+                amount: paidAmount,
+                process_type: 'Payment',
+                payment_method_id: parseInt(payment.payment_method_id),
+                from: patientExists.name,
+                to: labName
+            }, { transaction });
         }
 
 
@@ -737,6 +758,9 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         date,
         paid = 0,
         due = 0,
+        original_paid,
+        change_amount,
+        give_change,
         subtotal = 0,
         discount = 0,
         tax = 0,
@@ -767,16 +791,23 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
     const finalTotal = finalSubtotal + finalTax - parseFloat(discount || 0);
     const lab_id = req.tenant.lab_id;
 
+    const transaction = await sequelize.transaction();
     try {
         const lab_id = req.tenant.lab_id;
         const existingBill = await bill.findOne({ 
             where: { id, lab_id },
             include: [
                 { model: bill_has_test, as: 'bill_has_tests' },
-                { model: bill_has_package, as: 'bill_has_packages' }
+                { model: bill_has_package, as: 'bill_has_packages' },
+                { model: bill_has_payment_method, as: 'bill_has_payment_methods' }
             ]
         });
         if (!existingBill) return res.status(404).json({ error: "Bill not found or you don't have permission to edit it." });
+
+        const oldPaymentsMap = {};
+        existingBill.bill_has_payment_methods.forEach(pm => {
+            oldPaymentsMap[pm.payment_method_id] = parseFloat(pm.paid_amount || 0);
+        });
 
         // 1. Lock-in Rule: Check if any items are being removed
         const currentTestIds = existingBill.bill_has_tests.map(t => t.test_id);
@@ -799,21 +830,21 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             }
         }
 
-        // 2. Manager Key Rule: 2-hour restriction for paid amount update
-        const invoiceAgeHours = (new Date() - new Date(existingBill.createdAt || existingBill.date)) / (1000 * 60 * 60);
-        if (paid !== undefined && parseFloat(paid) !== parseFloat(existingBill.paid) && invoiceAgeHours > 2) {
-            const { manager_key } = req.body;
-            if (!manager_key) {
-                return res.status(403).json({ 
-                    error: "Manager's Key required to update paid amount after 2 hours.",
-                    requires_manager_key: true
-                });
-            }
-            const matchedKey = await validateRefundKey(manager_key, lab_id);
-            if (!matchedKey) {
-                return res.status(403).json({ error: "Invalid Manager's Key." });
-            }
-        }
+        // // 2. Manager Key Rule: 2-hour restriction for paid amount update
+        // const invoiceAgeHours = (new Date() - new Date(existingBill.createdAt || existingBill.date)) / (1000 * 60 * 60);
+        // if (paid !== undefined && parseFloat(paid) !== parseFloat(existingBill.paid) && invoiceAgeHours > 2) {
+        //     const { manager_key } = req.body;
+        //     if (!manager_key) {
+        //         return res.status(403).json({ 
+        //             error: "Manager's Key required to update paid amount after 2 hours.",
+        //             requires_manager_key: true
+        //         });
+        //     }
+        //     const matchedKey = await validateRefundKey(manager_key, lab_id);
+        //     if (!matchedKey) {
+        //         return res.status(403).json({ error: "Invalid Manager's Key." });
+        //     }
+        // }
 
         // Get the old values before updating
         const oldTotal = parseFloat(existingBill.total || 0);
@@ -831,8 +862,9 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             tax: tax !== undefined ? tax : existingBill.tax,
             total: total !== undefined ? total : existingBill.total,
             status_id: status_id || existingBill.status_id,
-            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : existingBill.referred_doctor_id
-        });
+            referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : existingBill.referred_doctor_id,
+            change_amount: (give_change && change_amount) ? change_amount : existingBill.change_amount
+        }, { transaction });
 
         // Update patient's financial information
         const currentPatient = await patient.findByPk(patientId);
@@ -997,7 +1029,38 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             total: existingBill.total
         }, allItems);
 
-        await existingBill.update({ integrity_hash: newIntegrityHash });
+        await existingBill.update({ integrity_hash: newIntegrityHash }, { transaction });
+
+        // --- Create Financial Transactions ---
+        const currentLab = await lab.findByPk(lab_id, { transaction });
+        const labName = currentLab ? currentLab.name : 'Lab';
+        const currentPatientForTx = await patient.findByPk(patientId, { transaction });
+        const patientName = currentPatientForTx ? currentPatientForTx.name : 'Patient';
+
+        if (payments) {
+            for (const payment of payments) {
+                const pmId = parseInt(payment.payment_method_id);
+                const paidAmount = parseFloat(payment.paid_amount || payment.amount || 0);
+                const oldAmount = oldPaymentsMap[pmId] || 0;
+
+                if (paidAmount > oldAmount) {
+                    await financial_transaction.create({
+                        lab_id: lab_id,
+                        branch_id: existingBill.branch_id || null,
+                        bill_id: id,
+                        patient_id: patientId,
+                        processed_by_id: req.user.id,
+                        amount: paidAmount - oldAmount,
+                        process_type: 'Payment',
+                        payment_method_id: pmId,
+                        from: patientName,
+                        to: labName
+                    }, { transaction });
+                }
+            }
+        }
+
+        await transaction.commit();
 
         // Fetch the updated bill with all associations
         const updatedBill = await bill.findOne({
@@ -1075,6 +1138,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
 
         res.json(response);
     } catch (error) {
+        if (transaction) await transaction.rollback();
         console.error('Error updating bill:', error);
         res.status(500).json({
             error: "Failed to update bill",
