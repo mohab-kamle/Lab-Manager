@@ -323,6 +323,9 @@ app.use("/payments", require("./routes/paymentsGateway"));
 app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
 app.use("/whatsapp", require("./routes/whatsapp.routes"));
+app.use("/reconciliation", require("./routes/reconciliation"));
+app.use("/settlement", require("./routes/settlement"));
+
 
 // Global error handler
 app.use((error, req, res, next) => {

@@ -61,6 +61,8 @@ var _lab_whatsapp_account = require("./lab_whatsapp_account");
 var _whatsapp_message = require("./whatsapp_message");
 var _outsourced_lab = require("./outsourced_lab");
 var _financial_transaction = require("./financial_transaction");
+var _reconciliation = require("./reconciliation");
+var _reconciliation_item = require("./reconciliation_item");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -121,6 +123,9 @@ function initModels(sequelize) {
   var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
   var financial_transaction = _financial_transaction(sequelize, DataTypes);
 
+  var reconciliation = _reconciliation(sequelize, DataTypes);
+  var reconciliation_item = _reconciliation_item(sequelize, DataTypes);
+  
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
   inventory_item.hasMany(inventory_batch, { as: "batches", foreignKey: "item_id" });
@@ -629,6 +634,27 @@ function initModels(sequelize) {
     foreignKey: "test_id"
   });
 
+  // --- RECONCILIATION ASSOCIATIONS ---
+
+  // A Reconciliation belongs to a Patient
+  reconciliation.belongsTo(patient, { as: "patient", foreignKey: "patient_id"});
+  patient.hasMany(reconciliation, { as: "reconciliations", foreignKey: "patient_id"});
+
+  // A Reconciliation belongs to a Lab
+  reconciliation.belongsTo(lab, { as: "lab", foreignKey: "lab_id"});
+  lab.hasMany(reconciliation, { as: "reconciliations", foreignKey: "lab_id"});
+
+  // A Reconciliation has a Payment Method
+  reconciliation.belongsTo(payment_method, { as: "payment_method", foreignKey: "payment_method_id"});
+  payment_method.hasMany(reconciliation, { as: "reconciliations", foreignKey: "payment_method_id"});
+
+  // A Reconciliation Item links a Reconciliation to a Bill (Invoice)
+  reconciliation_item.belongsTo(reconciliation, { as: "reconciliation", foreignKey: "reconciliation_id"});
+  reconciliation.hasMany(reconciliation_item, { as: "items", foreignKey: "reconciliation_id"});
+
+  // A Reconciliation Item belongs to a specific Bill
+  reconciliation_item.belongsTo(bill, { as: "bill", foreignKey: "bill_id"});
+  bill.hasMany(reconciliation_item, { as: "reconciliation_items", foreignKey: "bill_id"});
   return {
     admin,
     admin_packages_and_offers,
@@ -680,7 +706,9 @@ function initModels(sequelize) {
     lab_whatsapp_account,
     whatsapp_message,
     outsourced_lab,
-    financial_transaction
+    financial_transaction,
+    reconciliation,
+    reconciliation_item
   };
 
 }
