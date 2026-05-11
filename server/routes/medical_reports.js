@@ -37,6 +37,88 @@ const {
 const { extractMedicalData } = require("../services/llmService");
 const { extractRawTextFromImage } = require("../services/bedrockService");
 
+// Standard associations for medical report queries to ensure consistent response structure
+const standardIncludes = [
+  {
+    model: db.patient,
+    as: "patient",
+    attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+    include: [
+      {
+        model: db.phone_number,
+        as: "phones",
+        attributes: [["phone", "phone_number"], "type"],
+      },
+    ],
+  },
+  {
+    model: db.bill,
+    as: "bill",
+    attributes: ["id", "total", "paid", "due"],
+  },
+  {
+    model: db.chemist,
+    as: "signatory",
+    attributes: ["id"],
+    include: [
+      {
+        model: db.employee,
+        as: "id_employee",
+        attributes: ["id", "name"],
+      },
+    ],
+  },
+  {
+    model: db.admin,
+    as: "signatory_admin",
+    attributes: ["id"],
+    include: [
+      {
+        model: db.employee,
+        as: "id_employee",
+        attributes: ["id", "name"],
+      },
+    ],
+  },
+  {
+    model: db.branch,
+    as: "branch",
+    attributes: ["id", "name"],
+  },
+];
+
+/**
+ * Enriches a medical report object with computed fields (patient_name, tests_count, etc.)
+ * consistent with what the frontend table expects.
+ */
+function formatMedicalReport(report, tests = null) {
+  if (!report) return null;
+  const reportData = typeof report.get === 'function' ? report.get({ plain: true }) : report;
+
+  // Extract primary phone and attach it to patient object for frontend WhatsApp logic
+  let patientPhone = null;
+  if (reportData.patient && reportData.patient.phones && reportData.patient.phones.length > 0) {
+    const primary = reportData.patient.phones.find((p) => p.type === "primary");
+    patientPhone = primary
+      ? primary.phone_number
+      : reportData.patient.phones[0].phone_number;
+    reportData.patient.phone = patientPhone;
+  }
+
+  // Use provided tests or fall back to included tests
+  const reportTests = tests || reportData.tests || [];
+
+  return {
+    ...reportData,
+    patient_name: reportData.patient?.name || "Unknown Patient",
+    patient_phone: patientPhone,
+    tests: reportTests,
+    tests_count: reportTests.length,
+    cultures_count: reportData.cultures_count || 0,
+    invoice_id: reportData.bill?.id || null,
+  };
+}
+
 // Helper function to update medical report dates based on workflow stage
 async function updateMedicalReportDates(
   medicalReportId,
@@ -87,7 +169,7 @@ async function updateMedicalReportDates(
 router.get(
   "/",
   authenticateUser,
-  authorizeRoles("admin", "chemist", "receptionist", "employee", "doctor"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
   tenantContext,
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
@@ -95,8 +177,7 @@ router.get(
       // Optimized: Fetch tests and cultures separately to avoid N+M Cartesian product in the main query
       // This is "Application-Side Join" which is often faster for complex includes
       // Safety check for tenant context
-      // For doctors, tenant context might not have lab_id, which is expected
-      if (!req.tenant && req.user.role !== 'doctor') {
+      if (!req.tenant) {
         console.error('❌ Critical Error: req.tenant is undefined in medical_reports route');
         console.log('Headers:', req.headers);
         console.log('User:', req.user);
@@ -105,24 +186,10 @@ router.get(
 
       let whereClause = {};
 
-      if (req.user.role === 'doctor') {
-        // Fetch all labs associated with this doctor
-        const contracts = await db.lab_contracts_doctor.findAll({
-          where: { doctor_id: req.user.id },
-          attributes: ['lab_id']
-        });
-        const labIds = contracts.map(c => c.lab_id);
-
-        if (labIds.length === 0) {
-          return res.json([]); // No contracts, no reports
-        }
-        whereClause.lab_id = { [Op.in]: labIds };
-      } else {
-        if (!req.tenant.lab_id) {
-          return res.status(500).json({ error: "Tenant context missing lab_id" });
-        }
-        whereClause.lab_id = req.tenant.lab_id;
+      if (!req.tenant.lab_id) {
+        return res.status(500).json({ error: "Tenant context missing lab_id" });
       }
+      whereClause.lab_id = req.tenant.lab_id;
 
       // Get medical_report_ids for the filtered labs
       const medicalReportIds = await db.medical_report
@@ -220,27 +287,9 @@ router.get(
       }
 
       // Add patient_name, counts, and test group counts to each report for easier access
-      const reportsWithPatientName = reports.map((report) => {
-        const reportData = report.get({ plain: true });
-        const reportTests = testsMap[reportData.id] || [];
-
-        // Extract primary phone
-        let patientPhone = null;
-        if (reportData.patient && reportData.patient.phones && reportData.patient.phones.length > 0) {
-          const primary = reportData.patient.phones.find(p => p.type === 'primary');
-          patientPhone = primary ? primary.phone_number : reportData.patient.phones[0].phone_number;
-          reportData.patient.phone = patientPhone;
-        }
-
-        return {
-          ...reportData,
-          patient_name: reportData.patient?.name || "Unknown Patient",
-          patient_phone: patientPhone,
-          tests: reportTests,
-          tests_count: reportTests.length,
-          invoice_id: reportData.bill?.id || null,
-        };
-      });
+      const reportsWithPatientName = reports.map((report) =>
+        formatMedicalReport(report, testsMap[report.id] || [])
+      );
       console.log(`Found ${reports.length} medical reports`);
       res.json(reportsWithPatientName);
     } catch (error) {
@@ -254,7 +303,7 @@ router.get(
 router.get(
   "/:id",
   authenticateUser,
-  authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee", "patient"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee", "patient"),
   tenantContext,
   async (req, res) => {
     try {
@@ -264,17 +313,10 @@ router.get(
       // Optimized query for PDF generation - loads only essential data
       if (isPdfRequest) {
         let whereClause = { id: req.params.id };
-
-        if (req.user.role === 'doctor') {
-          const contracts = await db.lab_contracts_doctor.findAll({
-            where: { doctor_id: req.user.id },
-            attributes: ['lab_id']
-          });
-          const labIds = contracts.map(c => c.lab_id);
-          whereClause.lab_id = { [Op.in]: labIds };
-        } else {
-          whereClause.lab_id = req.tenant.lab_id;
+        if (!req.tenant.lab_id) {
+          return res.status(500).json({ error: "Tenant context missing lab_id" });
         }
+        whereClause.lab_id = req.tenant.lab_id;
 
         const report = await db.medical_report.findOne({
           where: whereClause,
@@ -404,16 +446,10 @@ router.get(
       // Full query for regular requests (non-PDF)
       let whereClause = { id: req.params.id };
 
-      if (req.user.role === 'doctor') {
-        const contracts = await db.lab_contracts_doctor.findAll({
-          where: { doctor_id: req.user.id },
-          attributes: ['lab_id']
-        });
-        const labIds = contracts.map(c => c.lab_id);
-        whereClause.lab_id = { [Op.in]: labIds };
-      } else {
-        whereClause.lab_id = req.tenant.lab_id;
+      if (!req.tenant.lab_id) {
+        return res.status(500).json({ error: "Tenant context missing lab_id" });
       }
+      whereClause.lab_id = req.tenant.lab_id;
 
       const report = await db.medical_report.findOne({
         where: whereClause,
@@ -426,17 +462,28 @@ router.get(
           "collected_at",
           "received_at",
           "reported_at",
+          "date",
           "comment",
           "signatory_name",
           "signatory_id",
           "signatory_admin_id",
+          "done",
+          "pending",
+          "prints_number",
+          "whatsapp_sends",
         ],
         include: [
           {
             model: db.patient,
             as: "patient",
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            // db.referral has no registered association in init-models.js — omitted
+            include: [
+              {
+                model: db.phone_number,
+                as: "phones",
+                attributes: [["phone", "phone_number"], "type"],
+              },
+            ],
           },
           {
             model: db.test,
@@ -452,8 +499,6 @@ router.get(
             as: "bill",
             attributes: ["id", "date"],
           },
-          // db.admin (signatory_admin) and db.chemist (signatory) have no registered
-          // associations in init-models.js — use signatory_name string field instead
         ],
       });
       if (!report) {
@@ -532,12 +577,7 @@ router.get(
         });
       }
 
-      const enrichedReport = {
-        ...reportData,
-        tests_count: reportData.tests?.length || 0,
-      };
-
-      res.json(enrichedReport);
+      res.json(formatMedicalReport(report));
     } catch (error) {
       console.error("Error fetching medical report:", error);
       res.status(500).json({ error: "Failed to fetch medical report" });
@@ -549,7 +589,7 @@ router.get(
 router.post(
   "/",
   authenticateUser,
-  authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  authorizeRoles("admin", "chemist", "receptionist"),
   tenantContext,
   invalidateListCache, // Invalidate list cache when new medical report is created
   async (req, res) => {
@@ -590,13 +630,7 @@ router.post(
       }
       // Fetch the created report with associations
       const createdReport = await db.medical_report.findByPk(report.id, {
-        include: [
-          {
-            model: db.patient,
-            as: "patient",
-            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            // db.referral has no registered association — omitted
-          },
+        include: standardIncludes.concat([
           {
             model: db.test,
             as: "tests",
@@ -606,39 +640,10 @@ router.post(
             },
             attributes: ["id", "name"],
           },
-          {
-            model: db.bill,
-            as: "bill",
-            attributes: ["id", "date"],
-          },
-          {
-            model: db.admin,
-            as: "signatory_admin",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-          {
-            model: db.chemist,
-            as: "signatory",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-        ],
+        ]),
       });
 
-      res.status(201).json(createdReport);
+      res.status(201).json(formatMedicalReport(createdReport));
     } catch (error) {
       console.error("Error creating medical report:", error);
       res.status(500).json({ error: "Failed to create medical report" });
@@ -650,7 +655,7 @@ router.post(
 router.put(
   "/:id",
   authenticateUser,
-  authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  authorizeRoles("admin", "chemist", "receptionist"),
   tenantContext,
   invalidateMedicalReportCache, // Invalidate cache when medical report is updated
   invalidateListCache, // Invalidate list cache when medical report is updated
@@ -731,13 +736,7 @@ router.put(
 
       // Fetch the updated report with associations
       const updatedReport = await db.medical_report.findByPk(report.id, {
-        include: [
-          {
-            model: db.patient,
-            as: "patient",
-            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-            // db.referral has no registered association — omitted
-          },
+        include: standardIncludes.concat([
           {
             model: db.test,
             as: "tests",
@@ -747,39 +746,10 @@ router.put(
             },
             attributes: ["id", "name"],
           },
-          {
-            model: db.bill,
-            as: "bill",
-            attributes: ["id", "date"],
-          },
-          {
-            model: db.admin,
-            as: "signatory_admin",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-          {
-            model: db.chemist,
-            as: "signatory",
-            attributes: ["id"],
-            include: [
-              {
-                model: db.employee,
-                as: "id_employee",
-                attributes: ["id", "name"],
-              },
-            ],
-          },
-        ],
+        ]),
       });
 
-      res.json(updatedReport);
+      res.json(formatMedicalReport(updatedReport));
     } catch (error) {
       console.error("Error updating medical report:", error);
       res.status(500).json({ error: "Failed to update medical report" });
@@ -791,7 +761,7 @@ router.put(
 router.delete(
   "/:id",
   authenticateUser,
-  authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+  authorizeRoles("admin", "chemist", "receptionist"),
   tenantContext,
   invalidateListCache, // Invalidate list cache when medical report is deleted
   async (req, res) => {
@@ -949,14 +919,9 @@ router.put(
 
       // Update culture results - removed (culture tables no longer exist)
 
-      // Fetch the updated report with all associations
+      // Fetch the updated report with all associations using consistent enrichment
       const updatedReport = await db.medical_report.findByPk(reportId, {
-        include: [
-          {
-            model: db.patient,
-            as: "patient",
-            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
-          },
+        include: standardIncludes.concat([
           {
             model: db.test,
             as: "tests",
@@ -966,15 +931,10 @@ router.put(
             },
             attributes: ["id", "name"],
           },
-          {
-            model: db.bill,
-            as: "bill",
-            attributes: ["id", "date"],
-          },
-        ],
+        ]),
       });
 
-      res.json(updatedReport);
+      res.json(formatMedicalReport(updatedReport));
     } catch (error) {
       console.error("Error updating results:", error);
       res.status(500).json({ error: "Failed to update results" });
@@ -1807,8 +1767,8 @@ router.post(
       }
 
       await t.commit();
-      res.status(201).json({ 
-        success: true, 
+      res.status(201).json({
+        success: true,
         message: "Images uploaded successfully",
         images: imageRecords.map(img => path.basename(img.image_path))
       });
@@ -1871,7 +1831,7 @@ router.delete(
             else if (s3Key.includes('\\')) s3Key = `private/comment-images/${path.basename(s3Key)}`;
             await s3Client.send(new DeleteObjectCommand({ Bucket: s3Bucket, Key: s3Key }));
           } catch (e) {
-             console.error('Failed to delete comment image from S3', e);
+            console.error('Failed to delete comment image from S3', e);
           }
         }
       }
@@ -1897,7 +1857,7 @@ router.delete(
 router.get(
   "/:id/entry-form",
   authenticateUser,
-  authorizeRoles("admin", "doctor", "chemist", "employee"),
+  authorizeRoles("admin", "chemist", "employee"),
   tenantContext,
   async (req, res) => {
     try {
@@ -2139,8 +2099,8 @@ router.post(
       let expectedKeys = [];
       try {
         if (req.body.expectedKeys) {
-          expectedKeys = typeof req.body.expectedKeys === 'string' 
-            ? JSON.parse(req.body.expectedKeys) 
+          expectedKeys = typeof req.body.expectedKeys === 'string'
+            ? JSON.parse(req.body.expectedKeys)
             : req.body.expectedKeys;
         }
       } catch (e) {

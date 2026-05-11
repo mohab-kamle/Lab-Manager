@@ -41,3 +41,4 @@ Dump20251013.sql
 
 # Ignore the LOINC versioned folder in the root
 /Loinc_2.82/
+GEMINI.md

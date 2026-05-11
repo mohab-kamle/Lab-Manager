@@ -51,7 +51,7 @@ const normalizePhone = (phoneStr) => {
             return phoneNumber.format('E.164');
         }
         // If not valid but starts with +, keep as is (best effort)
-        if (phoneStr.startsWith('+')) return phoneStr;
+        if (typeof phoneStr === 'string' && phoneStr.startsWith('+')) return phoneStr;
         return phoneStr; // Fallback
     } catch (e) {
         return phoneStr;
@@ -222,15 +222,14 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
             }
         }
 
-        // Fetch the updated patient with associated phones
-        const updatedPatient = await patient.findByPk(userId, {
-            where: { id: userId, lab_id: req.tenant.lab_id },
-            include: [{ model: phone_number, as: 'phones' }],
-            transaction
+        await transaction.commit();
+
+        // Re-fetch the updated patient with associated phones (after commit to ensure data integrity)
+        const finalPatient = await patient.findByPk(userId, {
+            include: [{ model: phone_number, as: 'phones' }]
         });
 
-        await transaction.commit();
-        res.json({ success: true, updatedUser: updatedPatient });
+        res.json({ success: true, updatedUser: finalPatient });
     } catch (error) {
         await transaction.rollback();
         console.error("Error updating patient profile:", error);
@@ -276,7 +275,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     {
                         model: phone_number,
                         as: 'phones',
-                        attributes: [['phone', 'phone_number'], 'type']
+                        attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
                     },
                     {
                         model: diseases,
@@ -454,12 +453,14 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             include: [
                 {
                     model: phone_number,
-                    as: 'phones'
+                    as: 'phones',
+                    attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
                 },
                 {
                     model: db.diseases,
                     as: 'diseases_id_diseases',
-                    through: { attributes: [] }
+                    through: { attributes: [] },
+                    attributes: ['id', 'name', 'details']
                 },
                 {
                     model: contract,
@@ -634,11 +635,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         await transaction.commit();
 
         // Fetch the updated patient with phone numbers and diseases (after commit)
-        const updatedPatient = await patient.findByPk(patientId, {
+        const finalPatient = await patient.findByPk(patientId, {
             include: [
                 {
                     model: phone_number,
-                    as: 'phones'
+                    as: 'phones',
+                    attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
                 },
                 {
                     model: db.diseases,
@@ -654,7 +656,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             ]
         });
 
-        res.json(updatedPatient);
+        res.json(finalPatient);
     } catch (error) {
         await transaction.rollback();
         console.error('Error updating patient:', error);
