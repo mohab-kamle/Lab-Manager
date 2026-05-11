@@ -10,12 +10,23 @@ As an **Administrator**, you have full access to configure and manage the LabMan
 ## Core Responsibilities
 
 ### Managing Users and Access
+<<<<<<< HEAD
 *   **Employees:** Add, modify, or remove employees (Chemists, Doctors, Employees, Receptionists).
 *   **Role Assignments:** Assign the correct roles to ensure proper data access security. Password strength and email verification rules apply.
 
 ### System Configuration
 *   **Branches & Contracts:** Define laboratory branches, set up corporate contracts, and configure specific pricing packages for contracted companies.
 *   **Laboratory Tests & Cultures:** Configure available tests, set reference ranges, map out antibiotic sensitivity parameters, and organize tests into logical Test Groups.
+=======
+*   **Employees:** Add, modify, or remove employees (Chemists, Employees, Receptionists).
+*   **Role Assignments:** Assign the correct roles to ensure proper data access security. Password strength and email verification rules apply.
+
+### System Configuration & Initialization
+*   **Database Seeding:** Admins can benefit from the system's one-click initialization script, which automatically provisions default admin accounts, essential medical antibiotics, and the comprehensive LOINC test catalog.
+*   **Branches & Contracts:** Define laboratory branches, set up corporate contracts, and configure specific pricing packages for contracted companies.
+*   **Laboratory Tests & Cultures:** Configure available tests, set reference ranges, map out antibiotic sensitivity parameters, and organize tests into logical Test Groups.
+*   **WhatsApp Integration Setup:** Configure WhatsApp API credentials for your specific laboratory tenant to allow seamless PDF report delivery to your patients.
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 ### Financial Oversight
 *   **Packages & Offers:** Create promotional packages or standard bundles.

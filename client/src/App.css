@@ -64,7 +64,11 @@
    Labs can override --lab-primary-color in their dark mode settings.
    If not provided, this auto-lightened value is used. */
 [data-bs-theme="dark"] {
+<<<<<<< HEAD
   --lab-primary-color: #6b8fd4;
+=======
+  --lab-primary-color: var(--color-primary-hover);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   --lab-secondary-color: var(--text-subtle);
 }
 
@@ -94,9 +98,15 @@
 
 /* Trial warning styles */
 .lab-layout .alert-warning {
+<<<<<<< HEAD
   background-color: var(--color-warning);
   border-color: var(--color-warning);
   color: #856404;
+=======
+  background-color: var(--toast-warning-bg);
+  border-color: var(--color-warning);
+  color: var(--toast-text);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .lab-layout .alert-danger {
@@ -119,7 +129,11 @@
 /* Navigation adjustments for lab context */
 .lab-layout .navbar {
   background-color: var(--bg-surface);
+<<<<<<< HEAD
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+=======
+  box-shadow: var(--shadow-sm);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .lab-layout .navbar-brand {
@@ -130,18 +144,22 @@
 /* Form elements with lab branding */
 .lab-layout .form-control:focus {
   border-color: var(--lab-primary-color);
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--pill-bg);
 }
 
 .lab-layout .form-select:focus {
   border-color: var(--lab-primary-color);
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  box-shadow: 0 0 0 0.2rem var(--pill-bg);
 }
 
 /* Card styles with lab branding */
 .lab-layout .card {
   border: 1px solid var(--border-muted);
+<<<<<<< HEAD
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+=======
+  box-shadow: var(--shadow-sm);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .lab-layout .card-header {
@@ -210,21 +228,34 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
+<<<<<<< HEAD
     background: linear-gradient(135deg, #004a93 0%, #0056b3 100%);
+=======
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     border: none;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+<<<<<<< HEAD
     box-shadow: 0 4px 20px rgba(0, 74, 147, 0.3);
+=======
+    box-shadow: var(--shadow-md);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     z-index: 1000;
     transition: all 0.3s ease;
 }
 
 .scroll-to-top-btn:hover {
+<<<<<<< HEAD
     background: linear-gradient(135deg, #0056b3 0%, #0066cc 100%);
     box-shadow: 0 6px 25px rgba(0, 74, 147, 0.4);
+=======
+    filter: brightness(1.1);
+    box-shadow: var(--shadow-lg);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     transform: translateY(-2px);
 }
 
@@ -299,8 +330,13 @@
 
 .image-preview-item:focus {
   outline: none;
+<<<<<<< HEAD
   box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); /* Bootstrap focus style */
   border-color: #86b7fe; /* Bootstrap focus border color */
+=======
+  box-shadow: 0 0 0 0.25rem var(--pill-bg);
+  border-color: var(--color-primary);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .image-preview-remove-btn {
@@ -320,13 +356,21 @@
   bottom: 0;
   left: 0;
   right: 0;
+<<<<<<< HEAD
   background: rgba(255, 255, 255, 0.9);
+=======
+  background: var(--bg-surface);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   font-size: 0.75rem;
   padding: 4px;
   text-align: center;
   opacity: 0;
   transition: opacity 0.2s ease-in-out;
+<<<<<<< HEAD
   border-top: 1px solid rgba(0,0,0,0.1);
+=======
+  border-top: 1px solid var(--border-muted);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .image-preview-item:hover .image-preview-name,

@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Container, Card, Table, Form, Row, Col, Button, InputGroup, Badge } from 'react-bootstrap';
+<<<<<<< HEAD
 import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Funnel, Trash } from 'react-bootstrap-icons';
+=======
+import { ArrowUpRight, ArrowDownLeft, Download, Funnel } from 'react-bootstrap-icons';
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 import api from '../../utils/api';
 import TransactionSummaryRow from '../../components/ui/TransactionSummaryRow';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -8,6 +12,11 @@ import { formatCurrency } from '../../utils/currencyFormatter';
 import { formatDateForInput } from '../../utils/dateFormatter';
 import { useToast } from '../../components/ui/ToastContext';
 import { useNavigate } from 'react-router-dom';
+<<<<<<< HEAD
+=======
+import Toolbar from '../../components/layout/Toolbar';
+import { Layers, User, MapPin, CreditCard, RotateCcw } from 'lucide-react';
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 const TransactionsVault = () => {
   const { toast } = useToast();
@@ -16,6 +25,13 @@ const TransactionsVault = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+<<<<<<< HEAD
+=======
+  // Pagination states for Toolbar
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   // Filtering states
   const [filters, setFilters] = useState({
     search: '',
@@ -62,6 +78,10 @@ const TransactionsVault = () => {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
+<<<<<<< HEAD
+=======
+    setCurrentPage(1);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   };
 
   const clearFilters = () => {
@@ -74,6 +94,10 @@ const TransactionsVault = () => {
       endDate: '',
       employee: ''
     });
+<<<<<<< HEAD
+=======
+    setCurrentPage(1);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   };
 
   const filteredTransactions = useMemo(() => {
@@ -100,12 +124,21 @@ const TransactionsVault = () => {
   const totals = useMemo(() => {
     return filteredTransactions.reduce((acc, curr) => {
       const amount = parseFloat(curr.amount) || 0;
+<<<<<<< HEAD
+=======
+      const change = parseFloat(curr.changeAmount) || 0;
+      
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       if (curr.processType?.toLowerCase() === 'refund') {
         acc.refunds += amount;
         acc.net -= amount;
       } else {
         acc.processed += amount;
+<<<<<<< HEAD
         acc.net += amount;
+=======
+        acc.net += (amount - change);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       }
       return acc;
     }, { processed: 0, refunds: 0, net: 0 });
@@ -114,6 +147,7 @@ const TransactionsVault = () => {
   const exportToCSV = () => {
     if (filteredTransactions.length === 0) return;
 
+<<<<<<< HEAD
     const headers = ['Transaction ID', 'Date', 'Type', 'Method', 'Amount', 'Patient', 'Branch', 'Processed By', 'Summary'];
     const rows = filteredTransactions.map(t => [
       t.transactionId,
@@ -126,6 +160,26 @@ const TransactionsVault = () => {
       t.processedBy?.name || 'N/A',
       t.summary || ''
     ]);
+=======
+    const headers = ['Transaction ID', 'Date', 'Type', 'Method', 'Amount', 'Change', 'Net Amount', 'Patient', 'Branch', 'Processed By', 'Summary'];
+    const rows = filteredTransactions.map(t => {
+      const amount = parseFloat(t.amount) || 0;
+      const change = parseFloat(t.changeAmount) || 0;
+      return [
+        t.transactionId,
+        new Date(t.date).toLocaleString(),
+        t.processType,
+        t.paidWith || 'N/A',
+        amount,
+        change,
+        amount - change,
+        t.patientId || 'N/A',
+        t.branchName,
+        t.processedBy?.name || 'N/A',
+        t.summary || ''
+      ];
+    });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
     const csvContent = "data:text/csv;charset=utf-8," 
       + headers.join(",") + "\n" 
@@ -206,6 +260,7 @@ const TransactionsVault = () => {
         </Col>
       </Row>
 
+<<<<<<< HEAD
       <Card className="border-0 shadow-sm mb-4">
         <Card.Body className="bg-light rounded">
           <Form>
@@ -289,6 +344,87 @@ const TransactionsVault = () => {
           </Form>
         </Card.Body>
       </Card>
+=======
+      <Toolbar
+        searchQuery={filters.search}
+        setSearchQuery={(val) => setFilters(prev => ({ ...prev, search: val }))}
+        dateFilter={{ startDate: filters.startDate, endDate: filters.endDate }}
+        setDateFilter={(val) => setFilters(prev => ({ ...prev, startDate: val.startDate, endDate: val.endDate }))}
+        showDateFilter={true}
+        itemsPerPage={itemsPerPage}
+        setItemsPerPage={setItemsPerPage}
+        setCurrentPage={setCurrentPage}
+      >
+        <div className="control-group">
+          <Layers size={16} className="icon-primary" />
+          <select 
+            name="processType" 
+            value={filters.processType} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Types</option>
+            <option value="Payment">Payment</option>
+            <option value="Refund">Refund</option>
+            <option value="Due">Due</option>
+            <option value="Credit">Credit</option>
+            <option value="Due Settlement">Due Settlement</option>
+          </select>
+        </div>
+
+        <div className="control-group">
+          <CreditCard size={16} className="icon-primary" />
+          <select 
+            name="paidWith" 
+            value={filters.paidWith} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Methods</option>
+            {paymentMethods.map(m => (
+              <option key={m.id} value={m.name}>{m.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="control-group">
+          <MapPin size={16} className="icon-primary" />
+          <select 
+            name="branch" 
+            value={filters.branch} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Branches</option>
+            {branches.map(b => (
+              <option key={b.id} value={b.name}>{b.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="control-group">
+          <User size={16} className="icon-primary" />
+          <select 
+            name="employee" 
+            value={filters.employee} 
+            onChange={handleFilterChange}
+            className="ui-input ui-select"
+          >
+            <option value="">All Employees</option>
+            {employees.map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <button 
+          onClick={clearFilters} 
+          className="btn btn-link btn-sm text-muted text-decoration-none d-flex align-items-center gap-1"
+        >
+          <RotateCcw size={14} /> Clear
+        </button>
+      </Toolbar>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       <Card className="border-0 shadow-sm overflow-hidden">
         <div className="table-responsive" style={{ maxHeight: '600px' }}>

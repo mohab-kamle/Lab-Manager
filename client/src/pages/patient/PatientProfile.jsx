@@ -30,17 +30,30 @@ import "../../styles/PatientProfile.css";
 
 const InfoBubble = ({ icon: Icon, label, value, delay }) => (
   <motion.div
+<<<<<<< HEAD
     className="d-flex align-items-center mb-3"
+=======
+    className="info-bubble"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     initial={{ x: -20, opacity: 0 }}
     animate={{ x: 0, opacity: 1 }}
     transition={{ delay }}
   >
+<<<<<<< HEAD
     <div className="info-icon-wrapper me-3 text-primary">
       <Icon size={24} />
     </div>
     <div>
       <div className="text-muted small">{label}</div>
       <div className="fw-bold">{value || "N/A"}</div>
+=======
+    <div className="bubble-icon">
+      <Icon size={22} />
+    </div>
+    <div className="info-content">
+      <div className="text-muted small opacity-75">{label}</div>
+      <div className="fw-bold text-theme">{value || "N/A"}</div>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     </div>
   </motion.div>
 );
@@ -88,10 +101,17 @@ const PatientProfile = () => {
               style={{ width: "100%", height: "100%" }}
             />
           </div>
+<<<<<<< HEAD
           <h1 className="welcome-text display-4">
             Hello, {user.name.split(" ")[0]}!
           </h1>
           <p className="lead text-muted">
+=======
+          <h1 className="welcome-text display-4 text-theme">
+            Hello, {user.name.split(" ")[0]}!
+          </h1>
+          <p className="lead text-muted opacity-75">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             Here's a look at your personal dashboard.
           </p>
         </motion.div>
@@ -143,7 +163,11 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
+<<<<<<< HEAD
                 <h5 className="mb-4 fw-bold text-secondary">
+=======
+                <h5 className="mb-4 fw-bold text-primary">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                   Personal Details
                 </h5>
                 <InfoBubble
@@ -175,19 +199,38 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
+<<<<<<< HEAD
                 <h5 className="mb-4 fw-bold text-secondary">Contact Info</h5>
                 <InfoBubble
                   icon={Telephone}
                   label="Mobile Number"
                   value={user.phones?.find(p => p.is_primary)?.phone || user.phones?.[0]?.phone}
+=======
+                <h5 className="mb-4 fw-bold text-primary">Contact Info</h5>
+                <InfoBubble
+                  icon={Telephone}
+                  label="Mobile Number"
+                  value={
+                    user.phones?.find(p => p.is_primary)?.phone || 
+                    user.phones?.find(p => p.is_primary)?.phone_number ||
+                    user.phones?.[0]?.phone ||
+                    user.phones?.[0]?.phone_number ||
+                    "N/A"
+                  }
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                   delay={0.4}
                 />
                 {user.phones?.filter(p => !p.is_primary).map((p, i) => (
                   <InfoBubble
                     key={i}
                     icon={Telephone}
+<<<<<<< HEAD
                     label={`Secondary Phone (${p.type})`}
                     value={p.phone}
+=======
+                    label={`Secondary Phone (${p.type || 'Other'})`}
+                    value={p.phone || p.phone_number}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     delay={0.4 + (i + 1) * 0.1}
                   />
                 ))}
@@ -210,7 +253,11 @@ const PatientProfile = () => {
                 variants={itemVariants}
                 className="patient-profile-card p-4"
               >
+<<<<<<< HEAD
                 <h5 className="mb-4 fw-bold text-secondary">
+=======
+                <h5 className="mb-4 fw-bold text-primary">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                   Official Documents
                 </h5>
                 <InfoBubble

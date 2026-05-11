@@ -73,8 +73,19 @@
 }
 
 /* Utility classes using new tokens */
+<<<<<<< HEAD
 .bg-theme-surface { background-color: var(--bg-surface); }
 .text-theme { color: var(--text-primary) !important; }
+=======
+.bg-theme-surface { background-color: var(--bg-surface) !important; }
+.bg-theme-inset { background-color: var(--bg-inset) !important; }
+.bg-theme-elevated { background-color: var(--bg-elevated) !important; }
+.text-theme { color: var(--text-primary) !important; }
+.text-muted-theme { color: var(--text-secondary) !important; }
+.hover-bg:hover { background-color: var(--hover-bg) !important; }
+.active-bg { background-color: var(--active-bg) !important; }
+.bg-subtle { background-color: var(--pill-bg) !important; }
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 /* =======================================================================
    AI SCAN BUTTON - PREMIUM AESTHETICS

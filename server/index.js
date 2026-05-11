@@ -109,8 +109,16 @@ const corsOptions = {
   maxAge: 86400 // 24 hours
 };
 
-app.use(express.json());
+// Apply specific large body limit only to WhatsApp report sending
+app.use("/whatsapp/send-report", express.json({ limit: '50mb' }));
 
+<<<<<<< HEAD
+=======
+// Revert global limits to a safer default
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 // Apply security headers with CSP for Socket.io
 app.use(helmet({
   contentSecurityPolicy: {
@@ -143,6 +151,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // =========================
+<<<<<<< HEAD
 // Static File Serving
 // =========================
 // Serve uploaded files (images, documents, etc.)
@@ -198,6 +207,31 @@ app.get('/uploads/private/:filename', authorizeFileAccess, async (req, res) => {
   }
 });
 
+=======
+// =========================
+// S3 File Access Routes
+// =========================
+
+// Serve PRIVATE files with authentication (medical reports, patient documents) via S3
+app.get('/uploads/private/:filename', authorizeFileAccess, async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    
+    // Map to S3 key
+    const s3Key = `private/uploads/${filename}`;
+    const s3Url = await getS3FileUrl(s3Key, false); // false = presigned URL for private
+    
+    // Return the pre-signed URL as JSON instead of a 302 redirect.
+    // A redirect followed by XHR triggers S3 CORS checks.
+    // The client assigns the URL directly to <img src>, which is not an XHR and bypasses CORS.
+    res.json({ url: s3Url });
+  } catch (error) {
+    console.error('Error generating S3 presigned URL for private file:', error);
+    res.status(500).json({ error: 'Failed to access file' });
+  }
+});
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 // Serve COMMENT IMAGES with authentication via S3
 app.get('/uploads/comment-images/:filename', authorizeFileAccess, async (req, res) => {
   try {
@@ -223,10 +257,13 @@ app.get('/uploads/comment-images/:filename', authorizeFileAccess, async (req, re
 // app.use('/uploads/comment-images', express.static(commentImagesPath, { ... }));
 // Access is now strictly controlled via authenticated route above
 
+<<<<<<< HEAD
 console.log('📁 Secure file serving configured:');
 console.log('  - Public files: /uploads/public (no auth required)');
 console.log('  - Private files: /uploads/private (auth required)');
 console.log('  - Comment images: /uploads/comment-images (auth required)');
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 // Headers for environment info
 app.use((req, res, next) => {
@@ -353,6 +390,10 @@ app.use("/register", require("./routes/register"));
 app.use("/payments", require("./routes/paymentsGateway"));
 app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
+<<<<<<< HEAD
+=======
+app.use("/whatsapp", require("./routes/whatsapp.routes"));
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 // Global error handler
 app.use((error, req, res, next) => {
@@ -391,7 +432,14 @@ router.get("/", authenticateUser, async (req, res) => {
         ],
       });
       if (user) {
+<<<<<<< HEAD
         const phones = await phone_number.findAll({ where: { patient_id: req.user.id } });
+=======
+        const phones = await phone_number.findAll({ 
+          where: { patient_id: req.user.id },
+          attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
+        });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         user = { ...user.get(), role: "patient", phones };
       }
     } else if (req.user.role === "doctor") {
@@ -409,7 +457,12 @@ router.get("/", authenticateUser, async (req, res) => {
         include: [
           {
             model: phone_number,
+<<<<<<< HEAD
             as: 'phones'
+=======
+            as: 'phones',
+            attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           }
         ]
       });

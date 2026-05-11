@@ -31,6 +31,7 @@ const registrationLimiter = rateLimit({
   message: { error: "Too many registration attempts, please try again later." }
 });
 
+<<<<<<< HEAD
 // Prevent email spam (Max 3 requests per 15 mins per IP)
 const forgotPasswordLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -65,4 +66,10 @@ module.exports = {
   forgotPasswordLimiter,
   verifyOtpLimiter,
   resetPasswordLimiter
+=======
+module.exports = {
+  globalLimiter,
+  loginLimiter,
+  registrationLimiter
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 };

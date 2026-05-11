@@ -169,7 +169,10 @@ server/
 
 - **admin** - System administrators
 - **chemist** - Laboratory chemists
+<<<<<<< HEAD
 - **doctor** - Medical doctors
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 - **employee** - General employees
 - **patient** - Patients
 - **receptionist** - Front desk staff
@@ -296,11 +299,18 @@ server/
 ### User Roles & Permissions
 
 1. **admin** - Full system access
+<<<<<<< HEAD
 2. **doctor** - Medical report access, patient data
 3. **chemist** - Laboratory operations, test management
 4. **receptionist** - Patient management, billing
 5. **employee** - Limited administrative access
 6. **patient** - Own data access only
+=======
+2. **chemist** - Laboratory operations, test management
+3. **receptionist** - Patient management, billing
+4. **employee** - Limited administrative access
+5. **patient** - Own data access only
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 ## Database Configuration
 

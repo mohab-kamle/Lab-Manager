@@ -14,7 +14,11 @@ import PhoneInput from "../../components/ui/PhoneInput";
 
 const PatientUpdateProfile = () => {
   const { toast } = useToast();
+<<<<<<< HEAD
   const { user, setUser } = useAuth();
+=======
+  const { user, updateUser } = useAuth();
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -81,7 +85,11 @@ const PatientUpdateProfile = () => {
       );
 
       if (response.data.success) {
+<<<<<<< HEAD
         setUser(response.data.updatedUser);
+=======
+        updateUser(response.data.updatedUser);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         toast.success("Profile updated successfully!");
         navigate(`/patient/profile`, { replace: true });
       } else {
@@ -144,7 +152,11 @@ const PatientUpdateProfile = () => {
                   onSubmit={handleSubmit}
                   enableReinitialize
                 >
+<<<<<<< HEAD
                   {({ isSubmitting }) => (
+=======
+                  {({ isSubmitting, values, setFieldValue }) => (
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     <FormikForm>
                       <Row>
                         <Col md={6}>
@@ -227,8 +239,13 @@ const PatientUpdateProfile = () => {
                               Phone Numbers
                             </Form.Label>
                             {values.phoneNumbers.map((phoneEntry, index) => (
+<<<<<<< HEAD
                               <div key={index} className="d-flex gap-2 mb-3 align-items-start">
                                 <div style={{ flex: 1 }}>
+=======
+                              <div key={index} className="d-flex flex-wrap gap-2 mb-3 align-items-center w-100">
+                                <div style={{ flex: '1 1 200px', minWidth: '0' }}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                   <PhoneInput
                                     value={phoneEntry.phone}
                                     onChange={(val) => {

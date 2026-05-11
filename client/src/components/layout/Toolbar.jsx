@@ -17,6 +17,10 @@ const Toolbar = ({
   typeFilter = "all",
   setTypeFilter,
   showTypeFilter = false,
+<<<<<<< HEAD
+=======
+  children,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }) => {
   const handleItemsPerPageChange = (e) => {
     const value = parseInt(e.target.value);
@@ -59,6 +63,10 @@ const Toolbar = ({
 
         {/* Right Side: Filters & Controls */}
         <div className="toolbar-right">
+<<<<<<< HEAD
+=======
+          {children}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
           {showTypeFilter && (
             <div className="control-group">

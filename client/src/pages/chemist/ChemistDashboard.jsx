@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert, Badge } from 'react-bootstrap';
-import { FlaskConical, FileText, Plus, Activity, TestTube, ClipboardList, Microscope, Beaker, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { FlaskConical, FileText, Plus, Activity, TestTube, ClipboardList, Microscope, Beaker, TrendingUp, AlertTriangle, CheckCircle, ScanBarcode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { resetNavbarTitles, resetNavbarActiveState } from '../../components/layout/MainNavBar';
+<<<<<<< HEAD
+=======
+import SampleQuickInfoModal from '../../components/samples/SampleQuickInfoModal';
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 const ChemistDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showScanModal, setShowScanModal] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -51,6 +56,12 @@ const ChemistDashboard = () => {
 
   const quickActions = [
     {
+      title: 'Scan Sample',
+      description: 'Quick scan a sample barcode',
+      icon: <ScanBarcode size={24} />,
+      action: () => setShowScanModal(true)
+    },
+    {
       title: 'Medical Reports',
       description: 'View and manage reports',
       icon: <FileText size={24} />,
@@ -77,6 +88,8 @@ const ChemistDashboard = () => {
   }
   
   return (
+    <>
+    <SampleQuickInfoModal show={showScanModal} onHide={() => setShowScanModal(false)} />
     <Container fluid className="py-4">
       <Row className="mb-4">
         <Col>
@@ -220,6 +233,7 @@ const ChemistDashboard = () => {
         </Col>
       </Row>
     </Container>
+    </>
   );
 };
 

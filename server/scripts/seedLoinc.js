@@ -2,7 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
 
+<<<<<<< HEAD
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+=======
+require('dotenv').config({ path: path.join(__dirname, '../../.env.development') });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 const { global_test_catalog, categories_test_and_culture } = require(path.join(__dirname, '../models')); 
 
 const getDataPath = (fileName) => path.join(__dirname, '../data', fileName);
@@ -47,7 +51,11 @@ async function runETL() {
   // PHASE 1: THE BASE LAYER 
   // ==========================================
   console.log("1. Extracting Core Tests...");
+<<<<<<< HEAD
   await processCSV(getDataPath('loinc.csv'), (row) => {
+=======
+  await processCSV(getDataPath('Loinc.csv'), (row) => {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     if (row.CLASSTYPE === '1' && row.STATUS === 'ACTIVE') {
       const isCulture = (row.CLASS === 'MICRO' || row.CLASS === 'ABXBACT');
       const cleanedTags = row.RELATEDNAMES2 ? row.RELATEDNAMES2.replace(/;/g, ' ') : '';
@@ -112,7 +120,11 @@ async function runETL() {
   // ==========================================
   if (missingChildrenIds.size > 0) {
     console.log(`3. Backfilling ${missingChildrenIds.size} missing subtests from loinc.csv...`);
+<<<<<<< HEAD
     await processCSV(getDataPath('loinc.csv'), (row) => {
+=======
+    await processCSV(getDataPath('Loinc.csv'), (row) => {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       if (missingChildrenIds.has(row.LOINC_NUM) && row.STATUS === 'ACTIVE') {
         const isCulture = (row.CLASS === 'MICRO' || row.CLASS === 'ABXBACT');
         const cleanedTags = row.RELATEDNAMES2 ? row.RELATEDNAMES2.replace(/;/g, ' ') : '';

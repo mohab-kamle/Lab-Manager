@@ -12,11 +12,19 @@
   transition: all 0.3s ease;
   padding: 0;
   overflow: hidden;
+<<<<<<< HEAD
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .theme-toggle-btn--light {
   background-color: #f3f4f6;
+=======
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-btn--light {
+  background-color: var(--bg-inset);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .theme-toggle-btn--dark {
@@ -39,14 +47,23 @@
 
 .theme-toggle-btn--light .theme-toggle-slider {
   transform: translateX(0);
+<<<<<<< HEAD
   background-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+=======
+  background-color: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .theme-toggle-btn--dark .theme-toggle-slider {
   transform: translateX(22px);
   background-color: var(--bg-elevated);
+<<<<<<< HEAD
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+=======
+  box-shadow: var(--shadow-sm);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .theme-toggle-icon-container {
@@ -62,7 +79,11 @@
 }
 
 .sun-icon {
+<<<<<<< HEAD
   color: #f59e0b;
+=======
+  color: var(--color-warning);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 }
 
 .moon-icon {

@@ -58,6 +58,11 @@ const sidebars = {
             'technical-guide/backend/server-readme',
             'technical-guide/backend/database-sync',
             'technical-guide/backend/sequelize-workflow',
+<<<<<<< HEAD
+=======
+            'technical-guide/backend/financial-logic',
+            'technical-guide/backend/ai-ocr',
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             'technical-guide/backend/fix-summary',
             'technical-guide/backend/index-fix-summary'
           ]
@@ -87,6 +92,10 @@ const sidebars = {
           label: 'Security',
           items: [
             'technical-guide/security/index',
+<<<<<<< HEAD
+=======
+            'technical-guide/security/tenant-security',
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             'technical-guide/security/security-notes'
           ]
         }

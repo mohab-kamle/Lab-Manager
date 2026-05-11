@@ -114,6 +114,7 @@ const PatientsAdminView = () => {
     discount_amount: 0,
     details: ""
   });
+  const [diseaseSearchTerm, setDiseaseSearchTerm] = useState("");
   const [newDisease, setNewDisease] = useState({
     name: "",
     details: ""
@@ -307,7 +308,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       await axios.delete(`${apiUrl}/patient/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -337,8 +337,13 @@ const PatientsAdminView = () => {
         'Nationality': patient.nationality,
         'Passport No': patient.passport_no,
         'Address': patient.address,
+<<<<<<< HEAD
         'Primary Phone': patient.phones?.[0]?.phone_number || '',
         'Secondary Phone': patient.phones?.[1]?.phone_number || '',
+=======
+        'Primary Phone': (patient.phones?.[0]?.phone || patient.phones?.[0]?.phone_number) || '',
+        'Secondary Phone': (patient.phones?.[1]?.phone || patient.phones?.[1]?.phone_number) || '',
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         'Total': patient.total ? `EGP ${parseFloat(patient.total).toFixed(2)}` : '',
         'Paid': patient.paid ? `EGP ${parseFloat(patient.paid).toFixed(2)}` : '',
         'Due': patient.due ? `EGP ${parseFloat(patient.due).toFixed(2)}` : '',
@@ -371,7 +376,6 @@ const PatientsAdminView = () => {
 
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/patient/import`, formData, {
         headers: {
@@ -406,7 +410,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       await axios.delete(`${apiUrl}/patient/bulk`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -435,7 +438,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const updateData = {};
       if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
@@ -483,16 +485,28 @@ const PatientsAdminView = () => {
   };
 
   const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const searchLower = searchQuery.toLowerCase();
+    const searchDigits = searchQuery.replace(/\D/g, "");
+    
+    const phones = patient.phones || [];
+    const phoneMatch = phones.some(p => {
+        const pNum = p.phone_number || p.phone || "";
+        return pNum.includes(searchQuery) || (searchDigits && pNum.replace(/\D/g, "").includes(searchDigits));
+    });
+
+    const matchesSearch = patient.name?.toLowerCase().includes(searchLower) ||
       patient.patientcode?.toString().includes(searchQuery) ||
-      patient.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      patient.national_id?.includes(searchQuery);
+      patient.email?.toLowerCase().includes(searchLower) ||
+      patient.national_id?.includes(searchQuery) ||
+      phoneMatch;
+      
     return matchesSearch;
   });
 
   const sortedPatients = [...filteredPatients].sort((a, b) => {
     if (!sortConfig.field) return 0;
 
+<<<<<<< HEAD
     const aValue = a[sortConfig.field];
     const bValue = b[sortConfig.field];
 
@@ -517,6 +531,30 @@ const PatientsAdminView = () => {
     }
 
     return 0;
+=======
+    let aValue = a[sortConfig.field];
+    let bValue = b[sortConfig.field];
+
+    // Handle null/undefined
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+
+    // Special handling for numeric fields (total, paid, due)
+    const numericFields = ["total", "paid", "due", "patientcode", "national_id"];
+    if (numericFields.includes(sortConfig.field)) {
+      const aNum = parseFloat(aValue) || 0;
+      const bNum = parseFloat(bValue) || 0;
+      return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
+    }
+
+    // Default string comparison (case-insensitive)
+    const aStr = String(aValue).toLowerCase();
+    const bStr = String(bValue).toLowerCase();
+
+    return sortConfig.direction === "asc"
+      ? aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
+      : bStr.localeCompare(aStr, undefined, { numeric: true, sensitivity: 'base' });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   });
 
   const pageCount = Math.ceil(sortedPatients.length / itemsPerPage);
@@ -621,7 +659,11 @@ const PatientsAdminView = () => {
         const primary = value.find(p => p.is_primary) || value[0];
         return (
           <div className="d-flex flex-column gap-1">
+<<<<<<< HEAD
             <span className="fw-bold">{primary.phone_number || primary.phone}</span>
+=======
+            <span className="fw-bold">{primary.phone || primary.phone_number}</span>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             {value.length > 1 && (
               <Badge bg="secondary" pill style={{ fontSize: '10px', width: 'fit-content' }}>
                 +{value.length - 1} more
@@ -722,7 +764,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/contracts`, newContract, {
         headers: { Authorization: `Bearer ${token}` }
@@ -760,23 +801,39 @@ const PatientsAdminView = () => {
 
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/diseases`, newDisease, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+<<<<<<< HEAD
       // Add new disease to the list
       setDiseases(prevDiseases => [...prevDiseases, response.data]);
 
       // Set the new disease as selected
       setPatient(prev => ({ ...prev, diseases: [...prev.diseases, response.data.id] }));
+=======
+      // Refetch diseases from server to ensure full synchronization
+      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const updatedDiseases = diseasesRes.data || [];
+      setDiseases(updatedDiseases);
+
+      // Set the new disease as selected (using the ID from the POST response)
+      const newDiseaseId = response.data.id;
+      if (!patient.diseases.includes(newDiseaseId)) {
+        setPatient(prev => ({ ...prev, diseases: [...prev.diseases, newDiseaseId] }));
+      }
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       setShowDiseaseCreateModal(false);
       setNewDisease({
         name: "",
         details: ""
       });
+      setDiseaseSearchTerm(""); // Clear search to show the new disease
+      toast.success("Disease added and selected");
     } catch (error) {
       console.error('Error creating disease:', error);
       toast.error(error.response?.data?.error || 'Failed to create disease');
@@ -997,11 +1054,17 @@ const PatientsAdminView = () => {
                         <Row>
                           <Col xs={4}>
                             <Form.Control
+<<<<<<< HEAD
                               type="number"
+=======
+                              type="text"
+                              inputMode="numeric"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                               placeholder="Day"
                               value={patient.birth_day}
                               onChange={(e) => {
                                 const day = e.target.value;
+<<<<<<< HEAD
                                 const newPatient = { ...patient, birth_day: day };
                                 if (day && patient.birth_month && patient.birth_year) {
                                   newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
@@ -1012,15 +1075,33 @@ const PatientsAdminView = () => {
                               min="1"
                               max="31"
                               className={formErrors.birth_date ? 'is-invalid' : ''}
+=======
+                                // Strictly allow only digits and validate range (1-31)
+                                if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
+                                  const newPatient = { ...patient, birth_day: day };
+                                  if (day && patient.birth_month && patient.birth_year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
+                                }
+                              }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             />
                           </Col>
                           <Col xs={4}>
                             <Form.Control
+<<<<<<< HEAD
                               type="number"
+=======
+                              type="text"
+                              inputMode="numeric"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                               placeholder="Month"
                               value={patient.birth_month}
                               onChange={(e) => {
                                 const month = e.target.value;
+<<<<<<< HEAD
                                 const newPatient = { ...patient, birth_month: month };
                                 if (patient.birth_day && month && patient.birth_year) {
                                   newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
@@ -1031,15 +1112,33 @@ const PatientsAdminView = () => {
                               min="1"
                               max="12"
                               className={formErrors.birth_date ? 'is-invalid' : ''}
+=======
+                                // Strictly allow only digits and validate range (1-12)
+                                if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
+                                  const newPatient = { ...patient, birth_month: month };
+                                  if (patient.birth_day && month && patient.birth_year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
+                                }
+                              }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             />
                           </Col>
                           <Col xs={4}>
                             <Form.Control
+<<<<<<< HEAD
                               type="number"
+=======
+                              type="text"
+                              inputMode="numeric"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                               placeholder="Year"
                               value={patient.birth_year}
                               onChange={(e) => {
                                 const year = e.target.value;
+<<<<<<< HEAD
                                 const newPatient = { ...patient, birth_year: year };
                                 if (patient.birth_day && patient.birth_month && year) {
                                   newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
@@ -1049,6 +1148,18 @@ const PatientsAdminView = () => {
                               }}
                               min="1900"
                               max={new Date().getFullYear()}
+=======
+                                // Strictly allow only digits and max 4 digits
+                                if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
+                                  const newPatient = { ...patient, birth_year: year };
+                                  if (patient.birth_day && patient.birth_month && year) {
+                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
+                                  }
+                                  setPatient(newPatient);
+                                  if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
+                                }
+                              }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                               className={formErrors.birth_date ? 'is-invalid' : ''}
                             />
                           </Col>
@@ -1142,8 +1253,13 @@ const PatientsAdminView = () => {
                   <Col md={12}>
                     <Form.Label>Phone Numbers *</Form.Label>
                     {patient.phoneNumbers.map((phoneEntry, index) => (
+<<<<<<< HEAD
                       <div key={index} className="d-flex gap-2 mb-2 align-items-start">
                         <div style={{ flex: 1 }}>
+=======
+                      <div key={index} className="d-flex flex-wrap gap-2 mb-2 align-items-center w-100">
+                        <div style={{ flex: '1 1 200px', minWidth: '0' }}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           <PhoneInput
                             value={phoneEntry.phone}
                             onChange={(val) => {
@@ -1155,7 +1271,11 @@ const PatientsAdminView = () => {
                           />
                         </div>
                         <Form.Select
+<<<<<<< HEAD
                           style={{ width: '130px' }}
+=======
+                          style={{ width: 'auto', flex: '0 1 120px' }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           value={phoneEntry.type}
                           onChange={(e) => {
                             const newPhones = [...patient.phoneNumbers];
@@ -1167,7 +1287,11 @@ const PatientsAdminView = () => {
                           <option value="work">Work</option>
                           <option value="home">Home</option>
                         </Form.Select>
+<<<<<<< HEAD
                         <div className="d-flex flex-column align-items-center">
+=======
+                        <div className="d-flex flex-column align-items-center justify-content-center" style={{ width: '40px' }}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           <Form.Check
                             type="radio"
                             name="primaryPhone"
@@ -1180,6 +1304,10 @@ const PatientsAdminView = () => {
                               setPatient({ ...patient, phoneNumbers: newPhones });
                             }}
                             title="Set as primary"
+<<<<<<< HEAD
+=======
+                            className="m-0"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           />
                           <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
                         </div>
@@ -1187,6 +1315,10 @@ const PatientsAdminView = () => {
                           <Button 
                             variant="outline-danger" 
                             size="sm"
+<<<<<<< HEAD
+=======
+                            className="mt-1 mt-md-0"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             onClick={() => {
                               const newPhones = patient.phoneNumbers.filter((_, i) => i !== index);
                               if (phoneEntry.is_primary && newPhones.length > 0) {
@@ -1221,6 +1353,7 @@ const PatientsAdminView = () => {
 
                 <Form.Group className="mb-3">
                   <Form.Label>Diseases</Form.Label>
+<<<<<<< HEAD
                   <div className="d-flex gap-2">
                     <Form.Select
                       multiple
@@ -1245,10 +1378,59 @@ const PatientsAdminView = () => {
                     >
                       <Plus size={16} />
                     </Button>
+=======
+                  <div className="mb-2">
+                    <div className="d-flex gap-2 mb-2">
+                      <Form.Control
+                        type="text"
+                        placeholder="Search diseases..."
+                        value={diseaseSearchTerm}
+                        onChange={(e) => setDiseaseSearchTerm(e.target.value)}
+                        className="flex-grow-1"
+                      />
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setShowDiseaseCreateModal(true)}
+                        title="Add New Disease"
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                    <div style={{ 
+                      maxHeight: "150px", 
+                      overflowY: "auto", 
+                      border: "1px solid var(--border-default)", 
+                      borderRadius: "4px", 
+                      padding: "8px",
+                      backgroundColor: "var(--bg-secondary)"
+                    }}>
+                      {Array.isArray(diseases) && diseases
+                        .filter(d => d.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase()))
+                        .map(disease => (
+                          <Form.Check
+                            key={disease.id}
+                            type="checkbox"
+                            id={`disease-${disease.id}`}
+                            label={`${disease.name}${disease.details ? ` (${disease.details})` : ""}`}
+                            checked={patient.diseases.includes(disease.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              const currentDiseases = patient.diseases || [];
+                              const updatedDiseases = isChecked
+                                ? [...currentDiseases, disease.id]
+                                : currentDiseases.filter(id => id !== disease.id);
+                              setPatient({ ...patient, diseases: updatedDiseases });
+                            }}
+                          />
+                        ))}
+                      {Array.isArray(diseases) && diseases.filter(d => d.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase())).length === 0 && (
+                        <div className="text-muted small text-center py-2">No diseases found</div>
+                      )}
+                    </div>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                   </div>
-                  <Form.Text className="text-muted">
-                    Hold Ctrl (or Cmd on Mac) to select multiple diseases
-                  </Form.Text>
+
                 </Form.Group>
 
                 <Row>
@@ -1314,6 +1496,7 @@ const PatientsAdminView = () => {
                           setPatient({ ...patient, due: val ? (-(Math.abs(parseFloat(val)))).toString() : "0" });
                         }}
                       />
+<<<<<<< HEAD
                     </Form.Group>
                   </Col>
 
@@ -1375,15 +1558,46 @@ const PatientsAdminView = () => {
                       <Form.Text className="text-muted">
                         Select an existing referral or add a new one
                       </Form.Text>
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     </Form.Group>
                   </Col>
+
                 </Row>
+                <Row><Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Contract</Form.Label>
+                    <div className="d-flex gap-2">
+                      <Form.Select
+                        value={patient.contract_id || ""}
+                        onChange={(e) => setPatient({ ...patient, contract_id: e.target.value || null })}
+                      >
+                        <option value="">Select Contract</option>
+                        {Array.isArray(contracts) && contracts.map(contract => (
+                          <option key={contract.id} value={contract.id}>
+                            {contract.name || `${contract.region} - ${contract.governorate}`} ({contract.discount_type})
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setShowContractModal(true)}
+                        title="Add New Contract"
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                    <Form.Text className="text-muted">
+                      Select an existing contract or add a new one
+                    </Form.Text>
+                  </Form.Group>
+                </Col></Row>
               </Form>
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onClick={() => {
                 setShowAddModal(false);
-                setError(null);
                 setShowRetryButton(false);
                 setLastAttemptedPatient(null);
                 setFormErrors({});
@@ -1785,8 +1999,13 @@ const PatientsAdminView = () => {
                   <Col md={12}>
                     <Form.Label>Phone Numbers *</Form.Label>
                     {newReferral.phoneNumbers.map((phoneEntry, index) => (
+<<<<<<< HEAD
                       <div key={index} className="d-flex gap-2 mb-2 align-items-start">
                         <div style={{ flex: 1 }}>
+=======
+                      <div key={index} className="d-flex flex-wrap gap-2 mb-2 align-items-center w-100">
+                        <div style={{ flex: '1 1 200px', minWidth: '0' }}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           <PhoneInput
                             value={phoneEntry.phone}
                             onChange={(val) => {
@@ -1798,7 +2017,11 @@ const PatientsAdminView = () => {
                           />
                         </div>
                         <Form.Select
+<<<<<<< HEAD
                           style={{ width: '130px' }}
+=======
+                          style={{ width: 'auto', flex: '0 1 120px' }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           value={phoneEntry.type}
                           onChange={(e) => {
                             const newPhones = [...newReferral.phoneNumbers];
@@ -1810,7 +2033,11 @@ const PatientsAdminView = () => {
                           <option value="work">Work</option>
                           <option value="home">Home</option>
                         </Form.Select>
+<<<<<<< HEAD
                         <div className="d-flex flex-column align-items-center">
+=======
+                        <div className="d-flex flex-column align-items-center justify-content-center" style={{ width: '40px' }}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           <Form.Check
                             type="radio"
                             name="referralPrimaryPhone"
@@ -1823,6 +2050,10 @@ const PatientsAdminView = () => {
                               setNewReferral({ ...newReferral, phoneNumbers: newPhones });
                             }}
                             title="Set as primary"
+<<<<<<< HEAD
+=======
+                            className="m-0"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           />
                           <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
                         </div>
@@ -1830,6 +2061,10 @@ const PatientsAdminView = () => {
                           <Button 
                             variant="outline-danger" 
                             size="sm"
+<<<<<<< HEAD
+=======
+                            className="mt-1 mt-md-0"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             onClick={() => {
                               const newPhones = newReferral.phoneNumbers.filter((_, i) => i !== index);
                               if (phoneEntry.is_primary && newPhones.length > 0) {

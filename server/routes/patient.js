@@ -51,7 +51,11 @@ const normalizePhone = (phoneStr) => {
             return phoneNumber.format('E.164');
         }
         // If not valid but starts with +, keep as is (best effort)
+<<<<<<< HEAD
         if (phoneStr.startsWith('+')) return phoneStr;
+=======
+        if (typeof phoneStr === 'string' && phoneStr.startsWith('+')) return phoneStr;
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         return phoneStr; // Fallback
     } catch (e) {
         return phoneStr;
@@ -222,6 +226,7 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
             }
         }
 
+<<<<<<< HEAD
         // Fetch the updated patient with associated phones
         const updatedPatient = await patient.findByPk(userId, {
             where: { id: userId, lab_id: req.tenant.lab_id },
@@ -231,6 +236,16 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
 
         await transaction.commit();
         res.json({ success: true, updatedUser: updatedPatient });
+=======
+        await transaction.commit();
+
+        // Re-fetch the updated patient with associated phones (after commit to ensure data integrity)
+        const finalPatient = await patient.findByPk(userId, {
+            include: [{ model: phone_number, as: 'phones' }]
+        });
+
+        res.json({ success: true, updatedUser: finalPatient });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     } catch (error) {
         await transaction.rollback();
         console.error("Error updating patient profile:", error);
@@ -276,7 +291,11 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     {
                         model: phone_number,
                         as: 'phones',
+<<<<<<< HEAD
                         attributes: [['phone', 'phone_number'], 'type']
+=======
+                        attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     },
                     {
                         model: diseases,
@@ -454,12 +473,18 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             include: [
                 {
                     model: phone_number,
+<<<<<<< HEAD
                     as: 'phones'
+=======
+                    as: 'phones',
+                    attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 },
                 {
                     model: db.diseases,
                     as: 'diseases_id_diseases',
-                    through: { attributes: [] }
+                    through: { attributes: [] },
+                    attributes: ['id', 'name', 'details']
                 },
                 {
                     model: contract,
@@ -634,11 +659,20 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         await transaction.commit();
 
         // Fetch the updated patient with phone numbers and diseases (after commit)
+<<<<<<< HEAD
         const updatedPatient = await patient.findByPk(patientId, {
             include: [
                 {
                     model: phone_number,
                     as: 'phones'
+=======
+        const finalPatient = await patient.findByPk(patientId, {
+            include: [
+                {
+                    model: phone_number,
+                    as: 'phones',
+                    attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 },
                 {
                     model: db.diseases,
@@ -654,7 +688,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             ]
         });
 
-        res.json(updatedPatient);
+        res.json(finalPatient);
     } catch (error) {
         await transaction.rollback();
         console.error('Error updating patient:', error);
@@ -710,6 +744,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
 });
 
 // Get all available diseases
+<<<<<<< HEAD
 router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist", "doctor"),
     // Add cache headers for 1 hour - diseases rarely change
     (req, res, next) => {
@@ -721,6 +756,12 @@ router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist"
     async (req, res) => {
         try {
             const diseasesList = await diseases.findAll({
+=======
+router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist", "doctor", "chemist", "employee"),
+    async (req, res) => {
+        try {
+            const diseasesList = await db.diseases.findAll({
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 attributes: ['id', 'name', 'details'],
                 order: [['name', 'ASC']]
             });
@@ -1156,7 +1197,29 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             return res.status(404).json({ error: "Patient not found" });
         }
 
+<<<<<<< HEAD
         res.json(foundPatient);
+=======
+        // Calculate gross debt and credit from individual bills
+        const patientBills = await bill.findAll({
+            where: { patient_id: patientId },
+            attributes: ['due']
+        });
+
+        let grossDebt = 0;
+        let grossCredit = 0;
+        patientBills.forEach(b => {
+            const d = parseFloat(b.due || 0);
+            if (d > 0) grossDebt += d;
+            else if (d < 0) grossCredit += Math.abs(d);
+        });
+
+        res.json({
+            ...foundPatient.toJSON(),
+            gross_debt: grossDebt,
+            gross_credit: grossCredit
+        });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     } catch (error) {
         console.error('Error fetching patient by ID:', error);
         res.status(500).json({

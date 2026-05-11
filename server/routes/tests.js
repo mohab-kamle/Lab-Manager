@@ -93,11 +93,19 @@ function buildStructureConfig(components) {
   return structureConfig;
 }
 
+<<<<<<< HEAD
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), async (req, res) => {
   try {
     console.log('Tests route accessed by user:', req.user.id, 'with role:', req.user.role);
+=======
+router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
+  try {
+    const lab_id = req.tenant.lab_id;
+    console.log('Tests route accessed by user:', req.user.id, 'for lab:', lab_id);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
     const testsList = await db.test.findAll({
+      where: { lab_id },
       include: [
         {
           model: db.categories_test_and_culture,
@@ -160,14 +168,30 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
       }
     }
 
+<<<<<<< HEAD
+=======
+    // Normalize and validate Lab-to-Lab fields
+    const normalizedStatus = (lab_to_lab_status && lab_to_lab_status.trim()) ? lab_to_lab_status.trim().toUpperCase() : null;
+    const normalizedLabName = (lab_name && lab_name.trim()) ? lab_name.trim() : null;
+
+    if (normalizedStatus === 'OUT' && !normalizedLabName) {
+      return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
+    }
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     const test = await db.test.create({
       lab_id,
       name,
       shortcut: shortcut || null, // Convert empty string to null
       price: price || 0.00, // Default to 0 if no price provided
       cost,
+<<<<<<< HEAD
       lab_to_lab_status,
       lab_name,
+=======
+      lab_to_lab_status: normalizedStatus,
+      lab_name: normalizedLabName,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       category_id,
       precautions,
       decreased_in,
@@ -193,6 +217,7 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
       }
     }
 
+<<<<<<< HEAD
     res.status(500).json({ error: 'Failed to create test' });
   }
 });
@@ -224,6 +249,43 @@ router.post('/bulk-delete', authenticateUser, authorizeRoles('admin'), tenantCon
 // Update a test
 router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
+=======
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({ error: error.errors[0].message });
+    }
+
+    res.status(500).json({ error: 'Failed to create test', details: error.message });
+  }
+});
+
+// Bulk Delete tests
+router.post('/bulk-delete', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
+  try {
+    const { testIds } = req.body;
+    const lab_id = req.tenant.lab_id;
+
+    if (!testIds || !Array.isArray(testIds) || testIds.length === 0) {
+      return res.status(400).json({ error: 'No valid test IDs provided' });
+    }
+
+    const deletedCount = await db.test.destroy({
+      where: {
+        id: testIds,
+        lab_id
+      }
+    });
+
+    res.json({ message: `Successfully deleted ${deletedCount} tests`, deletedCount });
+  } catch (error) {
+    console.error('Error in bulk delete:', error);
+    res.status(500).json({ error: 'Failed to delete tests in bulk' });
+  }
+});
+
+// Update a test
+router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
+  try {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     const {
       name,
       shortcut,
@@ -251,8 +313,19 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
     test.shortcut = shortcut !== undefined ? (shortcut || null) : test.shortcut; // Convert empty string to null
     test.price = price !== undefined ? price : test.price;
     test.cost = cost !== undefined ? cost : test.cost;
-    test.lab_to_lab_status = lab_to_lab_status !== undefined ? lab_to_lab_status : test.lab_to_lab_status;
-    test.lab_name = lab_name !== undefined ? lab_name : test.lab_name;
+    
+    // Normalize and validate Lab-to-Lab fields for update
+    if (lab_to_lab_status !== undefined) {
+      test.lab_to_lab_status = (lab_to_lab_status && lab_to_lab_status.trim()) ? lab_to_lab_status.trim().toUpperCase() : null;
+    }
+    
+    if (lab_name !== undefined) {
+      test.lab_name = (lab_name && lab_name.trim()) ? lab_name.trim() : null;
+    }
+
+    if (test.lab_to_lab_status === 'OUT' && !test.lab_name) {
+      return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
+    }
     test.category_id = category_id !== undefined ? category_id : test.category_id;
     test.precautions = precautions !== undefined ? precautions : test.precautions;
     test.decreased_in = decreased_in !== undefined ? decreased_in : test.decreased_in;
@@ -497,6 +570,7 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
             return {
               name: c.label || c.name || '',
               unit: c.unit || '',
+<<<<<<< HEAD
               normal_from: firstRange.min !== null && firstRange.min !== undefined ? firstRange.min : '',
               normal_to: firstRange.max !== null && firstRange.max !== undefined ? firstRange.max : '',
               c_low: '',
@@ -506,6 +580,18 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
               age_end: c.age_end || '',
               reference_range: c.reference_range || '',
               result_type: c.type === 'boolean' ? 'boolean' : 'range',
+=======
+              normal_from: (firstRange.min !== null && firstRange.min !== undefined) ? firstRange.min : (c.normal_from !== undefined ? c.normal_from : ''),
+              normal_to: (firstRange.max !== null && firstRange.max !== undefined) ? firstRange.max : (c.normal_to !== undefined ? c.normal_to : ''),
+              c_low: c.c_low || '',
+              c_high: c.c_high || '',
+              gender: firstRange.gender === 'Male' ? 'Male' : firstRange.gender === 'Female' ? 'Female' : (c.gender || 'Any'),
+              age_start: c.age_start || '',
+              age_end: c.age_end || '',
+              reference_range: c.reference_range || '',
+              reference_ranges: Array.isArray(c.reference_ranges) ? c.reference_ranges : [],
+              result_type: c.type === 'boolean' ? 'boolean' : c.type === 'culture_panel' ? 'culture_panel' : 'range',
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             };
           });
       }
@@ -556,14 +642,26 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
       }
       // Try to find by name
       let test = await db.test.findOne({ where: { name: row.Name, lab_id: req.tenant.lab_id } });
+<<<<<<< HEAD
+=======
+      
+      // Normalize Lab-to-Lab fields
+      const normalizedStatus = (row['Lab to Lab Status'] && row['Lab to Lab Status'].toString().trim()) 
+        ? row['Lab to Lab Status'].toString().trim().toUpperCase() 
+        : null;
+      const normalizedLabName = (row['Lab Name'] && row['Lab Name'].toString().trim()) 
+        ? row['Lab Name'].toString().trim() 
+        : null;
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       const testData = {
         lab_id: req.tenant.lab_id,
         name: row.Name,
         shortcut: row.Shortcut || null,
         price: row.Price || null,
         cost: row.Cost || null,
-        lab_to_lab_status: row['Lab to Lab Status'] || null,
-        lab_name: row['Lab Name'] || null,
+        lab_to_lab_status: normalizedStatus,
+        lab_name: normalizedLabName,
         category_id: row['Category ID'],
         precautions: row.Precautions || null,
         decreased_in: row['Decreased In'] || null,

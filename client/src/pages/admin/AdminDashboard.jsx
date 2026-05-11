@@ -25,8 +25,15 @@ import {
   Settings,
   User,
   Receipt,
+<<<<<<< HEAD
 } from "lucide-react";
 import SettlementModal from "../../components/settlement/SettlementModal";
+=======
+  ScanBarcode,
+} from "lucide-react";
+import SettlementModal from "../../components/settlement/SettlementModal";
+import SampleQuickInfoModal from "../../components/samples/SampleQuickInfoModal";
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import useLabPrefix from "../../hooks/useLabPrefix";
@@ -44,6 +51,10 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [showSettlementModal, setShowSettlementModal] = useState(false);
+<<<<<<< HEAD
+=======
+  const [showScanModal, setShowScanModal] = useState(false);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
@@ -68,6 +79,14 @@ const AdminDashboard = () => {
   const prefix = useLabPrefix();
   const actions = [
     {
+<<<<<<< HEAD
+=======
+      icon: <ScanBarcode size={20} />,
+      label: 'Scan Sample',
+      onClick: () => setShowScanModal(true),
+    },
+    {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       icon: <UserPlus size={20} />,
       label: 'Add Patient',
       onClick: () => navigate(`/admin/patients`),
@@ -109,6 +128,13 @@ const AdminDashboard = () => {
   }, []);
   return (
     <>
+<<<<<<< HEAD
+=======
+      <SampleQuickInfoModal
+        show={showScanModal}
+        onHide={() => setShowScanModal(false)}
+      />
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       <Container fluid className="py-3 px-2 px-md-4">
         <h2 className="mb-3 text-center text-md-center">Admin Dashboard</h2>
         {loading ? (
@@ -170,7 +196,11 @@ const AdminDashboard = () => {
             {/* Financial Stats */}
             <Row className="g-3 mb-3">
               <Col xs={6} sm={3}>
+<<<<<<< HEAD
                 <Card className=" text-center h-100 shadow-sm">
+=======
+                <Card className="text-center h-100 shadow-sm">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                   <Card.Body>
                     <div className="mb-2 text-success">
                       <DollarSign size={28} />

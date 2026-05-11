@@ -46,8 +46,14 @@ module.exports = {
       }
 
       // 5. Drop old redundant tables
+<<<<<<< HEAD
       await queryInterface.dropTable('referral', { transaction });
       await queryInterface.dropTable('lab_contracts_doctor', { transaction });
+=======
+      try { await queryInterface.dropTable('referral', { transaction }); } catch (e) { console.log('Skipped dropping referral table'); }
+      try { await queryInterface.dropTable('lab_contracts_doctor', { transaction }); } catch (e) { console.log('Skipped dropping lab_contracts_doctor table'); }
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       // 6. Re-enable FK checks
       await queryInterface.sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
@@ -65,8 +71,14 @@ module.exports = {
       await queryInterface.sequelize.query('SET FOREIGN_KEY_CHECKS = 0', { transaction });
 
       // Remove added columns
+<<<<<<< HEAD
       await queryInterface.removeColumn('bill', 'referred_doctor_id', { transaction });
       await queryInterface.removeColumn('doctor', 'contract_id', { transaction });
+=======
+      try { await queryInterface.removeColumn('bill', 'referred_doctor_id', { transaction }); } catch (e) {}
+      try { await queryInterface.removeColumn('doctor', 'contract_id', { transaction }); } catch (e) {}
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       // We cannot easily recreate the exact lost data for 'referral' and 'lab_contracts_doctor' in a down migration
       // but we can re-create the table schemas if necessary, omitted for simplicity 

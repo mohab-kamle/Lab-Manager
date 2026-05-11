@@ -25,6 +25,18 @@ This document outlines the current security status of the LabManager server appl
 - `routes/medical_reports.js`
 - `package.json` (removed xlsx dependency)
 
+<<<<<<< HEAD
+=======
+### ✅ Cloudflare Tunnel Credentials Leak (RESOLVED)
+
+**Issue**: A legacy file-based Cloudflare Tunnel configuration inadvertently exposed local tunnel credentials within the repository, triggering a GitGuardian security alert.
+
+**Resolution**:
+- Fully migrated the application's infrastructure to a modern, token-based Cloudflare Tunnel configuration.
+- The legacy file-based tunnel and associated directories have been purged.
+- Compromised tunnel credentials were fully rotated, invalidated from Cloudflare, and erased from the Git history/production infrastructure to restore stable, secure connectivity.
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 ## Current Known Vulnerabilities
 
 ### ⚠️ PM2 Regular Expression Denial of Service (Low Severity)
@@ -95,6 +107,10 @@ For security-related issues:
 
 ## Last Updated
 
+<<<<<<< HEAD
 **Date**: December 2024
+=======
+**Date**: May 2026
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 **Status**: 1 low-severity vulnerability remaining (PM2 ReDoS)
 **Action Required**: Monitor for PM2 updates

@@ -36,7 +36,92 @@ const {
 } = require("../services/excelService");
 const { extractMedicalData } = require("../services/llmService");
 const { extractRawTextFromImage } = require("../services/bedrockService");
+<<<<<<< HEAD
 const fs = require("fs");
+=======
+
+// Standard associations for medical report queries to ensure consistent response structure
+const standardIncludes = [
+  {
+    model: db.patient,
+    as: "patient",
+    attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+    include: [
+      {
+        model: db.phone_number,
+        as: "phones",
+        attributes: [["phone", "phone_number"], "type"],
+      },
+    ],
+  },
+  {
+    model: db.bill,
+    as: "bill",
+    attributes: ["id", "total", "paid", "due"],
+  },
+  {
+    model: db.chemist,
+    as: "signatory",
+    attributes: ["id"],
+    include: [
+      {
+        model: db.employee,
+        as: "id_employee",
+        attributes: ["id", "name"],
+      },
+    ],
+  },
+  {
+    model: db.admin,
+    as: "signatory_admin",
+    attributes: ["id"],
+    include: [
+      {
+        model: db.employee,
+        as: "id_employee",
+        attributes: ["id", "name"],
+      },
+    ],
+  },
+  {
+    model: db.branch,
+    as: "branch",
+    attributes: ["id", "name"],
+  },
+];
+
+/**
+ * Enriches a medical report object with computed fields (patient_name, tests_count, etc.)
+ * consistent with what the frontend table expects.
+ */
+function formatMedicalReport(report, tests = null) {
+  if (!report) return null;
+  const reportData = typeof report.get === 'function' ? report.get({ plain: true }) : report;
+
+  // Extract primary phone and attach it to patient object for frontend WhatsApp logic
+  let patientPhone = null;
+  if (reportData.patient && reportData.patient.phones && reportData.patient.phones.length > 0) {
+    const primary = reportData.patient.phones.find((p) => p.type === "primary");
+    patientPhone = primary
+      ? primary.phone_number
+      : reportData.patient.phones[0].phone_number;
+    reportData.patient.phone = patientPhone;
+  }
+
+  // Use provided tests or fall back to included tests
+  const reportTests = tests || reportData.tests || [];
+
+  return {
+    ...reportData,
+    patient_name: reportData.patient?.name || "Unknown Patient",
+    patient_phone: patientPhone,
+    tests: reportTests,
+    tests_count: reportTests.length,
+    cultures_count: reportData.cultures_count || 0,
+    invoice_id: reportData.bill?.id || null,
+  };
+}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 // Helper function to update medical report dates based on workflow stage
 async function updateMedicalReportDates(
@@ -88,7 +173,11 @@ async function updateMedicalReportDates(
 router.get(
   "/",
   authenticateUser,
+<<<<<<< HEAD
   authorizeRoles("admin", "chemist", "receptionist", "employee", "doctor"),
+=======
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   tenantContext,
   cacheMedicalReportsList, // Redis cache middleware for performance optimization
   async (req, res) => {
@@ -96,8 +185,12 @@ router.get(
       // Optimized: Fetch tests and cultures separately to avoid N+M Cartesian product in the main query
       // This is "Application-Side Join" which is often faster for complex includes
       // Safety check for tenant context
+<<<<<<< HEAD
       // For doctors, tenant context might not have lab_id, which is expected
       if (!req.tenant && req.user.role !== 'doctor') {
+=======
+      if (!req.tenant) {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         console.error('❌ Critical Error: req.tenant is undefined in medical_reports route');
         console.log('Headers:', req.headers);
         console.log('User:', req.user);
@@ -106,6 +199,7 @@ router.get(
 
       let whereClause = {};
 
+<<<<<<< HEAD
       if (req.user.role === 'doctor') {
         // Fetch all labs associated with this doctor
         const contracts = await db.lab_contracts_doctor.findAll({
@@ -124,6 +218,12 @@ router.get(
         }
         whereClause.lab_id = req.tenant.lab_id;
       }
+=======
+      if (!req.tenant.lab_id) {
+        return res.status(500).json({ error: "Tenant context missing lab_id" });
+      }
+      whereClause.lab_id = req.tenant.lab_id;
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       // Get medical_report_ids for the filtered labs
       const medicalReportIds = await db.medical_report
@@ -141,6 +241,7 @@ router.get(
           {
             model: db.patient,
             as: "patient",
+<<<<<<< HEAD
             attributes: ["id", "name", "patientcode", "birth_date", "gender"]
           },
           {
@@ -160,6 +261,34 @@ router.get(
             attributes: ["id"],
             include: [
               {
+=======
+            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+            include: [
+              {
+                model: db.phone_number,
+                as: "phones",
+                attributes: [["phone", "phone_number"], "type"]
+              }
+            ]
+          },
+          {
+            model: db.test,
+            as: "tests",
+            through: { attributes: [] },
+            attributes: ["id", "name"],
+          },
+          {
+            model: db.bill,
+            as: "bill",
+            attributes: ["id", "date"],
+          },
+          {
+            model: db.admin,
+            as: "signatory_admin",
+            attributes: ["id"],
+            include: [
+              {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 model: db.employee,
                 as: "id_employee",
                 attributes: ["id", "name"],
@@ -214,6 +343,7 @@ router.get(
       }
 
       // Add patient_name, counts, and test group counts to each report for easier access
+<<<<<<< HEAD
       const reportsWithPatientName = reports.map((report) => {
         const reportData = report.get({ plain: true });
         const reportTests = testsMap[reportData.id] || [];
@@ -226,6 +356,11 @@ router.get(
           invoice_id: reportData.bill?.id || null,
         };
       });
+=======
+      const reportsWithPatientName = reports.map((report) =>
+        formatMedicalReport(report, testsMap[report.id] || [])
+      );
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       console.log(`Found ${reports.length} medical reports`);
       res.json(reportsWithPatientName);
     } catch (error) {
@@ -239,7 +374,11 @@ router.get(
 router.get(
   "/:id",
   authenticateUser,
+<<<<<<< HEAD
   authorizeRoles("admin", "doctor", "chemist", "receptionist", "employee", "patient"),
+=======
+  authorizeRoles("admin", "chemist", "receptionist", "employee", "patient"),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   tenantContext,
   async (req, res) => {
     try {
@@ -249,6 +388,7 @@ router.get(
       // Optimized query for PDF generation - loads only essential data
       if (isPdfRequest) {
         let whereClause = { id: req.params.id };
+<<<<<<< HEAD
 
         if (req.user.role === 'doctor') {
           const contracts = await db.lab_contracts_doctor.findAll({
@@ -260,6 +400,12 @@ router.get(
         } else {
           whereClause.lab_id = req.tenant.lab_id;
         }
+=======
+        if (!req.tenant.lab_id) {
+          return res.status(500).json({ error: "Tenant context missing lab_id" });
+        }
+        whereClause.lab_id = req.tenant.lab_id;
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
         const report = await db.medical_report.findOne({
           where: whereClause,
@@ -389,6 +535,7 @@ router.get(
       // Full query for regular requests (non-PDF)
       let whereClause = { id: req.params.id };
 
+<<<<<<< HEAD
       if (req.user.role === 'doctor') {
         const contracts = await db.lab_contracts_doctor.findAll({
           where: { doctor_id: req.user.id },
@@ -445,6 +592,67 @@ router.get(
         return res.status(404).json({ error: "Medical report not found" });
       }
 
+=======
+      if (!req.tenant.lab_id) {
+        return res.status(500).json({ error: "Tenant context missing lab_id" });
+      }
+      whereClause.lab_id = req.tenant.lab_id;
+
+      const report = await db.medical_report.findOne({
+        where: whereClause,
+        attributes: [
+          "id",
+          "patient_id",
+          "lab_id",
+          "branch_id",
+          "registered_at",
+          "collected_at",
+          "received_at",
+          "reported_at",
+          "date",
+          "comment",
+          "signatory_name",
+          "signatory_id",
+          "signatory_admin_id",
+          "done",
+          "pending",
+          "prints_number",
+          "whatsapp_sends",
+        ],
+        include: [
+          {
+            model: db.patient,
+            as: "patient",
+            attributes: ["id", "name", "patientcode", "birth_date", "gender"],
+            include: [
+              {
+                model: db.phone_number,
+                as: "phones",
+                attributes: [["phone", "phone_number"], "type"],
+              },
+            ],
+          },
+          {
+            model: db.test,
+            as: "tests",
+            through: {
+              model: db.medical_report_has_test,
+              attributes: ["status", "result"],
+            },
+            attributes: ["id", "name", "structure_config", "type"],
+          },
+          {
+            model: db.bill,
+            as: "bill",
+            attributes: ["id", "date"],
+          },
+        ],
+      });
+      if (!report) {
+        return res.status(404).json({ error: "Medical report not found" });
+      }
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       // Security check for patients
       if (req.user.role === 'patient' && report.patient_id !== req.user.id) {
         return res.status(403).json({ error: "Access denied" });
@@ -517,12 +725,16 @@ router.get(
         });
       }
 
+<<<<<<< HEAD
       const enrichedReport = {
         ...reportData,
         tests_count: reportData.tests?.length || 0,
       };
 
       res.json(enrichedReport);
+=======
+      res.json(formatMedicalReport(report));
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     } catch (error) {
       console.error("Error fetching medical report:", error);
       res.status(500).json({ error: "Failed to fetch medical report" });
@@ -534,7 +746,11 @@ router.get(
 router.post(
   "/",
   authenticateUser,
+<<<<<<< HEAD
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+=======
+  authorizeRoles("admin", "chemist", "receptionist"),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   tenantContext,
   invalidateListCache, // Invalidate list cache when new medical report is created
   async (req, res) => {
@@ -575,6 +791,7 @@ router.post(
       }
       // Fetch the created report with associations
       const createdReport = await db.medical_report.findByPk(report.id, {
+<<<<<<< HEAD
         include: [
           {
             model: db.patient,
@@ -596,6 +813,9 @@ router.post(
               */
             ],
           },
+=======
+        include: standardIncludes.concat([
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           {
             model: db.test,
             as: "tests",
@@ -605,6 +825,7 @@ router.post(
             },
             attributes: ["id", "name"],
           },
+<<<<<<< HEAD
           {
             model: db.bill,
             as: "bill",
@@ -638,6 +859,12 @@ router.post(
       });
 
       res.status(201).json(createdReport);
+=======
+        ]),
+      });
+
+      res.status(201).json(formatMedicalReport(createdReport));
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     } catch (error) {
       console.error("Error creating medical report:", error);
       res.status(500).json({ error: "Failed to create medical report" });
@@ -649,7 +876,11 @@ router.post(
 router.put(
   "/:id",
   authenticateUser,
+<<<<<<< HEAD
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+=======
+  authorizeRoles("admin", "chemist", "receptionist"),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   tenantContext,
   invalidateMedicalReportCache, // Invalidate cache when medical report is updated
   invalidateListCache, // Invalidate list cache when medical report is updated
@@ -730,6 +961,7 @@ router.put(
 
       // Fetch the updated report with associations
       const updatedReport = await db.medical_report.findByPk(report.id, {
+<<<<<<< HEAD
         include: [
           {
             model: db.patient,
@@ -751,6 +983,9 @@ router.put(
               */
             ],
           },
+=======
+        include: standardIncludes.concat([
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           {
             model: db.test,
             as: "tests",
@@ -760,6 +995,7 @@ router.put(
             },
             attributes: ["id", "name"],
           },
+<<<<<<< HEAD
           {
             model: db.bill,
             as: "bill",
@@ -793,6 +1029,12 @@ router.put(
       });
 
       res.json(updatedReport);
+=======
+        ]),
+      });
+
+      res.json(formatMedicalReport(updatedReport));
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     } catch (error) {
       console.error("Error updating medical report:", error);
       res.status(500).json({ error: "Failed to update medical report" });
@@ -804,7 +1046,11 @@ router.put(
 router.delete(
   "/:id",
   authenticateUser,
+<<<<<<< HEAD
   authorizeRoles("admin", "doctor", "chemist", "receptionist"),
+=======
+  authorizeRoles("admin", "chemist", "receptionist"),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   tenantContext,
   invalidateListCache, // Invalidate list cache when medical report is deleted
   async (req, res) => {
@@ -962,6 +1208,7 @@ router.put(
 
       // Update culture results - removed (culture tables no longer exist)
 
+<<<<<<< HEAD
       // Fetch the updated report with all associations
       const updatedReport = await db.medical_report.findByPk(reportId, {
         include: [
@@ -970,6 +1217,11 @@ router.put(
             as: "patient",
             attributes: ["id", "name", "patientcode", "birth_date", "gender"],
           },
+=======
+      // Fetch the updated report with all associations using consistent enrichment
+      const updatedReport = await db.medical_report.findByPk(reportId, {
+        include: standardIncludes.concat([
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           {
             model: db.test,
             as: "tests",
@@ -979,6 +1231,7 @@ router.put(
             },
             attributes: ["id", "name"],
           },
+<<<<<<< HEAD
           {
             model: db.bill,
             as: "bill",
@@ -988,6 +1241,12 @@ router.put(
       });
 
       res.json(updatedReport);
+=======
+        ]),
+      });
+
+      res.json(formatMedicalReport(updatedReport));
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     } catch (error) {
       console.error("Error updating results:", error);
       res.status(500).json({ error: "Failed to update results" });
@@ -1065,6 +1324,7 @@ router.get(
   async (req, res) => {
     try {
       const reportId = req.params.id;
+<<<<<<< HEAD
 
       /** -----------------------------
        * 1. Fetch the report and related tests with the components
@@ -1143,6 +1403,72 @@ router.get(
         { replacements: [reportId] }
       );
 
+=======
+
+      /** -----------------------------
+       * 1. Fetch the report and related tests with the components
+       * ----------------------------- */
+
+      // Fetch test-level junction (result/status)
+      const [report, testJunctionRows] = await Promise.all([
+        db.medical_report.findOne({
+          where: { id: reportId, lab_id: req.tenant.lab_id },
+          attributes: [
+            "id",
+            "lab_id",
+            "branch_id",
+            "date",
+            "registered_at",
+            "collected_at",
+            "received_at",
+            "reported_at",
+            "done",
+            "pending",
+            "comment",
+            "signatory_id",
+            "signatory_admin_id",
+            "signatory_name",
+          ],
+          include: [
+            {
+              model: db.patient,
+              as: "patient",
+              attributes: ["id", "name", "birth_date", "gender", "patientcode"],
+              // db.referral has no registered association — omitted
+            },
+          ],
+        }),
+        db.medical_report_has_test.findAll({
+          where: { medical_report_id: reportId },
+          attributes: ["test_id", "result", "status"],
+          raw: true,
+        }),
+      ]);
+
+      if (!report) {
+        return res.status(404).json({ error: "Medical report not found" });
+      }
+
+      const reportData = report.get({ plain: true });
+      const testIds = testJunctionRows.map(r => r.test_id);
+      // Map of test_id -> { result, status }
+      const testComponentResultsMap = {};
+
+      const testJunctionMap = {};
+      testJunctionRows.forEach((row) => {
+        testJunctionMap[row.test_id] = {
+          result: row.result,
+          status: row.status,
+        };
+      });
+
+      // Raw query to get component results from the newly migrated table
+      const [componentResults] = await db.sequelize.query(
+        "SELECT test_id, parameter_key, result_value, clinical_flag FROM medical_report_results WHERE medical_report_id = ?",
+        { replacements: [reportId] }
+      );
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       componentResults.forEach((row) => {
         if (!testComponentResultsMap[row.test_id]) {
           testComponentResultsMap[row.test_id] = {};
@@ -1834,8 +2160,13 @@ router.post(
       }
 
       await t.commit();
+<<<<<<< HEAD
       res.status(201).json({ 
         success: true, 
+=======
+      res.status(201).json({
+        success: true,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         message: "Images uploaded successfully",
         images: imageRecords.map(img => path.basename(img.image_path))
       });
@@ -1898,7 +2229,11 @@ router.delete(
             else if (s3Key.includes('\\')) s3Key = `private/comment-images/${path.basename(s3Key)}`;
             await s3Client.send(new DeleteObjectCommand({ Bucket: s3Bucket, Key: s3Key }));
           } catch (e) {
+<<<<<<< HEAD
              console.error('Failed to delete comment image from S3', e);
+=======
+            console.error('Failed to delete comment image from S3', e);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           }
         }
       }
@@ -1924,7 +2259,11 @@ router.delete(
 router.get(
   "/:id/entry-form",
   authenticateUser,
+<<<<<<< HEAD
   authorizeRoles("admin", "doctor", "chemist", "employee"),
+=======
+  authorizeRoles("admin", "chemist", "employee"),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   tenantContext,
   async (req, res) => {
     try {
@@ -2166,8 +2505,13 @@ router.post(
       let expectedKeys = [];
       try {
         if (req.body.expectedKeys) {
+<<<<<<< HEAD
           expectedKeys = typeof req.body.expectedKeys === 'string' 
             ? JSON.parse(req.body.expectedKeys) 
+=======
+          expectedKeys = typeof req.body.expectedKeys === 'string'
+            ? JSON.parse(req.body.expectedKeys)
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             : req.body.expectedKeys;
         }
       } catch (e) {

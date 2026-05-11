@@ -18,11 +18,19 @@ import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
+<<<<<<< HEAD
 import PrintPDF, { DirectPDFDownload } from "../../components/pdf/PrintPDF";
+=======
+import PrintPDF, { DirectPDFDownload, generatePdfBase64 } from "../../components/pdf/PrintPDF";
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 import RichTextEditor from "../../components/ui/RichTextEditor";
 import ImageUpload from "../../components/ui/ImageUpload";
 import SecureImage from "../../components/ui/SecureImage";
 import DynamicResultForm from "../../components/tests/DynamicResultForm";
+<<<<<<< HEAD
+=======
+import SamplesListModal from "../../components/samples/SamplesListModal";
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 import {
   Pencil,
   CheckCircle,
@@ -38,8 +46,16 @@ import {
   ArrowUpWideNarrow,
   CircleX,
   Undo,
+<<<<<<< HEAD
   Wand2,
   Sparkles,
+=======
+  MessageCircle,
+  Wand2,
+  Sparkles,
+  Activity,
+  ScanBarcode,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 } from "lucide-react";
 import { extractFromImage } from "../../api/medicalReports";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
@@ -52,6 +68,10 @@ import {
 } from "../../utils/excelUtils";
 import { useLab } from "../../context/LabContext";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+<<<<<<< HEAD
+=======
+import SampleQuickInfoModal from "../../components/samples/SampleQuickInfoModal";
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 function calculateAge(birthDate) {
   if (!birthDate) return null;
@@ -90,8 +110,16 @@ const MedicalReports = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
+<<<<<<< HEAD
   const [editingReport, setEditingReport] = useState(null);
   const [reportToDelete, setReportToDelete] = useState(null);
+=======
+  const [showSamplesModal, setShowSamplesModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [editingReport, setEditingReport] = useState(null);
+  const [reportToDelete, setReportToDelete] = useState(null);
+  const [selectedReportForSamples, setSelectedReportForSamples] = useState(null);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedReportForResults, setSelectedReportForResults] =
     useState(null);
@@ -134,6 +162,10 @@ const MedicalReports = () => {
   const [savingComments, setSavingComments] = useState({ test: false, medicalReport: false });
   const [updatingReport, setUpdatingReport] = useState(false);
   const [deletingReport, setDeletingReport] = useState(false);
+<<<<<<< HEAD
+=======
+  const [sendingWhatsappId, setSendingWhatsappId] = useState(null); // reportId being sent via WhatsApp
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   const [markingCollected, setMarkingCollected] = useState(null); // reportId being marked
   const [savingResults, setSavingResults] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(null); // reportId for invoice loading
@@ -793,6 +825,7 @@ const MedicalReports = () => {
       const fullReport = reportResponse.data;
       const tests = fullReport.tests || [];
 
+<<<<<<< HEAD
       // Build test component results defaults
       // The new endpoint returns results in the shape: results: { [parameter_key]: { value, clinical_flag } }
       const transformedTestComponentResults = {};
@@ -806,6 +839,33 @@ const MedicalReports = () => {
             let resolvedVal = data.value;
             if (resolvedVal && typeof resolvedVal === 'object' && resolvedVal.result !== undefined) {
               resolvedVal = resolvedVal.result; // unwrap legacy format
+=======
+      // Prepare initial results data
+      const initialTestResults = [];
+      const transformedTestComponentResults = {};
+      
+      tests.forEach((test) => {
+        transformedTestComponentResults[test.id] = {};
+        
+        if (test.results) {
+          // Check if this test has a simple 'result' (fallback type)
+          // or if it has component results
+          if (test.results.result !== undefined) {
+            initialTestResults.push({
+              test_id: test.id,
+              result: test.results.result,
+              status: test.results.status || 'pending'
+            });
+          }
+
+          // Also populate component results if they exist
+          Object.entries(test.results).forEach(([key, data]) => {
+            if (key === 'result' || key === 'status' || key === 'clinical_flag') return;
+            
+            let resolvedVal = data.value;
+            if (resolvedVal && typeof resolvedVal === 'object' && resolvedVal.result !== undefined) {
+              resolvedVal = resolvedVal.result;
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             }
             transformedTestComponentResults[test.id][key] = {
               result: resolvedVal,
@@ -815,6 +875,7 @@ const MedicalReports = () => {
         }
       });
 
+<<<<<<< HEAD
       let activeTabToSet = "tests"; // default
       if (tests.length > 0) {
         activeTabToSet = "tests";
@@ -823,6 +884,10 @@ const MedicalReports = () => {
       // Prepare initial results data
       const initialResultsData = {
         test_results: [],
+=======
+      const initialResultsData = {
+        test_results: initialTestResults,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         culture_results: [],
         test_component_results: transformedTestComponentResults,
       };
@@ -840,7 +905,11 @@ const MedicalReports = () => {
       setTestComponents({}); // Not needed in new architecture
       setSelectedReportForResults(reportForState);
       setResultsData(initialResultsData);
+<<<<<<< HEAD
       setActiveTab(activeTabToSet);
+=======
+      setActiveTab("tests");
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       // Culture states cleared - using structure_config from tests instead
 
@@ -872,9 +941,16 @@ const MedicalReports = () => {
 
       // Prepare test results data to avoid concurrent DB locking
       const saveRequests = [];
+<<<<<<< HEAD
       Object.entries(resultsData.test_component_results || {}).forEach(
         ([testId, components]) => {
           // Format the results object as { [parameter_key]: result_value }
+=======
+      
+      // 1. Process test_component_results (dynamic and multi-component tests)
+      Object.entries(resultsData.test_component_results || {}).forEach(
+        ([testId, components]) => {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           const formattedResults = {};
           let hasResults = false;
 
@@ -891,6 +967,24 @@ const MedicalReports = () => {
         }
       );
 
+<<<<<<< HEAD
+=======
+      // 2. Process test_results (simple tests / fallbacks)
+      // We only add them if they aren't already covered by test_component_results
+      // to avoid redundant API calls, although the backend handles both.
+      (resultsData.test_results || []).forEach((tr) => {
+        // If this testId already has a request in saveRequests, it might be a component test.
+        // However, for simple tests, we need to send { results: { result: tr.result } }
+        const existingReq = saveRequests.find(req => req.testId === tr.test_id);
+        if (!existingReq && tr.result !== undefined && tr.result !== null && tr.result !== '') {
+          saveRequests.push({
+            testId: tr.test_id,
+            formattedResults: { result: tr.result }
+          });
+        }
+      });
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       // Show loading state
       const toastId = toast.loading("Saving results...");
 
@@ -950,9 +1044,24 @@ const MedicalReports = () => {
       const toastId = toast.loading("AI is scanning and extracting data...");
 
       // Get expected parameters to help the AI map correctly
+<<<<<<< HEAD
       const expectedKeys = selectedReportForResults.tests.flatMap(test =>
         (test.structure_config || []).map(p => p.label || p.name || p.key)
       );
+=======
+      const expectedKeys = selectedReportForResults.tests.flatMap(test => {
+        const testKeys = [test.name]; // Include test name itself for simple tests
+
+        const configKeys = (test.structure_config || [])
+          .filter(p => p.type !== 'header')
+          .map(p => p.label || p.name || p.key);
+
+        const componentKeys = (testComponents[test.id] || [])
+          .map(c => c.label || c.name);
+
+        return [...testKeys, ...configKeys, ...componentKeys];
+      });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       const extractedData = await extractFromImage(file, expectedKeys);
 
@@ -965,6 +1074,7 @@ const MedicalReports = () => {
         return;
       }
 
+<<<<<<< HEAD
       const newComponentResults = { ...resultsData.test_component_results };
       let matchCount = 0;
 
@@ -1009,6 +1119,100 @@ const MedicalReports = () => {
         ...prev,
         test_component_results: newComponentResults
       }));
+=======
+      let finalMatchCount = 0;
+
+      setResultsData(prev => {
+        const newTestResults = [...prev.test_results];
+        const newComponentResults = { ...prev.test_component_results };
+
+        // Standardize both sides for comparison
+        const normalize = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        Object.entries(extractedData).forEach(([aiKey, aiValue]) => {
+          if (aiValue === null || aiValue === undefined) return;
+          const normalizedAiKey = normalize(aiKey);
+
+          // Map AI data to existing report structure
+          selectedReportForResults.tests.forEach(test => {
+            const normalizedTestName = normalize(test.name);
+            
+            // 1. Try to match the test itself (for simple tests without components)
+            if (normalizedTestName === normalizedAiKey) {
+              const existingIndex = newTestResults.findIndex(tr => tr.test_id === test.id);
+              if (existingIndex !== -1) {
+                newTestResults[existingIndex] = { ...newTestResults[existingIndex], result: aiValue };
+              } else {
+                newTestResults.push({ test_id: test.id, result: aiValue, status: 'pending' });
+              }
+              finalMatchCount++;
+            }
+
+            // Create a new object for this test's component results
+            const currentTestResults = { ...(newComponentResults[test.id] || {}) };
+            const structureConfig = test.structure_config || [];
+            const comps = testComponents[test.id] || [];
+            let testComponentMatched = false;
+
+            // 2. Try to find a matching parameter in the structure config
+            let param = structureConfig.find(p => {
+              const normKey = normalize(p.key);
+              const normName = normalize(p.name);
+              const normLabel = normalize(p.label);
+
+              return normKey === normalizedAiKey ||
+                normName === normalizedAiKey ||
+                normLabel === normalizedAiKey ||
+                (normalizedAiKey.length > 3 && normLabel && (normLabel.includes(normalizedAiKey) || normalizedAiKey.includes(normLabel)));
+            });
+
+            if (param && param.type !== 'header') {
+              const key = param.key || param.name;
+              currentTestResults[key] = {
+                ...(currentTestResults[key] || {}),
+                result: aiValue
+              };
+              testComponentMatched = true;
+            }
+
+            // 3. If no structure config match, try matching against simple components
+            const component = comps.find(c => {
+              const normName = normalize(c.name);
+              const normLabel = normalize(c.label);
+              return normName === normalizedAiKey || normLabel === normalizedAiKey;
+            });
+
+            if (component) {
+              currentTestResults[component.id] = {
+                ...(currentTestResults[component.id] || {}),
+                result: aiValue
+              };
+              
+              if (component.name && component.name !== component.id) {
+                currentTestResults[component.name] = {
+                  ...(currentTestResults[component.name] || {}),
+                  result: aiValue
+                };
+              }
+              testComponentMatched = true;
+            }
+
+            if (testComponentMatched) {
+              finalMatchCount++;
+              newComponentResults[test.id] = currentTestResults;
+            }
+          });
+        });
+
+        return {
+          ...prev,
+          test_results: newTestResults,
+          test_component_results: newComponentResults
+        };
+      });
+
+      const matchCount = finalMatchCount;
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
       if (matchCount > 0) {
         toast.update(toastId, {
@@ -1038,6 +1242,7 @@ const MedicalReports = () => {
   // Note: Status calculation is now handled by the backend automatically
 
   const updateTestResult = (testId, result) => {
+<<<<<<< HEAD
     // Backend will calculate status automatically, so we only update the result
     setResultsData((prev) => ({
       ...prev,
@@ -1045,6 +1250,30 @@ const MedicalReports = () => {
         tr.test_id === testId ? { ...tr, result } : tr
       ),
     }));
+=======
+    setResultsData((prev) => {
+      const existingIndex = prev.test_results.findIndex((tr) => tr.test_id === testId);
+      let newTestResults;
+      
+      if (existingIndex !== -1) {
+        // Update existing
+        newTestResults = prev.test_results.map((tr, idx) =>
+          idx === existingIndex ? { ...tr, result } : tr
+        );
+      } else {
+        // Add new
+        newTestResults = [
+          ...prev.test_results,
+          { test_id: testId, result, status: "pending" }
+        ];
+      }
+      
+      return {
+        ...prev,
+        test_results: newTestResults,
+      };
+    });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   };
 
   const updateTestComponentResult = (testId, componentId, result) => {
@@ -1106,6 +1335,7 @@ const MedicalReports = () => {
   };
 
   const filteredReports = reports.filter((report) => {
+<<<<<<< HEAD
     const searchMatch = searchQuery
       ? report.comment?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       report.patient?.name
@@ -1113,6 +1343,24 @@ const MedicalReports = () => {
         .includes(searchQuery.toLowerCase()) ||
       report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
+=======
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Only search if the query is non-empty and non-trivial
+    let searchMatch = true;
+    if (searchQuery.trim()) {
+      // Ignore very short trivial numeric searches if they don't seem to be part of a meaningful code/id
+      // We explicitly check the specific fields we want to allow searching
+      const searchableFields = [
+        report.comment?.toLowerCase(),
+        report.patient?.name?.toLowerCase(),
+        report.signatory_name?.toLowerCase(),
+        report.patient?.patientcode?.toString()
+      ];
+
+      searchMatch = searchableFields.some(field => field?.includes(searchLower));
+    }
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
     const dateMatch =
       (!filters.startDate ||
@@ -1157,12 +1405,85 @@ const MedicalReports = () => {
     currentPage * itemsPerPage
   );
 
+<<<<<<< HEAD
+=======
+  const handleSendWhatsapp = async (reportData) => {
+    try {
+      if (!reportData.patient?.phone) {
+        toast.warning("Patient does not have a registered phone number.");
+        return;
+      }
+      setSendingWhatsappId(reportData.id);
+
+      // Extract Base64 from PrintPDF
+      const pdfBase64 = await generatePdfBase64(reportData.id, reportData.patient, apiUrl);
+      
+      if (!pdfBase64) {
+        throw new Error("Failed to generate PDF. Please try again.");
+      }
+
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Make request to backend
+      console.log(`[Frontend] Sending WhatsApp report for ${reportData.id} to ${reportData.patient.phone}`);
+      
+      const response = await axios.post(
+        `${apiUrl}/whatsapp/send-report`,
+        {
+          labId: labInfo?.id || user.lab_id,
+          patientId: reportData.patient.id,
+          reportId: reportData.id,
+          phone: reportData.patient.phone,
+          pdfBase64: pdfBase64,
+        },
+        { headers }
+      );
+
+      if (response.data.success) {
+        toast.success(response.data.message || "Report sent successfully via WhatsApp!");
+
+        // Update the local report's whatsapp_sends count so the table reflects it immediately
+        setReports((prevReports) =>
+          prevReports.map((r) =>
+            r.id === reportData.id
+              ? { ...r, whatsapp_sends: (r.whatsapp_sends || 0) + 1 }
+              : r
+          )
+        );
+      } else {
+        throw new Error(response.data.message || "Backend processed request but delivery status is unknown.");
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp:", error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || "Failed to send report via WhatsApp.";
+      toast.error(errorMsg);
+    } finally {
+      setSendingWhatsappId(null);
+    }
+  };
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   const ActionComponent = ({ rowData }) => {
     return (
       <div className="d-flex gap-1 justify-content-center">
         <Button
           variant="outline-primary"
           className="action-btn-fixed"
+<<<<<<< HEAD
+=======
+          onClick={() => {
+            setSelectedReportForSamples(rowData);
+            setShowSamplesModal(true);
+          }}
+          title="Sample Tracking"
+        >
+          <Activity size={16} />
+        </Button>
+        <Button
+          variant="outline-primary"
+          className="action-btn-fixed"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           onClick={() => handleEdit(rowData)}
           title="Edit Report"
         >
@@ -1262,6 +1583,28 @@ const MedicalReports = () => {
           />
         </div>
 
+<<<<<<< HEAD
+=======
+        {/* Send via WhatsApp Button */}
+        <Button
+          variant="outline-success"
+          className="action-btn-fixed"
+          onClick={() => handleSendWhatsapp(rowData)}
+          title="Send via WhatsApp"
+          disabled={sendingWhatsappId === rowData.id}
+        >
+          {sendingWhatsappId === rowData.id ? (
+            <div
+              className="spinner-border spinner-border-sm"
+              role="status"
+              style={{ width: "12px", height: "12px" }}
+            />
+          ) : (
+            <MessageCircle size={16} />
+          )}
+        </Button>
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         {/* PDF Preview Button */}
         <Button
           variant="outline-secondary"
@@ -1408,16 +1751,37 @@ const MedicalReports = () => {
   };
 
   return (
+<<<<<<< HEAD
     <Container fluid className="medical-reports-container">
       {loading ? (
         <LoadingSpinner message="Loading medical reports..." />
       ) : error ? (
         <Alert variant="danger">{error}</Alert>
       ) : (
+=======
+    <>
+      <SampleQuickInfoModal
+        show={showScanModal}
+        onHide={() => setShowScanModal(false)}
+      />
+      <Container fluid className="medical-reports-container">
+        {loading ? (
+          <LoadingSpinner message="Loading medical reports..." />
+        ) : error ? (
+          <Alert variant="danger">{error}</Alert>
+        ) : (
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         <>
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
             <h2>Medical Reports</h2>
             <div className="d-flex gap-2 flex-wrap">
+<<<<<<< HEAD
+=======
+              <Button variant="outline-primary" onClick={() => setShowScanModal(true)}>
+                <ScanBarcode size={16} className="me-2" />
+                Scan Sample
+              </Button>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
               <Button variant="outline-success" as="label">
                 <Download size={16} className="me-2" />
                 Export XLSX
@@ -1998,8 +2362,29 @@ const MedicalReports = () => {
                           selectedReportForResults.tests.length > 0 && (
                             <div className="mb-4">
                               <h5>Tests</h5>
+<<<<<<< HEAD
                               {selectedReportForResults.tests.map(
                                 (test, testIndex) => {
+=======
+                              {(() => {
+                                // Pre-calculate test results map for faster lookup in the loop
+                                const testResultsMap = (resultsData.test_results || []).reduce((acc, tr) => {
+                                  acc[tr.test_id] = tr;
+                                  return acc;
+                                }, {});
+
+                                // Pre-calculate component results maps for faster lookup and stability
+                                const componentResultsMaps = Object.entries(resultsData.test_component_results || {}).reduce((acc, [testId, components]) => {
+                                  acc[testId] = Object.entries(components || {}).reduce((cAcc, [compId, data]) => {
+                                    cAcc[compId] = data?.result;
+                                    return cAcc;
+                                  }, {});
+                                  return acc;
+                                }, {});
+
+                                return selectedReportForResults.tests.map(
+                                  (test, testIndex) => {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                   const comps = testComponents[test.id] || [];
                                   const patientAge = calculateAge(
                                     selectedReportForResults.patient?.birth_date
@@ -2080,12 +2465,16 @@ const MedicalReports = () => {
                                               age_unit: "years"
                                             }}
                                             antibioticsList={antibiotics}
+<<<<<<< HEAD
                                             value={Object.entries(
                                               resultsData.test_component_results[test.id] || {}
                                             ).reduce((acc, [k, data]) => {
                                               acc[k] = data?.result;
                                               return acc;
                                             }, {})}
+=======
+                                            value={componentResultsMaps[test.id] || {}}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                             onChange={(flatResults) => {
                                               handleDynamicResultChange(test.id, flatResults);
                                             }}
@@ -2234,7 +2623,11 @@ const MedicalReports = () => {
                                         </div>
                                       ) : (
                                         // Fallback for tests without components
+<<<<<<< HEAD
                                         <Row className="mb-2">
+=======
+                                        <Row key={test.id} className="mb-2">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                           <Col md={3}>
                                             <strong>{test.name}</strong>
                                           </Col>
@@ -2242,6 +2635,7 @@ const MedicalReports = () => {
                                           <Col md={2}></Col>
                                           <Col md={3}>
                                             <Form.Control
+<<<<<<< HEAD
                                               type="number"
                                               step="0.01"
                                               placeholder="Enter result"
@@ -2250,6 +2644,11 @@ const MedicalReports = () => {
                                                   (tr) => tr.test_id === test.id
                                                 )?.result || ""
                                               }
+=======
+                                              type="text"
+                                              placeholder="Enter result"
+                                              value={testResultsMap[test.id]?.result || ""}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                               onChange={(e) =>
                                                 updateTestResult(
                                                   test.id,
@@ -2261,6 +2660,7 @@ const MedicalReports = () => {
                                           <Col md={2}>
                                             <Badge
                                               bg={getStatusBadgeColor(
+<<<<<<< HEAD
                                                 resultsData.test_results.find(
                                                   (tr) => tr.test_id === test.id
                                                 )?.status || "pending"
@@ -2269,6 +2669,12 @@ const MedicalReports = () => {
                                               {resultsData.test_results.find(
                                                 (tr) => tr.test_id === test.id
                                               )?.status || "pending"}
+=======
+                                                testResultsMap[test.id]?.status || "pending"
+                                              )}
+                                            >
+                                              {testResultsMap[test.id]?.status || "pending"}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                             </Badge>
                                           </Col>
                                         </Row>
@@ -2397,8 +2803,13 @@ const MedicalReports = () => {
                                       </div>
                                     </div>
                                   );
+<<<<<<< HEAD
                                 }
                               )}
+=======
+                                });
+                              })()}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             </div>
                           )}
                       </Tab>
@@ -2573,9 +2984,25 @@ const MedicalReports = () => {
               </Button>
             </Modal.Footer>
           </Modal>
+<<<<<<< HEAD
         </>
       )}
     </Container>
+=======
+
+          <SamplesListModal
+            show={showSamplesModal}
+            onHide={() => {
+              setShowSamplesModal(false);
+              setSelectedReportForSamples(null);
+            }}
+            report={selectedReportForSamples}
+          />
+        </>
+      )}
+    </Container>
+    </>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   );
 };
 

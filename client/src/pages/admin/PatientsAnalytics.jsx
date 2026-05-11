@@ -68,7 +68,23 @@ const PatientsAnalytics = () => {
     
     // Gender distribution
     const genderStats = patientsData.reduce((acc, patient) => {
+<<<<<<< HEAD
       const gender = patient.gender === 'm' ? 'Male' : patient.gender === 'f' ? 'Female' : 'Unknown';
+=======
+      let gender;
+      switch (patient.gender?.toLowerCase()) {
+        case 'm':
+        case 'male':
+          gender = 'Male';
+          break;
+        case 'f':
+        case 'female':
+          gender = 'Female';
+          break;
+        default:
+          gender = 'Unknown';
+      }
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       acc[gender] = (acc[gender] || 0) + 1;
       return acc;
     }, {});

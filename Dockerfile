@@ -3,6 +3,7 @@
 # -----------------------------------------------------------------------------
 FROM node:lts-alpine AS base
 WORKDIR /app
+<<<<<<< HEAD
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm install -g pnpm
@@ -10,6 +11,21 @@ RUN npm install -g pnpm
 # Copy workspace configs (the structure fixed)
 FROM base AS configs
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+=======
+# Install git for pnpm to fetch git dependencies
+RUN apk add --no-cache git
+# Force git to use HTTPS instead of SSH
+RUN git config --global url."https://github.com/".insteadOf git@github.com:
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+ENV PNPM_ONLY_BUILT_DEPENDENCIES_SOFT_FAIL=true
+RUN npm install -g pnpm@10.17.1
+
+# Copy workspace configs (the structure fixed)
+FROM base AS configs
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm approve-builds
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 # -----------------------------------------------------------------------------
 # 2. DEPENDENCIES: Install modules (Cached & Parallel)
@@ -18,13 +34,21 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 FROM configs AS server-deps
 COPY server/package.json ./server/
 RUN pnpm config set store-dir /pnpm/store
+<<<<<<< HEAD
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter server... --frozen-lockfile
+=======
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter server... --frozen-lockfile --config.only-built-dependencies-soft-fail=true
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 # 2b. Client Dependencies
 FROM configs AS client-deps
 COPY client/package.json ./client/
 RUN pnpm config set store-dir /pnpm/store
+<<<<<<< HEAD
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter client... --frozen-lockfile
+=======
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --filter client... --frozen-lockfile --config.only-built-dependencies-soft-fail=true
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 # -----------------------------------------------------------------------------
 # 3. DEVELOPMENT: Server
@@ -70,7 +94,11 @@ CMD ["nginx", "-g", "daemon off;"]
 FROM configs AS server-prod
 COPY server/package.json ./server/
 # Re-install only production dependencies to keep image small
+<<<<<<< HEAD
 RUN pnpm install --prod --frozen-lockfile --filter server...
+=======
+RUN pnpm install --prod --frozen-lockfile --filter server... --config.only-built-dependencies-soft-fail=true
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 COPY server/ ./server/
 WORKDIR /app/server

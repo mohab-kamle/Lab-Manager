@@ -1,4 +1,8 @@
 import React, { useMemo, useRef } from "react";
+<<<<<<< HEAD
+=======
+import QRCode from "qrcode";
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 import {
   Document,
   Page,
@@ -14,10 +18,14 @@ import {
 import axios from "axios";
 import { useToast } from "../ui/ToastContext";
 import LabIcon from "../../assets/LabIcon.png";
+<<<<<<< HEAD
 import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
 import ReactDOM from "react-dom";
 import QRCodeSVG from "qrcode-svg";
+=======
+import useUniversalCode from "./useUniversalCode";
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 import { usePDF } from "@react-pdf/renderer";
 import CairoFont from "../../assets/fonts/Cairo.ttf";
 import { FileText } from "lucide-react";
@@ -670,6 +678,7 @@ function calculateAge(birthdate) {
   return age;
 }
 
+<<<<<<< HEAD
 // Helper to generate barcode as data URL
 function useBarcode(value) {
   return useMemo(() => {
@@ -702,6 +711,8 @@ function useQrPngDataUrl(value) {
   return qrUrl;
 }
 
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 // Add a usePageNumber hook to get the current page number in the Page content
 function usePageNumber() {
   const pdfContext = usePDF();
@@ -851,7 +862,11 @@ function StatusBarFirstPage({ report }) {
 // Professional PDF Document Component
 const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
   // Use report id as barcode, and a URL as QR code (e.g., report view link)
+<<<<<<< HEAD
   const barcodeUrl = useBarcode(report?.id ? String(report.id) : "0");
+=======
+  const barcodeUrl = useUniversalCode("barcode", report?.id ? String(report.id) : "0");
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   // const qrUrl = useQRCodeDataUrl(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ''}`); // This line is now passed as a prop
 
   // Comments and signatory
@@ -1140,9 +1155,13 @@ const PrintPDF = ({ patient, report, lab, comments }) => {
     return <span style={styles.btn}>Invalid Data</span>;
   }
 
+<<<<<<< HEAD
   const qrUrl = useQrPngDataUrl(
     `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`
   );
+=======
+  const qrUrl = useUniversalCode("qrcode", `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
   if (!qrUrl) {
     return <span style={styles.btn}>Generating QR...</span>;
@@ -1443,9 +1462,13 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
   const [loading, setLoading] = React.useState(false);
   const downloadTriggeredRef = useRef(false);
 
+<<<<<<< HEAD
   const qrUrl = useQrPngDataUrl(
     `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`
   );
+=======
+  const qrUrl = useUniversalCode("qrcode", `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
   if (!qrUrl) {
     return (
@@ -1602,6 +1625,88 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
   );
 };
 
+<<<<<<< HEAD
+=======
+export const generatePdfBase64 = async (reportId, patient, apiUrl) => {
+  try {
+    const token = localStorage.getItem("token");
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    // Generate QR Data URL
+    const qrUrl = await new Promise((resolve) => {
+      QRCode.toDataURL(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`, { width: 80, margin: 0 }, (err, url) => {
+        resolve(err ? null : url);
+      });
+    });
+
+    const response = await axios.get(
+      `${apiUrl}/medical-reports/${reportId}?pdf=true`,
+      { headers }
+    );
+    const responseData = response.data;
+
+    let resultsData = null;
+    try {
+      const resultsResponse = await axios.get(
+        `${apiUrl}/medical-reports/${reportId}/results-data`,
+        { headers }
+      );
+      resultsData = resultsResponse.data;
+    } catch (e) {
+      console.warn("Could not fetch results-data for PDF, results may be missing:", e.message);
+    }
+
+    const fullReportData = {
+      ...responseData,
+      tests: (resultsData?.tests || responseData.tests || []),
+      test_component_results: resultsData?.test_component_results || {},
+      testComponentResults: responseData.testComponentResults || {},
+      testComponents: responseData.testComponents || {},
+    };
+    
+    const comments = {
+      tests: responseData.testComments || {},
+      reportImages: responseData.reportImages || []
+    };
+
+    if (!fullReportData.patient) {
+      throw new Error("Patient data not found in the response");
+    }
+
+    const transformedReport = transformReportForPDF(
+      fullReportData,
+      fullReportData.patient
+    );
+
+    const doc = (
+      <ProfessionalPDFDocument
+        patient={transformedReport.patient}
+        report={transformedReport}
+        qrUrl={qrUrl}
+        lab={fullReportData.lab}
+        comments={comments}
+      />
+    );
+    
+    const pdfInstance = pdf(doc);
+    const blob = await pdfInstance.toBlob();
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result.split(',')[1];
+        resolve(base64data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error generating PDF for WhatsApp:", error);
+    throw error;
+  }
+};
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 export default PrintPDF;
 export { DirectPDFDownload };
 

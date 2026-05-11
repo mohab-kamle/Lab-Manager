@@ -20,12 +20,22 @@ services:
     restart: unless-stopped
     networks:
       - labmanager-network
+<<<<<<< HEAD
     command: tunnel --config /etc/cloudflared/config.yml run
     volumes:
       - ./cloudflared:/etc/cloudflared
     depends_on:
       - frontend
 
+=======
+    env_file: .env.production
+    command: tunnel run
+
+    depends_on:
+      - frontend
+
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   mysql:
     image: mysql:8.0
     container_name: labmanager-mysql

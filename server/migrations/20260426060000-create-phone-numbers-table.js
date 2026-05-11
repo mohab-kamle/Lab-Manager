@@ -3,6 +3,7 @@
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     // 1. Create the new phone_numbers table
+<<<<<<< HEAD
     await queryInterface.createTable('phone_numbers', {
       id: {
         allowNull: false,
@@ -95,6 +96,110 @@ module.exports = {
       unique: true,
       name: 'unique_employee_phone'
     });
+=======
+    try {
+      await queryInterface.createTable('phone_numbers', {
+        id: {
+          allowNull: false,
+          autoIncrement: true,
+          primaryKey: true,
+          type: Sequelize.INTEGER
+        },
+        patient_id: {
+          type: Sequelize.INTEGER,
+          allowNull: true,
+          references: {
+            model: 'patient',
+            key: 'id'
+          },
+          onUpdate: 'CASCADE',
+          onDelete: 'CASCADE'
+        },
+        employee_id: {
+          type: Sequelize.INTEGER,
+          allowNull: true,
+          references: {
+            model: 'employee',
+            key: 'id'
+          },
+          onUpdate: 'CASCADE',
+          onDelete: 'CASCADE'
+        },
+        doctor_id: {
+          type: Sequelize.INTEGER,
+          allowNull: true,
+          references: {
+            model: 'doctor',
+            key: 'id'
+          },
+          onUpdate: 'CASCADE',
+          onDelete: 'CASCADE'
+        },
+        supplier_id: {
+          type: Sequelize.INTEGER,
+          allowNull: true,
+          references: {
+            model: 'supplier',
+            key: 'id'
+          },
+          onUpdate: 'CASCADE',
+          onDelete: 'CASCADE'
+        },
+        lab_id: {
+          type: Sequelize.INTEGER,
+          allowNull: true,
+          references: {
+            model: 'lab',
+            key: 'id'
+          },
+          onUpdate: 'CASCADE',
+          onDelete: 'CASCADE'
+        },
+        phone: {
+          type: Sequelize.STRING(20),
+          allowNull: false
+        },
+        is_primary: {
+          type: Sequelize.BOOLEAN,
+          defaultValue: false
+        },
+        type: {
+          type: Sequelize.ENUM('personal', 'home', 'work'),
+          allowNull: false,
+          defaultValue: 'personal'
+        },
+        created_at: {
+          allowNull: false,
+          type: Sequelize.DATE,
+          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        },
+        updated_at: {
+          allowNull: false,
+          type: Sequelize.DATE,
+          defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+        }
+      });
+      console.log('✅ Created table: phone_numbers');
+    } catch (e) {
+      console.log('⚠️ table phone_numbers already exists');
+    }
+
+    // 2. Add Indexes
+    try { await queryInterface.addIndex('phone_numbers', ['phone']); } catch (e) { }
+    try {
+      await queryInterface.addIndex('phone_numbers', ['patient_id', 'phone'], {
+        unique: true,
+        name: 'unique_patient_phone'
+      });
+    } catch (e) { }
+    try {
+      await queryInterface.addIndex('phone_numbers', ['employee_id', 'phone'], {
+        unique: true,
+        name: 'unique_employee_phone'
+      });
+    } catch (e) { }
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
     // 3. Migrate data from old 'phone' table
     try {

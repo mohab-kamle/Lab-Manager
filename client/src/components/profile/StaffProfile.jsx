@@ -23,6 +23,10 @@ import {
   X,
   Lock,
   VenusAndMars,
+<<<<<<< HEAD
+=======
+  Phone,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 } from "lucide-react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import axios from "axios";
@@ -87,7 +91,12 @@ const StaffProfile = () => {
     };
 
     fetchProfile();
+<<<<<<< HEAD
   }, [user, apiUrl]);
+=======
+  }, [user?.id, apiUrl, toast]);
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
   /**
    * Enter edit mode: populate form data from the current profile.
@@ -101,6 +110,10 @@ const StaffProfile = () => {
       national_id: profile.national_id || "",
       nationality: profile.nationality || "",
       passport_no: profile.passport_no || "",
+<<<<<<< HEAD
+=======
+      phone: profile.phones?.find(p => p.is_primary)?.phone || "",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     });
     setErrors({});
     setIsEditing(true);
@@ -193,7 +206,17 @@ const StaffProfile = () => {
     try {
       const token = localStorage.getItem("token");
 
+<<<<<<< HEAD
       const response = await axios.put(`${apiUrl}/emp/${user.id}`, formData, {
+=======
+      // Format phone numbers for the backend
+      const payload = {
+        ...formData,
+        phoneNumbers: formData.phone ? [{ phone: formData.phone, type: 'personal', is_primary: true }] : []
+      };
+
+      const response = await axios.put(`${apiUrl}/emp/${user.id}`, payload, {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -378,6 +401,23 @@ const StaffProfile = () => {
                   </Col>
                   <Col md={6} className="mb-3">
                     <InfoCard
+<<<<<<< HEAD
+=======
+                      icon={Phone}
+                      label="Phone Number"
+                      value={isEditing ? formData.phone : profile.phones?.find(p => p.is_primary)?.phone}
+                      color="primary"
+                      delay={0.45}
+                      isEditing={isEditing}
+                      name="phone"
+                      type="phone"
+                      onChange={handleChange}
+                      error={errors.phone}
+                    />
+                  </Col>
+                  <Col md={6} className="mb-3">
+                    <InfoCard
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       icon={Calendar}
                       label="Date of Birth"
                       value={

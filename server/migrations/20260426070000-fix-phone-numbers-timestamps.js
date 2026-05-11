@@ -2,16 +2,36 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+<<<<<<< HEAD
     const tableInfo = await queryInterface.describeTable('phone_numbers');
     if (tableInfo.updatedAt && !tableInfo.updated_at) {
       await queryInterface.renameColumn('phone_numbers', 'updatedAt', 'updated_at');
+=======
+    try {
+      const tableInfo = await queryInterface.describeTable('phone_numbers');
+      if (tableInfo.updatedAt && !tableInfo.updated_at) {
+        await queryInterface.renameColumn('phone_numbers', 'updatedAt', 'updated_at');
+      }
+    } catch (error) {
+      console.log('ℹ️ Table phone_numbers not found, skipping timestamp fix');
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     }
   },
 
   down: async (queryInterface, Sequelize) => {
+<<<<<<< HEAD
     const tableInfo = await queryInterface.describeTable('phone_numbers');
     if (tableInfo.updated_at && !tableInfo.updatedAt) {
       await queryInterface.renameColumn('phone_numbers', 'updated_at', 'updatedAt');
+=======
+    try {
+      const tableInfo = await queryInterface.describeTable('phone_numbers');
+      if (tableInfo.updated_at && !tableInfo.updatedAt) {
+        await queryInterface.renameColumn('phone_numbers', 'updated_at', 'updatedAt');
+      }
+    } catch (error) {
+      console.log('ℹ️ Table phone_numbers not found, skipping timestamp rollback');
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     }
   }
 };

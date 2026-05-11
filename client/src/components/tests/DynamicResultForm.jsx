@@ -177,11 +177,18 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
         const numericValues = {};
         for (const [k, v] of Object.entries(value)) {
             const num = Number(v);
+<<<<<<< HEAD
             if (!isNaN(num) && v !== '') numericValues[k] = num;
+=======
+            if (!isNaN(num) && v !== "" && v !== null) {
+                numericValues[k] = num;
+            }
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         }
 
         const newComputed = {};
         let hasChanges = false;
+<<<<<<< HEAD
 
         const calculatedFields = filteredConfig.filter(f => f.type === 'calculated');
         calculatedFields.forEach(field => {
@@ -208,6 +215,39 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
     }, [value, filteredConfig]); // intentionally exclude onChangeRef — it's a ref
 
     const handleInputChange = (key, val) => {
+=======
+        
+        filteredConfig.forEach(item => {
+            if (item.type === 'calculated' && item.formula) {
+                try {
+                    const val = safeEvaluate(item.formula, numericValues);
+                    const rounded = Math.round(val * 100) / 100;
+
+                    // Use loose equality to avoid string vs number issues, but check for actual change
+                    if (rounded !== undefined && rounded !== null && String(rounded) !== String(value[item.key] || '')) {
+                        newComputed[item.key] = rounded;
+                        numericValues[item.key] = rounded; // Allow sequential calculations
+                        hasChanges = true;
+                    }
+                } catch (err) {
+                    // console.error(`Error calculating ${item.key}:`, err);
+                }
+            }
+        });
+
+        if (hasChanges) {
+            setComputedResults(prev => ({ ...prev, ...newComputed }));
+            if (onChangeRef.current) {
+                onChangeRef.current({ ...value, ...newComputed });
+            }
+        }
+    }, [value, filteredConfig]);
+
+    const handleInputChange = (key, val) => {
+        // Prevent update if value is identical to avoid unnecessary re-renders
+        if (String(value[key] || "") === String(val || "")) return;
+        
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         if (onChangeRef.current) {
             onChangeRef.current({ ...value, ...computedResults, [key]: val });
         }

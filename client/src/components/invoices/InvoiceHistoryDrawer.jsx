@@ -91,7 +91,11 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
       className="w-50"
       style={{ zIndex: 1100 }}
     >
+<<<<<<< HEAD
       <Offcanvas.Header closeButton className="bg-primary text-white" data-bs-theme="dark">
+=======
+      <Offcanvas.Header closeButton className="bg-theme-surface border-bottom" data-bs-theme="dark">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         <Offcanvas.Title className="d-flex align-items-center">
           <History className="me-2" />
           Invoice Audit Trail - #{invoiceId}
@@ -108,6 +112,7 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
             {history.map((event, index) => (
               <div key={index} className="timeline-item mb-4 d-flex">
                 <div className="timeline-icon-wrapper me-3 d-flex flex-column align-items-center">
+<<<<<<< HEAD
                   <div className="timeline-icon bg-white shadow-sm rounded-circle p-2 border d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', zIndex: 1 }}>
                     {getEventIcon(event.type)}
                   </div>
@@ -127,12 +132,37 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
                     
                     {event.method && (
                       <Badge bg="info" className="font-weight-normal">
+=======
+                  <div className="timeline-icon bg-theme-elevated shadow-sm rounded-circle p-2 border border-muted d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', zIndex: 1 }}>
+                    {getEventIcon(event.type)}
+                  </div>
+                   {index < history.length - 1 && <div className="timeline-line bg-theme-inset flex-grow-1" style={{ width: '2px' }}></div>}
+                </div>
+                <div className="timeline-content pb-4 flex-grow-1 border-bottom">
+                  <div className="d-flex justify-content-between align-items-start mb-1">
+                    <h6 className="mb-0 fw-bold text-theme">{event.type}</h6>
+                    <span className="small text-muted">{formatDate(new Date(event.date))}</span>
+                  </div>
+                   <p className="mb-2 text-theme opacity-75">{event.details}</p>
+                  
+                  <div className="d-flex flex-wrap gap-2 align-items-center">
+                     <Badge bg="subtle" className="text-theme border border-muted font-weight-normal">
+                       By: {event.user}
+                     </Badge>
+                    
+                    {event.method && (
+                      <Badge bg="info" className="text-white border border-info font-weight-normal">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                         Method: {event.method}
                       </Badge>
                     )}
                     
                     {event.authKeyName && (
+<<<<<<< HEAD
                       <Badge bg="warning" className="text-dark font-weight-normal">
+=======
+                      <Badge bg="warning" className="text-theme border border-muted font-weight-normal">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                         Auth Key: {event.authKeyName}
                       </Badge>
                     )}

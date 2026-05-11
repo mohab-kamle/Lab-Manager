@@ -19,7 +19,12 @@ import {
   Receipt,
   ArrowDownLeft,
   ArrowUpRight,
+<<<<<<< HEAD
   ClockHistory
+=======
+  ClockHistory,
+  PersonBadge
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 } from "react-bootstrap-icons";
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
@@ -27,6 +32,10 @@ import { useToast } from "../../components/ui/ToastContext";
 import SettlementModal from "../../components/settlement/SettlementModal";
 import { Wallet2, CheckCircle, Receipt as ReceiptIcon } from "lucide-react";
 import { formatCurrency } from "../../utils/currencyFormatter";
+<<<<<<< HEAD
+=======
+import PhoneInput from "../../components/ui/PhoneInput";
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
 // Reuse styles from PatientProfile
 import "../../styles/PatientProfile.css";
@@ -49,6 +58,15 @@ const InfoBubble = ({ icon: Icon, label, value, delay, isEditing, name, type = "
             <option value="">Select...</option>
             {options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </Form.Select>
+<<<<<<< HEAD
+=======
+        ) : type === "phone" ? (
+          <PhoneInput
+            value={value}
+            onChange={(val) => onChange({ target: { name, value: val } })}
+            error={error}
+          />
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         ) : (
           <Form.Control
             type={type}
@@ -91,6 +109,7 @@ const PatientProfileAdminView = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
+<<<<<<< HEAD
     const fetchPatientDetails = async () => {
       try {
         const token = localStorage.getItem("token");
@@ -103,6 +122,19 @@ const PatientProfileAdminView = () => {
       } catch (error) {
         console.error("Error fetching patient details:", error);
         // Use toast/navigate outside the dependency array via functional refs
+=======
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        // Fetch patient
+        const patientRes = await axios.get(`${apiUrl}/patient/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        setPatient(patientRes.data);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         toast.error(
           error.response?.status === 404
             ? "Patient not found"
@@ -128,10 +160,15 @@ const PatientProfileAdminView = () => {
       }
     };
 
+<<<<<<< HEAD
     fetchPatientDetails();
     fetchTransactions();
     // Note: toast and navigate are intentionally excluded – they are stable refs
     // from context/router and should not trigger a refetch.
+=======
+    fetchData();
+    fetchTransactions();
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, apiUrl]);
 
@@ -158,7 +195,11 @@ const PatientProfileAdminView = () => {
         email: patient.email || "",
         address: patient.address || "",
         national_id: patient.national_id || "",
+<<<<<<< HEAD
         passport_no: patient.passport_no || ""
+=======
+        passport_no: patient.passport_no || "",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       });
       setFormErrors({});
     }
@@ -181,10 +222,13 @@ const PatientProfileAdminView = () => {
       errors.email = "Invalid email format";
     }
 
+<<<<<<< HEAD
     if (formData.primaryPhone && !/^\d+$/.test(formData.primaryPhone)) {
       errors.primaryPhone = "Phone must contain only numbers";
     }
 
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     if (formData.national_id && isNaN(formData.national_id)) {
       errors.national_id = "National ID must be numeric";
     }
@@ -266,8 +310,13 @@ const PatientProfileAdminView = () => {
                 <Pencil size={16} /> Edit Profile
               </Button>
             ) : (
+<<<<<<< HEAD
               <div className="d-flex gap-2 shadow-sm rounded-pill bg-theme-surface p-1">
                 <Button variant="light" className="rounded-pill" onClick={handleEditToggle} disabled={saveLoading}>
+=======
+              <div className="d-flex gap-2 shadow-sm rounded-pill bg-theme-surface p-1 border">
+                <Button variant="light" className="rounded-pill border-0" onClick={handleEditToggle} disabled={saveLoading}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                   Cancel
                 </Button>
                 <Button variant="primary" className="rounded-pill" onClick={handleSave} disabled={saveLoading}>
@@ -315,7 +364,11 @@ const PatientProfileAdminView = () => {
               >
                 {/* Section 1: Personal Details */}
                 <div>
+<<<<<<< HEAD
                   <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+=======
+                  <h5 className="mb-3 fw-bold text-theme d-flex align-items-center gap-2">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     <FileEarmarkPerson className="text-primary" /> Personal Details
                   </h5>
                   <div className="ps-2">
@@ -359,7 +412,11 @@ const PatientProfileAdminView = () => {
 
                 {/* Section 2: Contact Info */}
                 <div>
+<<<<<<< HEAD
                   <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+=======
+                  <h5 className="mb-3 fw-bold text-theme d-flex align-items-center gap-2">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     <Telephone className="text-primary" /> Contact Info
                   </h5>
                   <div className="ps-2">
@@ -370,6 +427,10 @@ const PatientProfileAdminView = () => {
                       delay={0.4}
                       isEditing={isEditing}
                       name="primaryPhone"
+<<<<<<< HEAD
+=======
+                      type="phone"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       onChange={handleChange}
                       error={formErrors.primaryPhone}
                     />
@@ -401,7 +462,11 @@ const PatientProfileAdminView = () => {
 
                 {/* Section 3: Identification */}
                 <div>
+<<<<<<< HEAD
                   <h5 className="mb-3 fw-bold text-secondary d-flex align-items-center gap-2">
+=======
+                  <h5 className="mb-3 fw-bold text-theme d-flex align-items-center gap-2">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     <CardHeading className="text-primary" /> Identification
                   </h5>
                   <div className="ps-2">
@@ -442,7 +507,11 @@ const PatientProfileAdminView = () => {
                 style={{ gridArea: 'transactions' }}
               >
                 <div className="d-flex justify-content-between align-items-center mb-4">
+<<<<<<< HEAD
                   <h5 className="fw-bold text-secondary mb-0 d-flex align-items-center gap-2">
+=======
+                  <h5 className="fw-bold text-theme mb-0 d-flex align-items-center gap-2">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     <ReceiptIcon size={24} className="text-primary" /> Recent Transactions
                   </h5>
                 </div>
@@ -460,7 +529,11 @@ const PatientProfileAdminView = () => {
                         </div>
                         <div className="flex-grow-1 overflow-hidden">
                           <div className="d-flex justify-content-between mb-1">
+<<<<<<< HEAD
                             <span className="fw-bold text-dark text-truncate">{txn.summary || 'General Payment'}</span>
+=======
+                            <span className="fw-bold text-theme text-truncate">{txn.summary || 'General Payment'}</span>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             <span className={`fw-bold ${txn.processType?.toLowerCase() === 'refund' ? 'text-danger' : 'text-success'}`}>
                               {txn.processType?.toLowerCase() === 'refund' ? '-' : '+'} {formatCurrency(txn.amount)}
                             </span>
@@ -498,7 +571,11 @@ const PatientProfileAdminView = () => {
                 className="patient-profile-card p-4"
                 style={{ gridArea: 'medical' }}
               >
+<<<<<<< HEAD
                 <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
+=======
+                <h5 className="mb-4 fw-bold text-theme d-flex align-items-center gap-2">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                   <FileMedical /> Medical History
                 </h5>
                 <div className="mb-3">
@@ -515,6 +592,11 @@ const PatientProfileAdminView = () => {
                     )}
                   </div>
                 </div>
+<<<<<<< HEAD
+=======
+                
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 <div className="mt-4 pt-3 border-top">
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Total Billed:</span>
@@ -540,8 +622,13 @@ const PatientProfileAdminView = () => {
                 className="patient-profile-card p-4"
                 style={{ gridArea: 'settlement' }}
               >
+<<<<<<< HEAD
                 <h5 className="mb-4 fw-bold text-secondary d-flex align-items-center gap-2">
                   <Wallet2 size={24} className="text-success" /> Settlement & Billing
+=======
+                <h5 className="mb-4 fw-bold text-theme d-flex align-items-center gap-2">
+                  <Wallet2 size={24} className="text-primary" /> Settlement & Billing
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 </h5>
                 <div className="text-center py-2">
                   <div className="text-muted small mb-1">Total Outstanding</div>

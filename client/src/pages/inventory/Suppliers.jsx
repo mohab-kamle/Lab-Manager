@@ -181,8 +181,13 @@ const Suppliers = () => {
             <Form.Group className="mb-3">
               <Form.Label className="text-theme">Phone Numbers *</Form.Label>
               {formData.phoneNumbers.map((phoneEntry, index) => (
+<<<<<<< HEAD
                 <div key={index} className="d-flex gap-2 mb-2 align-items-start">
                   <div style={{ flex: 1 }}>
+=======
+                <div key={index} className="d-flex flex-wrap gap-2 mb-2 align-items-center w-100">
+                  <div style={{ flex: '1 1 200px', minWidth: '0' }}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     <PhoneInput
                       value={phoneEntry.phone}
                       onChange={(val) => {

@@ -13,7 +13,7 @@ module.exports = function (sequelize, DataTypes) {
       unique: "name_UNIQUE"
     },
     shortcut: {
-      type: DataTypes.STRING(45),
+      type: DataTypes.STRING(255),
       allowNull: true,
       unique: "shortcut_UNIQUE"
     },

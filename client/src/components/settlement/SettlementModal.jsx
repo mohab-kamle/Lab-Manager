@@ -230,7 +230,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
       backdrop="static"
       className="settlement-modal"
     >
+<<<<<<< HEAD
       <Modal.Header closeButton className="bg-light">
+=======
+      <Modal.Header closeButton className="bg-theme-surface">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         <Modal.Title className="d-flex align-items-center gap-2">
           <Calculator className="text-primary" />
           <span>Patient Bill Settlement</span>
@@ -241,7 +245,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
         <Form>
           {/* Patient Selection Section - Only show if no initial patient */}
           {!initialPatientId ? (
+<<<<<<< HEAD
             <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
+=======
+            <div className="settlement-section mb-4 p-3 border rounded bg-theme-surface shadow-sm">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
               <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                 <Search size={18} />
                 1. Select Patient
@@ -254,19 +262,31 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                   placeholder="Search patient by name, code or phone..."
                   isLoading={patientsLoading}
                   isClearable
+<<<<<<< HEAD
                   classNamePrefix="react-select"
+=======
+                  classNamePrefix="select"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 />
               </Form.Group>
             </div>
           ) : (
+<<<<<<< HEAD
             <div className="mb-4 p-3 border rounded bg-primary-light d-flex align-items-center justify-content-between">
+=======
+            <div className="mb-4 p-3 border rounded bg-subtle d-flex align-items-center justify-content-between">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
               <div className="d-flex align-items-center gap-3">
                 <div className="bg-primary text-white rounded-circle p-2 d-flex align-items-center justify-content-center">
                   <Search size={20} />
                 </div>
                 <div>
                   <div className="text-muted small">Reconciling for Patient:</div>
+<<<<<<< HEAD
                   <h5 className="mb-0 fw-bold">{patientName}</h5>
+=======
+                  <h5 className="mb-0 fw-bold text-theme">{patientName}</h5>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 </div>
               </div>
               <Badge bg="primary" className="px-3 py-2">
@@ -278,7 +298,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
           {selectedPatient && (
             <>
               {/* Strategy Selection */}
+<<<<<<< HEAD
               <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
+=======
+              <div className="settlement-section mb-4 p-3 border rounded bg-theme-surface shadow-sm">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                   <ListChecks size={18} />
                   2. Choose Strategy
@@ -289,7 +313,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                     id="strat-auto"
                     label={
                       <div className="ms-2">
+<<<<<<< HEAD
                         <div className="fw-bold d-flex align-items-center gap-1">
+=======
+                        <div className="fw-bold d-flex align-items-center gap-1 text-theme">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           <Wand2 size={14} /> Automated
                         </div>
                         <small className="text-muted">Pay oldest invoices first</small>
@@ -304,7 +332,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                     id="strat-manual"
                     label={
                       <div className="ms-2">
+<<<<<<< HEAD
                         <div className="fw-bold d-flex align-items-center gap-1">
+=======
+                        <div className="fw-bold d-flex align-items-center gap-1 text-theme">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                           <ListChecks size={14} /> Specific Selection
                         </div>
                         <small className="text-muted">Choose invoices manually</small>
@@ -318,7 +350,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
               </div>
 
               {/* Invoices List */}
+<<<<<<< HEAD
               <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
+=======
+              <div className="settlement-section mb-4 p-3 border rounded bg-theme-surface shadow-sm">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                   <Receipt size={18} />
                   3. Due Invoices
@@ -332,8 +368,13 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                   <Alert variant="danger">{error}</Alert>
                 ) : dueInvoices.length > 0 ? (
                   <div className="table-responsive">
+<<<<<<< HEAD
                     <Table hover size="sm" className="align-middle">
                       <thead className="bg-light">
+=======
+                    <Table hover size="sm" className="align-middle border-muted">
+                      <thead className="bg-theme-inset text-theme">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                         <tr>
                           {strategy === 'manual' && <th>Select</th>}
                           <th>Date</th>
@@ -343,12 +384,20 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                           <th className="text-end">Remaining</th>
                         </tr>
                       </thead>
+<<<<<<< HEAD
                       <tbody>
+=======
+                      <tbody className="text-theme">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                         {dueInvoices.map(inv => {
                           const paidNow = allocations[inv.id] || 0;
                           const remaining = Math.max(0, parseFloat(inv.due) - paidNow);
                           return (
+<<<<<<< HEAD
                             <tr key={inv.id} className={paidNow > 0 ? "table-primary-light" : ""}>
+=======
+                            <tr key={inv.id} className={paidNow > 0 ? "bg-subtle" : ""}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                               {strategy === 'manual' && (
                                 <td>
                                   <Form.Check
@@ -370,7 +419,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                           );
                         })}
                       </tbody>
+<<<<<<< HEAD
                       <tfoot className="table-light fw-bold">
+=======
+                      <tfoot className="bg-theme-inset fw-bold text-theme border-top-2 border-muted">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                         <tr>
                           <td colSpan={strategy === 'manual' ? 3 : 2}>Total</td>
                           <td className="text-end">EGP {totalDue.toFixed(2)}</td>
@@ -393,7 +446,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
               </div>
 
               {/* Payment Details */}
+<<<<<<< HEAD
               <div className="settlement-section mb-4 p-3 border rounded bg-white shadow-sm">
+=======
+              <div className="settlement-section mb-4 p-3 border rounded bg-theme-surface shadow-sm">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 <h6 className="section-title mb-3 d-flex align-items-center gap-2 text-primary">
                   <CreditCard size={18} />
                   4. Payment Details
@@ -401,7 +458,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
+<<<<<<< HEAD
                       <Form.Label>Amount to Pay *</Form.Label>
+=======
+                      <Form.Label className="text-theme">Amount to Pay *</Form.Label>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       <Form.Control
                         type="number"
                         placeholder="0.00"
@@ -416,15 +477,27 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                           }
                         }}
                         max={totalDue}
+<<<<<<< HEAD
+=======
+                        className="bg-theme-inset text-theme border-muted"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
+<<<<<<< HEAD
                       <Form.Label>Payment Method *</Form.Label>
                       <Form.Select
                         value={paymentMethod}
                         onChange={(e) => setPaymentMethod(e.target.value)}
+=======
+                      <Form.Label className="text-theme">Payment Method *</Form.Label>
+                      <Form.Select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="bg-theme-inset text-theme border-muted"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       >
                         <option value="">Select Method</option>
                         {paymentMethods.map(m => (
@@ -437,23 +510,39 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
+<<<<<<< HEAD
                       <Form.Label>Payment Date</Form.Label>
+=======
+                      <Form.Label className="text-theme">Payment Date</Form.Label>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       <Form.Control
                         type="date"
                         value={paymentDate}
                         onChange={(e) => setPaymentDate(e.target.value)}
+<<<<<<< HEAD
+=======
+                        className="bg-theme-inset text-theme border-muted"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
+<<<<<<< HEAD
                       <Form.Label>Notes</Form.Label>
+=======
+                      <Form.Label className="text-theme">Notes</Form.Label>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       <Form.Control
                         as="textarea"
                         rows={1}
                         placeholder="Optional remarks..."
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
+<<<<<<< HEAD
+=======
+                        className="bg-theme-inset text-theme border-muted"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                       />
                     </Form.Group>
                   </Col>
@@ -464,7 +553,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
         </Form>
       </Modal.Body>
 
+<<<<<<< HEAD
       <Modal.Footer className="bg-light">
+=======
+      <Modal.Footer className="bg-theme-surface border-top">
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         <Button variant="outline-secondary" onClick={onHide} disabled={isSubmitting}>
           Cancel
         </Button>

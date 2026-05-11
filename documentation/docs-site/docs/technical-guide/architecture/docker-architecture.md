@@ -220,6 +220,7 @@ We use separate compose files for clarity and specific behaviors:
 - **Purpose**: Stable, optimized production deployment.
 - **Builds**:
     - Uses `target: server-prod` and `target: client-prod` from the Dockerfile.
+<<<<<<< HEAD
 - **Infrastructure**:
     - **Nginx**: Serves the frontend on port 80.
     - **Redis**: For caching/sessions.
@@ -228,3 +229,22 @@ We use separate compose files for clarity and specific behaviors:
 
 ## Recent Updates & Fixes
 - **Verified Legit Architecture**: Confirmed validity of PNPM monorepo structure and Docker caching layers.
+=======
+- **Infrastructure Services**:
+    - **Nginx**: Serves the frontend assets on port 80 and proxies `/api` requests to the backend.
+    - **Redis**: High-performance key-value store used for session caching and application-level performance optimization.
+    - **MySQL**: Persistent relational database with optimized indexing for multi-tenant data.
+    - **Cloudflared**: Runs a **Cloudflare Tunnel** using a secure token. This allows the system to be exposed publicly over HTTPS via the Cloudflare edge without opening any inbound ports on the host machine.
+    - **MinIO (Optional/Local)**: S3-compatible object storage server used for local development or private cloud deployments of the file storage layer.
+
+## Storage Layer
+LabManager has migrated from local volume-based file storage to an **S3-compatible API**.
+- **Production**: Connects to external S3 providers (e.g., AWS S3).
+- **Development/Private Cloud**: Utilizes a MinIO container defined in the infrastructure layer.
+- **Integration**: Handled via the `s3Service.js` in the backend, utilizing the `@aws-sdk/client-s3` library. All private file access is served via **authenticated pre-signed URLs** to ensure tenant data privacy.
+
+## Recent Updates & Fixes
+- **PNPM Workspaces**: Transitioned to a unified monorepo with a single lockfile.
+- **Multi-Stage Builds**: Optimized Docker images to separate build-time dependencies from production runtimes.
+- **Secure Tunneling**: Replaced legacy file-based Cloudflare tunnels with the modern token-based architecture.
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e

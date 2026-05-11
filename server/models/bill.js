@@ -48,6 +48,14 @@ module.exports = function (sequelize, DataTypes) {
         allowNull: true,
         defaultValue: 0.0,
       },
+<<<<<<< HEAD
+=======
+      tax_rate: {
+        type: DataTypes.DECIMAL(10, 4),
+        allowNull: true,
+        defaultValue: 0.0,
+      },
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       total: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true,

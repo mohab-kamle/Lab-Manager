@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from "../../context/AuthContext";
@@ -25,6 +25,15 @@ const Invoices = () => {
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [discountInput, setDiscountInput] = useState("");
+  const [taxRateInput, setTaxRateInput] = useState("");
+  const [taxAmountInput, setTaxAmountInput] = useState("");
+
+  // Refund and History states
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedInvoiceForRefund, setSelectedInvoiceForRefund] = useState(null);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [selectedInvoiceIdForHistory, setSelectedInvoiceIdForHistory] = useState(null);
 
   // Refund and History states
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -71,11 +80,16 @@ const Invoices = () => {
     subtotal: 0,
     discount: 0,
     tax: 0,
+    tax_rate: 0,
     total: 0,
     paid: 0,
     due: 0,
     status_id: "",
+<<<<<<< HEAD
     receptionist_id: "",
+=======
+    receptionist_id: user?.id || "",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     branch_id: "",
     referred_doctor_id: ""
   });
@@ -86,7 +100,7 @@ const Invoices = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredPatients, setFilteredPatients] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]); // Kept for backward compatibility if used elsewhere, but we'll use a memoized version for the Select
   const [testSearchTerm, setTestSearchTerm] = useState("");
 
   const [packageSearchTerm, setPackageSearchTerm] = useState("");
@@ -97,6 +111,37 @@ const Invoices = () => {
   const [statusFormData, setStatusFormData] = useState({ state: "", details: "" });
   const [statusFormErrors, setStatusFormErrors] = useState({});
   const [showStatusFormErrorAlert, setShowStatusFormErrorAlert] = useState(false);
+
+  // Sync tax inputs with invoice state when it changes from other sources (like test selection)
+  useEffect(() => {
+    // Only update if the numeric value is different to avoid overwriting user typing (e.g. trailing zeros or dots)
+    const currentRatePercent = (invoice.tax_rate || 0) * 100;
+    if (Math.abs((Number(taxRateInput) || 0) - currentRatePercent) > 0.0001) {
+      setTaxRateInput(invoice.tax_rate ? (invoice.tax_rate * 100).toString() : "");
+    }
+    
+    if (Math.abs((Number(taxAmountInput) || 0) - (invoice.tax || 0)) > 0.01) {
+      setTaxAmountInput(invoice.tax ? invoice.tax.toString() : "");
+    }
+
+    if (Math.abs((Number(discountInput) || 0) - discountPercentage) > 0.0001) {
+      setDiscountInput(discountPercentage ? discountPercentage.toString() : "");
+    }
+  }, [invoice.tax, invoice.tax_rate, discountPercentage]);
+
+  const handleNumericKeyDown = (e) => {
+    if (['-', '+', 'e', 'E'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const formatInputOnBlur = (value, inputSetter) => {
+    if (value === "" || isNaN(parseFloat(value))) {
+      inputSetter("");
+      return;
+    }
+    inputSetter(parseFloat(value).toFixed(2));
+  };
   const [showStatusDeleteModal, setShowStatusDeleteModal] = useState(false);
   const [statusToDelete, setStatusToDelete] = useState(null);
   const [statusDetectionError, setStatusDetectionError] = useState("");
@@ -110,6 +155,10 @@ const Invoices = () => {
   const [settlementPatientId, setSettlementPatientId] = useState(null);
   const [settlementPatientName, setSettlementPatientName] = useState("");
   const [settlementPatientCode, setSettlementPatientCode] = useState("");
+<<<<<<< HEAD
+=======
+  const [giveChange, setGiveChange] = useState(false);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
   // Helper function to determine automatic status based on payment conditions
   const determineAutomaticStatus = (due, paid, total) => {
@@ -208,6 +257,7 @@ const Invoices = () => {
     fetchData();
   }, [apiUrl, user?.role]);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (searchTerm) {
       const filtered = patients.filter(patient => {
@@ -249,6 +299,67 @@ const Invoices = () => {
       label: parts.join(" - "),
     };
   });
+=======
+  const memoizedFilteredPatients = useMemo(() => {
+    if (!searchTerm) return patients;
+    const searchLower = searchTerm.toLowerCase();
+    const searchDigits = searchTerm.replace(/\D/g, "");
+    
+    return patients.filter(patient => {
+      const phones = patient.phones || [];
+      const phoneMatch = phones.some(p => {
+        const pNum = (p.phone_number || p.phone || "").toString();
+        const pDigits = pNum.replace(/\D/g, "");
+        return pNum.includes(searchTerm) || (searchDigits && pDigits.includes(searchDigits));
+      });
+
+      return (
+        patient.name?.toLowerCase().includes(searchLower) ||
+        patient.patientcode?.toString().includes(searchTerm) ||
+        patient.national_id?.toString().includes(searchTerm) ||
+        phoneMatch
+      );
+    });
+  }, [searchTerm, patients]);
+
+  // Sync state for any other parts of the component using filteredPatients
+  useEffect(() => {
+    setFilteredPatients(memoizedFilteredPatients);
+  }, [memoizedFilteredPatients]);
+
+  useEffect(() => {
+    if (giveChange) {
+      setGiveChange(false);
+    }
+  }, [invoice.total, invoice.paid, invoice.payments]);
+
+  useEffect(() => {
+    if (showFormErrorAlert) {
+      setShowFormErrorAlert(false);
+    }
+  }, [invoice]);
+
+  const patientOptions = useMemo(() => {
+    return memoizedFilteredPatients.map((patient) => {
+      const parts = [];
+      if (patient.name) {
+        parts.push(`${patient.name}${patient.patientcode ? ` (${patient.patientcode})` : ""}`);
+      }
+      if (patient.national_id) parts.push(patient.national_id);
+      
+      const phones = patient.phones || [];
+      phones.forEach(p => {
+        const pNum = p.phone_number || p.phone;
+        if (pNum) parts.push(pNum);
+      });
+
+      return {
+        value: patient.id,
+        label: parts.join(" - "),
+      };
+    });
+  }, [memoizedFilteredPatients]);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
   // Helper function to calculate total from payment methods
   const calculatePaymentTotal = (payments) => {
@@ -431,13 +542,25 @@ const Invoices = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Add new disease to the list (we need to fetch diseases list)
-      const diseasesRes = await axios.get(`${apiUrl}/diseases`, {
+      // Add new disease to the list
+      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Note: We don't have diseases state in Invoices.jsx, so we'll just close the modal
+      const updatedDiseases = diseasesRes.data || [];
+      console.log('Updated diseases list:', updatedDiseases);
+      setDiseases(updatedDiseases);
+      
+      // Automatically select the new disease
+      const newDiseaseId = response.data.id;
+      if (!patientForm.diseases.includes(newDiseaseId)) {
+        setPatientForm(prev => ({
+          ...prev,
+          diseases: [...prev.diseases, newDiseaseId]
+        }));
+      }
       
       setShowDiseaseCreateModal(false);
+      setDiseaseSearchTerm(""); // Clear search term to show the new disease
       setNewDisease({
         name: "",
         details: ""
@@ -448,7 +571,7 @@ const Invoices = () => {
       setTimeout(() => setModalSuccessMessage(""), 3000);
     } catch (error) {
       console.error('Error creating disease:', error);
-      setError(error.response?.data?.error || 'Failed to create disease');
+      toast.error(error.response?.data?.error || 'Failed to create disease');
     } finally {
       setLoading(false);
     }
@@ -493,6 +616,10 @@ const Invoices = () => {
 
   const handlePatientSelect = (selectedOption) => {
     const pId = selectedOption?.value || "";
+<<<<<<< HEAD
+=======
+    setSearchTerm("");
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     setInvoice(prev => {
       const updatedInvoice = {
         ...prev,
@@ -569,15 +696,21 @@ const Invoices = () => {
     // Calculate discount amount from percentage (use custom percentage if provided, otherwise use state)
     const currentDiscountPercentage = customDiscountPercentage !== null ? customDiscountPercentage : discountPercentage;
     const discountAmount = (subtotal * (currentDiscountPercentage / 100)) || 0;
+<<<<<<< HEAD
+=======
+
+    // Calculate tax amount from percentage if tax_rate is present
+    const taxAmount = items.tax_rate ? (subtotal * items.tax_rate) : (items.tax || 0);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     
     // Calculate total: subtotal + tax - discount
-    const total = subtotal + (items.tax || 0) - discountAmount;
+    const total = subtotal + taxAmount - discountAmount;
     
     // Use the paid amount from the invoice object
     const paidAmount = Number(items.paid || 0);
     const due = total - paidAmount;
 
-    return { subtotal, discount: discountAmount, total, due, paid: paidAmount };
+    return { subtotal, discount: discountAmount, tax: taxAmount, total, due, paid: paidAmount };
   };
 
   const handleDiscountChange = (discountPercentage) => {
@@ -599,11 +732,19 @@ const Invoices = () => {
 
   // Auto-update calculations whenever invoice data changes
   const updateInvoiceCalculations = (newInvoice) => {
+<<<<<<< HEAD
     const { subtotal, discount, total, due, paid } = calculateTotals(newInvoice);
+=======
+    const { subtotal, discount, tax, total, due, paid } = calculateTotals(newInvoice);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     return {
       ...newInvoice,
       subtotal,
       discount,
+<<<<<<< HEAD
+=======
+      tax,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       total,
       due,
       paid
@@ -642,11 +783,39 @@ const Invoices = () => {
       const filteredTests = (invoice.tests || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       const filteredPackages = (invoice.packages || []).filter(id => !isNaN(Number(id)) && id !== '' && id !== null);
       
+<<<<<<< HEAD
+=======
+      // Adjust payments if give change is active
+      let finalPayments = invoice.payments || [];
+      if (giveChange && invoice.due < 0) {
+        const totalReduction = Math.abs(invoice.due);
+        let remainingReduction = totalReduction;
+        
+        // Copy and adjust payments starting from the last one
+        const adjustedPayments = JSON.parse(JSON.stringify(finalPayments));
+        for (let i = adjustedPayments.length - 1; i >= 0 && remainingReduction > 0; i--) {
+          const currentAmount = parseFloat(adjustedPayments[i].paid_amount) || 0;
+          const reduction = Math.min(currentAmount, remainingReduction);
+          adjustedPayments[i].paid_amount = (currentAmount - reduction).toFixed(2);
+          remainingReduction -= reduction;
+        }
+        finalPayments = adjustedPayments;
+      }
+      
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       // Determine automatic status
       let finalStatusId = invoice.status_id;
       if (!finalStatusId) {
-        const { due } = calculateTotals(invoice);
-        finalStatusId = determineAutomaticStatus(due, invoice.paid, invoice.total);
+        let { due, total } = calculateTotals(invoice);
+        let paid = invoice.paid || 0;
+        
+        // If give change is active, adjust values for status detection
+        if (giveChange && due < 0) {
+          due = 0;
+          paid = total;
+        }
+        
+        finalStatusId = determineAutomaticStatus(due, paid, total);
         if (!finalStatusId) {
           setStatusDetectionError("No valid status found for this invoice. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
           return;
@@ -657,11 +826,23 @@ const Invoices = () => {
         ...invoice,
         tests: filteredTests,
         packages: filteredPackages,
+<<<<<<< HEAD
         subtotal: invoice.subtotal,
         discount: invoice.discount,
         total: invoice.total,
         paid: invoice.paid || 0,
         due: invoice.due,
+=======
+        payments: finalPayments,
+        subtotal: invoice.subtotal,
+        discount: invoice.discount,
+        total: invoice.total,
+        paid: (giveChange && invoice.due < 0) ? invoice.total : (invoice.paid || 0),
+        due: (giveChange && invoice.due < 0) ? 0 : invoice.due,
+        give_change: giveChange,
+        original_paid: (giveChange && invoice.due < 0) ? (invoice.paid || 0) : undefined,
+        change_amount: (giveChange && invoice.due < 0) ? Math.abs(invoice.due) : undefined,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         date: invoice.date ? new Date(invoice.date).toISOString() : new Date().toISOString(),
         status_id: finalStatusId,
         branch_id: invoice.branch_id && !isNaN(Number(invoice.branch_id)) ? Number(invoice.branch_id) : undefined,
@@ -682,11 +863,7 @@ const Invoices = () => {
           invoiceData,
           { headers }
         );
-        setInvoices(prevInvoices =>
-          prevInvoices.map(inv =>
-            inv.id === editingInvoice.id ? response.data : inv
-          )
-        );
+        await fetchData();
       } else {
         response = await axios.post(`${apiUrl}/invoices`, invoiceData, { headers });
         await fetchData();
@@ -721,7 +898,7 @@ const Invoices = () => {
       if (error.response?.data?.error && error.response.data.error.toLowerCase().includes('status')) {
         setStatusDetectionError("Invoice could not be saved due to a status error. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
       } else {
-        setError(error.response?.data?.error || "Failed to save invoice");
+        toast.error(error.response?.data?.error || "Failed to save invoice");
       }
     }
   };
@@ -741,11 +918,11 @@ const Invoices = () => {
         // Show success message as a toast
         toast.success("Invoice deleted successfully! Patient financial information has been updated.", { duration: 5000 });
       } else {
-        setError(response.data.error || "Failed to delete invoice");
+        toast.error(response.data.error || "Failed to delete invoice");
       }
     } catch (error) {
       console.error("Error deleting invoice:", error);
-      setError(error.response?.data?.error || "Failed to delete invoice");
+      toast.error(error.response?.data?.error || "Failed to delete invoice");
     }
   };
 
@@ -787,9 +964,10 @@ const Invoices = () => {
       setStatusFormData({ state: "", details: "" });
       setStatusFormErrors({});
       setShowStatusFormErrorAlert(false);
+      toast.success(`Status ${editingStatus ? "updated" : "created"} successfully!`);
     } catch (error) {
       console.error("Error saving status:", error);
-      setError(error.response?.data?.error || "Failed to save status");
+      toast.error(error.response?.data?.error || "Failed to save status");
     }
   };
 
@@ -813,7 +991,7 @@ const Invoices = () => {
       );
 
       if (statusesToCreate.length === 0) {
-        setError("Default statuses already exist");
+        toast.info("Default statuses already exist");
         return;
       }
 
@@ -829,13 +1007,16 @@ const Invoices = () => {
       
       // Show success message
       if (statusesToCreate.length > 0) {
+<<<<<<< HEAD
         setError(null);
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         // Add a success toast
         toast.success(`Created ${statusesToCreate.length} default statuses successfully`);
       }
     } catch (error) {
       console.error("Error creating default statuses:", error);
-      setError(error.response?.data?.error || "Failed to create default statuses");
+      toast.error(error.response?.data?.error || "Failed to create default statuses");
     }
   };
 
@@ -856,12 +1037,13 @@ const Invoices = () => {
         setStatusToDelete(null);
         setStatusFormErrors({});
         setShowStatusFormErrorAlert(false);
+        toast.success("Status deleted successfully!");
       } else {
-        setError(response.data.error || "Failed to delete status");
+        toast.error(response.data.error || "Failed to delete status");
       }
     } catch (error) {
       console.error("Error deleting status:", error);
-      setError(error.response?.data?.error || "Failed to delete status");
+      toast.error(error.response?.data?.error || "Failed to delete status");
     }
   };
 
@@ -893,20 +1075,34 @@ const Invoices = () => {
       paid: 0,
       due: 0,
       status_id: "",
+<<<<<<< HEAD
       receptionist_id: "",
+=======
+      receptionist_id: user?.id || "",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       branch_id: ""
     });
     setFormErrors({});
     setEditingInvoice(null);
+    setSearchTerm("");
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
+    setGiveChange(false);
+    setTaxRateInput("");
+    setTaxAmountInput("");
+    setDiscountInput("");
   };
 
   const filteredInvoices = invoices.filter(invoice => {
+    const searchLower = searchQuery?.toLowerCase();
+    const searchDigits = searchQuery?.replace(/\D/g, "");
+
     const searchMatch = searchQuery
-      ? invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ? invoice.patient_name?.toLowerCase().includes(searchLower) ||
         invoice.patientcode?.toString().includes(searchQuery) ||
-        invoice.patient_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        invoice.patient_phones?.some(pNum => 
+          pNum?.includes(searchQuery) || (searchDigits && pNum.replace(/\D/g, "").includes(searchDigits))
+        )
       : true;
 
     const dateMatch =
@@ -922,29 +1118,28 @@ const Invoices = () => {
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
     if (!sortConfig.field) return 0;
 
-    const valueA = a[sortConfig.field] ?? "";
-    const valueB = b[sortConfig.field] ?? "";
+    let valueA = a[sortConfig.field];
+    let valueB = b[sortConfig.field];
 
-    if (typeof valueA === "string" && typeof valueB === "string") {
-      return sortConfig.direction === "asc"
-        ? valueA.localeCompare(valueB)
-        : valueB.localeCompare(valueA);
-    } else if (typeof valueA === "number" && typeof valueB === "number") {
-      return sortConfig.direction === "asc" ? valueA - valueB : valueB - valueA;
-    } else if (typeof valueA === "boolean" && typeof valueB === "boolean") {
-      return sortConfig.direction === "asc"
-        ? valueA === valueB
-          ? 0
-          : valueA
-          ? -1
-          : 1
-        : valueA === valueB
-        ? 0
-        : valueA
-        ? 1
-        : -1;
+    // Handle null/undefined
+    if (valueA === null || valueA === undefined) valueA = "";
+    if (valueB === null || valueB === undefined) valueB = "";
+
+    // Handle numeric fields specifically
+    const numericFields = ["subtotal", "total", "paid", "due", "discount", "tax", "patientcode"];
+    if (numericFields.includes(sortConfig.field)) {
+      const numA = parseFloat(valueA) || 0;
+      const numB = parseFloat(valueB) || 0;
+      return sortConfig.direction === "asc" ? numA - numB : numB - numA;
     }
-    return 0;
+
+    // Default string comparison (case-insensitive, numeric-aware)
+    const strA = String(valueA).toLowerCase();
+    const strB = String(valueB).toLowerCase();
+
+    return sortConfig.direction === "asc"
+      ? strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' })
+      : strB.localeCompare(strA, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   const pageCount = Math.ceil(sortedInvoices.length / itemsPerPage);
@@ -1149,6 +1344,12 @@ const Invoices = () => {
             ((Number(rowData.discount) || 0) / Number(rowData.subtotal)) * 100 : 0;
           
           setDiscountPercentage(calculatedDiscountPercentage);
+<<<<<<< HEAD
+=======
+          setDiscountInput(calculatedDiscountPercentage ? calculatedDiscountPercentage.toString() : "");
+          setTaxRateInput(rowData.tax_rate ? (rowData.tax_rate * 100).toString() : "");
+          setTaxAmountInput(rowData.tax ? rowData.tax.toString() : "");
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           setInvoice({
             ...rowData,
             tests: testIds,
@@ -1164,9 +1365,15 @@ const Invoices = () => {
             branch_id: rowData.branch_id || "",
             patient_id: rowData.patient_id,
             status_id: rowData.status_id,
+<<<<<<< HEAD
             receptionist_id: rowData.receptionist_id
+=======
+            receptionist_id: user?.id || "",
+            referred_doctor_id: rowData.referred_doctor_id ? Number(rowData.referred_doctor_id) : ""
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
           });
           setModalSuccessMessage("");
+          setGiveChange(false);
           setShowAddModal(true);
         }}
       >
@@ -1401,6 +1608,7 @@ const Invoices = () => {
                             isSearchable
                             placeholder="Search patient by name, code, national ID, or phone"
                             onInputChange={(inputValue) => setSearchTerm(inputValue)}
+                            filterOption={() => true} // We are already filtering via filteredPatients
                             className="react-select-container"
                             classNamePrefix="select"
                           />
@@ -1409,6 +1617,53 @@ const Invoices = () => {
                           <Plus size={16} /> {showCreatePatient ? 'Cancel' : 'Create Patient'}
                         </Button>
                       </div>
+                      
+                      {/* Patient Financial Summary */}
+                      {invoice.patient_id && !showCreatePatient && (() => {
+                        const selectedPatient = patients.find(p => p.id === invoice.patient_id);
+                        if (!selectedPatient) return null;
+                        
+                        const pDue = parseFloat(selectedPatient.due || 0);
+                        const hasDebt = pDue > 0.01;
+                        const hasCredit = pDue < -0.01;
+                        
+                        return (
+                          <div className="mt-2 d-flex gap-2">
+                            <div 
+                              className="flex-fill p-2 rounded border d-flex align-items-center justify-content-between" 
+                              style={{ 
+                                background: hasDebt ? 'var(--toast-error-bg)' : 'var(--bg-inset)', 
+                                borderColor: hasDebt ? 'var(--color-danger)' : 'var(--border-default)',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <div className="d-flex align-items-center text-truncate">
+                                <AlertTriangle size={14} className={`me-2 ${hasDebt ? 'text-danger' : 'text-muted'}`} />
+                                <span className="small fw-semibold text-truncate">Patient Due</span>
+                              </div>
+                              <span className={`fw-bold small ms-2 ${hasDebt ? 'text-danger' : ''}`}>
+                                EGP {Math.max(0, pDue).toFixed(2)}
+                              </span>
+                            </div>
+                            <div 
+                              className="flex-fill p-2 rounded border d-flex align-items-center justify-content-between"
+                              style={{ 
+                                background: hasCredit ? 'var(--toast-success-bg)' : 'var(--bg-inset)', 
+                                borderColor: hasCredit ? 'var(--color-success)' : 'var(--border-default)',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <div className="d-flex align-items-center text-truncate">
+                                <Wallet2 size={14} className={`me-2 ${hasCredit ? 'text-success' : 'text-muted'}`} />
+                                <span className="small fw-semibold text-truncate">Patient Credit</span>
+                              </div>
+                              <span className={`fw-bold small ms-2 ${hasCredit ? 'text-success' : ''}`}>
+                                EGP {Math.max(0, -pDue).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {showCreatePatient && (
                         <div className="border rounded p-3 mt-2 bg-theme-surface" onClick={(e) => e.stopPropagation()}>
                           <div>
@@ -1482,11 +1737,17 @@ const Invoices = () => {
                                     <Row>
                                       <Col xs={4}>
                                         <Form.Control
+<<<<<<< HEAD
                                           type="number"
+=======
+                                          type="text"
+                                          inputMode="numeric"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                           placeholder="Day"
                                           value={patientForm.birth_day}
                                           onChange={(e) => {
                                             const day = e.target.value;
+<<<<<<< HEAD
                                             const newForm = { ...patientForm, birth_day: day };
                                             if (day && patientForm.birth_month && patientForm.birth_year) {
                                               newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
@@ -1495,15 +1756,32 @@ const Invoices = () => {
                                           }}
                                           min="1"
                                           max="31"
+=======
+                                            // Strictly allow only digits and validate range (1-31)
+                                            if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_day: day };
+                                              if (day && patientForm.birth_month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(day, patientForm.birth_month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
+                                            }
+                                          }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
+<<<<<<< HEAD
                                           type="number"
+=======
+                                          type="text"
+                                          inputMode="numeric"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                           placeholder="Month"
                                           value={patientForm.birth_month}
                                           onChange={(e) => {
                                             const month = e.target.value;
+<<<<<<< HEAD
                                             const newForm = { ...patientForm, birth_month: month };
                                             if (patientForm.birth_day && month && patientForm.birth_year) {
                                               newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
@@ -1512,15 +1790,32 @@ const Invoices = () => {
                                           }}
                                           min="1"
                                           max="12"
+=======
+                                            // Strictly allow only digits and validate range (1-12)
+                                            if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
+                                              const newForm = { ...patientForm, birth_month: month };
+                                              if (patientForm.birth_day && month && patientForm.birth_year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, month, patientForm.birth_year);
+                                              }
+                                              setPatientForm(newForm);
+                                            }
+                                          }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                         />
                                       </Col>
                                       <Col xs={4}>
                                         <Form.Control
+<<<<<<< HEAD
                                           type="number"
+=======
+                                          type="text"
+                                          inputMode="numeric"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                           placeholder="Year"
                                           value={patientForm.birth_year}
                                           onChange={(e) => {
                                             const year = e.target.value;
+<<<<<<< HEAD
                                             const newForm = { ...patientForm, birth_year: year };
                                             if (patientForm.birth_day && patientForm.birth_month && year) {
                                               newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
@@ -1529,6 +1824,17 @@ const Invoices = () => {
                                           }}
                                           min="1900"
                                           max={new Date().getFullYear()}
+=======
+                                            // Strictly allow only digits and max 4 digits
+                                            if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
+                                              const newForm = { ...patientForm, birth_year: year };
+                                              if (patientForm.birth_day && patientForm.birth_month && year) {
+                                                newForm.birth_date = updateBirthDateFromComponents(patientForm.birth_day, patientForm.birth_month, year);
+                                              }
+                                              setPatientForm(newForm);
+                                            }
+                                          }}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                                         />
                                       </Col>
                                     </Row>
@@ -1738,26 +2044,13 @@ const Invoices = () => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Receptionist <span style={{color: 'red'}}>*</span></Form.Label>
-                      <Form.Select
-                        value={invoice.receptionist_id || ''}
-                        required
-                        onChange={(e) => {
-                          // Store as number or undefined
-                          const val = e.target.value;
-                          setInvoice({ ...invoice, receptionist_id: val && !isNaN(Number(val)) ? Number(val) : undefined });
-                          if (formErrors.receptionist_id) {
-                            setFormErrors({ ...formErrors, receptionist_id: null });
-                          }
-                        }}
-                        isInvalid={!!formErrors.receptionist_id}
-                      >
-                        <option value="">Select Receptionist</option>
-                        {receptionists.map(receptionist => (
-                          <option key={receptionist.id} value={receptionist.id}>
-                            {receptionist.name}
-                          </option>
-                        ))}
-                      </Form.Select>
+                      <Form.Control
+                        type="text"
+                        value={user?.role === 'admin' ? `${user?.name} (Admin)` : user?.name || ''}
+                        readOnly
+                        disabled
+                        className="bg-light"
+                      />
                       <Form.Control.Feedback type="invalid">
                         {formErrors.receptionist_id}
                       </Form.Control.Feedback>
@@ -2003,13 +2296,16 @@ const Invoices = () => {
                     <Form.Group className="mb-3">
                       <Form.Label>Discount (%)</Form.Label>
                       <Form.Control
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={discountPercentage}
+                        type="text"
+                        value={discountInput}
+                        placeholder="0"
+                        onKeyDown={handleNumericKeyDown}
+                        onBlur={(e) => formatInputOnBlur(e.target.value, setDiscountInput)}
                         onChange={(e) => {
-                          handleDiscountChange(e.target.value);
+                          // Allow only digits and a single decimal point
+                          const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                          setDiscountInput(val);
+                          handleDiscountChange(val);
                         }}
                       />
                       {discountPercentage > 0 && (
@@ -2019,16 +2315,53 @@ const Invoices = () => {
                       )}
                     </Form.Group>
                   </Col>
+<<<<<<< HEAD
                   <Col md={6}>
+=======
+                  <Col md={3}>
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                     <Form.Group className="mb-3">
-                      <Form.Label>Tax</Form.Label>
+                      <Form.Label>Tax (%)</Form.Label>
                       <Form.Control
-                        type="number"
-                        value={invoice.tax || ""}
+                        type="text"
+                        value={taxRateInput}
+                        placeholder="0"
+                        onKeyDown={handleNumericKeyDown}
+                        onBlur={(e) => formatInputOnBlur(e.target.value, setTaxRateInput)}
                         onChange={(e) => {
-                          const tax = Number(e.target.value) || 0;
+                          // Allow only digits and a single decimal point
+                          const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                          setTaxRateInput(val);
+                          const rate = (Number(val) || 0) / 100;
                           setInvoice(prev => {
+<<<<<<< HEAD
                             const newInvoice = { ...prev, tax };
+=======
+                            const newInvoice = { ...prev, tax_rate: rate };
+                            return updateInvoiceCalculations(newInvoice);
+                          });
+                        }}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Tax (Amount)</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={taxAmountInput}
+                        placeholder="0"
+                        onKeyDown={handleNumericKeyDown}
+                        onBlur={(e) => formatInputOnBlur(e.target.value, setTaxAmountInput)}
+                        onChange={(e) => {
+                          // Allow only digits and a single decimal point
+                          const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                          setTaxAmountInput(val);
+                          const taxAmount = Number(val) || 0;
+                          const rate = invoice.subtotal > 0 ? taxAmount / invoice.subtotal : 0;
+                          setInvoice(prev => {
+                            const newInvoice = { ...prev, tax: taxAmount, tax_rate: rate };
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             return updateInvoiceCalculations(newInvoice);
                           });
                         }}
@@ -2103,13 +2436,38 @@ const Invoices = () => {
                         </Col>
                         <Col md={6}>
                           <Form.Group className="mb-3">
+<<<<<<< HEAD
                             <Form.Label>{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
                             <Form.Control
                               type="text"
                               value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
+=======
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <Form.Label className="mb-0">{(invoice.due || 0) < -0.01 ? "Credit / Refund" : "Amount Due"}</Form.Label>
+                              {(invoice.due || 0) < -0.01 && (
+                                <Button 
+                                  variant={giveChange ? "success" : "outline-primary"} 
+                                  size="sm" 
+                                  onClick={() => setGiveChange(!giveChange)}
+                                  className="py-0 px-2"
+                                  style={{ fontSize: '0.8rem' }}
+                                >
+                                  {giveChange ? "✓ Change Given" : "Give Change"}
+                                </Button>
+                              )}
+                            </div>
+                            <Form.Control
+                              type="text"
+                              value={`EGP ${((invoice.due || 0) < -0.01 && giveChange) ? "0.00" : Math.abs(invoice.due || 0).toFixed(2)}`}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                               disabled
                               className={(invoice.due || 0) > 0.01 ? "text-danger fw-bold" : "text-success fw-bold"}
                             />
+                            {giveChange && (invoice.due || 0) < -0.01 && (
+                              <Form.Text className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                Change of EGP {Math.abs(invoice.due || 0).toFixed(2)} is handed to patient
+                              </Form.Text>
+                            )}
                           </Form.Group>
                         </Col>
                       </Row>
@@ -2153,6 +2511,10 @@ const Invoices = () => {
                               const newInvoice = { ...invoice, payments: newPayments };
                               setInvoice(updatePaidFromPayments(newInvoice));
                             }}
+<<<<<<< HEAD
+=======
+                            disabled={!payment.payment_method_id}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                             style={{ minWidth: '150px' }}
                           />
                           <Button
@@ -2208,6 +2570,19 @@ const Invoices = () => {
                     </div>
                   </Col>
                 </Row>
+<<<<<<< HEAD
+=======
+
+                {showFormErrorAlert && Object.keys(formErrors).length > 0 && (
+                  <Alert variant="danger" className="mt-3 mb-0" onClose={() => setShowFormErrorAlert(false)} dismissible>
+                    <ul className="mb-0">
+                      {Object.entries(formErrors).map(([field, msg]) => (
+                        <li key={field}>{msg}</li>
+                      ))}
+                    </ul>
+                  </Alert>
+                )}
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
               </Form>
             </Modal.Body>
             <Modal.Footer>

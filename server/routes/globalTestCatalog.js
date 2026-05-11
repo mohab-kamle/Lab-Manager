@@ -40,7 +40,11 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 });
 
 // Bulk import from global catalog into local catalog
+<<<<<<< HEAD
 router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), async (req, res) => {
+=======
+router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("../middleware/tenantContext").tenantContext, async (req, res) => {
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   let transaction;
   try {
     transaction = await db.sequelize.transaction();
@@ -120,6 +124,7 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), async (re
         // Main component definition
         structureConfig.push({
           key: `comp_${Date.now()}_${idCounter++}`,
+<<<<<<< HEAD
           result_type: defaultStruct.ui_type === 'options' ? 'boolean' : (defaultStruct.is_culture ? 'culture_panel' : 'range'), // Default fallback map
           name: defaultStruct.component || globalTest.name, // Use name instead of label
           unit: defaultStruct.units || defaultStruct.ucum_units || '',
@@ -131,6 +136,21 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), async (re
           age_end: null,
           c_low: null,
           c_high: null
+=======
+          type: defaultStruct.ui_type === 'options' ? 'boolean' : (defaultStruct.is_culture ? 'culture_panel' : 'range'),
+          label: defaultStruct.component || globalTest.name,
+          unit: defaultStruct.units || defaultStruct.ucum_units || '',
+          reference_ranges: defaultStruct.ui_type === 'options' ? [] : [{
+            gender: 'Any',
+            age_min: null,
+            age_max: null,
+            min: null,
+            max: null,
+            panic_min: null,
+            panic_max: null
+          }],
+          reference_range: null
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         });
 
         // Map children if it's a panel
@@ -156,6 +176,7 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), async (re
 
             structureConfig.push({
               key: `comp_${Date.now()}_${idCounter++}`,
+<<<<<<< HEAD
               result_type: 'range',
               name: childName || child.code, // Use dynamically fetched component name, fallback to code
               unit: childUnit, // Retrieved dynamically from LOINC DB
@@ -167,16 +188,36 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), async (re
               age_end: null,
               c_low: null,
               c_high: null
+=======
+              type: 'range',
+              label: childName || child.code,
+              unit: childUnit,
+              reference_ranges: [{
+                gender: 'Any',
+                age_min: null,
+                age_max: null,
+                min: null,
+                max: null,
+                panic_min: null,
+                panic_max: null
+              }],
+              reference_range: null
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             });
           }
         }
       }
 
       const newTest = await db.test.create({
+<<<<<<< HEAD
         name: globalTest.name,
         // Use the LOINC ConsumerName as the shortcut — it's the brief, human-friendly label
         // (e.g., "CBC" instead of "Complete blood count panel - Blood by Automated count").
         // Falls back to the full name if no friendly name is available.
+=======
+        lab_id: req.tenant.lab_id,
+        name: globalTest.name,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         shortcut: globalTest.patient_friendly_name || globalTest.name,
         price: 0.00,
         cost: 0.00,

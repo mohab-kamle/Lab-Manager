@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
+<<<<<<< HEAD
 const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings } = require("../models");
+=======
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number } = require("../models");
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -19,14 +23,30 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 lab_id: req.tenant.lab_id
             },
             attributes: [
+<<<<<<< HEAD
                 'id', 'date', 'paid', 'due', 'subtotal', 'total', 'discount', 'tax',
                 'status_id', 'branch_id', 'patient_id'
+=======
+                'id', 'date', 'paid', 'due', 'subtotal', 'total', 'discount', 'tax', 'tax_rate',
+                'status_id', 'branch_id', 'patient_id', 'receptionist_id', 'referred_doctor_id'
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             ],
             include: [
                 {
                     model: patient,
                     as: "patient",
+<<<<<<< HEAD
                     attributes: ['id', 'name', 'patientcode']
+=======
+                    attributes: ['id', 'name', 'patientcode'],
+                    include: [
+                        {
+                            model: phone_number,
+                            as: 'phones',
+                            attributes: [['phone', 'phone_number'], 'is_primary']
+                        }
+                    ]
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 },
                 {
                     model: doctor,
@@ -93,16 +113,28 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                 total: billData.total,
                 discount: billData.discount,
                 tax: billData.tax,
+<<<<<<< HEAD
+=======
+                tax_rate: billData.tax_rate,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 discount_percent: billData.discount && billData.subtotal ? ((billData.discount / billData.subtotal) * 100) : 0,
                 status_id: billData.status_id,
                 status: billData.status?.state,
                 patient_id: billData.patient_id,
                 patient_name: billData.patient?.name,
                 patientcode: billData.patient?.patientcode,
+<<<<<<< HEAD
+=======
+                patient_phones: billData.patient?.phones?.map(p => p.phone_number),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 referred_doctor_id: billData.referred_doctor_id,
                 referred_doctor_name: billData.referred_doctor?.name,
                 branch_id: billData.branch_id,
                 branch_name: billData.branch?.name,
+<<<<<<< HEAD
+=======
+                receptionist_id: billData.receptionist_id,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 
                 // Map separate includes
                 tests: (billData.bill_has_tests || []).map(bht => ({
@@ -151,15 +183,37 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             subtotal = 0,
             discount = 0,
             tax = 0,
+            tax_rate = 0,
             total = 0,
             paid = 0,
             due = 0,
             status_id,
             receptionist_id,
+<<<<<<< HEAD
             branch_id, // <-- add branch_id here
+=======
+            branch_id,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             referred_doctor_id,
             date
         } = req.body;
+
+        let finalTax = parseFloat(tax || 0);
+        let finalTaxRate = parseFloat(tax_rate || 0);
+        const finalSubtotal = parseFloat(subtotal || 0);
+
+        if (finalTaxRate > 0 && finalTax === 0) {
+            finalTax = finalSubtotal * finalTaxRate;
+        } else if (finalTax > 0 && finalTaxRate === 0 && finalSubtotal > 0) {
+            finalTaxRate = finalTax / finalSubtotal;
+        }
+
+        // Round finalTax to 2 decimal places and finalTaxRate to 4 decimal places
+        finalTax = Math.round(finalTax * 100) / 100;
+        finalTaxRate = Math.round(finalTaxRate * 10000) / 10000;
+
+        // Re-calculate total to ensure consistency
+        const finalTotal = finalSubtotal + finalTax - parseFloat(discount || 0);
 
         // Validate required fields
         if (!patient_id || !status_id || !receptionist_id) {
@@ -177,10 +231,28 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         }
 
         // Validate receptionist exists
+<<<<<<< HEAD
         const receptionistExists = await receptionist.findOne({ where: { id: receptionist_id, lab_id } });
         if (!receptionistExists) {
             await transaction.rollback();
             return res.status(400).json({ error: 'Invalid receptionist_id or receptionist does not belong to your lab.' });
+=======
+        const receptionistExists = await employee.findOne({ 
+            where: { 
+                id: receptionist_id, 
+                lab_id: patientExists.lab_id,
+                role: 'receptionist' // optional: if you want to enforce the role
+            } 
+        });
+
+        // Ensure admin can act as receptionist if they assign it to themselves
+        if (user && user.role === 'admin' && Number(receptionist_id) === Number(user.id)) {
+            await receptionist.findOrCreate({
+                where: { id: user.id },
+                defaults: { id: user.id, no_of_bills: 0 },
+                transaction
+            });
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         }
 
         // Debug log for branch_id
@@ -192,8 +264,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             due,
             subtotal,
             discount,
-            tax,
-            total,
+            tax: finalTax,
+            tax_rate: finalTaxRate,
+            total: finalTotal,
             receptionist_id,
             patient_id,
             status_id,
@@ -210,7 +283,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             const currentDue = parseFloat(currentPatient.due || 0);
 
             // Calculate new values
+<<<<<<< HEAD
             const newTotal = currentTotal + parseFloat(total);
+=======
+            const newTotal = currentTotal + parseFloat(finalTotal);
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             const newPaid = currentPaid + parseFloat(paid);
             const newDue = currentDue + parseFloat(due);
 
@@ -432,6 +509,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 subtotal: completeBill.subtotal,
                 discount: completeBill.discount,
                 tax: completeBill.tax,
+                tax_rate: completeBill.tax_rate,
                 total: completeBill.total,
                 paid: completeBill.paid,
                 due: completeBill.due,
@@ -489,18 +567,30 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
                 {
                     model: patient,
                     as: "patient",
-                    attributes: ['id', 'name', 'patientcode']
+                    attributes: ['id', 'name', 'patientcode'],
+                    include: [
+                        {
+                            model: phone_number,
+                            as: 'phones',
+                            attributes: [['phone', 'phone_number'], 'is_primary']
+                        }
+                    ]
                 },
                 {
                     model: test,
                     as: "test_id_tests",
+<<<<<<< HEAD
                     through: { attributes: [] },
                     attributes: ['id', 'name', 'price']
+=======
+                    through: { attributes: ['price'] },
+                    attributes: ['id', 'name']
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
                 },
                 {
                     model: packages_and_offers,
                     as: "package_id_packages_and_offers",
-                    through: { attributes: [] },
+                    through: { attributes: ['price'] },
                     attributes: ['id', 'name', 'price', 'type']
                 },
                 {
@@ -527,25 +617,38 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             subtotal: invoice.subtotal,
             discount: invoice.discount,
             tax: invoice.tax,
+            tax_rate: invoice.tax_rate,
             total: invoice.total,
             paid: invoice.paid,
             due: invoice.due,
+            receptionist_id: invoice.receptionist_id,
+            referred_doctor_id: invoice.referred_doctor_id,
+            branch_id: invoice.branch_id,
+            patient_phones: invoice.patient?.phones?.map(p => p.phone_number),
             tests: invoice.test_id_tests.map(t => ({
                 id: t.id,
                 name: t.name,
+<<<<<<< HEAD
                 price: t.price
+=======
+                price: t.bill_has_test.price
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             })),
             packages: invoice.package_id_packages_and_offers.map(p => ({
                 id: p.id,
                 name: p.name,
-                price: p.price,
+                price: p.bill_has_package.price,
                 type: p.type
             })),
             payments: invoice.payment_method_id_payment_methods.map(p => ({
                 payment_method_id: p.id,
                 payment_method_name: p.name,
                 paid_amount: p.bill_has_payment_method.paid_amount
+<<<<<<< HEAD
             }))
+=======
+            })),
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         };
 
         res.json(response);
@@ -570,6 +673,10 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         subtotal = 0,
         discount = 0,
         tax = 0,
+<<<<<<< HEAD
+=======
+        tax_rate = 0,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         total = 0,
         status_id,
         referred_doctor_id,
@@ -577,6 +684,24 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         packages,
         payments
     } = req.body;
+    const lab_id = req.tenant.lab_id;
+
+    let finalTax = parseFloat(tax || 0);
+    let finalTaxRate = parseFloat(tax_rate || 0);
+    const finalSubtotal = parseFloat(subtotal || 0);
+
+    if (finalTaxRate > 0 && finalTax === 0) {
+        finalTax = finalSubtotal * finalTaxRate;
+    } else if (finalTax > 0 && finalTaxRate === 0 && finalSubtotal > 0) {
+        finalTaxRate = finalTax / finalSubtotal;
+    }
+
+    // Round finalTax to 2 decimal places and finalTaxRate to 4 decimal places
+    finalTax = Math.round(finalTax * 100) / 100;
+    finalTaxRate = Math.round(finalTaxRate * 10000) / 10000;
+
+    // Re-calculate total to ensure consistency
+    const finalTotal = finalSubtotal + finalTax - parseFloat(discount || 0);
     const lab_id = req.tenant.lab_id;
 
     try {
@@ -596,8 +721,14 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             due,
             subtotal,
             discount,
+<<<<<<< HEAD
             tax,
             total,
+=======
+            tax: finalTax,
+            tax_rate: finalTaxRate,
+            total: finalTotal,
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
             status_id,
             referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : null
         });
@@ -610,7 +741,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             const currentDue = parseFloat(currentPatient.due || 0);
 
             // Remove old invoice amounts and add new ones
-            const newTotal = currentTotal - oldTotal + parseFloat(total);
+            const newTotal = currentTotal - oldTotal + parseFloat(finalTotal);
             const newPaid = currentPaid - oldPaid + parseFloat(paid);
             const newDue = currentDue - oldDue + parseFloat(due);
 
@@ -752,7 +883,14 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                 {
                     model: patient,
                     as: "patient",
-                    attributes: ['id', 'name', 'patientcode']
+                    attributes: ['id', 'name', 'patientcode'],
+                    include: [
+                        {
+                            model: phone_number,
+                            as: 'phones',
+                            attributes: [['phone', 'phone_number'], 'is_primary']
+                        }
+                    ]
                 },
                 {
                     model: test,
@@ -786,9 +924,14 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             subtotal: updatedBill.subtotal,
             discount: updatedBill.discount,
             tax: updatedBill.tax,
+            tax_rate: updatedBill.tax_rate,
             total: updatedBill.total,
             paid: updatedBill.paid,
             due: updatedBill.due,
+            receptionist_id: updatedBill.receptionist_id,
+            referred_doctor_id: updatedBill.referred_doctor_id,
+            branch_id: updatedBill.branch_id,
+            patient_phones: updatedBill.patient?.phones?.map(p => p.phone_number),
             tests: updatedBill.test_id_tests.map(t => ({
                 id: t.id,
                 name: t.name,

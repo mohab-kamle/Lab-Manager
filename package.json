@@ -1,12 +1,21 @@
 {
   "name": "lab-manager-root",
   "private": true,
+<<<<<<< HEAD
   "packageManager": "pnpm@9.15.4",
+=======
+  "packageManager": "pnpm@10.17.1",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
+<<<<<<< HEAD
     "install:all": "pnpm install"
+=======
+    "install:all": "pnpm install",
+    "db:seed": "pnpm -C server db:seed"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   },
   "devDependencies": {
     "sequelize-cli": "^6.6.3"
@@ -18,16 +27,34 @@
     "onlyBuiltDependencies": [
       "@parcel/watcher",
       "@swc/core",
+<<<<<<< HEAD
+=======
+      "@whiskeysockets/baileys",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       "bcrypt",
       "core-js",
       "es5-ext",
       "esbuild",
+<<<<<<< HEAD
+=======
+      "libsignal-node",
+      "protobufjs",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
       "puppeteer",
       "sharp"
     ]
   },
   "dependencies": {
+<<<<<<< HEAD
     "csv-parser": "^3.2.0",
     "dotenv": "^16.6.1"
+=======
+    "@notionhq/client": "^5.20.0",
+    "@tryfabric/martian": "^1.2.4",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.6.1",
+    "front-matter": "^4.0.2",
+    "glob": "^13.0.6"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   }
 }

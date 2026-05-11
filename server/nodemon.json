@@ -8,7 +8,10 @@
   ],
   "ignore": [
     "node_modules",
+<<<<<<< HEAD
     "uploads",
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     "logs"
   ],
   "ext": "js,json",

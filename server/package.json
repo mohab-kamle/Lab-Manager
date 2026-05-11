@@ -17,21 +17,42 @@
     "delete": "pm2 delete ecosystem.config.js",
     "status": "pm2 status",
     "logs": "pm2 logs",
+<<<<<<< HEAD
     "migrate": "sequelize-cli db:migrate",
     "migrate:undo": "sequelize-cli db:migrate:undo",
     "run-migrations": "node scripts/runMigrations.js",
     "db:sync": "node syncDatabase.js",
     "db:sync:force": "node syncDatabase.js force",
     "db:check": "node syncDatabase.js check"
+=======
+    "migrate": "npx sequelize-cli db:migrate",
+    "migrate:undo": "npx sequelize-cli db:migrate:undo",
+    "run-migrations": "node scripts/runMigrations.js",
+    "db:sync": "node scripts/setup/syncDatabase.js",
+    "db:sync:force": "node scripts/setup/syncDatabase.js force",
+    "db:check": "node scripts/setup/syncDatabase.js check",
+    "db:seed:admin": "npx sequelize-cli db:seed:all",
+    "db:seed:loinc": "node scripts/seedLoinc.js",
+    "db:seed": "pnpm run db:sync && pnpm run migrate && pnpm run db:seed:admin && pnpm run db:seed:loinc",
+    "db:seed:undo": "npx sequelize-cli db:seed:undo:all"
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
   },
   "keywords": [],
   "author": "Mohab",
   "license": "MIT",
   "dependencies": {
+<<<<<<< HEAD
     "@aws-sdk/client-bedrock-runtime": "^3.1037.0",
     "@aws-sdk/client-s3": "^3.1038.0",
     "@aws-sdk/s3-request-presigner": "^3.1038.0",
     "axios": "^1.15.0",
+=======
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "@aws-sdk/client-bedrock-runtime": "^3.1037.0",
+    "@aws-sdk/client-s3": "^3.1038.0",
+    "@aws-sdk/s3-request-presigner": "^3.1038.0",
+    "axios": "^1.15.2",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "commander": "^12.0.0",
@@ -52,11 +73,21 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.5",
     "nodemon": "^3.1.9",
+<<<<<<< HEAD
     "openai": "^6.34.0",
     "otp-generator": "^4.0.1",
     "pm2": "^6.0.8",
     "redis": "^5.10.0",
     "sequelize": "^6.37.8",
+=======
+    "pino": "^10.3.1",
+    "openai": "^6.34.0",
+    "pm2": "^7.0.0",
+    "qrcode": "^1.5.4",
+    "redis": "^5.10.0",
+    "sequelize": "^6.37.8",
+    "sequelize-cli": "^6.6.3",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     "socket.io": "^4.8.3"
   }
 }

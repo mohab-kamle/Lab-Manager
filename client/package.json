@@ -14,7 +14,11 @@
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.17.8",
     "@react-pdf/renderer": "^4.3.0",
+<<<<<<< HEAD
     "axios": "^1.15.0",
+=======
+    "axios": "^1.15.2",
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     "bootstrap": "^5.3.3",
     "buffer": "^6.0.3",
     "date-fns": "^4.1.0",

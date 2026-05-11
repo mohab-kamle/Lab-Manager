@@ -7,7 +7,11 @@ module.exports = {
             // In MySQL, constraint names are often auto-generated unless specified.
             // Easiest robust workaround for this when exact name is unknown is just to drop the column directly, 
             // but standard requires removing constraint first. 
+<<<<<<< HEAD
             await sequelize.query('ALTER TABLE `test` DROP FOREIGN KEY `test_ibfk_groupId`;');
+=======
+            await queryInterface.sequelize.query('ALTER TABLE `test` DROP FOREIGN KEY `test_ibfk_groupId`;');
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         } catch (e) {
             console.log('Foreign key constraint might have different name or already removed.');
         }
@@ -21,7 +25,11 @@ module.exports = {
 
         // 3. Remove the FK constraints from medical_report_results linking to test_components.
         try {
+<<<<<<< HEAD
             await sequelize.query('ALTER TABLE `medical_report_results` DROP FOREIGN KEY `medical_report_test_component_result_ibfk_2`;');
+=======
+            await queryInterface.sequelize.query('ALTER TABLE `medical_report_results` DROP FOREIGN KEY `medical_report_test_component_result_ibfk_2`;');
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
         } catch (e) {
             console.log('FK constraint does not exist.');
         }
@@ -43,6 +51,10 @@ module.exports = {
         try { await queryInterface.dropTable('test_groups'); } catch (e) { }
     },
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
     down: async (queryInterface, Sequelize) => {
         throw new Error("This destruction migration is irreversible.");
     }

@@ -40,4 +40,9 @@ coverage/
 Dump20251013.sql
 
 # Ignore the LOINC versioned folder in the root
+<<<<<<< HEAD
 /Loinc_2.82/
+=======
+/Loinc_2.82/
+GEMINI.md
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e

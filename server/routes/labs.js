@@ -15,7 +15,10 @@ const { tenantContext } = require('../middleware/tenantContext');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const authorizeFileAccess = require('../middleware/authorizeFileAccess');
 const path = require('path');
+<<<<<<< HEAD
 const fs = require('fs');
+=======
+>>>>>>> 86bbcc2044522819d266fb427ab59b27ed7ef22e
 const { Op } = require('sequelize');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const { s3ImageUpload, deleteOldS3Logo, getS3FileUrl } = require('../services/s3Service');
