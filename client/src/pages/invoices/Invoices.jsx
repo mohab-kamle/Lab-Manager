@@ -19,7 +19,7 @@ import RefundModal from "../../components/invoices/RefundModal";
 import InvoiceHistoryDrawer from "../../components/invoices/InvoiceHistoryDrawer";
 
 const Invoices = () => {
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const { user } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
@@ -51,9 +51,7 @@ const Invoices = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
   const [searchQuery, setSearchQuery] = useState("");
@@ -834,7 +832,6 @@ const Invoices = () => {
 
       if (response.data.success) {
         setInvoices(prevInvoices => prevInvoices.filter(inv => inv.id !== id));
-        setShowDeleteModal(false);
         // Refresh patient data to show updated financial information
         await refreshPatientData();
         // Show success message as a toast
@@ -1290,8 +1287,7 @@ const Invoices = () => {
         variant="outline-danger"
         size="sm"
         onClick={() => {
-          setItemToDelete(rowData);
-          setShowDeleteModal(true);
+          confirm.delete(`Invoice #${rowData.id}`, () => handleDelete(rowData.id));
         }}
       >
         <Trash2 size={16} />
@@ -2446,37 +2442,7 @@ const Invoices = () => {
             </Modal.Footer>
           </Modal>
 
-          {/* Delete Confirmation Modal */}
-          <Modal
-            show={showDeleteModal}
-            onHide={() => setShowDeleteModal(false)}
-          >
-            <Modal.Header>
-              <Modal.Title>Confirm Delete</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              Are you sure you want to delete this invoice?
-              This action cannot be undone.
-            </Modal.Body>
-            <Modal.Footer>
-              <Button
-                variant="secondary"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => handleDelete(itemToDelete?.id)}
-                disabled={loading}
-              >
-                {loading ? "Deleting..." : "Delete"}
-              </Button>
-            </Modal.Footer>
-          </Modal>
+
 
           {/* Manage Statuses Modal */}
           <Modal

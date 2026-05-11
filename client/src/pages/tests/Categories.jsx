@@ -10,10 +10,10 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
 
 const Categories = () => {
+  const { toast, confirm } = useToast();
   const [categories, setCategories] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
@@ -24,7 +24,7 @@ const Categories = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
-  const { toast, confirm } = useToast();
+
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -49,12 +49,12 @@ const Categories = () => {
         setTableHeaders([...headers]);
       } else {
         console.error("Expected an array but got:", response.data);
-        setError("Unexpected data format received from the server.");
+        toast.error("Unexpected data format received from the server.");
       }
       setLoading(false);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      setError("Failed to fetch categories. Please try again later.");
+      toast.error("Failed to fetch categories. Please try again later.");
       setLoading(false);
     }
   };
@@ -128,21 +128,18 @@ const Categories = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (category) => {
-    const confirmed = await confirm.delete(category.name);
-    if (confirmed) {
-      try {
+  const handleDelete = (category) => {
+    confirm.delete(category.name, async () => {      try {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
         await axios.delete(`${apiUrl}/categories/${category.id}`, { headers });
-        toast.success("Category deleted successfully");
-        // Refresh using extracted function
-        await fetchCategories();
+        toast.success("Category deleted successfully!");
+        fetchCategories();
       } catch (error) {
-        toast.error("Failed to delete category");
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.error || "Failed to delete category");
       }
-    }
-  };
+    });  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -161,13 +158,14 @@ const Categories = () => {
       setShowModal(false);
       setEditingCategory(null);
       setFormData({ name: "" });
+
       // Refresh using extracted function
       await fetchCategories();
     } catch (error) {
-      toast.error("Failed to save category");
+      console.error("Save error:", error);
+      toast.error(error.response?.data?.error || "Failed to save category");
     }
   };
-
   // Excel Export Handler
   const handleExportXLSX = async () => {
     try {
@@ -177,11 +175,10 @@ const Categories = () => {
       }));
 
       const result = await exportToExcel(exportData, 'categories', 'Categories');
-      if (!result.success) {
-        toast.error(`Export failed: ${result.message}`);
+      if (result.success) {
+        toast.success("Categories exported successfully");
       } else {
-        toast.success(result.message);
-      }
+        toast.error(`Export failed: ${result.message}`);      }
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Failed to export categories');
@@ -199,7 +196,7 @@ const Categories = () => {
     formData.append('file', importFile);
     
     setImportLoading(true);
-    
+    const loadingToast = toast.loading("Importing categories...");    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${apiUrl}/categories/import`, formData, {
@@ -209,22 +206,23 @@ const Categories = () => {
         }
       });
       
+      const { summary, errorDetails, message } = response.data;
+      
       setShowImportModal(false);
       setImportFile(null);
       
-      const { message, errors } = response.data;
-      if (errors && errors.length > 0) {
+      if (summary.errors > 0) {
         toast.warning(message);
-        console.log('Import errors:', errors);
-      } else {
+        console.log('Import errors:', errorDetails);      } else {
         toast.success(message);
       }
       
       await fetchCategories();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to import categories');
+      console.error("Import error:", error);      toast.error(error.response?.data?.error || 'Failed to import categories');
     } finally {
       setImportLoading(false);
+      toast.dismiss(loadingToast);
     }
   };
 
@@ -253,8 +251,6 @@ const Categories = () => {
       </div>
       {loading ? (
         <LoadingSpinner message="Loading categories..." />
-      ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
       ) : (
         <>
           <Toolbar

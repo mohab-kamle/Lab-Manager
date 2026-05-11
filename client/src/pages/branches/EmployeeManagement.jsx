@@ -53,9 +53,7 @@ const EmployeeManagement = () => {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
-  const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
   const [rolePermissions, setRolePermissions] = useState(null);
@@ -218,14 +216,10 @@ const EmployeeManagement = () => {
         prevEmployees.filter((emp) => emp.id !== id)
       );
       toast.success(`Employee "${name}" has been removed.`);
-      setShowDeleteModal(false);
-      setEmployeeToDelete(null);
     } catch (error) {
       console.error("Error deleting employee:", error);
       toast.error("Could not delete employee record. Please try again.");
     } finally {
-      setShowDeleteModal(false);
-      setEmployeeToDelete(null);
       setIsDeleting(false);
     }
   };

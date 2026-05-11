@@ -93,7 +93,7 @@ RangeAdder.propTypes = {
 
 
 const Tests = () => {
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [sampleTypes, setSampleTypes] = useState([]);
@@ -101,7 +101,6 @@ const Tests = () => {
   const [outsourcedLabs, setOutsourcedLabs] = useState([]); // Outsourced labs for the "Lab Name" dropdown
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [modalError, setModalError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -109,10 +108,12 @@ const Tests = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [testToDelete, setTestToDelete] = useState(null);
+
   const [selectedTests, setSelectedTests] = useState([]);
   const [showGlobalCatalogModal, setShowGlobalCatalogModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
   const [selectedTestComponents, setSelectedTestComponents] = useState([]);
@@ -199,7 +200,6 @@ const Tests = () => {
       }
     } catch (error) {
       console.error("Fetch error:", error);
-      setError("Failed to fetch data. Please try again later.");
       toast.error(error.response?.data?.error || "Failed to fetch data. Please try again later.");
     }
     setLoading(false);
@@ -274,17 +274,19 @@ const Tests = () => {
   }, []);
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete ${selectedTests.length} tests?`)) return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${apiUrl}/tests/bulk-delete`, { testIds: selectedTests }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSelectedTests([]);
-      fetchTestsAndRelated();
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to bulk delete tests");
-    }
+    confirm.delete(`${selectedTests.length} tests`, async () => {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${apiUrl}/tests/bulk-delete`, { testIds: selectedTests }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSelectedTests([]);
+        toast.success("Tests deleted successfully!");
+        fetchTestsAndRelated();
+      } catch (err) {
+        toast.error(err.response?.data?.error || "Failed to bulk delete tests");
+      }
+    });
   };
 
   const formatCellData = useCallback((data, header) => {
@@ -388,7 +390,6 @@ const Tests = () => {
 
   const handleAdd = () => {
     setEditingTest(null);
-    setError(null); // Clear any previous errors
     setModalError(null); // Clear modal errors
     setFormData({
       name: "",
@@ -431,7 +432,6 @@ const Tests = () => {
 
   const handleEdit = useCallback(async (test) => {
     setEditingTest(test);
-    setError(null); // Clear any previous errors
     setModalError(null); // Clear modal errors
     setFormData({
       name: test.name || "",
@@ -477,9 +477,19 @@ const Tests = () => {
   }, [apiUrl]);
 
   const handleDelete = useCallback((test) => {
-    setTestToDelete(test);
-    setShowDeleteModal(true);
-  }, []);
+    confirm.delete(test.name, async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.delete(`${apiUrl}/tests/${test.id}`, { headers });
+        toast.success("Test deleted successfully!");
+        fetchTestsAndRelated();
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.error || "Failed to delete test");
+      }
+    });
+  }, [apiUrl, confirm, fetchTestsAndRelated, toast]);
 
   // Adds a reference range entry to the component being built (before it's committed to the list)
   const addRangeToNewComponent = () => {
@@ -715,20 +725,7 @@ const Tests = () => {
     }
   };
 
-  const confirmDelete = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.delete(`${apiUrl}/tests/${testToDelete.id}`, { headers });
-      toast.success("Test deleted successfully!");
-      setShowDeleteModal(false);
-      setTestToDelete(null);
-      // Refresh using extracted logic
-      await fetchTestsAndRelated();
-    } catch (error) {
-      setError("Failed to delete test");
-    }
-  };
+
 
   const ActionComponent = useMemo(() => {
     const Component = ({ rowData }) => (
@@ -769,21 +766,25 @@ const Tests = () => {
       }));
 
       const result = await exportToExcel(exportData, 'tests', 'Tests');
-      if (!result.success) {
-        setError(`Export failed: ${result.message}`);
+      if (result.success) {
+        toast.success("Tests exported successfully");
+      } else {
+        toast.error(`Export failed: ${result.message}`);
       }
     } catch (error) {
       console.error('Export error:', error);
-      setError('Failed to export tests');
+      toast.error('Failed to export tests');
     }
   };
 
   // XLSX Import Handler (now connected to backend)
-  const handleImportXLSX = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleImportXLSX = async () => {
+    if (!importFile) return;
+    
+    setImportLoading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', importFile);
+    const loadingToast = toast.loading("Importing tests...");
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${apiUrl}/tests/import`, formData, {
@@ -792,10 +793,27 @@ const Tests = () => {
           'Content-Type': 'multipart/form-data'
         }
       });
-      toast.success(`Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`);
+      
+      const { summary, errorDetails, message } = response.data;
+      
+      toast.dismiss(loadingToast);
+      
+      if (summary.errors > 0) {
+        toast.warning(message);
+        console.log('Import errors:', errorDetails);
+      } else {
+        toast.success(message);
+      }
+      
+      setShowImportModal(false);
+      setImportFile(null);
       await fetchTestsAndRelated();
     } catch (error) {
+      console.error("Import error:", error);
+      toast.dismiss(loadingToast);
       toast.error(error.response?.data?.error || 'Failed to import tests');
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -808,10 +826,9 @@ const Tests = () => {
             <Download size={16} className="me-2" />
             Export XLSX
           </Button>
-          <Button variant="outline-info" as="label">
+          <Button variant="outline-info" onClick={() => setShowImportModal(true)}>
             <Upload size={16} className="me-2" />
             Import Excel
-            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleImportXLSX} />
           </Button>
           <Button variant="primary" onClick={() => setShowGlobalCatalogModal(true)}>
             <Search size={16} className="me-2" />Search Global Catalog
@@ -827,8 +844,6 @@ const Tests = () => {
       </div>
       {loading ? (
         <LoadingSpinner message="Loading tests..." />
-      ) : error ? (
-        <p style={{ color: "var(--color-danger)" }}>{error}</p>
       ) : (
         <>
           <Toolbar
@@ -1582,17 +1597,7 @@ const Tests = () => {
         </Form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirm Delete</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>Are you sure you want to delete the test "{testToDelete?.name}"? This action cannot be undone.</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={confirmDelete}>Delete</Button>
-        </Modal.Footer>
-      </Modal>
+
 
       {/* Add Question Modal */}
       <Modal show={showAddQuestionModal} onHide={() => setShowAddQuestionModal(false)}>
@@ -1632,6 +1637,62 @@ const Tests = () => {
             disabled={!newQuestion.text.trim()}
           >
             Add Question
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
+      {/* Import Modal */}
+      <Modal show={showImportModal} onHide={() => setShowImportModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Import Tests</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="info" className="mb-3">
+            <h6>Excel File Format Requirements:</h6>
+            <p className="mb-2">Your Excel file should have the following columns:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <ul className="mb-0 small">
+                <li><strong>Name</strong> (required)</li>
+                <li><strong>Category</strong> (required) - Name or ID</li>
+                <li><strong>Shortcut</strong> (optional)</li>
+                <li><strong>Price</strong> (optional)</li>
+                <li><strong>Cost</strong> (optional)</li>
+              </ul>
+              <ul className="mb-0 small">
+                <li><strong>Sample Type</strong> (optional)</li>
+                <li><strong>Contract</strong> (optional)</li>
+                <li><strong>Lab to Lab Status</strong> (optional: IN/OUT)</li>
+                <li><strong>Lab Name</strong> (optional)</li>
+              </ul>
+            </div>
+            <p className="mt-2 mb-0 small text-muted"><strong>Note:</strong> Columns can be in any order. If a test name already exists, it will be updated.</p>
+          </Alert>
+          
+          <Form.Group className="mb-3">
+            <Form.Label>Select Excel/CSV File</Form.Label>
+            <Form.Control
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={(e) => setImportFile(e.target.files[0])}
+            />
+            <Form.Text className="text-muted">
+              Supported formats: .xlsx, .xls, .csv
+            </Form.Text>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => {
+            setShowImportModal(false);
+            setImportFile(null);
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleImportXLSX}
+            disabled={!importFile || importLoading}
+          >
+            {importLoading ? "Importing..." : "Import"}
           </Button>
         </Modal.Footer>
       </Modal>

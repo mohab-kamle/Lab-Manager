@@ -1305,40 +1305,55 @@ router.post(
       let imported = 0,
         updated = 0,
         errors = [];
-      for (const row of data) {
-        if (!row["Patient ID"]) {
-          errors.push(
-            `Missing required field Patient ID in row: ${JSON.stringify(row)}`
-          );
-          continue;
-        }
-        let report = null;
-        if (row.ID) {
-          report = await db.medical_report.findByPk(row.ID);
-        }
-        const reportData = {
-          patient_id: row["Patient ID"],
-          date: row.Date || null,
-          prints_number: row.Prints || 0,
-          whatsapp_sends: row["WhatsApp Sends"] || 0,
-          done: row.Done || 0,
-          signatory_id: row["Signatory ID"] || null,
-          pending: row.Pending || 0,
-          comment: row.Comment || null,
-          signatory_admin_id: row["Signatory Admin ID"] || null,
-          signatory_name: row["Signatory Name"] || null,
-          bill_id: row["Bill ID"] || null,
-        };
-        if (report) {
-          await report.update(reportData);
-          updated++;
-        } else {
-          await db.medical_report.create(reportData);
-          imported++;
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        if (!row || Object.keys(row).length === 0) continue;
+
+        try {
+          if (!row["Patient ID"]) {
+            errors.push(`Row ${i + 2}: Missing required field Patient ID`);
+            continue;
+          }
+          let report = null;
+          if (row.ID) {
+            report = await db.medical_report.findByPk(row.ID);
+          }
+          const reportData = {
+            patient_id: row["Patient ID"],
+            date: row.Date || null,
+            prints_number: row.Prints || 0,
+            whatsapp_sends: row["WhatsApp Sends"] || 0,
+            done: row.Done || 0,
+            signatory_id: row["Signatory ID"] || null,
+            pending: row.Pending || 0,
+            comment: row.Comment || null,
+            signatory_admin_id: row["Signatory Admin ID"] || null,
+            signatory_name: row["Signatory Name"] || null,
+            bill_id: row["Bill ID"] || null,
+          };
+          if (report) {
+            await report.update(reportData);
+            updated++;
+          } else {
+            await db.medical_report.create(reportData);
+            imported++;
+          }
+        } catch (error) {
+          errors.push(`Row ${i + 2}: ${error.message}`);
         }
       }
-      // No need to clean up file since we're using memory storage
-      res.json({ imported, updated, errors });
+      
+      res.json({ 
+        success: true,
+        summary: {
+          imported,
+          duplicates: updated,
+          errors: errors.length,
+          total: data.length
+        },
+        errorDetails: errors,
+        message: `Import completed: ${imported} imported, ${updated} updated (duplicates)${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
+      });
     } catch (error) {
       console.error("Error importing medical reports:", error);
       res.status(500).json({ error: "Failed to import medical reports" });

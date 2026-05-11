@@ -134,10 +134,15 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
     if (errors.length > 0) message += ` ${errors.length} errors occurred.`;
 
     res.json({ 
-      imported,
-      skipped,
-      errors,
-      message
+      success: true,
+      summary: {
+        imported,
+        duplicates: skipped,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
     });
   } catch (error) {
     console.error('Error importing categories:', error);
