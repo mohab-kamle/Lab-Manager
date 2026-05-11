@@ -182,6 +182,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
     }
 
     let imported = 0;
+    let skipped = 0;
     let errors = [];
 
     for (let i = 0; i < data.length; i++) {
@@ -214,7 +215,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
         });
 
         if (existingBranch) {
-          errors.push(`Row ${i + 2}: Branch "${name}" already exists`);
+          skipped++;
           continue;
         }
 
@@ -248,9 +249,15 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
     }
 
     res.json({ 
-      imported, 
-      errors,
-      message: `Successfully imported ${imported} branches${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
+      success: true,
+      summary: {
+        imported,
+        duplicates: skipped,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
     });
   } catch (error) {
     console.error('Error importing branches:', error);

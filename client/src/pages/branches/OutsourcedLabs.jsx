@@ -29,12 +29,10 @@ const OutsourcedLabs = () => {
 
   // ─── Modal state ──────────────────────────────────────────────────────
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
   // ─── Form state ───────────────────────────────────────────────────────
   const [editingLab, setEditingLab] = useState(null);
-  const [labToDelete, setLabToDelete] = useState(null);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
 
@@ -170,8 +168,6 @@ const OutsourcedLabs = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Outsourced lab deleted successfully!");
-      setShowDeleteModal(false);
-      setLabToDelete(null);
       await fetchLabs();
     } catch (error) {
       console.error("Error deleting outsourced lab:", error);
@@ -217,7 +213,7 @@ const OutsourcedLabs = () => {
 
   /**
    * Import outsourced labs from an uploaded Excel file.
-   * TODO: Backend — POST /outsourced-labs/import (multipart file upload)
+   * Standardized to use backend file processing.
    */
   const handleImportXLSX = async () => {
     if (!importFile) {
@@ -225,48 +221,33 @@ const OutsourcedLabs = () => {
       return;
     }
 
-    setImportLoading(true);
+    const loadingToast = toast.loading("Importing outsourced labs...");
     try {
-      // Validate the file on the client side first
-      const validation = validateExcelFile(importFile);
-      if (!validation.valid) {
-        toast.error(validation.message);
-        return;
-      }
+      const formData = new FormData();
+      formData.append("file", importFile);
 
-      // Parse the Excel file into JSON
-      const result = await importFromExcel(importFile);
-      if (!result.success) {
-        toast.error(result.message);
-        return;
-      }
-
-      // Send the parsed data to the backend for persistence
       const token = localStorage.getItem("token");
-      // TODO: API call — POST /outsourced-labs/import
       const response = await axios.post(
         `${apiUrl}/outsourced-labs/import`,
-        { labs: result.data },
+        formData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
 
+      const { summary, errorDetails, message } = response.data;
+
       setShowImportModal(false);
       setImportFile(null);
-      toast.success(
-        `Successfully imported ${response.data.imported} labs${
-          response.data.errors?.length > 0
-            ? ` with ${response.data.errors.length} errors`
-            : ""
-        }`
-      );
-
-      if (response.data.errors?.length > 0) {
-        console.log("Import errors:", response.data.errors);
+      
+      if (summary.errors > 0) {
+        toast.warning(message);
+        console.log('Import errors:', errorDetails);
+      } else {
+        toast.success(message);
       }
 
       await fetchLabs();
@@ -274,7 +255,7 @@ const OutsourcedLabs = () => {
       console.error("Import error:", error);
       toast.error(error.response?.data?.error || "Failed to import outsourced labs.");
     } finally {
-      setImportLoading(false);
+      toast.dismiss(loadingToast);
     }
   };
 
@@ -340,8 +321,7 @@ const OutsourcedLabs = () => {
         size="sm"
         title="Delete outsourced lab"
         onClick={() => {
-          setLabToDelete(rowData);
-          setShowDeleteModal(true);
+          confirm.delete(rowData.name, () => handleDeleteLab(rowData.id));
         }}
       >
         <Trash2 size={16} />
@@ -580,44 +560,7 @@ const OutsourcedLabs = () => {
             </Modal.Footer>
           </Modal>
 
-          {/* ── Delete Confirmation Modal ───────────────────────────── */}
-          <Modal
-            show={showDeleteModal}
-            onHide={() => setShowDeleteModal(false)}
-          >
-            <Modal.Header>
-              <Modal.Title>Confirm Delete</Modal.Title>
-              <button
-                className="modal-close-btn"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              <Alert variant="warning">
-                Are you sure you want to delete the outsourced lab "
-                {labToDelete?.name}"? This action cannot be undone.
-              </Alert>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setLabToDelete(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => handleDeleteLab(labToDelete?.id)}
-              >
-                Delete Lab
-              </Button>
-            </Modal.Footer>
-          </Modal>
+
         </>
       )}
     </Container>

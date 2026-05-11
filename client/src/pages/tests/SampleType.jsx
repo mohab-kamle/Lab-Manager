@@ -7,8 +7,10 @@ import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
 
 const Samples = () => {
+  const { toast, confirm } = useToast();
   const [samples, setSamples] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,8 +22,6 @@ const Samples = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingSample, setEditingSample] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [sampleToDelete, setSampleToDelete] = useState(null);
   const [formData, setFormData] = useState({ name: "" });
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
@@ -140,8 +140,18 @@ const Samples = () => {
   };
 
   const handleDelete = (sample) => {
-    setSampleToDelete(sample);
-    setShowDeleteModal(true);
+    confirm.delete(sample.type, async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.delete(`${apiUrl}/samples/${sample.id}`, { headers });
+        toast.success("Sample type deleted successfully!");
+        fetchSamples();
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.error || "Failed to delete sample type");
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -169,22 +179,7 @@ const Samples = () => {
     }
   };
 
-  const confirmDelete = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.delete(`${apiUrl}/samples/${sampleToDelete.id}`, { headers });
-      setShowDeleteModal(false);
-      setSampleToDelete(null);
-      setError(null); // Clear any previous errors
-      setSuccessMessage("Sample type deleted successfully!");
-      // Refresh using extracted function
-      await fetchSamples();
-    } catch (error) {
-      const errorMessage = error.response?.data?.error || "Failed to delete sample type";
-      setError(errorMessage);
-    }
-  };
+
 
   // Excel Export Handler
   const handleExportXLSX = async () => {
@@ -383,20 +378,7 @@ const Samples = () => {
         </Modal.Footer>
       </Modal>
       
-      {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header>
-          <Modal.Title>Confirm Delete</Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
-            <CircleX size={24} />
-          </button>
-        </Modal.Header>
-        <Modal.Body>Are you sure you want to delete the sample type "{sampleToDelete?.type}"? This action cannot be undone.</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={confirmDelete}>Delete</Button>
-        </Modal.Footer>
-      </Modal>
+
     </Container>
   );
 };

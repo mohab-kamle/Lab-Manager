@@ -7,21 +7,19 @@ import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
 
 const Categories = () => {
+  const { toast, confirm } = useToast();
   const [categories, setCategories] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [formData, setFormData] = useState({ name: "" });
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
@@ -50,12 +48,12 @@ const Categories = () => {
         setTableHeaders([...headers]);
       } else {
         console.error("Expected an array but got:", response.data);
-        setError("Unexpected data format received from the server.");
+        toast.error("Unexpected data format received from the server.");
       }
       setLoading(false);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      setError("Failed to fetch categories. Please try again later.");
+      toast.error("Failed to fetch categories. Please try again later.");
       setLoading(false);
     }
   };
@@ -130,8 +128,18 @@ const Categories = () => {
   };
 
   const handleDelete = (category) => {
-    setCategoryToDelete(category);
-    setShowDeleteModal(true);
+    confirm.delete(category.name, async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.delete(`${apiUrl}/categories/${category.id}`, { headers });
+        toast.success("Category deleted successfully!");
+        fetchCategories();
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.error || "Failed to delete category");
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -149,26 +157,16 @@ const Categories = () => {
       setShowModal(false);
       setEditingCategory(null);
       setFormData({ name: "" });
+      toast.success(editingCategory ? "Category updated successfully" : "Category added successfully");
       // Refresh using extracted function
       await fetchCategories();
     } catch (error) {
-      setError("Failed to save category");
+      console.error("Save error:", error);
+      toast.error(error.response?.data?.error || "Failed to save category");
     }
   };
 
-  const confirmDelete = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.delete(`${apiUrl}/categories/${categoryToDelete.id}`, { headers });
-      setShowDeleteModal(false);
-      setCategoryToDelete(null);
-      // Refresh using extracted function
-      await fetchCategories();
-    } catch (error) {
-      setError("Failed to delete category");
-    }
-  };
+
 
   // Excel Export Handler
   const handleExportXLSX = async () => {
@@ -179,19 +177,21 @@ const Categories = () => {
       }));
 
       const result = await exportToExcel(exportData, 'categories', 'Categories');
-      if (!result.success) {
-        setError(`Export failed: ${result.message}`);
+      if (result.success) {
+        toast.success("Categories exported successfully");
+      } else {
+        toast.error(`Export failed: ${result.message}`);
       }
     } catch (error) {
       console.error('Export error:', error);
-      setError('Failed to export categories');
+      toast.error('Failed to export categories');
     }
   };
 
   // XLSX Import Handler
   const handleImportXLSX = async () => {
     if (!importFile) {
-      setError("Please select a file to import");
+      toast.error("Please select a file to import");
       return;
     }
 
@@ -199,7 +199,7 @@ const Categories = () => {
     formData.append('file', importFile);
     
     setImportLoading(true);
-    setError(null);
+    const loadingToast = toast.loading("Importing categories...");
     
     try {
       const token = localStorage.getItem('token');
@@ -210,19 +210,25 @@ const Categories = () => {
         }
       });
       
+      const { summary, errorDetails, message } = response.data;
+      
       setShowImportModal(false);
       setImportFile(null);
-      setSuccessMessage(`Successfully imported ${response.data.imported} categories${response.data.errors.length > 0 ? ` with ${response.data.errors.length} errors` : ''}`);
       
-      if (response.data.errors.length > 0) {
-        console.log('Import errors:', response.data.errors);
+      if (summary.errors > 0) {
+        toast.warning(message);
+        console.log('Import errors:', errorDetails);
+      } else {
+        toast.success(message);
       }
       
       await fetchCategories();
     } catch (error) {
-      setError(error.response?.data?.error || 'Failed to import categories');
+      console.error("Import error:", error);
+      toast.error(error.response?.data?.error || 'Failed to import categories');
     } finally {
       setImportLoading(false);
+      toast.dismiss(loadingToast);
     }
   };
 
@@ -251,8 +257,6 @@ const Categories = () => {
       </div>
       {loading ? (
         <LoadingSpinner message="Loading categories..." />
-      ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
       ) : (
         <>
           <Toolbar
@@ -335,23 +339,11 @@ const Categories = () => {
               Supported formats: .xlsx, .xls, .csv (max 5MB)
             </Form.Text>
           </Form.Group>
-          
-          {error && (
-            <Alert variant="danger" className="mb-3">
-              {error}
-            </Alert>
-          )}
-          {successMessage && (
-            <Alert variant="success" onClose={() => setSuccessMessage(null)} dismissible>
-              {successMessage}
-            </Alert>
-          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => {
             setShowImportModal(false);
             setImportFile(null);
-            setError(null);
           }}>
             Cancel
           </Button>
@@ -365,20 +357,7 @@ const Categories = () => {
         </Modal.Footer>
       </Modal>
       
-      {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header>
-          <Modal.Title>Confirm Delete</Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
-            <CircleX size={24} />
-          </button>
-        </Modal.Header>
-        <Modal.Body>Are you sure you want to delete the category "{categoryToDelete?.name}"? This action cannot be undone.</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={confirmDelete}>Delete</Button>
-        </Modal.Footer>
-      </Modal>
+
     </Container>
   );
 };

@@ -563,8 +563,8 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
 
     // Validate file
     const validation = validateExcelBuffer(req.file.buffer);
-    if (!validation.isValid) {
-      return res.status(400).json({ error: validation.error });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.message });
     }
 
     // Read Excel data
@@ -573,47 +573,125 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
     if (!data || data.length === 0) {
       return res.status(400).json({ error: "No data found in the uploaded file" });
     }
+    
     let imported = 0, updated = 0, errors = [];
-    for (const row of data) {
-      if (!row.Name || !row['Category ID']) {
-        errors.push(`Missing required fields in row: ${JSON.stringify(row)}`);
-        continue;
-      }
-      // Try to find by name
-      let test = await db.test.findOne({ where: { name: row.Name, lab_id: req.tenant.lab_id } });
-      
-      // Normalize Lab-to-Lab fields
-      const normalizedStatus = (row['Lab to Lab Status'] && row['Lab to Lab Status'].toString().trim()) 
-        ? row['Lab to Lab Status'].toString().trim().toUpperCase() 
-        : null;
-      const normalizedLabName = (row['Lab Name'] && row['Lab Name'].toString().trim()) 
-        ? row['Lab Name'].toString().trim() 
-        : null;
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      if (!row || Object.keys(row).length === 0) continue;
 
-      const testData = {
-        lab_id: req.tenant.lab_id,
-        name: row.Name,
-        shortcut: row.Shortcut || null,
-        price: row.Price || null,
-        cost: row.Cost || null,
-        lab_to_lab_status: normalizedStatus,
-        lab_name: normalizedLabName,
-        category_id: row['Category ID'],
-        precautions: row.Precautions || null,
-        decreased_in: row['Decreased In'] || null,
-        increased_in: row['Increased In'] || null,
-        sample_type_id: row['Sample Type ID'] || null,
-        contract_id: row['Contract ID'] || null
-      };
-      if (test) {
-        await test.update(testData);
-        updated++;
-      } else {
-        await db.test.create(testData);
-        imported++;
+      try {
+        const name = row.Name || row.name || row['Test Name'];
+        const categoryName = row.Category || row['Category Name'] || row.category || row['Category ID'];
+        const sampleTypeName = row['Sample Type'] || row['Sample Type Name'] || row.sample_type || row['Sample Type ID'];
+        const contractName = row.Contract || row['Contract Name'] || row.contract || row['Contract ID'];
+
+        if (!name) {
+          errors.push(`Row ${i + 2}: Test Name is required`);
+          continue;
+        }
+
+        if (!categoryName) {
+          errors.push(`Row ${i + 2}: Category is required`);
+          continue;
+        }
+
+        // Look up Category ID (Auto-create if not found)
+        let categoryId = null;
+        if (categoryName) {
+          const trimmedCatName = categoryName.toString().trim();
+          const [cat] = await db.categories_test_and_culture.findOrCreate({
+            where: { name: trimmedCatName }
+          });
+          
+          if (cat) {
+            categoryId = cat.id;
+          } else if (!isNaN(categoryName)) {
+            categoryId = parseInt(categoryName);
+          } else {
+            errors.push(`Row ${i + 2}: Category "${categoryName}" could not be created or found`);
+            continue;
+          }
+        }
+
+        // Look up Sample Type ID (Auto-create if not found)
+        let sampleTypeId = null;
+        if (sampleTypeName) {
+          const trimmedSTName = sampleTypeName.toString().trim();
+          const [st] = await db.sample_type.findOrCreate({
+            where: { type: trimmedSTName }
+          });
+          
+          if (st) {
+            sampleTypeId = st.id;
+          } else if (!isNaN(sampleTypeName)) {
+            sampleTypeId = parseInt(sampleTypeName);
+          }
+        }
+
+        // Look up Contract ID
+        let contractId = null;
+        if (contractName) {
+          const trimmedCTName = contractName.toString().trim();
+          const ct = await db.contract.findOne({
+            where: { name: trimmedCTName }
+          });
+          if (ct) {
+            contractId = ct.id;
+          } else if (!isNaN(contractName)) {
+            contractId = parseInt(contractName);
+          }
+        }
+
+        // Try to find by name
+        let test = await db.test.findOne({ where: { name: name.toString().trim(), lab_id: req.tenant.lab_id } });
+        
+        // Normalize Lab-to-Lab fields
+        const normalizedStatus = (row['Lab to Lab Status'] || row['lab_to_lab_status']) 
+          ? (row['Lab to Lab Status'] || row['lab_to_lab_status']).toString().trim().toUpperCase() 
+          : null;
+        const normalizedLabName = (row['Lab Name'] || row['lab_name']) 
+          ? (row['Lab Name'] || row['lab_name']).toString().trim() 
+          : null;
+
+        const testData = {
+          lab_id: req.tenant.lab_id,
+          name: name.toString().trim(),
+          shortcut: row.Shortcut || row.shortcut || null,
+          price: row.Price || row.price || null,
+          cost: row.Cost || row.cost || null,
+          lab_to_lab_status: normalizedStatus,
+          lab_name: normalizedLabName,
+          category_id: categoryId,
+          precautions: row.Precautions || row.precautions || null,
+          decreased_in: row['Decreased In'] || row.decreased_in || null,
+          increased_in: row['Increased In'] || row.increased_in || null,
+          sample_type_id: sampleTypeId,
+          contract_id: contractId
+        };
+
+        if (test) {
+          await test.update(testData);
+          updated++;
+        } else {
+          await db.test.create(testData);
+          imported++;
+        }
+      } catch (error) {
+        errors.push(`Row ${i + 2}: ${error.message}`);
       }
     }
-    res.json({ imported, updated, errors });
+    
+    res.json({ 
+      success: true,
+      summary: {
+        imported,
+        duplicates: updated,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${updated} updated (duplicates)${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
+    });
   } catch (error) {
     console.error('Error importing tests:', error);
     res.status(500).json({ error: 'Failed to import tests' });

@@ -83,7 +83,10 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
     for (const globalTest of globalTests) {
       // Avoid inserting if test with the exact name already exists locally to prevent unique contraint errors
       const existingTest = await db.test.findOne({
-        where: { name: globalTest.name },
+        where: { 
+          name: globalTest.name,
+          lab_id: req.tenant.lab_id
+        },
         transaction
       });
 
@@ -99,9 +102,10 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
           categoryId = matchingCat.id;
         } else {
           // Dynamic category creation: If this specific category doesn't exist locally, create it exactly as named!
-          const newCat = await db.categories_test_and_culture.create({ 
-            name: globalTest.global_category 
-          }, { transaction });
+          const [newCat] = await db.categories_test_and_culture.findOrCreate({ 
+            where: { name: globalTest.global_category },
+            transaction
+          });
           localCategories.push(newCat);
           categoryId = newCat.id;
         }

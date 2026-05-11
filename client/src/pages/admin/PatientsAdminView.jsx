@@ -34,9 +34,7 @@ const PatientsAdminView = () => {
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [patientToDelete, setPatientToDelete] = useState(null);
   const [editingPatient, setEditingPatient] = useState(null);
   const [patient, setPatient] = useState({
     lab_id: user.lab_id,
@@ -95,7 +93,6 @@ const PatientsAdminView = () => {
   // Removed retry logic states as they are no longer needed
   const [importFile, setImportFile] = useState(null);
   const [selectedPatients, setSelectedPatients] = useState([]);
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
   const [bulkUpdateData, setBulkUpdateData] = useState({
     nationality: "",
@@ -307,7 +304,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       await axios.delete(`${apiUrl}/patient/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -315,8 +311,7 @@ const PatientsAdminView = () => {
 
       // Update the patients state by removing the deleted patient
       setPatients(prevPatients => prevPatients.filter(p => p.id !== id));
-      setShowDeleteModal(false);
-      setPatientToDelete(null);
+      toast.success("Patient deleted successfully!");
     } catch (error) {
       console.error("Error deleting patient:", error);
       toast.error("Failed to delete patient. Please try again.");
@@ -350,7 +345,9 @@ const PatientsAdminView = () => {
       }));
 
       const result = await exportToExcel(exportData, 'patients', 'Patients');
-      if (!result.success) {
+      if (result.success) {
+        toast.success("Patients exported successfully");
+      } else {
         toast.error(`Export failed: ${result.message}`);
       }
     } catch (error) {
@@ -365,13 +362,13 @@ const PatientsAdminView = () => {
       return;
     }
 
+    const loadingToast = toast.loading("Importing patients...");
     try {
       const formData = new FormData();
       formData.append('file', importFile);
 
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/patient/import`, formData, {
         headers: {
@@ -379,6 +376,8 @@ const PatientsAdminView = () => {
           'Content-Type': 'multipart/form-data'
         }
       });
+
+      const { summary, errorDetails, message } = response.data;
 
       // Refresh patients list
       const patientsRes = await axios.get(`${apiUrl}/patient`, {
@@ -388,12 +387,19 @@ const PatientsAdminView = () => {
 
       setShowImportModal(false);
       setImportFile(null);
-      toast.success(`Successfully imported ${response.data.imported} patients`);
+      
+      if (summary.errors > 0) {
+        toast.warning(message);
+        console.log('Import errors:', errorDetails);
+      } else {
+        toast.success(message);
+      }
     } catch (error) {
       console.error('Error importing patients:', error);
       toast.error(error.response?.data?.error || 'Failed to import patients');
     } finally {
       setLoading(false);
+      toast.dismiss(loadingToast);
     }
   };
 
@@ -406,7 +412,6 @@ const PatientsAdminView = () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       await axios.delete(`${apiUrl}/patient/bulk`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -415,9 +420,9 @@ const PatientsAdminView = () => {
 
       // Update the patients state by removing the deleted patients
       setPatients(prevPatients => prevPatients.filter(p => !selectedPatients.includes(p.id)));
+      const count = selectedPatients.length;
       setSelectedPatients([]);
-      setShowBulkDeleteModal(false);
-      toast.success(`Successfully deleted ${selectedPatients.length} patients`);
+      toast.success(`Successfully deleted ${count} patients`);
     } catch (error) {
       console.error("Error bulk deleting patients:", error);
       toast.error("Failed to delete patients. Please try again.");
@@ -432,15 +437,14 @@ const PatientsAdminView = () => {
       return;
     }
 
+    const token = localStorage.getItem("token");
+    setLoading(true);
+
+    const updateData = {};
+    if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
+    if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
+
     try {
-      const token = localStorage.getItem("token");
-      setLoading(true);
-      setError(null);
-
-      const updateData = {};
-      if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
-      if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
-
       await axios.put(`${apiUrl}/patient/bulk`, {
         patientIds: selectedPatients,
         updateData
@@ -588,8 +592,7 @@ const PatientsAdminView = () => {
         size="sm"
         aria-label={`Delete patient ${rowData?.name || 'unknown'}`}
         onClick={() => {
-          setPatientToDelete(rowData);
-          setShowDeleteModal(true);
+          confirm.delete(rowData.name, () => handleDelete(rowData.id));
         }}
       >
         <Trash2 size={16} />
@@ -728,12 +731,10 @@ const PatientsAdminView = () => {
     });
     setFormErrors({});
   };
-
   const handleAddContract = async () => {
     try {
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/contracts`, newContract, {
         headers: { Authorization: `Bearer ${token}` }
@@ -771,7 +772,6 @@ const PatientsAdminView = () => {
 
       const token = localStorage.getItem("token");
       setLoading(true);
-      setError(null);
 
       const response = await axios.post(`${apiUrl}/diseases`, newDisease, {
         headers: { Authorization: `Bearer ${token}` }
@@ -816,7 +816,9 @@ const PatientsAdminView = () => {
                   </Button>
                   <Button
                     variant="outline-danger"
-                    onClick={() => setShowBulkDeleteModal(true)}
+                    onClick={() => {
+                      confirm.delete(`${selectedPatients.length} selected patients`, handleBulkDelete);
+                    }}
                   >
                     <Trash2 size={16} className="me-2" />
                     Bulk Delete ({selectedPatients.length})
@@ -1451,60 +1453,9 @@ const PatientsAdminView = () => {
             </Modal.Footer>
           </Modal>
 
-          {/* Delete Confirmation Modal */}
-          <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-            <Modal.Header>
-              <Modal.Title>Confirm Delete</Modal.Title>
-              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowDeleteModal(false)}>
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              <Alert variant="warning">
-                Are you sure you want to delete this patient?
-                This action cannot be undone.
-              </Alert>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => handleDelete(patientToDelete?.id)}
-              >
-                Delete
-              </Button>
-            </Modal.Footer>
-          </Modal>
 
-          {/* Bulk Delete Modal */}
-          <Modal show={showBulkDeleteModal} onHide={() => setShowBulkDeleteModal(false)}>
-            <Modal.Header>
-              <Modal.Title>Confirm Bulk Delete</Modal.Title>
-              <button className="modal-close-btn" aria-label="Close modal" onClick={() => setShowBulkDeleteModal(false)}>
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              <Alert variant="warning">
-                Are you sure you want to delete {selectedPatients.length} selected patients?
-                This action cannot be undone.
-              </Alert>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleBulkDelete}
-                disabled={loading}
-              >
-                {loading ? "Deleting..." : `Delete ${selectedPatients.length} Patients`}
-              </Button>
-            </Modal.Footer>
-          </Modal>
+
+
 
           {/* Bulk Update Modal */}
           <Modal show={showBulkUpdateModal} onHide={() => setShowBulkUpdateModal(false)} size="lg">

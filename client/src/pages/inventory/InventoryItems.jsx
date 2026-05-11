@@ -9,7 +9,7 @@ import { useToast } from "../../components/ui/ToastContext";
 
 const InventoryItems = () => {
   const { role } = useParams();
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -66,16 +66,16 @@ const InventoryItems = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this item?")) {
+  const handleDelete = (item) => {
+    confirm.delete(item.name, async () => {
       try {
-        await api.delete(`/inventory/items/${id}`);
+        await api.delete(`/inventory/items/${item.id}`);
         toast.success("Item deleted successfully!");
         fetchItems();
       } catch (error) {
         toast.error(error.response?.data?.message || "Failed to delete item");
       }
-    }
+    });
   };
 
   const ActionComponent = useMemo(() => {
@@ -84,7 +84,7 @@ const InventoryItems = () => {
       <div className="d-flex gap-2">
         <Button variant="success" size="sm" onClick={() => navigate(`/${role}/inventory/items/${rowData.id}/batches`)}>Stock/Batches</Button>
         <Button variant="outline-primary" size="sm" onClick={() => handleShowModal(rowData)}>Edit</Button>
-        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData.id)}>Delete</Button>
+        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)}>Delete</Button>
       </div>
     );
     Component.displayName = "ItemActionComponent";

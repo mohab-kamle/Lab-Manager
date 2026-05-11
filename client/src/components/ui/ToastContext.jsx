@@ -401,6 +401,7 @@ export const ToastProvider = ({ children }) => {
           ...options,
         }),
       update: updateToast,
+      dismiss: hideToast,
     }),
     [showToast, updateToast]
   );
