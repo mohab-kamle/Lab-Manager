@@ -213,12 +213,25 @@ const MainNavBar = () => {
   // This ensures the navbar correctly highlights when navigating via URL
   // (e.g., clicking a Kanban card) rather than clicking a navbar dropdown item.
   useEffect(() => {
-    if (location.pathname.includes("/samples-kanban")) {
+    const path = location.pathname;
+    if (path.includes("/samples-kanban")) {
       setActiveItem("samples-kanban");
       setTitles(prev => ({ ...prev, MedicalReports: "Samples Kanban" }));
-    } else if (location.pathname.includes("/medical-reports")) {
+    } else if (path.includes("/medical-reports")) {
       setActiveItem("all-medical-reports");
       setTitles(prev => ({ ...prev, MedicalReports: "All Medical Reports" }));
+    } else if (path.includes("/inventory/items")) {
+      setActiveItem("inventory-items");
+      setTitles(prev => ({ ...prev, Inventory: "Catalog & Stock" }));
+    } else if (path.includes("/inventory/suppliers")) {
+      setActiveItem("inventory-suppliers");
+      setTitles(prev => ({ ...prev, Inventory: "Suppliers" }));
+    } else if (path.includes("/inventory")) {
+      setActiveItem("inventory-dashboard");
+      setTitles(prev => ({ ...prev, Inventory: "Inventory" }));
+    } else if (path.includes("/dashboard")) {
+      setActiveItem(null);
+      setTitles(defaultTitles);
     }
   }, [location.pathname]);
 
