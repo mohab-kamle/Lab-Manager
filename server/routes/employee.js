@@ -21,7 +21,8 @@ const normalizePhone = (phoneStr) => {
         if (phoneNumber && phoneNumber.isValid()) {
             return phoneNumber.format('E.164');
         }
-        if (phoneStr.startsWith('+')) return phoneStr;
+        // If not valid but starts with +, keep as is
+        if (typeof phoneStr === 'string' && phoneStr.startsWith('+')) return phoneStr;
         return phoneStr;
     } catch (e) {
         return phoneStr;
@@ -227,12 +228,19 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
     }
 });
 
-// Get employee by ID (admin only)
-router.get("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
+// Get employee by ID (admin or self)
+router.get("/:id", authenticateUser, tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
+        
+        // Allow if admin OR if fetching self
+        if (req.user.role !== 'admin' && parseInt(id) !== req.user.id) {
+            return res.status(403).json({ error: "Access denied." });
+        }
+
         const emp = await employee.findByPk(id, {
-            attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
+            attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role', 'lab_id'],
+            include: [{ model: phone_number, as: 'phones' }],
             where: {
                 lab_id: req.tenant.lab_id
             }
@@ -384,8 +392,8 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
     }
 });
 
-// Update employee (admin only)
-router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
+// Update employee (admin or self)
+router.put("/:id", authenticateUser, tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
         const {
@@ -403,14 +411,27 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             phoneNumbers = [] // Array of { phone, type, is_primary }
         } = req.body;
 
+        // Allow if admin OR if updating self
+        const isSelfUpdate = parseInt(id) === req.user.id;
+        if (req.user.role !== 'admin' && !isSelfUpdate) {
+            return res.status(403).json({ error: "Access denied." });
+        }
+
         // Find employee
         const emp = await employee.findOne({ where: { id, lab_id: req.tenant.lab_id } });
         if (!emp) {
             return res.status(404).json({ error: "Employee not found or you don't have permission to edit this employee." });
         }
 
-        // Validate role if provided
-        if (role) {
+        // Prevent non-admins from changing role or branch
+        if (req.user.role !== 'admin') {
+            if (role && role !== emp.role) {
+                return res.status(403).json({ error: "Only administrators can change roles." });
+            }
+        }
+
+        // Validate role if provided by admin
+        if (role && req.user.role === 'admin') {
             const validRoles = ['admin', 'receptionist', 'chemist', 'doctor', 'employee'];
             if (!validRoles.includes(role)) {
                 return res.status(400).json({ error: "Invalid role. Must be one of: " + validRoles.join(', ') });
@@ -554,8 +575,14 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
             }
         }
 
+        // Re-fetch employee with associations
+        const updatedEmp = await employee.findByPk(id, {
+            attributes: ['id', 'name', 'username', 'email', 'gender', 'birth_date', 'national_id', 'nationality', 'passport_no', 'role'],
+            include: [{ model: phone_number, as: 'phones' }]
+        });
+
         // Return updated employee without password
-        const { password: _, ...employeeData } = emp.toJSON();
+        const { password: _, ...employeeData } = updatedEmp.toJSON();
         res.json(employeeData);
     } catch (error) {
         console.error('Error updating employee:', error);

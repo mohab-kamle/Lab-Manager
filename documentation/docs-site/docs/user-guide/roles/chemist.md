@@ -21,11 +21,10 @@ As a **Chemist**, your primary role in the LabManager system is to perform labor
 
 ## Quality Control
 
-*   **Data Accuracy:** Double-check all entered values before submitting. Once results are submitted, they go to the Doctor for review and approval.
-*   **Re-entry Requests:** If a Doctor rejects a report, review the flagged issues and re-enter or correct the results as needed.
+*   **Data Accuracy:** Double-check all entered values before submitting. Once results are submitted, they are finalized and ready for the patient.
 *   **Test Catalog:** View the available list of Tests, Cultures, and Test Groups configured by the Administrator.
 
 ## Workflow
 
 *   **Pending Samples:** Track which samples are awaiting your analysis through your Chemist dashboard.
-*   **Submitted Reports:** Monitor the status of reports you have submitted — whether they are pending approval, approved, or returned for corrections.
+*   **Completed Reports:** Monitor the history of reports you have finalized.

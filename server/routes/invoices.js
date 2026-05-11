@@ -315,6 +315,15 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             } 
         });
 
+        // Ensure admin can act as receptionist if they assign it to themselves
+        if (user && user.role === 'admin' && Number(receptionist_id) === Number(user.id)) {
+            await receptionist.findOrCreate({
+                where: { id: user.id },
+                defaults: { id: user.id, no_of_bills: 0 },
+                transaction
+            });
+        }
+
         // Debug log for branch_id
         console.log('[INVOICE DEBUG] Incoming branch_id:', branch_id, 'Type:', typeof branch_id);
         // Create the bill

@@ -5,7 +5,7 @@ title: Employee Guide
 
 # Employee User Guide
 
-As an **Employee**, you have basic access to the LabManager system. The Employee role is a general-purpose role that provides access to core system features without the specialized permissions granted to Administrators, Chemists, Doctors, or Receptionists.
+As an **Employee**, you have basic access to the LabManager system. The Employee role is a general-purpose role that provides access to core system features without the specialized permissions granted to Administrators, Chemists, or Receptionists.
 
 ## Core Features
 

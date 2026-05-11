@@ -248,7 +248,20 @@ Your self-hosted runner must have:
 *   Docker and Docker Compose installed.
 *   Permissions to execute Docker commands and manage files.
 
-## 9. Testing the New CI/CD Pipeline
+## 9. Recent CI/CD Pipeline Refinements
+
+To ensure stable deployments in restricted network environments and consistent Docker builds, the following refinements have been applied to our CI/CD pipeline:
+
+### 1. Git Authentication over HTTPS
+Previously, deployments using SSH keys encountered timeouts on the runner due to restrictive network firewalls blocking port 22.
+- **Fix**: The GitHub Actions runner and the Docker containers are now configured to use Git over HTTPS. We inject the `GITHUB_TOKEN` directly into the `git config` and `package.json` resolutions, completely bypassing SSH and enabling fast, reliable clone operations.
+
+### 2. Docker Native Compilation (`pnpm`)
+The `pnpm install` step occasionally failed during Docker builds when compiling native dependencies that require Git.
+- **Fix**: The `Dockerfile`s have been updated to include `git` as a base system dependency (`apk add --no-cache git`).
+- **Fix**: We now properly persist build configurations by passing `onlyBuiltDependencies` options directly via `pnpm-lock.yaml` and environment variables in the Dockerfile to override restrictive policies during CI builds, instead of using deprecated `approve-builds` CLI tools.
+
+## 10. Testing the New CI/CD Pipeline
 
 1.  **Local Test of `release-it`:**
     *   Make sure your `package.json` version is `1.0.0`.

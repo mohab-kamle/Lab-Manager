@@ -41,3 +41,8 @@ The pipeline is exposed via the `POST /extract-ocr-image` endpoint in `medical_r
 ```
 
 The `llmService.js` manages the prompt engineering and response validation to ensure the extracted JSON matches the frontend schema.
+
+### Frontend Auto-Fill Mapping
+When the frontend receives the extracted data payload from the API, it maps the parsed keys strictly against the currently active test components in the UI.
+- **Deep Re-rendering**: The state update guarantees that mapped field values correctly propagate deeply into nested React components (such as individual test parameters and result inputs) causing them to re-render seamlessly without requiring manual page refreshes.
+- **Form State Integrity**: Extracted values update the frontend state handlers directly, mimicking user input to ensure that form validation and data saving operations capture the AI-extracted data correctly.

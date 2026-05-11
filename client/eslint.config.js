@@ -4,6 +4,8 @@ import globals from "globals";
 import pluginReact from "eslint-plugin-react";
 
 export default [
+  js.configs.recommended,
+  pluginReact.configs.flat.recommended,
   {
     files: ["**/*.{js,mjs,cjs,jsx}"],
     languageOptions: {
@@ -17,7 +19,6 @@ export default [
       },
     },
     rules: {
-      ...js.configs.recommended.rules, // instead of "extends"
       'react/prop-types': 'off',
     },
   },
@@ -25,7 +26,9 @@ export default [
     files: ["**/*.cjs"],
     languageOptions: {
       sourceType: "commonjs", // allow require()
+      globals: {
+        ...globals.node
+      }
     },
-  },
-  pluginReact.configs.flat.recommended,
+  }
 ];

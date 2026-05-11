@@ -14,7 +14,7 @@ import PhoneInput from "../../components/ui/PhoneInput";
 
 const PatientUpdateProfile = () => {
   const { toast } = useToast();
-  const { user, setUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -81,7 +81,7 @@ const PatientUpdateProfile = () => {
       );
 
       if (response.data.success) {
-        setUser(response.data.updatedUser);
+        updateUser(response.data.updatedUser);
         toast.success("Profile updated successfully!");
         navigate(`/patient/profile`, { replace: true });
       } else {
@@ -227,8 +227,8 @@ const PatientUpdateProfile = () => {
                               Phone Numbers
                             </Form.Label>
                             {values.phoneNumbers.map((phoneEntry, index) => (
-                              <div key={index} className="d-flex gap-2 mb-3 align-items-start">
-                                <div style={{ flex: 1 }}>
+                              <div key={index} className="d-flex flex-wrap gap-2 mb-3 align-items-center w-100">
+                                <div style={{ flex: '1 1 200px', minWidth: '0' }}>
                                   <PhoneInput
                                     value={phoneEntry.phone}
                                     onChange={(val) => {
