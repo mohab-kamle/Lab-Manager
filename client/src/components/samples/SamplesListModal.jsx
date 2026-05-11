@@ -4,6 +4,7 @@ import { TestTube, Plus, Activity, AlertCircle } from "lucide-react";
 import AddSampleModal from "./AddSampleModal";
 import PortalDropdownMenu from "./PortalDropdownMenu";
 import { useNavigate } from "react-router-dom";
+import { formatDateTime } from "../../utils/dateFormatter";
 
 import axios from "axios";
 
@@ -150,7 +151,7 @@ const SamplesListModal = ({ show, onHide, report }) => {
                                   )}
                                 </h6>
                                 <small className="text-muted">
-                                  Created: {new Date(sample.created_at).toLocaleString()}
+                                  Created: {formatDateTime(sample.created_at)}
                                 </small>
                               </div>
                               <Dropdown>

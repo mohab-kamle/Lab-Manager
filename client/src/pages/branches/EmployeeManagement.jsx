@@ -37,6 +37,7 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import "../../styles/EmployeeManagement.css";
 import { useToast } from "../../components/ui/ToastContext";
 import PhoneInput from "../../components/ui/PhoneInput";
+import { formatDate } from "../../utils/dateFormatter";
 const EmployeeManagement = () => {
   const { user } = useAuth();
   const { toast, confirm } = useToast();
@@ -348,7 +349,7 @@ const EmployeeManagement = () => {
     if (value === null || value === undefined) return "-";
     switch (field) {
       case "birth_date":
-        return value ? new Date(value).toLocaleDateString() : "-";
+        return formatDate(value);
       case "gender":
         if (value === "m" || value === "Male") {
           return "Male";
@@ -780,7 +781,7 @@ const EmployeeManagement = () => {
                           setEmployee({ ...employee, birth_date: date })
                         }
                         className="form-control"
-                        dateFormat="yyyy-MM-dd"
+                        dateFormat="dd/MM/yyyy"
                         maxDate={new Date()}
                       />
                     </Form.Group>

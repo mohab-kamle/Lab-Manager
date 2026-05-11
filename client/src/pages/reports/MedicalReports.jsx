@@ -51,7 +51,7 @@ import {
 import { extractFromImage } from "../../api/medicalReports";
 import { Nav, Tab as TabContent, TabPane } from "react-bootstrap";
 import { useToast } from "../../components/ui/ToastContext";
-import { formatDate } from "../../utils/dateFormatter";
+import { formatDate, formatDateTime } from "../../utils/dateFormatter";
 import {
   exportToExcel,
   importFromExcel,
@@ -2610,9 +2610,7 @@ const MedicalReports = () => {
                                                                   }
                                                                 </p>
                                                                 <small className="text-muted">
-                                                                  {new Date(
-                                                                    comment.created_at,
-                                                                  ).toLocaleString()}
+                                                                  {formatDateTime(comment.created_at)}
                                                                 </small>
                                                               </div>
                                                               <Button

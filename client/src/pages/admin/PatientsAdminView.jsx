@@ -13,6 +13,7 @@ import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/e
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
 import PhoneInput from "../../components/ui/PhoneInput";
+import { formatDate } from "../../utils/dateFormatter";
 
 
 
@@ -327,7 +328,7 @@ const PatientsAdminView = () => {
         'Name': patient.name,
         'Email': patient.email,
         'Gender': patient.gender ? patient.gender : '',
-        'Birth Date': patient.birth_date ? new Date(patient.birth_date).toLocaleDateString() : '',
+        'Birth Date': formatDate(patient.birth_date),
         'National ID': patient.national_id,
         'Nationality': patient.nationality,
         'Passport No': patient.passport_no,
@@ -632,7 +633,7 @@ const PatientsAdminView = () => {
 
     switch (field) {
       case 'birth_date':
-        return value ? new Date(value).toLocaleDateString() : '-';
+        return formatDate(value);
       case 'gender':
         return value;
       case 'phones':

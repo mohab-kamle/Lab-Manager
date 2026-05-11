@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useToast } from '../ui/ToastContext';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { Search, Receipt, Calculator, X, CheckCircle, CreditCard, ListChecks, Wand2 } from 'lucide-react';
+import { formatDate } from '../../utils/dateFormatter';
 
 /**
  * SettlementModal - Phase 2: Settlement Logic (UI)
@@ -342,7 +343,7 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                                   />
                                 </td>
                               )}
-                              <td>{new Date(inv.date).toLocaleDateString()}</td>
+                              <td>{formatDate(inv.date)}</td>
                               <td><Badge bg="secondary">#{inv.id}</Badge></td>
                               <td className="text-end">EGP {parseFloat(inv.due).toFixed(2)}</td>
                               <td className="text-end text-primary fw-bold">

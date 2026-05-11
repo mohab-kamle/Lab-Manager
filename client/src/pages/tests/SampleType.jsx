@@ -119,7 +119,7 @@ const Samples = () => {
       );
     }
     if (header.toLowerCase().includes("date") && data) {
-      return new Date(data).toLocaleDateString();
+      return formatDate(data);
     }
     if (typeof data === "boolean") {
       return data ? "Yes" : "No";
