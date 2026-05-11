@@ -111,6 +111,7 @@ const PatientsAdminView = () => {
     discount_amount: 0,
     details: ""
   });
+  const [diseaseSearchTerm, setDiseaseSearchTerm] = useState("");
   const [newDisease, setNewDisease] = useState({
     name: "",
     details: ""
@@ -332,8 +333,8 @@ const PatientsAdminView = () => {
         'Nationality': patient.nationality,
         'Passport No': patient.passport_no,
         'Address': patient.address,
-        'Primary Phone': patient.phones?.[0]?.phone_number || '',
-        'Secondary Phone': patient.phones?.[1]?.phone_number || '',
+        'Primary Phone': (patient.phones?.[0]?.phone || patient.phones?.[0]?.phone_number) || '',
+        'Secondary Phone': (patient.phones?.[1]?.phone || patient.phones?.[1]?.phone_number) || '',
         'Total': patient.total ? `EGP ${parseFloat(patient.total).toFixed(2)}` : '',
         'Paid': patient.paid ? `EGP ${parseFloat(patient.paid).toFixed(2)}` : '',
         'Due': patient.due ? `EGP ${parseFloat(patient.due).toFixed(2)}` : '',
@@ -437,8 +438,9 @@ const PatientsAdminView = () => {
       return;
     }
 
-    const token = localStorage.getItem("token");
-    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      setLoading(true);
 
     const updateData = {};
     if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
@@ -508,30 +510,28 @@ const PatientsAdminView = () => {
   const sortedPatients = [...filteredPatients].sort((a, b) => {
     if (!sortConfig.field) return 0;
 
-    const aValue = a[sortConfig.field];
-    const bValue = b[sortConfig.field];
+    let aValue = a[sortConfig.field];
+    let bValue = b[sortConfig.field];
 
-    // Handle different data types
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortConfig.direction === "asc"
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue);
+    // Handle null/undefined
+    if (aValue === null || aValue === undefined) aValue = "";
+    if (bValue === null || bValue === undefined) bValue = "";
+
+    // Special handling for numeric fields (total, paid, due)
+    const numericFields = ["total", "paid", "due", "patientcode", "national_id"];
+    if (numericFields.includes(sortConfig.field)) {
+      const aNum = parseFloat(aValue) || 0;
+      const bNum = parseFloat(bValue) || 0;
+      return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
     }
 
-    if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return sortConfig.direction === "asc"
-        ? aValue - bValue
-        : bValue - aValue;
-    }
+    // Default string comparison (case-insensitive)
+    const aStr = String(aValue).toLowerCase();
+    const bStr = String(bValue).toLowerCase();
 
-    // Handle dates
-    if (aValue instanceof Date && bValue instanceof Date) {
-      return sortConfig.direction === "asc"
-        ? aValue.getTime() - bValue.getTime()
-        : bValue.getTime() - aValue.getTime();
-    }
-
-    return 0;
+    return sortConfig.direction === "asc"
+      ? aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' })
+      : bStr.localeCompare(aStr, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   const pageCount = Math.ceil(sortedPatients.length / itemsPerPage);
@@ -635,7 +635,7 @@ const PatientsAdminView = () => {
         const primary = value.find(p => p.is_primary) || value[0];
         return (
           <div className="d-flex flex-column gap-1">
-            <span className="fw-bold">{primary.phone_number || primary.phone}</span>
+            <span className="fw-bold">{primary.phone || primary.phone_number}</span>
             {value.length > 1 && (
               <Badge bg="secondary" pill style={{ fontSize: '10px', width: 'fit-content' }}>
                 +{value.length - 1} more
@@ -777,17 +777,26 @@ const PatientsAdminView = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Add new disease to the list
-      setDiseases(prevDiseases => [...prevDiseases, response.data]);
+      // Refetch diseases from server to ensure full synchronization
+      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const updatedDiseases = diseasesRes.data || [];
+      setDiseases(updatedDiseases);
 
-      // Set the new disease as selected
-      setPatient(prev => ({ ...prev, diseases: [...prev.diseases, response.data.id] }));
+      // Set the new disease as selected (using the ID from the POST response)
+      const newDiseaseId = response.data.id;
+      if (!patient.diseases.includes(newDiseaseId)) {
+        setPatient(prev => ({ ...prev, diseases: [...prev.diseases, newDiseaseId] }));
+      }
 
       setShowDiseaseCreateModal(false);
       setNewDisease({
         name: "",
         details: ""
       });
+      setDiseaseSearchTerm(""); // Clear search to show the new disease
+      toast.success("Disease added and selected");
     } catch (error) {
       console.error('Error creating disease:', error);
       toast.error(error.response?.data?.error || 'Failed to create disease');
@@ -1159,8 +1168,8 @@ const PatientsAdminView = () => {
                   <Col md={12}>
                     <Form.Label>Phone Numbers *</Form.Label>
                     {patient.phoneNumbers.map((phoneEntry, index) => (
-                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
-                        <div style={{ flex: 1 }}>
+                      <div key={index} className="d-flex flex-wrap gap-2 mb-2 align-items-center w-100">
+                        <div style={{ flex: '1 1 200px', minWidth: '0' }}>
                           <PhoneInput
                             value={phoneEntry.phone}
                             onChange={(val) => {
@@ -1172,7 +1181,7 @@ const PatientsAdminView = () => {
                           />
                         </div>
                         <Form.Select
-                          style={{ width: '130px' }}
+                          style={{ width: 'auto', flex: '0 1 120px' }}
                           value={phoneEntry.type}
                           onChange={(e) => {
                             const newPhones = [...patient.phoneNumbers];
@@ -1184,7 +1193,7 @@ const PatientsAdminView = () => {
                           <option value="work">Work</option>
                           <option value="home">Home</option>
                         </Form.Select>
-                        <div className="d-flex flex-column align-items-center">
+                        <div className="d-flex flex-column align-items-center justify-content-center" style={{ width: '40px' }}>
                           <Form.Check
                             type="radio"
                             name="primaryPhone"
@@ -1197,6 +1206,7 @@ const PatientsAdminView = () => {
                               setPatient({ ...patient, phoneNumbers: newPhones });
                             }}
                             title="Set as primary"
+                            className="m-0"
                           />
                           <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
                         </div>
@@ -1204,6 +1214,7 @@ const PatientsAdminView = () => {
                           <Button 
                             variant="outline-danger" 
                             size="sm"
+                            className="mt-1 mt-md-0"
                             onClick={() => {
                               const newPhones = patient.phoneNumbers.filter((_, i) => i !== index);
                               if (phoneEntry.is_primary && newPhones.length > 0) {
@@ -1238,34 +1249,57 @@ const PatientsAdminView = () => {
 
                 <Form.Group className="mb-3">
                   <Form.Label>Diseases</Form.Label>
-                  <div className="d-flex gap-2">
-                    <Form.Select
-                      multiple
-                      value={patient.diseases}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                        setPatient({ ...patient, diseases: selected });
-                      }}
-                      className="flex-grow-1"
-                    >
-                      {Array.isArray(diseases) && diseases.map(disease => (
-                        <option key={disease.id} value={disease.id}>
-                          {disease.name} {disease.details && `(${disease.details})`}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => setShowDiseaseCreateModal(true)}
-                      title="Add New Disease"
-                    >
-                      <Plus size={16} />
-                    </Button>
+                  <div className="mb-2">
+                    <div className="d-flex gap-2 mb-2">
+                      <Form.Control
+                        type="text"
+                        placeholder="Search diseases..."
+                        value={diseaseSearchTerm}
+                        onChange={(e) => setDiseaseSearchTerm(e.target.value)}
+                        className="flex-grow-1"
+                      />
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setShowDiseaseCreateModal(true)}
+                        title="Add New Disease"
+                      >
+                        <Plus size={16} />
+                      </Button>
+                    </div>
+                    <div style={{ 
+                      maxHeight: "150px", 
+                      overflowY: "auto", 
+                      border: "1px solid var(--border-default)", 
+                      borderRadius: "4px", 
+                      padding: "8px",
+                      backgroundColor: "var(--bg-secondary)"
+                    }}>
+                      {Array.isArray(diseases) && diseases
+                        .filter(d => d.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase()))
+                        .map(disease => (
+                          <Form.Check
+                            key={disease.id}
+                            type="checkbox"
+                            id={`disease-${disease.id}`}
+                            label={`${disease.name}${disease.details ? ` (${disease.details})` : ""}`}
+                            checked={patient.diseases.includes(disease.id)}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              const currentDiseases = patient.diseases || [];
+                              const updatedDiseases = isChecked
+                                ? [...currentDiseases, disease.id]
+                                : currentDiseases.filter(id => id !== disease.id);
+                              setPatient({ ...patient, diseases: updatedDiseases });
+                            }}
+                          />
+                        ))}
+                      {Array.isArray(diseases) && diseases.filter(d => d.name.toLowerCase().includes(diseaseSearchTerm.toLowerCase())).length === 0 && (
+                        <div className="text-muted small text-center py-2">No diseases found</div>
+                      )}
+                    </div>
                   </div>
-                  <Form.Text className="text-muted">
-                    Hold Ctrl (or Cmd on Mac) to select multiple diseases
-                  </Form.Text>
+
                 </Form.Group>
 
                 <Row>
@@ -1364,43 +1398,11 @@ const PatientsAdminView = () => {
                     </Form.Text>
                   </Form.Group>
                 </Col></Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Referral</Form.Label>
-                      <div className="d-flex gap-2">
-                        <Form.Select
-                          value={patient.referral_id || ""}
-                          onChange={(e) => setPatient({ ...patient, referral_id: e.target.value || null })}
-                        >
-                          <option value="">Select Referral</option>
-                          {Array.isArray(referrals) && referrals.map(referral => (
-                            <option key={referral.id} value={referral.id}>
-                              {referral.doctor_name} - {referral.specialization}
-                            </option>
-                          ))}
-                        </Form.Select>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => setShowReferralModal(true)}
-                          title="Add New Referral"
-                        >
-                          <Plus size={16} />
-                        </Button>
-                      </div>
-                      <Form.Text className="text-muted">
-                        Select an existing referral or add a new one
-                      </Form.Text>
-                    </Form.Group>
-                  </Col>
-                </Row>
               </Form>
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onClick={() => {
                 setShowAddModal(false);
-                setError(null);
                 setShowRetryButton(false);
                 setLastAttemptedPatient(null);
                 setFormErrors({});
@@ -1751,8 +1753,8 @@ const PatientsAdminView = () => {
                   <Col md={12}>
                     <Form.Label>Phone Numbers *</Form.Label>
                     {newReferral.phoneNumbers.map((phoneEntry, index) => (
-                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
-                        <div style={{ flex: 1 }}>
+                      <div key={index} className="d-flex flex-wrap gap-2 mb-2 align-items-center w-100">
+                        <div style={{ flex: '1 1 200px', minWidth: '0' }}>
                           <PhoneInput
                             value={phoneEntry.phone}
                             onChange={(val) => {
@@ -1764,7 +1766,7 @@ const PatientsAdminView = () => {
                           />
                         </div>
                         <Form.Select
-                          style={{ width: '130px' }}
+                          style={{ width: 'auto', flex: '0 1 120px' }}
                           value={phoneEntry.type}
                           onChange={(e) => {
                             const newPhones = [...newReferral.phoneNumbers];
@@ -1776,7 +1778,7 @@ const PatientsAdminView = () => {
                           <option value="work">Work</option>
                           <option value="home">Home</option>
                         </Form.Select>
-                        <div className="d-flex flex-column align-items-center">
+                        <div className="d-flex flex-column align-items-center justify-content-center" style={{ width: '40px' }}>
                           <Form.Check
                             type="radio"
                             name="referralPrimaryPhone"
@@ -1789,6 +1791,7 @@ const PatientsAdminView = () => {
                               setNewReferral({ ...newReferral, phoneNumbers: newPhones });
                             }}
                             title="Set as primary"
+                            className="m-0"
                           />
                           <small className="text-muted" style={{ fontSize: '10px' }}>Primary</small>
                         </div>
@@ -1796,6 +1799,7 @@ const PatientsAdminView = () => {
                           <Button 
                             variant="outline-danger" 
                             size="sm"
+                            className="mt-1 mt-md-0"
                             onClick={() => {
                               const newPhones = newReferral.phoneNumbers.filter((_, i) => i !== index);
                               if (phoneEntry.is_primary && newPhones.length > 0) {

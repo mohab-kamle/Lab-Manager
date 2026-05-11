@@ -24,7 +24,7 @@ const upload = multer({
 });
 
 // GET all diseases
-router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'employee'), async (req, res) => {
+router.get('/', authenticateUser, authorizeRoles('admin', 'chemist', 'employee', 'receptionist'), async (req, res) => {
   try {
     const diseases = await db.diseases.findAll({
       order: [['name', 'ASC']]
@@ -54,7 +54,7 @@ router.get('/:id', authenticateUser, authorizeRoles('admin', 'chemist', 'employe
 });
 
 // Create a new disease
-router.post('/', authenticateUser, authorizeRoles('admin', 'chemist'), async (req, res) => {
+router.post('/', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {
         const { name, details } = req.body;
 
@@ -89,7 +89,7 @@ router.post('/', authenticateUser, authorizeRoles('admin', 'chemist'), async (re
 });
 
 // Update a disease
-router.put('/:id', authenticateUser, authorizeRoles('admin', 'chemist'), async (req, res) => {
+router.put('/:id', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {
         const { name, details } = req.body;
         const disease = await db.diseases.findByPk(req.params.id);
@@ -132,7 +132,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin', 'chemist'), async (
 });
 
 // Delete a disease
-router.delete('/:id', authenticateUser, authorizeRoles('admin', 'chemist'), async (req, res) => {
+router.delete('/:id', authenticateUser, authorizeRoles('admin', 'chemist', 'receptionist'), async (req, res) => {
     try {
         const disease = await db.diseases.findByPk(req.params.id);
 

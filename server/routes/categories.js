@@ -129,6 +129,10 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
       }
     }
 
+    let message = `Import completed: ${imported} new categories added.`;
+    if (skipped > 0) message += ` ${skipped} already existed.`;
+    if (errors.length > 0) message += ` ${errors.length} errors occurred.`;
+
     res.json({ 
       success: true,
       summary: {

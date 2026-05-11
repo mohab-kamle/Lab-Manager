@@ -60,6 +60,32 @@ npm run db:check
 node syncDatabase.js check
 ```
 
+## 🌱 Database Seeding (Initialization)
+
+To quickly set up a fresh environment with all necessary baseline data, use the database seed command. This provides a "one-click" initialization for local development or fresh deployments.
+
+```bash
+# Using pnpm (recommended)
+pnpm db:seed
+
+# Or using npm
+npm run db:seed
+```
+
+### What the Seeder Does
+
+The seed command is **idempotent**, meaning it's safe to run multiple times. It ensures the environment is fully initialized by performing the following:
+
+1. **Schema Sync**: Synchronizes all database schemas automatically.
+2. **Migrations**: Applies any pending database migrations.
+3. **Core Initialization**: Populates the database with:
+   - A default laboratory setup.
+   - An admin user account for immediate login.
+   - A comprehensive list of medical antibiotics.
+   - The full LOINC test catalog (standardized laboratory tests).
+
+*Note: The script handles paths correctly on both Windows and Linux/Docker environments, ensuring cross-platform stability during CSV data imports.*
+
 ## 🔧 Environment Variables
 
 You can control sync behavior with environment variables:

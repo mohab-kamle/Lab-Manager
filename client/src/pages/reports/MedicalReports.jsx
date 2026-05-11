@@ -1239,13 +1239,22 @@ const MedicalReports = () => {
   };
 
   const filteredReports = reports.filter((report) => {
-    const searchMatch = searchQuery
-      ? report.comment?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.patient?.name
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        report.signatory_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Only search if the query is non-empty and non-trivial
+    let searchMatch = true;
+    if (searchQuery.trim()) {
+      // Ignore very short trivial numeric searches if they don't seem to be part of a meaningful code/id
+      // We explicitly check the specific fields we want to allow searching
+      const searchableFields = [
+        report.comment?.toLowerCase(),
+        report.patient?.name?.toLowerCase(),
+        report.signatory_name?.toLowerCase(),
+        report.patient?.patientcode?.toString()
+      ];
+
+      searchMatch = searchableFields.some(field => field?.includes(searchLower));
+    }
 
     const dateMatch =
       (!filters.startDate ||

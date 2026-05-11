@@ -25,6 +25,9 @@ const Invoices = () => {
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [selectedInvoiceForPDF, setSelectedInvoiceForPDF] = useState(null);
   const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [discountInput, setDiscountInput] = useState("");
+  const [taxRateInput, setTaxRateInput] = useState("");
+  const [taxAmountInput, setTaxAmountInput] = useState("");
 
   // Refund and History states
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -74,7 +77,7 @@ const Invoices = () => {
     paid: 0,
     due: 0,
     status_id: "",
-    receptionist_id: "",
+    receptionist_id: user?.id || "",
     branch_id: "",
     referred_doctor_id: ""
   });
@@ -96,6 +99,37 @@ const Invoices = () => {
   const [statusFormData, setStatusFormData] = useState({ state: "", details: "" });
   const [statusFormErrors, setStatusFormErrors] = useState({});
   const [showStatusFormErrorAlert, setShowStatusFormErrorAlert] = useState(false);
+
+  // Sync tax inputs with invoice state when it changes from other sources (like test selection)
+  useEffect(() => {
+    // Only update if the numeric value is different to avoid overwriting user typing (e.g. trailing zeros or dots)
+    const currentRatePercent = (invoice.tax_rate || 0) * 100;
+    if (Math.abs((Number(taxRateInput) || 0) - currentRatePercent) > 0.0001) {
+      setTaxRateInput(invoice.tax_rate ? (invoice.tax_rate * 100).toString() : "");
+    }
+    
+    if (Math.abs((Number(taxAmountInput) || 0) - (invoice.tax || 0)) > 0.01) {
+      setTaxAmountInput(invoice.tax ? invoice.tax.toString() : "");
+    }
+
+    if (Math.abs((Number(discountInput) || 0) - discountPercentage) > 0.0001) {
+      setDiscountInput(discountPercentage ? discountPercentage.toString() : "");
+    }
+  }, [invoice.tax, invoice.tax_rate, discountPercentage]);
+
+  const handleNumericKeyDown = (e) => {
+    if (['-', '+', 'e', 'E'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const formatInputOnBlur = (value, inputSetter) => {
+    if (value === "" || isNaN(parseFloat(value))) {
+      inputSetter("");
+      return;
+    }
+    inputSetter(parseFloat(value).toFixed(2));
+  };
   const [showStatusDeleteModal, setShowStatusDeleteModal] = useState(false);
   const [statusToDelete, setStatusToDelete] = useState(null);
   const [statusDetectionError, setStatusDetectionError] = useState("");
@@ -449,13 +483,25 @@ const Invoices = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Add new disease to the list (we need to fetch diseases list)
-      const diseasesRes = await axios.get(`${apiUrl}/diseases`, {
+      // Add new disease to the list
+      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Note: We don't have diseases state in Invoices.jsx, so we'll just close the modal
+      const updatedDiseases = diseasesRes.data || [];
+      console.log('Updated diseases list:', updatedDiseases);
+      setDiseases(updatedDiseases);
+      
+      // Automatically select the new disease
+      const newDiseaseId = response.data.id;
+      if (!patientForm.diseases.includes(newDiseaseId)) {
+        setPatientForm(prev => ({
+          ...prev,
+          diseases: [...prev.diseases, newDiseaseId]
+        }));
+      }
       
       setShowDiseaseCreateModal(false);
+      setDiseaseSearchTerm(""); // Clear search term to show the new disease
       setNewDisease({
         name: "",
         details: ""
@@ -466,7 +512,7 @@ const Invoices = () => {
       setTimeout(() => setModalSuccessMessage(""), 3000);
     } catch (error) {
       console.error('Error creating disease:', error);
-      setError(error.response?.data?.error || 'Failed to create disease');
+      toast.error(error.response?.data?.error || 'Failed to create disease');
     } finally {
       setLoading(false);
     }
@@ -769,7 +815,7 @@ const Invoices = () => {
       if (error.response?.data?.error && error.response.data.error.toLowerCase().includes('status')) {
         setStatusDetectionError("Invoice could not be saved due to a status error. Please ensure you have at least one status for 'pending', 'paid', and 'overpaid'. You can add/manage statuses using the 'Manage Statuses' button.");
       } else {
-        setError(error.response?.data?.error || "Failed to save invoice");
+        toast.error(error.response?.data?.error || "Failed to save invoice");
       }
     }
   };
@@ -788,11 +834,11 @@ const Invoices = () => {
         // Show success message as a toast
         toast.success("Invoice deleted successfully! Patient financial information has been updated.", { duration: 5000 });
       } else {
-        setError(response.data.error || "Failed to delete invoice");
+        toast.error(response.data.error || "Failed to delete invoice");
       }
     } catch (error) {
       console.error("Error deleting invoice:", error);
-      setError(error.response?.data?.error || "Failed to delete invoice");
+      toast.error(error.response?.data?.error || "Failed to delete invoice");
     }
   };
 
@@ -834,9 +880,10 @@ const Invoices = () => {
       setStatusFormData({ state: "", details: "" });
       setStatusFormErrors({});
       setShowStatusFormErrorAlert(false);
+      toast.success(`Status ${editingStatus ? "updated" : "created"} successfully!`);
     } catch (error) {
       console.error("Error saving status:", error);
-      setError(error.response?.data?.error || "Failed to save status");
+      toast.error(error.response?.data?.error || "Failed to save status");
     }
   };
 
@@ -860,7 +907,7 @@ const Invoices = () => {
       );
 
       if (statusesToCreate.length === 0) {
-        setError("Default statuses already exist");
+        toast.info("Default statuses already exist");
         return;
       }
 
@@ -876,13 +923,12 @@ const Invoices = () => {
       
       // Show success message
       if (statusesToCreate.length > 0) {
-        setError(null);
         // Add a success toast
         toast.success(`Created ${statusesToCreate.length} default statuses successfully`);
       }
     } catch (error) {
       console.error("Error creating default statuses:", error);
-      setError(error.response?.data?.error || "Failed to create default statuses");
+      toast.error(error.response?.data?.error || "Failed to create default statuses");
     }
   };
 
@@ -903,12 +949,13 @@ const Invoices = () => {
         setStatusToDelete(null);
         setStatusFormErrors({});
         setShowStatusFormErrorAlert(false);
+        toast.success("Status deleted successfully!");
       } else {
-        setError(response.data.error || "Failed to delete status");
+        toast.error(response.data.error || "Failed to delete status");
       }
     } catch (error) {
       console.error("Error deleting status:", error);
-      setError(error.response?.data?.error || "Failed to delete status");
+      toast.error(error.response?.data?.error || "Failed to delete status");
     }
   };
 
@@ -940,7 +987,7 @@ const Invoices = () => {
       paid: 0,
       due: 0,
       status_id: "",
-      receptionist_id: "",
+      receptionist_id: user?.id || "",
       branch_id: ""
     });
     setFormErrors({});
@@ -949,6 +996,9 @@ const Invoices = () => {
     setModalSuccessMessage("");
     setDiseaseSearchTerm("");
     setGiveChange(false);
+    setTaxRateInput("");
+    setTaxAmountInput("");
+    setDiscountInput("");
   };
 
   const filteredInvoices = invoices.filter(invoice => {
@@ -976,29 +1026,28 @@ const Invoices = () => {
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
     if (!sortConfig.field) return 0;
 
-    const valueA = a[sortConfig.field] ?? "";
-    const valueB = b[sortConfig.field] ?? "";
+    let valueA = a[sortConfig.field];
+    let valueB = b[sortConfig.field];
 
-    if (typeof valueA === "string" && typeof valueB === "string") {
-      return sortConfig.direction === "asc"
-        ? valueA.localeCompare(valueB)
-        : valueB.localeCompare(valueA);
-    } else if (typeof valueA === "number" && typeof valueB === "number") {
-      return sortConfig.direction === "asc" ? valueA - valueB : valueB - valueA;
-    } else if (typeof valueA === "boolean" && typeof valueB === "boolean") {
-      return sortConfig.direction === "asc"
-        ? valueA === valueB
-          ? 0
-          : valueA
-          ? -1
-          : 1
-        : valueA === valueB
-        ? 0
-        : valueA
-        ? 1
-        : -1;
+    // Handle null/undefined
+    if (valueA === null || valueA === undefined) valueA = "";
+    if (valueB === null || valueB === undefined) valueB = "";
+
+    // Handle numeric fields specifically
+    const numericFields = ["subtotal", "total", "paid", "due", "discount", "tax", "patientcode"];
+    if (numericFields.includes(sortConfig.field)) {
+      const numA = parseFloat(valueA) || 0;
+      const numB = parseFloat(valueB) || 0;
+      return sortConfig.direction === "asc" ? numA - numB : numB - numA;
     }
-    return 0;
+
+    // Default string comparison (case-insensitive, numeric-aware)
+    const strA = String(valueA).toLowerCase();
+    const strB = String(valueB).toLowerCase();
+
+    return sortConfig.direction === "asc"
+      ? strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' })
+      : strB.localeCompare(strA, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   const pageCount = Math.ceil(sortedInvoices.length / itemsPerPage);
@@ -1203,6 +1252,9 @@ const Invoices = () => {
             ((Number(rowData.discount) || 0) / Number(rowData.subtotal)) * 100 : 0;
           
           setDiscountPercentage(calculatedDiscountPercentage);
+          setDiscountInput(calculatedDiscountPercentage ? calculatedDiscountPercentage.toString() : "");
+          setTaxRateInput(rowData.tax_rate ? (rowData.tax_rate * 100).toString() : "");
+          setTaxAmountInput(rowData.tax ? rowData.tax.toString() : "");
           setInvoice({
             ...rowData,
             tests: testIds,
@@ -1218,7 +1270,7 @@ const Invoices = () => {
             branch_id: rowData.branch_id || "",
             patient_id: rowData.patient_id,
             status_id: rowData.status_id,
-            receptionist_id: rowData.receptionist_id ? Number(rowData.receptionist_id) : "",
+            receptionist_id: user?.id || "",
             referred_doctor_id: rowData.referred_doctor_id ? Number(rowData.referred_doctor_id) : ""
           });
           setModalSuccessMessage("");
@@ -1847,26 +1899,13 @@ const Invoices = () => {
                   <Col md={6}>
                     <Form.Group className="mb-3">
                       <Form.Label>Receptionist <span style={{color: 'red'}}>*</span></Form.Label>
-                      <Form.Select
-                        value={invoice.receptionist_id || ''}
-                        required
-                        onChange={(e) => {
-                          // Store as number or undefined
-                          const val = e.target.value;
-                          setInvoice({ ...invoice, receptionist_id: val && !isNaN(Number(val)) ? Number(val) : undefined });
-                          if (formErrors.receptionist_id) {
-                            setFormErrors({ ...formErrors, receptionist_id: null });
-                          }
-                        }}
-                        isInvalid={!!formErrors.receptionist_id}
-                      >
-                        <option value="">Select Receptionist</option>
-                        {receptionists.map(receptionist => (
-                          <option key={receptionist.id} value={receptionist.id}>
-                            {receptionist.name}
-                          </option>
-                        ))}
-                      </Form.Select>
+                      <Form.Control
+                        type="text"
+                        value={user?.role === 'admin' ? `${user?.name} (Admin)` : user?.name || ''}
+                        readOnly
+                        disabled
+                        className="bg-light"
+                      />
                       <Form.Control.Feedback type="invalid">
                         {formErrors.receptionist_id}
                       </Form.Control.Feedback>
@@ -2112,13 +2151,16 @@ const Invoices = () => {
                     <Form.Group className="mb-3">
                       <Form.Label>Discount (%)</Form.Label>
                       <Form.Control
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={discountPercentage}
+                        type="text"
+                        value={discountInput}
+                        placeholder="0"
+                        onKeyDown={handleNumericKeyDown}
+                        onBlur={(e) => formatInputOnBlur(e.target.value, setDiscountInput)}
                         onChange={(e) => {
-                          handleDiscountChange(e.target.value);
+                          // Allow only digits and a single decimal point
+                          const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                          setDiscountInput(val);
+                          handleDiscountChange(val);
                         }}
                       />
                       {discountPercentage > 0 && (
@@ -2132,12 +2174,16 @@ const Invoices = () => {
                     <Form.Group className="mb-3">
                       <Form.Label>Tax (%)</Form.Label>
                       <Form.Control
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={invoice.tax_rate ? (invoice.tax_rate * 100).toFixed(2) : ""}
+                        type="text"
+                        value={taxRateInput}
+                        placeholder="0"
+                        onKeyDown={handleNumericKeyDown}
+                        onBlur={(e) => formatInputOnBlur(e.target.value, setTaxRateInput)}
                         onChange={(e) => {
-                          const rate = (Number(e.target.value) || 0) / 100;
+                          // Allow only digits and a single decimal point
+                          const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                          setTaxRateInput(val);
+                          const rate = (Number(val) || 0) / 100;
                           setInvoice(prev => {
                             const newInvoice = { ...prev, tax_rate: rate };
                             return updateInvoiceCalculations(newInvoice);
@@ -2150,10 +2196,16 @@ const Invoices = () => {
                     <Form.Group className="mb-3">
                       <Form.Label>Tax (Amount)</Form.Label>
                       <Form.Control
-                        type="number"
-                        value={invoice.tax ? invoice.tax.toFixed(2) : ""}
+                        type="text"
+                        value={taxAmountInput}
+                        placeholder="0"
+                        onKeyDown={handleNumericKeyDown}
+                        onBlur={(e) => formatInputOnBlur(e.target.value, setTaxAmountInput)}
                         onChange={(e) => {
-                          const taxAmount = Number(e.target.value) || 0;
+                          // Allow only digits and a single decimal point
+                          const val = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                          setTaxAmountInput(val);
+                          const taxAmount = Number(val) || 0;
                           const rate = invoice.subtotal > 0 ? taxAmount / invoice.subtotal : 0;
                           setInvoice(prev => {
                             const newInvoice = { ...prev, tax: taxAmount, tax_rate: rate };

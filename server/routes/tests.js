@@ -530,7 +530,8 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
               age_start: c.age_start || '',
               age_end: c.age_end || '',
               reference_range: c.reference_range || '',
-              result_type: c.type === 'boolean' ? 'boolean' : 'range',
+              reference_ranges: Array.isArray(c.reference_ranges) ? c.reference_ranges : [],
+              result_type: c.type === 'boolean' ? 'boolean' : c.type === 'culture_panel' ? 'culture_panel' : 'range',
             };
           });
       }

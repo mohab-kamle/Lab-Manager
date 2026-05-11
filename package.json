@@ -31,7 +31,11 @@
     ]
   },
   "dependencies": {
+    "@notionhq/client": "^5.20.0",
+    "@tryfabric/martian": "^1.2.4",
     "csv-parser": "^3.2.0",
-    "dotenv": "^16.6.1"
+    "dotenv": "^16.6.1",
+    "front-matter": "^4.0.2",
+    "glob": "^13.0.6"
   }
 }

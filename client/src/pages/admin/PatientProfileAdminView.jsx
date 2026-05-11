@@ -19,7 +19,8 @@ import {
   Receipt,
   ArrowDownLeft,
   ArrowUpRight,
-  ClockHistory
+  ClockHistory,
+  PersonBadge
 } from "react-bootstrap-icons";
 import { formatDate } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
@@ -27,6 +28,7 @@ import { useToast } from "../../components/ui/ToastContext";
 import SettlementModal from "../../components/settlement/SettlementModal";
 import { Wallet2, CheckCircle, Receipt as ReceiptIcon } from "lucide-react";
 import { formatCurrency } from "../../utils/currencyFormatter";
+import PhoneInput from "../../components/ui/PhoneInput";
 
 // Reuse styles from PatientProfile
 import "../../styles/PatientProfile.css";
@@ -49,6 +51,12 @@ const InfoBubble = ({ icon: Icon, label, value, delay, isEditing, name, type = "
             <option value="">Select...</option>
             {options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </Form.Select>
+        ) : type === "phone" ? (
+          <PhoneInput
+            value={value}
+            onChange={(val) => onChange({ target: { name, value: val } })}
+            error={error}
+          />
         ) : (
           <Form.Control
             type={type}
@@ -91,18 +99,17 @@ const PatientProfileAdminView = () => {
   const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    const fetchPatientDetails = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        // Fetch a single patient by ID using the dedicated endpoint
-        const response = await axios.get(`${apiUrl}/patient/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        // Fetch patient
+        const patientRes = await axios.get(`${apiUrl}/patient/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
         });
 
-        setPatient(response.data);
+        setPatient(patientRes.data);
       } catch (error) {
-        console.error("Error fetching patient details:", error);
-        // Use toast/navigate outside the dependency array via functional refs
+        console.error("Error fetching data:", error);
         toast.error(
           error.response?.status === 404
             ? "Patient not found"
@@ -128,10 +135,8 @@ const PatientProfileAdminView = () => {
       }
     };
 
-    fetchPatientDetails();
+    fetchData();
     fetchTransactions();
-    // Note: toast and navigate are intentionally excluded – they are stable refs
-    // from context/router and should not trigger a refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, apiUrl]);
 
@@ -158,7 +163,7 @@ const PatientProfileAdminView = () => {
         email: patient.email || "",
         address: patient.address || "",
         national_id: patient.national_id || "",
-        passport_no: patient.passport_no || ""
+        passport_no: patient.passport_no || "",
       });
       setFormErrors({});
     }
@@ -179,10 +184,6 @@ const PatientProfileAdminView = () => {
 
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = "Invalid email format";
-    }
-
-    if (formData.primaryPhone && !/^\d+$/.test(formData.primaryPhone)) {
-      errors.primaryPhone = "Phone must contain only numbers";
     }
 
     if (formData.national_id && isNaN(formData.national_id)) {
@@ -370,6 +371,7 @@ const PatientProfileAdminView = () => {
                       delay={0.4}
                       isEditing={isEditing}
                       name="primaryPhone"
+                      type="phone"
                       onChange={handleChange}
                       error={formErrors.primaryPhone}
                     />
@@ -515,6 +517,8 @@ const PatientProfileAdminView = () => {
                     )}
                   </div>
                 </div>
+                
+
                 <div className="mt-4 pt-3 border-top">
                   <div className="d-flex justify-content-between mb-2">
                     <span className="text-muted">Total Billed:</span>

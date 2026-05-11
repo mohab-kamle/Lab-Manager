@@ -14,6 +14,7 @@ const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
@@ -24,6 +25,7 @@ const Categories = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
+  const { toast, confirm } = useToast();
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -127,19 +129,20 @@ const Categories = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (category) => {
-    confirm.delete(category.name, async () => {
+  const handleDelete = async (category) => {
+    const confirmed = await confirm.delete(category.name);
+    if (confirmed) {
       try {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
         await axios.delete(`${apiUrl}/categories/${category.id}`, { headers });
-        toast.success("Category deleted successfully!");
-        fetchCategories();
+        toast.success("Category deleted successfully");
+        // Refresh using extracted function
+        await fetchCategories();
       } catch (error) {
-        console.error("Delete error:", error);
-        toast.error(error.response?.data?.error || "Failed to delete category");
+        toast.error("Failed to delete category");
       }
-    });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -150,9 +153,11 @@ const Categories = () => {
       if (editingCategory) {
         // Update
         await axios.put(`${apiUrl}/categories/${editingCategory.id}`, formData, { headers });
+        toast.success("Category updated successfully");
       } else {
         // Create
         await axios.post(`${apiUrl}/categories`, formData, { headers });
+        toast.success("Category created successfully");
       }
       setShowModal(false);
       setEditingCategory(null);
@@ -356,8 +361,6 @@ const Categories = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      
-
     </Container>
   );
 };

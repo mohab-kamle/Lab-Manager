@@ -361,7 +361,10 @@ router.get("/", authenticateUser, async (req, res) => {
         ],
       });
       if (user) {
-        const phones = await phone_number.findAll({ where: { patient_id: req.user.id } });
+        const phones = await phone_number.findAll({ 
+          where: { patient_id: req.user.id },
+          attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
+        });
         user = { ...user.get(), role: "patient", phones };
       }
     } else if (req.user.role === "doctor") {
@@ -379,7 +382,8 @@ router.get("/", authenticateUser, async (req, res) => {
         include: [
           {
             model: phone_number,
-            as: 'phones'
+            as: 'phones',
+            attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
           }
         ]
       });

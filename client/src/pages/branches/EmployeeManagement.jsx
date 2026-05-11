@@ -656,8 +656,8 @@ const EmployeeManagement = () => {
                   <Col md={12}>
                     <Form.Label>Phone Numbers *</Form.Label>
                     {employee.phoneNumbers.map((phoneEntry, index) => (
-                      <div key={index} className="d-flex gap-2 mb-2 align-items-start">
-                        <div style={{ flex: 1 }}>
+                      <div key={index} className="d-flex flex-wrap gap-2 mb-2 align-items-center w-100">
+                        <div style={{ flex: '1 1 200px', minWidth: '0' }}>
                           <PhoneInput
                             value={phoneEntry.phone}
                             onChange={(val) => {

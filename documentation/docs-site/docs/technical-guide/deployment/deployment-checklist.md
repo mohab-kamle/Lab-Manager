@@ -58,7 +58,7 @@ SELECT
 FROM INFORMATION_SCHEMA.COLUMNS 
 WHERE TABLE_SCHEMA = DATABASE() 
     AND COLUMN_NAME = 'lab_id'
-    AND TABLE_NAME IN ('patient', 'bill', 'medical_report', 'employee', 'contract', 'packages_and_offers', 'payment_method', 'company', 'doctor', 'receptionist', 'chemist', 'admin')
+    AND TABLE_NAME IN ('patient', 'bill', 'medical_report', 'employee', 'contract', 'packages_and_offers', 'payment_method', 'company', 'receptionist', 'chemist', 'admin')
 ORDER BY TABLE_NAME;
 
 -- Check subscription status
