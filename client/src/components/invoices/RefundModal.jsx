@@ -184,6 +184,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
       onHide={onHide} 
       size="lg" 
       centered 
+      scrollable={true}
       backdrop="static"
       enforceFocus={false}
     >
@@ -208,7 +209,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
           </Alert>
         )}
 
-        <Row className="mb-4 align-items-start">
+        <Row className="mb-4">
           <Col md={7}>
             <h6 className="text-uppercase small fw-bold text-muted mb-3 ls-wide">Select Items to Refund</h6>
             <Card className="border-0 shadow-sm overflow-hidden">
@@ -264,7 +265,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
             </Card>
           </Col>
           <Col md={5}>
-            <div className="sticky-top" style={{ top: '0', zIndex: 1 }}>
+            <div className="sticky-top" style={{ top: '1.5rem', zIndex: 1 }}>
               <h6 className="text-uppercase small fw-bold text-muted mb-3 ls-wide">Refund Summary</h6>
               <Card className="border-0 shadow-sm bg-theme-inset">
                 <Card.Body className="p-4">
