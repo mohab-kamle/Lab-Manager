@@ -1284,6 +1284,7 @@ router.post(
   "/import",
   authenticateUser,
   authorizeRoles("admin"),
+  tenantContext,
   upload.single("file"),
   async (req, res) => {
     try {
@@ -1316,7 +1317,9 @@ router.post(
           }
           let report = null;
           if (row.ID) {
-            report = await db.medical_report.findByPk(row.ID);
+            report = await db.medical_report.findOne({ 
+              where: { id: row.ID, lab_id: req.tenant.lab_id } 
+            });
           }
           const reportData = {
             patient_id: row["Patient ID"],
@@ -1330,6 +1333,7 @@ router.post(
             signatory_admin_id: row["Signatory Admin ID"] || null,
             signatory_name: row["Signatory Name"] || null,
             bill_id: row["Bill ID"] || null,
+            lab_id: req.tenant.lab_id,
           };
           if (report) {
             await report.update(reportData);

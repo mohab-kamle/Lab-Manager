@@ -93,7 +93,8 @@ const PackagesAndOffers = () => {
   }, []);
 
   const handleAddItem = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    setLastAttemptedItem(item);
     try {
       const cleanedItem = {
         ...item,
@@ -196,7 +197,6 @@ const PackagesAndOffers = () => {
 
   const handleRetry = () => {
     if (lastAttemptedItem) {
-      setItem(lastAttemptedItem);
       handleAddItem();
     }
   };
@@ -223,9 +223,13 @@ const PackagesAndOffers = () => {
   };
 
   const filteredItems = items.filter((item) => {
+    const name = item.name || "";
+    const shortcut = item.shortcut || "";
+    const search = searchQuery.toLowerCase();
+
     const matchesSearch =
-      item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.shortcut?.toLowerCase().includes(searchQuery.toLowerCase());
+      name.toLowerCase().includes(search) ||
+      shortcut.toLowerCase().includes(search);
     const matchesType =
       !typeFilter || typeFilter === "all" || item.type === typeFilter;
     return matchesSearch && matchesType;

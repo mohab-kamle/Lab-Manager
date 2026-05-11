@@ -19,7 +19,7 @@ import PhoneInput from "../../components/ui/PhoneInput";
 
 const PatientsAdminView = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const navigate = useNavigate();
 
   const [patients, setPatients] = useState([]);

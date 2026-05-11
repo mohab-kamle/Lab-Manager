@@ -221,6 +221,7 @@ const OutsourcedLabs = () => {
       return;
     }
 
+    setImportLoading(true);
     const loadingToast = toast.loading("Importing outsourced labs...");
     try {
       const formData = new FormData();
@@ -255,6 +256,7 @@ const OutsourcedLabs = () => {
       console.error("Import error:", error);
       toast.error(error.response?.data?.error || "Failed to import outsourced labs.");
     } finally {
+      setImportLoading(false);
       toast.dismiss(loadingToast);
     }
   };
