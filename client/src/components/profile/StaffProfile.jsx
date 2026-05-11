@@ -23,6 +23,7 @@ import {
   X,
   Lock,
   VenusAndMars,
+  Phone,
 } from "lucide-react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import axios from "axios";
@@ -87,10 +88,9 @@ const StaffProfile = () => {
     };
 
     fetchProfile();
-  VenusAndMars,
-  Phone,
-  } from "lucide-react";
-  // ...
+  }, [user?.id, apiUrl, toast]);
+
+
   /**
    * Enter edit mode: populate form data from the current profile.
    */
