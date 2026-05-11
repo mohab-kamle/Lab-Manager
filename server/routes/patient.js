@@ -712,17 +712,10 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin", "receptionist"),
 });
 
 // Get all available diseases
-router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist", "doctor"),
-    // Add cache headers for 1 hour - diseases rarely change
-    (req, res, next) => {
-        res.set({
-            'Cache-Control': 'public, max-age=3600', // 1 hour
-        });
-        next();
-    },
+router.get("/diseases", authenticateUser, authorizeRoles("admin", "receptionist", "doctor", "chemist", "employee"),
     async (req, res) => {
         try {
-            const diseasesList = await diseases.findAll({
+            const diseasesList = await db.diseases.findAll({
                 attributes: ['id', 'name', 'details'],
                 order: [['name', 'ASC']]
             });
