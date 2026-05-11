@@ -2303,10 +2303,15 @@ const Invoices = () => {
                             </div>
                             <Form.Control
                               type="text"
-                              value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
+                              value={`EGP ${((invoice.due || 0) < -0.01 && giveChange) ? "0.00" : Math.abs(invoice.due || 0).toFixed(2)}`}
                               disabled
                               className={(invoice.due || 0) > 0.01 ? "text-danger fw-bold" : "text-success fw-bold"}
                             />
+                            {giveChange && (invoice.due || 0) < -0.01 && (
+                              <Form.Text className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                Change of EGP {Math.abs(invoice.due || 0).toFixed(2)} is handed to patient
+                              </Form.Text>
+                            )}
                           </Form.Group>
                         </Col>
                       </Row>
