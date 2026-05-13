@@ -43,17 +43,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
     setPatientsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      /* 
-      // API TODO: Implement patient list fetching for settlement
+      
       const response = await axios.get(`${apiUrl}/patient`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPatients(response.data || []);
-      */
-
-      // Placeholder logic for now
-      console.log("Settlement: Fetching patients placeholder");
-      setPatients([]);
     } catch (err) {
       console.error("Error fetching patients:", err);
       toast.error("Failed to load patient list");
@@ -69,17 +63,11 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
     setError(null);
     try {
       const token = localStorage.getItem("token");
-      /*
-      // API TODO: Implement GET /invoices/patient/:id/due
-      const response = await axios.get(`${apiUrl}/invoices/patient/${patientId}/due`, {
+   
+      const response = await axios.get(`${apiUrl}/patient/${patientId}/due`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDueInvoices(response.data || []);
-      */
-
-      // Placeholder logic for now
-      console.log(`Settlement: Fetching due invoices for patient ${patientId}`);
-      setDueInvoices([]);
     } catch (err) {
       console.error("Error fetching due invoices:", err);
       setError("Failed to load outstanding invoices for this patient.");
@@ -198,16 +186,13 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
 
       console.log("Submitting Settlement:", payload);
 
-      /*
-      // API TODO: POST /settlements
-      await axios.post(`${apiUrl}/settlements`, payload, {
+      
+      await axios.post(`${apiUrl}/reconciliation`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Settlement processed successfully");
       onHide();
-      */
-
-      toast.info("API placeholder: Processing settlement...");
+      
     } catch (err) {
       console.error("Error processing settlement:", err);
       toast.error(err.response?.data?.error || "Failed to process settlement");

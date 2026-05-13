@@ -13,6 +13,7 @@ require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { sequelize } = require("../models");
 const db = require('../models');
+const Op = db.Sequelize.Op;
 
 // Configure multer for file uploads
 const upload = multer({
@@ -102,6 +103,30 @@ router.post("/login", loginLimiter, async (req, res) => {
         res.status(500).json({ error: "Server error, please try again later." });
     }
 });
+
+// GET Unpaid Bills for a Patient (For the Modal Preview)
+router.get("/:id/due", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+
+        const unpaidBills = await bill.findAll({
+            where: {
+                patient_id: patientId,
+                lab_id: req.tenant.lab_id,
+                due: {
+                    [Op.gt]: 0 // Only bills where due > 0
+                }
+            },
+            order: [['date', 'ASC']] // Oldest first (FIFO strategy)
+        });
+
+        res.json(unpaidBills);
+    } catch (error) {
+        console.error("Error fetching unpaid bills:", error);
+        res.status(500).json({ error: "Internal server error", message: error.message });
+    }
+});
+
 
 router.get(
     "/reports",
