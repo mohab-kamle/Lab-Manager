@@ -216,9 +216,26 @@ export const ToastProvider = ({ children }) => {
       const duration = mappedDuration;
       const clickToClose = mappedClickToClose;
 
+      const { title: defaultTitle } = getToastMeta(normalizedType);
+      const currentTitle = options.title || defaultTitle;
+      
+      let finalMessage = message;
+      if (typeof message === "string" && currentTitle) {
+        // Strip redundant prefix if it matches the title (e.g. "Error: Message" -> "Message")
+        const escapedTitle = currentTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`^${escapedTitle}[:\\-\\s]{1,3}`, "i");
+        // Only strip if there's a separator like ":" or "-" 
+        // to avoid stripping from sentences like "Error loading data"
+        if (/[:\-]+/.test(message.slice(0, currentTitle.length + 2))) {
+          finalMessage = message.replace(regex, "").trim();
+          // Capitalize first letter of remaining message
+          finalMessage = finalMessage.charAt(0).toUpperCase() + finalMessage.slice(1);
+        }
+      }
+
       const newToast = {
         id,
-        message,
+        message: finalMessage,
         type: normalizedType,
         title: options.title,
         icon: options.icon,
