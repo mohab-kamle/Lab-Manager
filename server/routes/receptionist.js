@@ -8,7 +8,7 @@ const { tenantContext } = require("../middleware/tenantContext");
 /**
  * GET /receptionists - Get all receptionists
  */
-router.get("/", authenticateUser , authorizeRoles("admin"), tenantContext, async (req, res) => {
+router.get("/", authenticateUser , authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
     try {
         const receptionists = await employee.findAll({
             where: {

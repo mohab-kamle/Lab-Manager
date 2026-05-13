@@ -220,6 +220,8 @@ export const ToastProvider = ({ children }) => {
         id,
         message,
         type: normalizedType,
+        title: options.title,
+        icon: options.icon,
         position,
         showCloseBtn,
         clickToClose,
@@ -716,8 +718,12 @@ const ToastGroup = ({
   toggleGroupExpanded,
   position,
 }) => {
-  const { title, icon: Icon } = getToastMeta(type);
-  const collapsedMessage = items[items.length - 1]?.message || "";
+  const { title: defaultTitle, icon: DefaultIcon } = getToastMeta(type);
+  const latestItem = items[items.length - 1];
+  const currentTitle = latestItem?.title || defaultTitle;
+  const CurrentIcon = latestItem?.icon || DefaultIcon;
+
+  const collapsedMessage = latestItem?.message || "";
   const canExpand = items.length > 1;
 
   const summarizedItems = useMemo(() => {
@@ -757,13 +763,13 @@ const ToastGroup = ({
             {type === "loading" ? (
               <span className="toast-spinner" style={{ width: 22, height: 22, borderTopColor: "white" }}></span>
             ) : (
-              Icon && <Icon size={position === "center" ? 28 : 22} />
+              CurrentIcon && <CurrentIcon size={position === "center" ? 28 : 22} />
             )}
           </div>
 
           <div className="toast-content">
             <h5 className="toast-title">
-              {title}
+              {currentTitle}
               {items.length > 1 ? ` (${items.length})` : ""}
             </h5>
             <div className="toast-message">{collapsedMessage}</div>

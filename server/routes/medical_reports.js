@@ -832,7 +832,7 @@ router.get(
 router.put(
   "/:id/results",
   authenticateUser,
-  authorizeRoles("admin", "chemist"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
   tenantContext,
   invalidateTestResultsCache, // Invalidate cache when test results are updated
   async (req, res) => {
@@ -1350,7 +1350,7 @@ router.post(
 router.post(
   "/:id/results/bulk",
   authenticateUser,
-  authorizeRoles("admin", "chemist", "receptionist"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
   invalidateTestResultsCache, // Invalidate cache when bulk results are updated
   async (req, res) => {
     const t = await db.sequelize.transaction();
@@ -1926,7 +1926,7 @@ function calculatePatientAge(birthDate) {
 router.post(
   "/:id/results",
   authenticateUser,
-  authorizeRoles("admin", "chemist", "employee"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
   tenantContext,
   async (req, res) => {
     try {
@@ -2030,43 +2030,46 @@ router.post(
         });
       }
 
-      // Since there is no unique constraint on medical_report_results for Upsert,
-      // we'll destroy and rewrite for this test specifically.
-      const t = await db.sequelize.transaction();
-      try {
-        await db.medical_report_results.destroy({
-          where: {
-            medical_report_id: report.id,
-            test_id: test.id,
-            parameter_key: { [Op.in]: Object.keys(results) }
-          },
-          transaction: t
-        });
-
-        await db.medical_report_results.bulkCreate(resultsToSave, { transaction: t });
-
-        // Stamp received_at now that results have been entered
-        if (resultsToSave.length > 0) {
-          await updateMedicalReportDates(report.id, "received", t);
-        }
-
-        await t.commit();
-        res.json({ success: true, message: "Results saved successfully", results: resultsToSave });
-      } catch (err) {
-        console.error("TRANSACTION ERROR inside POST /results:", err);
+      await executeWithDeadlockRetry(async () => {
+        const t = await db.sequelize.transaction();
         try {
+          await db.medical_report_results.destroy({
+            where: {
+              medical_report_id: report.id,
+              test_id: test.id,
+              parameter_key: { [Op.in]: Object.keys(results) }
+            },
+            transaction: t
+          });
+
+          const preparedResults = resultsToSave.map(r => ({
+            ...r,
+            result_value: { result: r.result_value, status: r.clinical_flag }
+          }));
+
+          await db.medical_report_results.bulkCreate(preparedResults, { transaction: t });
+
+          // Stamp received_at now that results have been entered
+          if (preparedResults.length > 0) {
+            await updateMedicalReportDates(report.id, "received", t);
+          }
+
+          await t.commit();
+          res.json({ success: true, message: "Results saved successfully", results: preparedResults });
+        } catch (err) {
+          console.error("TRANSACTION ERROR inside POST /results:", err);
           if (!t.finished) {
             await t.rollback();
           }
-        } catch (rollbackErr) {
-          console.error("Rollback failed:", rollbackErr);
+          throw err; // Re-throw to trigger deadlock retry or outer catch
         }
-        throw err;
-      }
-
+      });
     } catch (error) {
-      console.error("Error saving dynamic results:", error);
-      res.status(500).json({ error: "Failed to save results" });
+      console.error("Error in POST /:id/results:", error);
+      res.status(500).json({
+        error: "Failed to save results",
+        details: error.message
+      });
     }
   }
 );

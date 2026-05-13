@@ -45,7 +45,7 @@ const LabLayout = () => {
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { duration: 0, clickToClose: true, showCloseBtn: true }
+          { title: "Low Stock Alert", duration: 0, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };
@@ -60,7 +60,7 @@ const LabLayout = () => {
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { duration: 10000, clickToClose: true, showCloseBtn: true }
+          { title: "Expiring Soon", duration: 10000, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };
@@ -75,7 +75,7 @@ const LabLayout = () => {
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { duration: 0, clickToClose: true, showCloseBtn: true }
+          { title: "Expired Alert", duration: 0, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };
