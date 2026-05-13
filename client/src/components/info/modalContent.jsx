@@ -10,7 +10,7 @@ import React from 'react';
  *
  * To add or update any policy, only edit this file.
  */
-const SUPPORT_EMAIL = 'techsupport@labdoctors-laboratories.com';
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'techsupport@localhost';
 
 const modalContent = {
   terms: {

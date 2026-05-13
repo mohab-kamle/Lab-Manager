@@ -1060,7 +1060,7 @@ async function sendWelcomeEmail(email, adminName, labName, username, subdomain, 
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="font-size: 12px; color: #666;">
             This is an automated message. Please do not reply to this email.
-            For support, contact us at <a href="mailto:techsupport@labdoctors-laboratories.com">techsupport@labdoctors-laboratories.com</a>
+            For support, contact us at <a href="mailto:${process.env.SUPPORT_EMAIL || 'techsupport@localhost'}">${process.env.SUPPORT_EMAIL || 'techsupport@localhost'}</a>
           </p>
         </div>
       `

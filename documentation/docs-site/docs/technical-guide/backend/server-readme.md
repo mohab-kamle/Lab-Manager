@@ -335,7 +335,7 @@ server/
 
 ### Allowed Origins
 
-- Production domains: `labdoctors-laboratories.com`
+- Production domains: Configured via `DOMAIN_NAME` environment variable (e.g., `your-new-domain.com`)
 - Development: `localhost:5173`, `localhost:3000`
 - Docker container support
 
