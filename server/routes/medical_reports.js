@@ -1471,7 +1471,7 @@ router.post(
                 medical_report_id: parseInt(reportId, 10),
                 test_id: parseInt(testId, 10),
                 parameter_key: componentId,
-                result_value: JSON.stringify({ result: componentData.result, status: calculatedStatus }),
+                result_value: { result: componentData.result, status: calculatedStatus },
                 clinical_flag: calculatedStatus,
                 workflow_status: 'analyzed',
               });
@@ -1485,16 +1485,8 @@ router.post(
               { replacements: [parseInt(reportId, 10), parseInt(testId, 10)], transaction: t }
             );
 
-            // Bulk create new results via raw queries
-            for (const r of componentResultsToSave) {
-              await db.sequelize.query(
-                'INSERT INTO medical_report_results (medical_report_id, test_id, parameter_key, result_value, clinical_flag, workflow_status) VALUES (?, ?, ?, ?, ?, ?)',
-                {
-                  replacements: [r.medical_report_id, r.test_id, r.parameter_key, r.result_value, r.clinical_flag, r.workflow_status],
-                  transaction: t
-                }
-              );
-            }
+            // Bulk create new results via Sequelize model
+            await db.medical_report_results.bulkCreate(componentResultsToSave, { transaction: t });
           }
         }
       }
