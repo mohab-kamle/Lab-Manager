@@ -321,6 +321,7 @@ app.use("/payments", require("./routes/paymentsGateway"));
 app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
 app.use("/whatsapp", require("./routes/whatsapp.routes"));
+app.use("/auth", require("./routes/auth"));
 
 // Global error handler
 app.use((error, req, res, next) => {

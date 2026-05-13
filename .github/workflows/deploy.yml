@@ -164,8 +164,8 @@ jobs:
             # JWT Configuration
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             # Email Configuration
-            EMAIL_USER=${{ secrets.EMAIL_USER }}
-            EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            EMAIL_FROM=${{ secrets.EMAIL_FROM || 'noreply@mail.curasystem.online' }}
             # Application Configuration
             NODE_ENV=production
             PORT=${{ secrets.PORT || 3001 }}
