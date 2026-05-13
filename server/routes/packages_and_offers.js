@@ -38,8 +38,13 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
         // Create lookup maps for tests and cultures
         const testMap = new Map(tests.map(t => [t.id, t]));
 
-        // Combine the data
         const result = packagesAndOffers.map(item => {
+            const itemJSON = item.toJSON();
+            // Handle optional end_date by converting 9999-12-31 back to null
+            if (itemJSON.end_date && new Date(itemJSON.end_date).getFullYear() === 9999) {
+                itemJSON.end_date = null;
+            }
+
             const itemTests = testAssociations
                 .filter(t => t.packages_and_offers_id === item.id)
                 .map(t => testMap.get(t.test_id))
@@ -48,7 +53,7 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
             console.log(`Package ${item.id} has ${itemTests.length} tests`);
 
             return {
-                ...item.toJSON(),
+                ...itemJSON,
                 tests: itemTests
             };
         });
@@ -84,8 +89,13 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
         const testIds = testAssociations.map(t => t.test_id);
         const tests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
 
+        const packageJSON = packageAndOffer.toJSON();
+        if (packageJSON.end_date && new Date(packageJSON.end_date).getFullYear() === 9999) {
+            packageJSON.end_date = null;
+        }
+
         const result = {
-            ...packageAndOffer.toJSON(),
+            ...packageJSON,
             tests: tests
         };
 
@@ -100,8 +110,13 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
 // Create a new package/offer
 router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
     try {
-        const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
+        let { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
         console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type });
+
+        // If end_date is missing, use a far future date to satisfy NOT NULL constraint
+        if (!end_date) {
+            end_date = '9999-12-31 23:59:59';
+        }
 
         // Validate required fields
         if (!name || !price || !type) {
@@ -184,8 +199,13 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
             const testIds = testAssociations.map(t => t.test_id);
             const createdTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
 
+            const packageJSON = newPackageAndOffer.toJSON();
+            if (packageJSON.end_date && new Date(packageJSON.end_date).getFullYear() === 9999) {
+                packageJSON.end_date = null;
+            }
+
             const result = {
-                ...newPackageAndOffer.toJSON(),
+                ...packageJSON,
                 tests: createdTests
             };
 
@@ -204,7 +224,12 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
 // Update a package/offer
 router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
-        const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
+        let { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
+
+        // If end_date is missing, use a far future date to satisfy NOT NULL constraint
+        if (!end_date) {
+            end_date = '9999-12-31 23:59:59';
+        }
 
         // Start a transaction
         const transaction = await packages_and_offers.sequelize.transaction();
@@ -293,8 +318,13 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
             const testIds = testAssociations.map(t => t.test_id);
             const updatedTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
 
+            const packageJSON = packageAndOffer.toJSON();
+            if (packageJSON.end_date && new Date(packageJSON.end_date).getFullYear() === 9999) {
+                packageJSON.end_date = null;
+            }
+
             const result = {
-                ...packageAndOffer.toJSON(),
+                ...packageJSON,
                 tests: updatedTests
             };
 

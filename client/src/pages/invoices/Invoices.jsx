@@ -1291,6 +1291,19 @@ const Invoices = () => {
       return "-";
 
     switch (header) {
+      case "id":
+        return (
+          <Button
+            variant="link"
+            className="p-0 text-decoration-none fw-bold"
+            onClick={() => {
+              toast.info("Full advanced audit feature is coming soon");
+            }}
+            title="View Audit Trail"
+          >
+            #{value}
+          </Button>
+        );
       case "date":
         return formatDateTime(value);
       case "patient_name":
@@ -1585,9 +1598,25 @@ const Invoices = () => {
         variant="outline-danger"
         size="sm"
         onClick={() => {
-          confirm.delete(`Invoice #${rowData.id}`, () =>
-            handleDelete(rowData.id),
-          );
+          const rawDue = Number(rowData.due || 0);
+          const balanceAmount = Math.abs(rawDue);
+          if (balanceAmount > 0.01) {
+            const balanceType = rawDue > 0 ? "due" : "credit";
+            confirm.custom(
+              {
+                title: "High Financial Impact Warning",
+                message: `Deleting this invoice will permanently erase the associated ${balanceType} of EGP ${balanceAmount.toFixed(2)}.`,
+                type: "danger",
+                confirmText: "Yes, Delete Permanently",
+                requireMatch: "confirm delete",
+              },
+              () => handleDelete(rowData.id)
+            );
+          } else {
+            confirm.delete(`Invoice #${rowData.id}`, () =>
+              handleDelete(rowData.id),
+            );
+          }
         }}
       >
         <Trash2 size={16} />
@@ -1713,6 +1742,7 @@ const Invoices = () => {
             <DynamicTable
               data={currentInvoices}
               columns={[
+                "id",
                 "date",
                 "age",
                 "patient_name",
@@ -1729,6 +1759,7 @@ const Invoices = () => {
                 "status",
               ]}
               customHeaders={{
+                id: "Invoice ID",
                 age: "Age",
                 amount_due: "Due",
                 patient_name: "Patient",
@@ -2590,7 +2621,17 @@ const Invoices = () => {
                   <Row>
                     <Col md={6}>
                       <Form.Group className="mb-3">
-                        <Form.Label>Tests</Form.Label>
+                        <Form.Label>
+                          Tests
+                          {editingInvoice && (
+                            <small
+                              className="text-muted ms-1 fw-normal"
+                              style={{ fontSize: "0.75em" }}
+                            >
+                              (Original cannot be removed)
+                            </small>
+                          )}
+                        </Form.Label>
                         <Form.Control
                           type="text"
                           placeholder="Search tests..."
@@ -2613,46 +2654,65 @@ const Invoices = () => {
                                 .toLowerCase()
                                 .includes(testSearchTerm.toLowerCase()),
                             )
-                            .map((test) => (
-                              <Form.Check
-                                key={test.id}
-                                type="checkbox"
-                                label={`${test.name} (EGP ${test.price})`}
-                                checked={invoice.tests.includes(
-                                  String(test.id),
-                                )}
-                                onChange={(e) => {
-                                  const selected = invoice.tests.includes(
+                            .map((test) => {
+                              const isOriginallySelected =
+                                editingInvoice &&
+                                editingInvoice.tests?.some(
+                                  (t) => String(t.id) === String(test.id),
+                                );
+                              return (
+                                <Form.Check
+                                  key={test.id}
+                                  type="checkbox"
+                                  label={`${test.name} (EGP ${test.price})`}
+                                  checked={invoice.tests.includes(
                                     String(test.id),
-                                  )
-                                    ? invoice.tests.filter(
-                                        (id) => id !== String(test.id),
-                                      )
-                                    : [...invoice.tests, String(test.id)];
-                                  setInvoice((prev) => {
-                                    const filtered = selected.filter(
-                                      (id) =>
-                                        !isNaN(Number(id)) &&
-                                        id !== "" &&
-                                        id !== null,
-                                    );
-                                    const newInvoice = {
-                                      ...prev,
-                                      tests: filtered,
-                                    };
-                                    return updateInvoiceCalculations(
-                                      newInvoice,
-                                    );
-                                  });
-                                }}
-                              />
-                            ))}
+                                  )}
+                                  disabled={isOriginallySelected}
+                                  onChange={(e) => {
+                                    if (isOriginallySelected) return;
+                                    const selected = invoice.tests.includes(
+                                      String(test.id),
+                                    )
+                                      ? invoice.tests.filter(
+                                          (id) => id !== String(test.id),
+                                        )
+                                      : [...invoice.tests, String(test.id)];
+                                    setInvoice((prev) => {
+                                      const filtered = selected.filter(
+                                        (id) =>
+                                          !isNaN(Number(id)) &&
+                                          id !== "" &&
+                                          id !== null,
+                                      );
+                                      const newInvoice = {
+                                        ...prev,
+                                        tests: filtered,
+                                      };
+                                      return updateInvoiceCalculations(
+                                        newInvoice,
+                                      );
+                                    });
+                                  }}
+                                />
+                              );
+                            })}
                         </div>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group className="mb-3">
-                        <Form.Label>Packages & Offers</Form.Label>
+                        <Form.Label>
+                          Packages & Offers
+                          {editingInvoice && (
+                            <small
+                              className="text-muted ms-1 fw-normal"
+                              style={{ fontSize: "0.75em" }}
+                            >
+                              (Original cannot be removed)
+                            </small>
+                          )}
+                        </Form.Label>
                         <Form.Control
                           type="text"
                           placeholder="Search packages & offers..."
@@ -2675,40 +2735,49 @@ const Invoices = () => {
                                 .toLowerCase()
                                 .includes(packageSearchTerm.toLowerCase()),
                             )
-                            .map((pkg) => (
-                              <Form.Check
-                                key={pkg.id}
-                                type="checkbox"
-                                label={`${pkg.name} - ${pkg.type} (EGP ${pkg.price})`}
-                                checked={invoice.packages.includes(
-                                  String(pkg.id),
-                                )}
-                                onChange={(e) => {
-                                  const selected = invoice.packages.includes(
+                            .map((pkg) => {
+                              const isOriginallySelected =
+                                editingInvoice &&
+                                editingInvoice.packages?.some(
+                                  (p) => String(p.id) === String(pkg.id),
+                                );
+                              return (
+                                <Form.Check
+                                  key={pkg.id}
+                                  type="checkbox"
+                                  label={`${pkg.name} - ${pkg.type} (EGP ${pkg.price})`}
+                                  checked={invoice.packages.includes(
                                     String(pkg.id),
-                                  )
-                                    ? invoice.packages.filter(
-                                        (id) => id !== String(pkg.id),
-                                      )
-                                    : [...invoice.packages, String(pkg.id)];
-                                  setInvoice((prev) => {
-                                    const filtered = selected.filter(
-                                      (id) =>
-                                        !isNaN(Number(id)) &&
-                                        id !== "" &&
-                                        id !== null,
-                                    );
-                                    const newInvoice = {
-                                      ...prev,
-                                      packages: filtered,
-                                    };
-                                    return updateInvoiceCalculations(
-                                      newInvoice,
-                                    );
-                                  });
-                                }}
-                              />
-                            ))}
+                                  )}
+                                  disabled={isOriginallySelected}
+                                  onChange={(e) => {
+                                    if (isOriginallySelected) return;
+                                    const selected = invoice.packages.includes(
+                                      String(pkg.id),
+                                    )
+                                      ? invoice.packages.filter(
+                                          (id) => id !== String(pkg.id),
+                                        )
+                                      : [...invoice.packages, String(pkg.id)];
+                                    setInvoice((prev) => {
+                                      const filtered = selected.filter(
+                                        (id) =>
+                                          !isNaN(Number(id)) &&
+                                          id !== "" &&
+                                          id !== null,
+                                      );
+                                      const newInvoice = {
+                                        ...prev,
+                                        packages: filtered,
+                                      };
+                                      return updateInvoiceCalculations(
+                                        newInvoice,
+                                      );
+                                    });
+                                  }}
+                                />
+                              );
+                            })}
                         </div>
                       </Form.Group>
                     </Col>
@@ -2737,36 +2806,45 @@ const Invoices = () => {
                                       const test = tests.find(
                                         (t) => t.id === parseInt(testId),
                                       );
-                                      return test ? (
+                                      if (!test) return null;
+                                      const isOriginallySelected =
+                                        editingInvoice &&
+                                        editingInvoice.tests?.some(
+                                          (t) =>
+                                            String(t.id) === String(test.id),
+                                        );
+                                      return (
                                         <Badge
                                           key={testId}
                                           bg="success"
                                           className="me-1 mb-1 d-inline-flex align-items-center"
                                         >
                                           {test.name} (EGP {test.price})
-                                          <button
-                                            type="button"
-                                            className="btn-close btn-close-white ms-2"
-                                            style={{ fontSize: "0.6em" }}
-                                            onClick={() => {
-                                              const filtered =
-                                                invoice.tests.filter(
-                                                  (id) =>
-                                                    id !== String(test.id),
-                                                );
-                                              setInvoice((prev) => {
-                                                const newInvoice = {
-                                                  ...prev,
-                                                  tests: filtered,
-                                                };
-                                                return updateInvoiceCalculations(
-                                                  newInvoice,
-                                                );
-                                              });
-                                            }}
-                                          ></button>
+                                          {!isOriginallySelected && (
+                                            <button
+                                              type="button"
+                                              className="btn-close btn-close-white ms-2"
+                                              style={{ fontSize: "0.6em" }}
+                                              onClick={() => {
+                                                const filtered =
+                                                  invoice.tests.filter(
+                                                    (id) =>
+                                                      id !== String(test.id),
+                                                  );
+                                                setInvoice((prev) => {
+                                                  const newInvoice = {
+                                                    ...prev,
+                                                    tests: filtered,
+                                                  };
+                                                  return updateInvoiceCalculations(
+                                                    newInvoice,
+                                                  );
+                                                });
+                                              }}
+                                            ></button>
+                                          )}
                                         </Badge>
-                                      ) : null;
+                                      );
                                     })}
                                   </div>
                                 </div>
@@ -2787,7 +2865,13 @@ const Invoices = () => {
                                       const pkg = packages.find(
                                         (p) => p.id === parseInt(packageId),
                                       );
-                                      return pkg ? (
+                                      if (!pkg) return null;
+                                      const isOriginallySelected =
+                                        editingInvoice &&
+                                        editingInvoice.packages?.some(
+                                          (p) => String(p.id) === String(pkg.id),
+                                        );
+                                      return (
                                         <Badge
                                           key={packageId}
                                           bg="warning"
@@ -2795,28 +2879,31 @@ const Invoices = () => {
                                           className="me-1 mb-1 d-inline-flex align-items-center"
                                         >
                                           {pkg.name} (EGP {pkg.price})
-                                          <button
-                                            type="button"
-                                            className="btn-close ms-2"
-                                            style={{ fontSize: "0.6em" }}
-                                            onClick={() => {
-                                              const filtered =
-                                                invoice.packages.filter(
-                                                  (id) => id !== String(pkg.id),
-                                                );
-                                              setInvoice((prev) => {
-                                                const newInvoice = {
-                                                  ...prev,
-                                                  packages: filtered,
-                                                };
-                                                return updateInvoiceCalculations(
-                                                  newInvoice,
-                                                );
-                                              });
-                                            }}
-                                          ></button>
+                                          {!isOriginallySelected && (
+                                            <button
+                                              type="button"
+                                              className="btn-close ms-2"
+                                              style={{ fontSize: "0.6em" }}
+                                              onClick={() => {
+                                                const filtered =
+                                                  invoice.packages.filter(
+                                                    (id) =>
+                                                      id !== String(pkg.id),
+                                                  );
+                                                setInvoice((prev) => {
+                                                  const newInvoice = {
+                                                    ...prev,
+                                                    packages: filtered,
+                                                  };
+                                                  return updateInvoiceCalculations(
+                                                    newInvoice,
+                                                  );
+                                                });
+                                              }}
+                                            ></button>
+                                          )}
                                         </Badge>
-                                      ) : null;
+                                      );
                                     })}
                                   </div>
                                 </div>

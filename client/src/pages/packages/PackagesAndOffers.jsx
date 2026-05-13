@@ -41,7 +41,7 @@ const PackagesAndOffers = () => {
     name: "",
     shortcut: "",
     price: "",
-    start_date: "",
+    start_date: new Date(),
     end_date: "",
     type: "package",
     tests: [],
@@ -100,7 +100,7 @@ const PackagesAndOffers = () => {
       const cleanedItem = {
         ...item,
         price: parseFloat(item.price),
-        start_date: item.start_date || null,
+        start_date: item.start_date || new Date(),
         end_date: item.end_date || null,
         tests: item.tests
           .map((id) => parseInt(id))
@@ -113,11 +113,11 @@ const PackagesAndOffers = () => {
       if (
         cleanedItem.start_date &&
         cleanedItem.end_date &&
-        new Date(cleanedItem.start_date) > new Date(cleanedItem.end_date)
+        new Date(cleanedItem.start_date) >= new Date(cleanedItem.end_date)
       ) {
         setFormErrors((prev) => ({
           ...prev,
-          dates: "End date must be after start date",
+          end_date: "End date must be strictly after start date",
         }));
         return;
       }
@@ -278,8 +278,8 @@ const PackagesAndOffers = () => {
           setEditingItem(rowData);
           setItem({
             ...rowData,
-            start_date: new Date(rowData.start_date),
-            end_date: new Date(rowData.end_date),
+            start_date: rowData.start_date ? new Date(rowData.start_date) : new Date(),
+            end_date: rowData.end_date ? new Date(rowData.end_date) : null,
           });
           setShowAddModal(true);
         }}
@@ -306,7 +306,6 @@ const PackagesAndOffers = () => {
     if (!item.price || isNaN(item.price) || item.price <= 0)
       errors.price = "Valid price is required";
     if (!item.start_date) errors.start_date = "Start date is required";
-    if (!item.end_date) errors.end_date = "End date is required";
     if (!item.type) errors.type = "Type is required";
 
     if (item.type === "package") {
@@ -392,7 +391,7 @@ const PackagesAndOffers = () => {
       name: "",
       shortcut: "",
       price: "",
-      start_date: "",
+      start_date: new Date(),
       end_date: "",
       type: "package",
       tests: [],
@@ -568,17 +567,31 @@ const PackagesAndOffers = () => {
                     <Form.Group className="mb-3">
                       <Form.Label>Price *</Form.Label>
                       <Form.Control
-                        type="number"
-                        placeholder="Enter price"
+                        type="text"
+                        placeholder="0"
                         value={item.price}
                         onChange={(e) => {
-                          setItem({ ...item, price: e.target.value });
+                          let value = e.target.value;
+                          
+                          // Remove anything that is not a number or a dot
+                          value = value.replace(/[^0-9.]/g, "");
+                          
+                          // Prevent leading dot
+                          if (value.startsWith(".")) {
+                            value = value.substring(1);
+                          }
+                          
+                          // Prevent multiple dots
+                          const parts = value.split(".");
+                          if (parts.length > 2) {
+                            value = parts[0] + "." + parts.slice(1).join("");
+                          }
+                          
+                          setItem({ ...item, price: value });
                           if (formErrors.price)
                             setFormErrors({ ...formErrors, price: null });
                         }}
                         isInvalid={!!formErrors.price}
-                        min="0"
-                        step="0.01"
                       />
                       <Form.Control.Feedback type="invalid">
                         {formErrors.price}
@@ -782,12 +795,18 @@ const PackagesAndOffers = () => {
                       <DatePicker
                         selected={item.start_date}
                         onChange={(date) => {
-                          setItem({ ...item, start_date: date });
+                          const newStartDate = date || new Date();
+                          let updates = { start_date: newStartDate };
+                          if (item.end_date && newStartDate >= item.end_date) {
+                            updates.end_date = null;
+                          }
+                          setItem({ ...item, ...updates });
                           if (formErrors.start_date)
                             setFormErrors({ ...formErrors, start_date: null });
                         }}
                         className={`form-control ${formErrors.start_date ? "is-invalid" : ""}`}
                         dateFormat="dd/MM/yyyy"
+                        isClearable
                       />
                       {formErrors.start_date && (
                         <div className="invalid-feedback d-block">
@@ -798,7 +817,7 @@ const PackagesAndOffers = () => {
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>End Date *</Form.Label>
+                      <Form.Label>End Date (Optional)</Form.Label>
                       <DatePicker
                         selected={item.end_date}
                         onChange={(date) => {
@@ -808,6 +827,15 @@ const PackagesAndOffers = () => {
                         }}
                         className={`form-control ${formErrors.end_date ? "is-invalid" : ""}`}
                         dateFormat="dd/MM/yyyy"
+                        isClearable
+                        placeholderText="Ongoing"
+                        minDate={
+                          item.start_date
+                            ? new Date(
+                                new Date(item.start_date).getTime() + 86400000
+                              )
+                            : null
+                        }
                       />
                       {formErrors.end_date && (
                         <div className="invalid-feedback d-block">
