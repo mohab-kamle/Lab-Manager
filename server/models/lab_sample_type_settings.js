@@ -1,20 +1,27 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('sample_type', {
+  return sequelize.define('lab_sample_type_settings', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
     },
-    type: {
-      type: DataTypes.STRING(45),
-      allowNull: false
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
     },
-    standard_code: {
-      type: DataTypes.STRING(50),
-      allowNull: true,
-      unique: "standard_code_UNIQUE"
+    sample_type_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'sample_type',
+        key: 'id'
+      }
     },
     tube_color: {
       type: DataTypes.STRING(255),
@@ -23,18 +30,10 @@ module.exports = function(sequelize, DataTypes) {
     container_type: {
       type: DataTypes.STRING(255),
       allowNull: true
-    },
-    lab_id: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'lab',
-        key: 'id'
-      }
     }
   }, {
     sequelize,
-    tableName: 'sample_type',
+    tableName: 'lab_sample_type_settings',
     timestamps: false,
     indexes: [
       {
@@ -46,20 +45,12 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "unique_sample_type_per_lab",
+        name: "unique_lab_sample_type",
         unique: true,
         using: "BTREE",
         fields: [
           { name: "lab_id" },
-          { name: "type" },
-        ]
-      },
-      {
-        name: "standard_code_UNIQUE",
-        unique: true,
-        using: "BTREE",
-        fields: [
-          { name: "standard_code" },
+          { name: "sample_type_id" },
         ]
       },
     ]

@@ -3,7 +3,7 @@ const path = require('path');
 const csv = require('csv-parser');
 
 require('dotenv').config({ path: path.join(__dirname, '../../.env.development') });
-const { global_test_catalog, categories_test_and_culture } = require(path.join(__dirname, '../models')); 
+const { global_test_catalog, categories_test_and_culture, sample_type } = require(path.join(__dirname, '../models')); 
 
 const getDataPath = (fileName) => path.join(__dirname, '../data', fileName);
 
@@ -34,6 +34,15 @@ const departmentDictionary = {
   'CELLMARK': 'Cell Markers',
   'DRUG/TOX': 'Drug Toxicology',
   'ALLERGY': 'Allergy'
+};
+
+const hardwareDictionary = {
+  'Ser/Plas': { tube_color: 'Gold/Red (SST)', container_type: 'Serum Separator Tube', standard_code: '119364003' },
+  'Bld': { tube_color: 'Lavender', container_type: 'EDTA Tube', standard_code: '119297000' },
+  'Fluoride Bld': { tube_color: 'Grey', container_type: 'Sodium Fluoride Tube', standard_code: '122552005' },
+  'Coag': { tube_color: 'Light Blue', container_type: 'Sodium Citrate Tube', standard_code: '119294007' },
+  'Plas': { tube_color: 'Light Green', container_type: 'Lithium Heparin Tube', standard_code: '119295008' },
+  'Urine': { tube_color: 'Yellow Cap', container_type: 'Sterile Cup', standard_code: '122575003' }
 };
 
 async function runETL() {
@@ -190,8 +199,36 @@ async function runETL() {
   // PHASE 5: DATABASE INSERTION
   // ==========================================
   console.log("5. Formatting and saving to MySQL...");
+  
+  const uniqueSystems = [...new Set(Array.from(catalog.values()).map(item => item.default_structure.system).filter(Boolean))];
+  const sampleTypeRecords = {}; 
+  
+  console.log(`5.1 Upserting ${uniqueSystems.length} unique sample types...`);
+  for (const system of uniqueSystems) {
+    const hw = hardwareDictionary[system] || {};
+    const standard_code = hw.standard_code || `LOINC-${system.substring(0, 40)}`; 
+    
+    let sampleRecord = await sample_type.findOne({ where: { type: system.substring(0, 45) } });
+    if (sampleRecord) {
+      await sampleRecord.update({
+        standard_code: standard_code.substring(0, 50),
+        tube_color: hw.tube_color || null,
+        container_type: hw.container_type || null
+      });
+    } else {
+      sampleRecord = await sample_type.create({
+        type: system.substring(0, 45),
+        standard_code: standard_code.substring(0, 50),
+        tube_color: hw.tube_color || null,
+        container_type: hw.container_type || null
+      });
+    }
+    sampleTypeRecords[system] = sampleRecord.id;
+  }
+
   const finalData = Array.from(catalog.values()).map(item => ({
     ...item,
+    default_sample_type_id: item.default_structure.system ? sampleTypeRecords[item.default_structure.system] : null,
     default_structure: JSON.stringify(item.default_structure)
   }));
 
@@ -199,7 +236,7 @@ async function runETL() {
     await global_test_catalog.bulkCreate(finalData, {
       updateOnDuplicate: [
         'name', 'type', 'order_rank', 'patient_friendly_name', 
-        'search_tags', 'global_category', 'default_structure'
+        'search_tags', 'global_category', 'default_structure', 'default_sample_type_id'
       ]
     });
     console.log(`\n✅ Success! Inserted ${finalData.length} records into the Global Catalog.`);

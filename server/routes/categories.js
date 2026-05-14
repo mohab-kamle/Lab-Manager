@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
-const { categories_test_and_culture  }= require('../models');
+const { categories_test_and_culture } = require('../models');
+const { Op } = require('sequelize');
 const { sign } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
@@ -30,7 +31,12 @@ const upload = multer({
 router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
     try {
       const categoriesList = await categories_test_and_culture.findAll({
-        where: { lab_id: req.tenant.lab_id }
+        where: {
+          [Op.or]: [
+            { lab_id: null },
+            { lab_id: req.tenant.lab_id }
+          ]
+        }
       });
       res.json(categoriesList || []);
     } catch (error) {
@@ -45,9 +51,22 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
+
+    // Check for duplicates in lab space or global space
+    const existing = await categories_test_and_culture.findOne({
+      where: {
+        name: name.trim(),
+        [Op.or]: [{ lab_id: null }, { lab_id: req.tenant.lab_id }]
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: 'Category with this name already exists' });
+    }
+
     const category = await categories_test_and_culture.create({ 
-      name,
-      lab_id: req.tenant.lab_id
+      name: name.trim(),
+      lab_id: req.tenant.lab_id 
     });
     res.status(201).json(category);
   } catch (error) {
@@ -64,7 +83,30 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
       where: { id: req.params.id, lab_id: req.tenant.lab_id }
     });
     if (!category) return res.status(404).json({ error: 'Category not found' });
-    category.name = name || category.name;
+
+    // Permission check
+    if (category.lab_id === null) {
+      return res.status(403).json({ error: 'Global categories cannot be renamed' });
+    }
+    if (category.lab_id !== req.tenant.lab_id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (name) {
+      // Check for duplicates
+      const existing = await categories_test_and_culture.findOne({
+        where: {
+          name: name.trim(),
+          id: { [Op.ne]: req.params.id },
+          [Op.or]: [{ lab_id: null }, { lab_id: req.tenant.lab_id }]
+        }
+      });
+      if (existing) {
+        return res.status(400).json({ error: 'Category with this name already exists' });
+      }
+      category.name = name.trim();
+    }
+    
     await category.save();
     res.json(category);
   } catch (error) {
@@ -80,6 +122,15 @@ router.delete('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, 
       where: { id: req.params.id, lab_id: req.tenant.lab_id }
     });
     if (!category) return res.status(404).json({ error: 'Category not found' });
+
+    // Permission check
+    if (category.lab_id === null) {
+      return res.status(403).json({ error: 'Global categories cannot be deleted' });
+    }
+    if (category.lab_id !== req.tenant.lab_id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     await category.destroy();
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {
@@ -118,11 +169,11 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           continue;
         }
 
-        // Check if category already exists for THIS lab
+        // Check if category already exists in lab or global space
         const existingCategory = await categories_test_and_culture.findOne({ 
           where: { 
             name: name.toString().trim(),
-            lab_id: req.tenant.lab_id
+            [Op.or]: [{ lab_id: null }, { lab_id: req.tenant.lab_id }]
           } 
         });
 
@@ -131,7 +182,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           continue;
         }
 
-        // Create new category scoped by lab_id
+        // Create new category specifically for this lab
         await categories_test_and_culture.create({
           name: name.toString().trim(),
           lab_id: req.tenant.lab_id

@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, sample_type } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -205,12 +205,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         }
 
         // Validate receptionist exists
-        const receptionistExists = await employee.findOne({ 
-            where: { 
-                id: receptionist_id, 
+        const receptionistExists = await employee.findOne({
+            where: {
+                id: receptionist_id,
                 lab_id: patientExists.lab_id,
                 role: 'receptionist' // optional: if you want to enforce the role
-            } 
+            }
         });
 
         // Ensure admin can act as receptionist if they assign it to themselves
@@ -620,6 +620,78 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             error: "Failed to fetch invoice",
             message: error.message
         });
+    }
+});
+
+/**
+ * GET /invoices/:id/samples-collection - Get grouped tests by sample type for chemist to draw them (Smart Draw).
+ */
+router.get("/:id/samples-collection", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
+    const { id } = req.params;
+    const lab_id = req.tenant.lab_id;
+
+    try {
+        const invoice = await bill.findOne({
+            where: { id, lab_id },
+            include: [
+                {
+                    model: patient,
+                    as: "patient",
+                    attributes: ['id', 'name', 'patientcode', 'gender', 'dob']
+                },
+                {
+                    model: test,
+                    as: "test_id_tests",
+                    attributes: ['id', 'name', 'sample_type_id'],
+                    include: [{
+                        model: sample_type,
+                        as: 'sample_type'
+                    }]
+                }
+            ]
+        });
+
+        if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+        // Group tests by sample type
+        const groupedSamples = {};
+        let seq = 1;
+
+        invoice.test_id_tests.forEach(t => {
+            const st = t.sample_type || {
+                id: 'unknown',
+                name: 'Unknown Specimen',
+                tube_color: 'Grey/Unknown',
+                container_type: 'Generic Container',
+                standard_code: '000'
+            };
+
+            if (!groupedSamples[st.id]) {
+                // HL7 compliant barcode: [PatientID]-[Seq]-[Standard_Code]
+                // Capped at 18 characters
+                const rawBarcode = `${invoice.patient.id}-${seq++}-${st.standard_code || '000'}`;
+                const barcode = rawBarcode.length > 18 ? rawBarcode.substring(0, 18) : rawBarcode;
+
+                groupedSamples[st.id] = {
+                    sample_type: st,
+                    tests: [],
+                    barcode: barcode
+                };
+            }
+            groupedSamples[st.id].tests.push({
+                id: t.id,
+                name: t.name
+            });
+        });
+
+        res.json({
+            invoice_id: invoice.id,
+            patient: invoice.patient,
+            samples: Object.values(groupedSamples)
+        });
+    } catch (error) {
+        console.error('Error in samples-collection:', error);
+        res.status(500).json({ error: "Failed to fetch collection data" });
     }
 });
 
