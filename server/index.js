@@ -678,5 +678,6 @@ async function startServer() {
     console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
     console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
     console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
+    console.log(`📡 Socket.io CORS Origin:`, io.opts.cors.origin);
   });
 }

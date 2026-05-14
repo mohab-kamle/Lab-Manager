@@ -11,6 +11,7 @@ const SERVER_URL = isProduction
 // Create a single socket instance
 export const socket = io(SERVER_URL, {
   autoConnect: false, // Don't connect until we have a user/lab context
+  transports: ["websocket"],
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
