@@ -592,10 +592,7 @@ function initModels(sequelize) {
   lab_sample_type_settings.belongsTo(sample_type, { as: "sample_type", foreignKey: "sample_type_id" });
   sample_type.hasMany(lab_sample_type_settings, { as: "lab_settings", foreignKey: "sample_type_id" });
 
-  // Multi-tenant associations for categories and samples
-  categories_test_and_culture.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
-  lab.hasMany(categories_test_and_culture, { as: "categories", foreignKey: "lab_id" });
-
+  // Multi-tenant associations for sample_type
   sample_type.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(sample_type, { as: "sample_types", foreignKey: "lab_id" });
 
