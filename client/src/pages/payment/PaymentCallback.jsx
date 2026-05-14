@@ -5,7 +5,7 @@ import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useLab } from '../../context/LabContext';
 import axios from 'axios';
 
-  const PaymentCallback = () => {
+const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { refreshAfterUpgrade } = useLab();
@@ -14,7 +14,7 @@ import axios from 'axios';
   const [userToken, setUserToken] = useState(null);
   const [labData, setLabData] = useState(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false); // New state to track initial load
-  
+
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/';
 
   useEffect(() => {
@@ -24,7 +24,7 @@ import axios from 'axios';
         const merchantOrderId = searchParams.get('merchant_order_id');
         const paymentStatus = searchParams.get('success');
         const paymentIntentionId = searchParams.get('id');
-        
+
         if (!merchantOrderId) {
           setStatus('error');
           setMessage('Invalid payment callback - missing order information.');
@@ -44,7 +44,7 @@ import axios from 'axios';
             // Check if this is an upgrade payment
             const upgradePaymentData = localStorage.getItem('upgradePaymentData');
             const isUpgrade = upgradePaymentData && JSON.parse(upgradePaymentData).merchant_order_id === merchantOrderId;
-            
+
             if (isUpgrade) {
               // Handle subscription upgrade
               const upgradeData = JSON.parse(upgradePaymentData);
@@ -56,15 +56,15 @@ import axios from 'axios';
               }, {
                 headers: { Authorization: `Bearer ${token}` }
               });
-              
+
               if (upgradeResponse.data.success) {
                 setStatus('success');
                 setMessage('Payment successful! Your subscription has been upgraded.');
                 localStorage.removeItem('upgradePaymentData'); // Clear upgrade payment data
-                
+
                 // Refresh lab data
                 await refreshAfterUpgrade();
-                
+
                 // Redirect to lab management after 3 seconds
                 setTimeout(() => {
                   navigate(`/admin/lab-management`);
@@ -82,12 +82,12 @@ import axios from 'axios';
                 setMessage('Payment successful! Your lab has been created.');
                 setUserToken(response.data.token);
                 setLabData(response.data.lab);
-                
+
                 // Store authentication data
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
                 localStorage.removeItem('registrationFormData'); // Clear registration form data
-                
+
                 // Redirect to dashboard after 3 seconds
                 setTimeout(() => {
                   navigate('/login');
@@ -99,7 +99,7 @@ import axios from 'axios';
             }
           } catch (completeError) {
             console.error('Error completing registration:', completeError);
-            
+
             if (completeError.response?.status === 404) {
               setStatus('error');
               setMessage('Payment record not found. Please contact support.');
@@ -110,12 +110,12 @@ import axios from 'axios';
                 // Check if this is an upgrade payment for manual completion too
                 const upgradePaymentData = localStorage.getItem('upgradePaymentData');
                 const isUpgrade = upgradePaymentData && JSON.parse(upgradePaymentData).merchant_order_id === merchantOrderId;
-                
+
                 if (isUpgrade) {
                   // For upgrade payments, just mark as successful since payment gateway handles the completion
                   const manualResponse = await axios.post(`${apiUrl}/payments/complete-manual/${merchantOrderId}`);
                   console.log('Manual completion successful for upgrade:', manualResponse.data);
-                  
+
                   if (manualResponse.data.success) {
                     // Now call the upgrade endpoint
                     const upgradeData = JSON.parse(upgradePaymentData);
@@ -127,15 +127,15 @@ import axios from 'axios';
                     }, {
                       headers: { Authorization: `Bearer ${token}` }
                     });
-                    
+
                     if (upgradeResponse.data.success) {
                       setStatus('success');
                       setMessage('Payment successful! Your subscription has been upgraded.');
                       localStorage.removeItem('upgradePaymentData');
-                      
+
                       // Refresh lab data
                       await refreshAfterUpgrade();
-                      
+
                       setTimeout(() => {
                         navigate('/lab-management');
                       }, 3000);
@@ -151,18 +151,18 @@ import axios from 'axios';
                   // Handle registration manual completion
                   const manualResponse = await axios.post(`${apiUrl}/payments/complete-manual/${merchantOrderId}`);
                   console.log('Manual completion successful:', manualResponse.data);
-                  
+
                   if (manualResponse.data.success && manualResponse.data.lab_creation?.success) {
                     setStatus('success');
                     setMessage('Payment successful! Your lab has been created.');
                     setUserToken(manualResponse.data.lab_creation.token);
                     setLabData(manualResponse.data.lab_creation.lab);
-                    
+
                     // Store authentication data
                     localStorage.setItem('token', manualResponse.data.lab_creation.token);
                     localStorage.setItem('user', JSON.stringify(manualResponse.data.lab_creation.user));
                     localStorage.removeItem('registrationFormData'); // Clear registration form data
-                    
+
                     // Redirect to dashboard after 3 seconds
                     setTimeout(() => {
                       navigate('/dashboard');
@@ -187,7 +187,7 @@ import axios from 'axios';
           setStatus('error');
           setMessage('Payment failed. Please try again.');
         }
-        
+
       } catch (error) {
         console.error('Error processing payment callback:', error);
         setStatus('error');
@@ -213,8 +213,8 @@ import axios from 'axios';
   };
 
   const handleContactSupport = () => {
-    // You can implement contact support functionality here
-    window.location.href = 'mailto:techsupport@labdoctors-laboratories.com?subject=LabManager Support&body=Please describe your issue or question.';
+    const supportEmail = import.meta.env.VITE_SUPPORT_EMAIL || 'techsupport@localhost';
+    window.location.href = `mailto:${supportEmail}?subject=LabManager Support&body=Please describe your issue or question.`;
   };
 
   const renderIcon = () => {
@@ -241,8 +241,8 @@ import axios from 'axios';
       case 'success':
         return (
           <div className="d-flex gap-2 justify-content-center">
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={() => navigate('/login')}
             >
               Go to Login
@@ -253,14 +253,14 @@ import axios from 'axios';
       case 'cancelled':
         return (
           <div className="d-flex gap-2 justify-content-center">
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={handleRetryPayment}
             >
               Try Again
             </Button>
-            <Button 
-              variant="outline-secondary" 
+            <Button
+              variant="outline-secondary"
               onClick={handleContactSupport}
             >
               Contact Support
@@ -277,20 +277,20 @@ import axios from 'axios';
       <Card className="text-center" style={{ maxWidth: '500px', width: '100%' }}>
         <Card.Body className="p-5">
           {renderIcon()}
-          
+
           <h3 className="mb-3">
             {initialLoadComplete ? (
               status === 'success' ? 'Payment Successful!' :
-              status === 'error' ? 'Payment Failed' :
-              status === 'cancelled' ? 'Payment Cancelled' :
-              'Processing Payment' // Fallback for unexpected status after load
+                status === 'error' ? 'Payment Failed' :
+                  status === 'cancelled' ? 'Payment Cancelled' :
+                    'Processing Payment' // Fallback for unexpected status after load
             ) : 'Processing Payment'}
           </h3>
-          
+
           <p className="text-muted mb-4">
             {initialLoadComplete ? message : 'Processing your payment...'}
           </p>
-          
+
           {labData && initialLoadComplete && status === 'success' && (
             <Alert variant="success" className="text-start mb-4">
               <strong>Lab Created Successfully:</strong>
@@ -300,7 +300,7 @@ import axios from 'axios';
               <strong>Subdomain:</strong> {labData.subdomain}
             </Alert>
           )}
-          
+
           {renderActions()}
         </Card.Body>
       </Card>

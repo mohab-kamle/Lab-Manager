@@ -39,7 +39,23 @@ inventoryEvents.on('StockUpdate', async ({ item_id, lab_id, io }) => {
         }
       });
 
-      if (existingNotification) return; // Don't create duplicate unread notifications
+      if (existingNotification) {
+        // Update message with new stock levels and re-emit so user sees the new toast
+        existingNotification.message = `Low Stock Alert: ${item.name} has ${totalStock} ${item.unit} remaining (Min: ${item.min_stock_level}).`;
+        await existingNotification.save();
+
+        if (io) {
+          io.to(`lab_${lab_id}`).emit('low_stock_alert', {
+            notification_id: existingNotification.id,
+            item_id: item.id,
+            item_name: item.name,
+            current_stock: totalStock,
+            unit: item.unit,
+            message: existingNotification.message
+          });
+        }
+        return;
+      }
 
       // Create notification
       const notification = await db.inventory_notification.create({

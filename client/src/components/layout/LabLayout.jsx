@@ -37,45 +37,48 @@ const LabLayout = () => {
 
       // --- LOW STOCK ---
       const handleLowStockAlert = (data) => {
+        // Strip redundant prefix from backend message if present
+        const cleanMessage = data.message?.replace(/^Low Stock Alert:\s*/i, '') || '';
+
         toast.error(
           <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
-            <strong>Low Stock Alert: {data.item_name}</strong>
-            <br />
-            {data.message}
+            {cleanMessage}
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { duration: 0, clickToClose: true, showCloseBtn: true }
+          { title: "Low Stock Alert", duration: 0, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };
 
       // --- EXPIRING SOON ---
       const handleExpiringSoonAlert = (data) => {
+        // Strip redundant prefix from backend message if present
+        const cleanMessage = data.message?.replace(/^Expiring Soon:\s*/i, '') || '';
+
         toast.warning(
           <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
-            <strong>Expiring Soon: {data.item_name}</strong>
-            <br />
-            {data.message}
+            {cleanMessage}
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { duration: 10000, clickToClose: true, showCloseBtn: true }
+          { title: "Expiring Soon", duration: 10000, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };
 
       // --- EXPIRED ---
       const handleExpiredAlert = (data) => {
+        // Strip redundant prefix from backend message if present
+        const cleanMessage = data.message?.replace(/^Expired:\s*/i, '') || '';
+
         toast.error(
           <div onClick={() => navigate(`/${user.role}/inventory/items/${data.item_id}/batches`)} style={{ cursor: "pointer" }}>
-            <strong>Expired: {data.item_name}</strong>
-            <br />
-            {data.message}
+            {cleanMessage}
             <br />
             <span className="text-decoration-underline mt-1 d-inline-block">Click to view</span>
           </div>,
-          { duration: 0, clickToClose: true, showCloseBtn: true }
+          { title: "Expired Alert", duration: 0, clickToClose: true, showCloseBtn: true }
         );
         notifyBell();
       };

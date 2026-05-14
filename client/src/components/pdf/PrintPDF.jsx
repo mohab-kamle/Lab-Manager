@@ -711,8 +711,8 @@ const PDFFooter = ({ qrUrl, signatory, lab }) => (
   <View style={styles.footer} fixed>
     <View style={styles.footerLeft}>
       <Text>
-        www.labdoctors-laboratories.com |
-        techsupport@labdoctors-laboratories.com | License No: 2600032113
+        {import.meta.env.VITE_APP_DOMAIN || 'localhost'} |
+        {import.meta.env.VITE_SUPPORT_EMAIL || 'techsupport@localhost'} | License No: 2600032113
       </Text>
       <Text>
         Validated By: {signatory || "N/A"} | Approved By: {signatory || "N/A"}

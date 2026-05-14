@@ -32,7 +32,7 @@ module.exports = function (sequelize, DataTypes) {
             allowNull: true
         },
         clinical_flag: {
-            type: DataTypes.ENUM('normal', 'low', 'high', 'panic_low', 'panic_high'),
+            type: DataTypes.STRING(50),
             allowNull: true
         },
         workflow_status: {

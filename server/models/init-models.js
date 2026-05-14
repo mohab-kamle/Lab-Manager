@@ -63,6 +63,7 @@ var _whatsapp_message = require("./whatsapp_message");
 var _outsourced_lab = require("./outsourced_lab");
 var _reconciliation = require("./reconciliation");
 var _reconciliation_item = require("./reconciliation_item");
+var _otp_verification = require("./otp_verification");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -123,6 +124,7 @@ function initModels(sequelize) {
   var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
   var reconciliation = _reconciliation(sequelize, DataTypes);
   var reconciliation_item = _reconciliation_item(sequelize, DataTypes);
+  var otp_verification = _otp_verification(sequelize, DataTypes);
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -690,7 +692,8 @@ function initModels(sequelize) {
     whatsapp_message,
     outsourced_lab,
     reconciliation,
-    reconciliation_item
+    reconciliation_item,
+    otp_verification
   };
 }
 

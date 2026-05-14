@@ -125,6 +125,8 @@ const Invoices = () => {
     }
   };
 
+
+
   const formatInputOnBlur = (value, inputSetter) => {
     if (value === "" || isNaN(parseFloat(value))) {
       inputSetter("");
@@ -191,10 +193,11 @@ const Invoices = () => {
         axios.get(`${apiUrl}/statuses`, { headers }),
         user?.role === 'admin' ? axios.get(`${apiUrl}/receptionists`, { headers }) : Promise.resolve({ data: [] }),
         axios.get(`${apiUrl}/contracts`, { headers }),
-        axios.get(`${apiUrl}/patient/diseases`, { headers }),
+        axios.get(`${apiUrl}/diseases`, { headers }),
         axios.get(`${apiUrl}/doctor`, { headers }), // Fetch doctors
         axios.get(`${apiUrl}/branches`, { headers })
       ]);
+
 
       setInvoices(invoicesRes.data || []);
       setPatients(patientsRes.data || []);
@@ -486,7 +489,7 @@ const Invoices = () => {
       });
 
       // Add new disease to the list
-      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
+      const diseasesRes = await axios.get(`${apiUrl}/diseases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const updatedDiseases = diseasesRes.data || [];

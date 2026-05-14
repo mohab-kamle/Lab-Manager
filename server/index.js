@@ -54,7 +54,7 @@ const router = express.Router();
 // =========================
 
 // Configure the main domain - fallback to hardcoded default if not in env
-const MAIN_DOMAIN = process.env.DOMAIN_NAME || 'labdoctors-laboratories.com';
+const MAIN_DOMAIN = process.env.DOMAIN_NAME || 'localhost';
 
 // Securely check for subdomains using regex to prevent partial matches
 // Matches https://MAIN_DOMAIN and any subdomains (e.g. https://api.MAIN_DOMAIN)
@@ -72,8 +72,6 @@ const corsOptions = {
 
     const allowedOrigins = [
       'https://mlab-manager.vercel.app',
-      'https://www.labdoctors-laboratories.com',
-      'https://labdoctors-laboratories.com',
       'http://localhost:5173',
       'http://localhost:3000',
       'http://127.0.0.1:5173',
@@ -124,7 +122,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:", "http:", "https:"],
-      connectSrc: ["'self'", "http://localhost:3001", "ws://localhost:3001", "https://*.labdoctors-laboratories.com", "wss://*.labdoctors-laboratories.com"],
+      connectSrc: ["'self'", "http://localhost:3001", "ws://localhost:3001", `https://*.${MAIN_DOMAIN}`, `wss://*.${MAIN_DOMAIN}`],
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -324,6 +322,7 @@ app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
 app.use("/whatsapp", require("./routes/whatsapp.routes"));
 app.use("/reconciliation", require("./routes/reconciliation"));
+app.use("/auth", require("./routes/auth"));
 
 // Global error handler
 app.use((error, req, res, next) => {
@@ -409,8 +408,8 @@ console.log('- PORT:', process.env.PORT);
 console.log('- Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
 console.log('- CORS Origins:', [
   'https://mlab-manager.vercel.app',
-  'https://www.labdoctors-laboratories.com',
-  'https://labdoctors-laboratories.com',
+  `https://www.${MAIN_DOMAIN}`,
+  `https://${MAIN_DOMAIN}`,
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
