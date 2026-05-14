@@ -672,52 +672,62 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
     const errors = [];
 
     for (const row of data) {
+      // Use nested transaction (savepoint) for row-level atomicity
+      const rowTransaction = await db.sequelize.transaction({ transaction });
       try {
-        if (!row.Name || !row['Category ID']) {
-          errors.push({ name: row.Name || 'Unknown', error: 'Name and Category ID are required' });
+        const name = row.Name || row.name;
+        const category_id = row['Category ID'] || row.category_id;
+
+        if (!name || !category_id) {
+          await rowTransaction.rollback();
+          errors.push({ name: name || 'Unknown', error: 'Name and Category ID are required' });
           continue;
         }
 
+        const sanitizedName = name.toString().trim();
+
         // Try to find by name in THIS lab
         const existingTest = await db.test.findOne({ 
-          where: { name: row.Name, lab_id },
-          transaction
+          where: { name: sanitizedName, lab_id },
+          transaction: rowTransaction
         });
         
         // Normalize Lab-to-Lab fields
-        const normalizedStatus = (row['Lab to Lab Status'] && row['Lab to Lab Status'].toString().trim()) 
-          ? row['Lab to Lab Status'].toString().trim().toUpperCase() 
+        const normalizedStatus = (row['Lab to Lab Status'] || row.lab_to_lab_status)
+          ? (row['Lab to Lab Status'] || row.lab_to_lab_status).toString().trim().toUpperCase() 
           : null;
-        const normalizedLabName = (row['Lab Name'] && row['Lab Name'].toString().trim()) 
-          ? row['Lab Name'].toString().trim() 
+        const normalizedLabName = (row['Lab Name'] || row.lab_name)
+          ? (row['Lab Name'] || row.lab_name).toString().trim() 
           : null;
 
         const testData = {
           lab_id,
-          name: row.Name,
-          shortcut: row.Shortcut || null,
-          price: parseFloat(row.Price) || 0.00,
-          cost: parseFloat(row.Cost) || 0.00,
+          name: sanitizedName,
+          shortcut: row.Shortcut || row.shortcut || null,
+          price: parseFloat(row.Price || row.price) || 0.00,
+          cost: parseFloat(row.Cost || row.cost) || 0.00,
           lab_to_lab_status: normalizedStatus,
           lab_name: normalizedLabName,
-          category_id: row['Category ID'],
-          precautions: row.Precautions || null,
-          decreased_in: row['Decreased In'] || null,
-          increased_in: row['Increased In'] || null,
-          sample_type_id: row['Sample Type ID'] || null,
-          contract_id: row['Contract ID'] || null,
-          type: row.Type || 'single',
-          tat_hours: row['TAT Hours'] ? parseInt(row['TAT Hours']) : null
+          category_id: category_id,
+          precautions: row.Precautions || row.precautions || null,
+          decreased_in: row['Decreased In'] || row.decreased_in || null,
+          increased_in: row['Increased In'] || row.increased_in || null,
+          sample_type_id: row['Sample Type ID'] || row.sample_type_id || null,
+          contract_id: row['Contract ID'] || row.contract_id || null,
+          type: row.Type || row.type || 'single',
+          tat_hours: (row['TAT Hours'] || row.tat_hours) ? parseInt(row['TAT Hours'] || row.tat_hours) : null
         };
 
         if (existingTest) {
-          await existingTest.update(testData, { transaction });
+          await existingTest.update(testData, { transaction: rowTransaction });
           updated++;
         } else {
-          await db.test.create(testData, { transaction });
+          await db.test.create(testData, { transaction: rowTransaction });
           imported++;
         }
+        await rowTransaction.commit();
       } catch (rowError) {
+        await rowTransaction.rollback();
         console.error(`Row Import Error (${row.Name}):`, rowError);
         errors.push({ 
           name: row.Name || 'Unknown', 

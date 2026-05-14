@@ -73,7 +73,10 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
       },
       transaction 
     });
-    let fallbackCategory = localCategories.length > 0 ? localCategories[0].id : null;
+    
+    // Better fallback: Prefer a tenant-specific category over a global one
+    let fallbackCategory = localCategories.find(c => c.lab_id === req.tenant.lab_id)?.id || 
+                           (localCategories.length > 0 ? localCategories[0].id : null);
 
     if (!fallbackCategory) {
       // If the user's DB has no categories, create a default one to safely proceed with the import
@@ -105,9 +108,14 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
       // Map global_category
       let categoryId = fallbackCategory;
       if (globalTest.global_category) {
-        const matchingCat = localCategories.find(c => c.name.toLowerCase() === globalTest.global_category.toLowerCase());
-        if (matchingCat) {
-          categoryId = matchingCat.id;
+        // Find matching categories, preferring tenant-specific ones
+        const matchingCats = localCategories.filter(c => c.name.toLowerCase() === globalTest.global_category.toLowerCase());
+        const tenantCat = matchingCats.find(c => c.lab_id === req.tenant.lab_id);
+        
+        if (tenantCat) {
+          categoryId = tenantCat.id;
+        } else if (matchingCats.length > 0) {
+          categoryId = matchingCats[0].id;
         } else {
           // Dynamic category creation: If this specific category doesn't exist locally, create it exactly as named!
           const newCat = await db.categories_test_and_culture.create({ 

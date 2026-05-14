@@ -13,12 +13,15 @@ module.exports = {
           key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'SET NULL'
+        onDelete: 'CASCADE'
       });
     }
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeColumn('global_test_catalog', 'default_sample_type_id');
+    const tableInfo = await queryInterface.describeTable('global_test_catalog');
+    if (tableInfo.default_sample_type_id) {
+      await queryInterface.removeColumn('global_test_catalog', 'default_sample_type_id');
+    }
   }
 };

@@ -2,16 +2,9 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    const safeExecute = async (operation, description) => {
-      try {
-        await operation();
-        console.log(`✅ Success: ${description}`);
-      } catch (error) {
-        console.warn(`⚠️ Warning: Failed to ${description}. Reason: ${error.message}`);
-      }
-    };
-
-    await safeExecute(async () => {
+    // Check if table exists before creating
+    const tables = await queryInterface.showAllTables();
+    if (!tables.includes('lab_sample_type_settings')) {
       await queryInterface.createTable('lab_sample_type_settings', {
         id: {
           allowNull: false,
@@ -54,10 +47,13 @@ module.exports = {
         unique: true,
         name: 'unique_lab_sample_type'
       });
-    }, 'Create lab_sample_type_settings table');
+    }
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('lab_sample_type_settings');
+    const tables = await queryInterface.showAllTables();
+    if (tables.includes('lab_sample_type_settings')) {
+      await queryInterface.dropTable('lab_sample_type_settings');
+    }
   }
 };

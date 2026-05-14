@@ -205,7 +205,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         }
 
         // Validate receptionist exists
-        const receptionistExists = await employee.findOne({
+        await employee.findOne({
             where: {
                 id: receptionist_id,
                 lab_id: patientExists.lab_id,
@@ -633,7 +633,13 @@ router.get("/:id/samples-collection", authenticateUser, authorizeRoles("admin", 
                     attributes: ['id', 'name', 'sample_type_id'],
                     include: [{
                         model: sample_type,
-                        as: 'sample_type'
+                        as: 'sample_type',
+                        include: [{
+                            model: lab_sample_type_settings,
+                            as: 'lab_settings',
+                            where: { lab_id },
+                            required: false
+                        }]
                     }]
                 }
             ]
@@ -646,27 +652,38 @@ router.get("/:id/samples-collection", authenticateUser, authorizeRoles("admin", 
         let seq = 1;
 
         invoice.test_id_tests.forEach(t => {
-            const st = t.sample_type || {
+            let st = t.sample_type ? t.sample_type.get({ plain: true }) : null;
+            
+            // Apply per-lab overrides if they exist
+            if (st && st.lab_settings && st.lab_settings.length > 0) {
+                const overrides = st.lab_settings[0];
+                if (overrides.tube_color) st.tube_color = overrides.tube_color;
+                if (overrides.container_type) st.container_type = overrides.container_type;
+            }
+
+            st = st || {
                 id: 'unknown',
-                name: 'Unknown Specimen',
+                type: 'Unknown Specimen',
                 tube_color: 'Grey/Unknown',
                 container_type: 'Generic Container',
                 standard_code: '000'
             };
 
-            if (!groupedSamples[st.id]) {
-                // HL7 compliant barcode: [PatientID]-[Seq]-[Standard_Code]
-                // Capped at 18 characters
-                const rawBarcode = `${invoice.patient.id}-${seq++}-${st.standard_code || '000'}`;
+            const stId = st.id;
+            if (!groupedSamples[stId]) {
+                // HL7 compliant barcode: [InvoiceID]-[PatientID]-[Seq]-[Standard_Code]
+                // Improved uniqueness by including invoice.id
+                // Capped at 18 characters (might need trimming if too long)
+                const rawBarcode = `${invoice.id}-${invoice.patient.id}-${seq++}-${st.standard_code || '000'}`;
                 const barcode = rawBarcode.length > 18 ? rawBarcode.substring(0, 18) : rawBarcode;
 
-                groupedSamples[st.id] = {
+                groupedSamples[stId] = {
                     sample_type: st,
                     tests: [],
                     barcode: barcode
                 };
             }
-            groupedSamples[st.id].tests.push({
+            groupedSamples[stId].tests.push({
                 id: t.id,
                 name: t.name
             });
