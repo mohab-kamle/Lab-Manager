@@ -65,13 +65,13 @@ const ReceptionistDashboard = () => {
       title: 'New Patient',
       description: 'Register a new patient',
       icon: <UserPlus size={24} />,
-      action: () => navigate(`/${user?.role}/patients`)
+      action: () => navigate('/admin/dashboard/patients', { state: { openAddModal: true } })
     },
     {
       title: 'Create Invoice',
       description: 'Generate new invoice',
       icon: <FileText size={24} />,
-      action: () => navigate(`/${user?.role}/invoices`)
+      action: () => navigate('/admin/dashboard/invoices', { state: { openAddModal: true } })
     },
     {
       title: 'View Reports',

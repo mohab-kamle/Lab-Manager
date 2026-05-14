@@ -51,11 +51,14 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
       return res.status(400).json({ error: "Please provide an array of global_test_ids to import." });
     }
 
+    // Deduplicate IDs from request
+    const uniqueIds = [...new Set(global_test_ids)];
+
     // Fetch the requested global tests
     const globalTests = await db.global_test_catalog.findAll({
       where: {
         id: {
-          [Op.in]: global_test_ids
+          [Op.in]: uniqueIds
         }
       },
       transaction
@@ -83,25 +86,37 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
       const defaultCat = await db.categories_test_and_culture.create({ 
         name: 'General Tests',
         lab_id: req.tenant.lab_id 
+
       }, { transaction });
       fallbackCategory = defaultCat.id;
       localCategories.push(defaultCat);
     }
 
     const importedTests = [];
+    const skippedTests = [];
     let idCounter = 1;
 
     for (const globalTest of globalTests) {
-      // Avoid inserting if test with the exact name already exists locally to prevent unique contraint errors
+      // Avoid inserting if test with the exact name OR shortcut already exists locally for THIS lab
+      const testShortcut = globalTest.patient_friendly_name || globalTest.name;
       const existingTest = await db.test.findOne({
         where: { 
-          name: globalTest.name,
-          lab_id: req.tenant.lab_id
+          lab_id: req.tenant.lab_id,
+          [Op.or]: [
+            { name: globalTest.name },
+            { shortcut: testShortcut }
+          ]
         },
         transaction
       });
 
       if (existingTest) {
+        console.log(`[IMPORT] Skipping test "${globalTest.name}" because it already exists (ID: ${existingTest.id}, Name: ${existingTest.name}, Shortcut: ${existingTest.shortcut})`);
+        skippedTests.push({
+            id: globalTest.id,
+            name: globalTest.name,
+            reason: `Test with name "${globalTest.name}" or shortcut already exists.`
+        });
         continue; // Skip if already exists
       }
 
@@ -118,10 +133,16 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
           categoryId = matchingCats[0].id;
         } else {
           // Dynamic category creation: If this specific category doesn't exist locally, create it exactly as named!
-          const newCat = await db.categories_test_and_culture.create({ 
-            name: globalTest.global_category,
-            lab_id: req.tenant.lab_id
-          }, { transaction });
+          const [newCat] = await db.categories_test_and_culture.findOrCreate({ 
+            where: { 
+              name: globalTest.global_category,
+              lab_id: req.tenant.lab_id
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            },
+            transaction
+          });
           localCategories.push(newCat);
           categoryId = newCat.id;
         }
@@ -216,9 +237,10 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
     await transaction.commit();
 
     res.status(201).json({
-      message: `Successfully imported ${importedTests.length} tests (skipped ${globalTests.length - importedTests.length} duplicates).`,
+      message: `Successfully imported ${importedTests.length} tests (skipped ${skippedTests.length} duplicates).`,
       importedCount: importedTests.length,
-      skippedCount: globalTests.length - importedTests.length,
+      skippedCount: skippedTests.length,
+      skippedDetails: skippedTests,
       tests: importedTests
     });
 

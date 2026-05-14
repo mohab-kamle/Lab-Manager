@@ -20,6 +20,7 @@ import { usePDF } from "@react-pdf/renderer";
 import CairoFont from "../../assets/fonts/Cairo.ttf";
 import { FileText } from "lucide-react";
 import RichTextPdfRenderer, { htmlToPlainText } from "./HtmlToPdfRenderer";
+import { formatDate, formatDateTime } from "../../utils/dateFormatter";
 
 // Register Cairo font for Arabic support
 Font.register({
@@ -82,7 +83,7 @@ const renderTestComments = (testId, comments) => {
         <View key={comment.id || index} style={styles.commentItem}>
           <Text style={styles.commentText}>{comment.comment_text}</Text>
           <Text style={styles.commentDate}>
-            {new Date(comment.created_at).toLocaleDateString()}
+            {formatDate(comment.created_at)}
           </Text>
           {comment.images && comment.images.length > 0 ? (
             <View style={styles.commentImages}>
@@ -688,7 +689,7 @@ const PDFHeader = ({ patient, report, barcodeUrl, lab }) => (
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <Image src={LabIcon} style={styles.logo} />
         <View>
-          <Text style={styles.labName}>{lab?.name || "Laboratory"}</Text>
+          <Text style={styles.labName}>{lab?.lab_name_invoice || lab?.name || "Laboratory"}</Text>
           <Text style={styles.subtitle}>Medical Laboratories</Text>
         </View>
       </View>
@@ -711,8 +712,13 @@ const PDFFooter = ({ qrUrl, signatory, lab }) => (
   <View style={styles.footer} fixed>
     <View style={styles.footerLeft}>
       <Text>
-        {import.meta.env.VITE_APP_DOMAIN || 'localhost'} |
-        {import.meta.env.VITE_SUPPORT_EMAIL || 'techsupport@localhost'} | License No: 2600032113
+        {[
+          lab?.lab_website || import.meta.env.VITE_APP_DOMAIN || 'localhost',
+          lab?.lab_email || import.meta.env.VITE_SUPPORT_EMAIL || 'techsupport@localhost',
+          lab?.license_number ? `License No: ${lab.license_number}` : 'License No: 2600032113',
+        ]
+          .filter(Boolean)
+          .join(" | ")}
       </Text>
       <Text>
         Validated By: {signatory || "N/A"} | Approved By: {signatory || "N/A"}
@@ -780,19 +786,9 @@ function StatusBarFirstPage({ report }) {
   const pageNumber = pdfContext.pageNumber || 1;
   if (pageNumber !== 1) return null;
 
-  // Helper function to format date
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date
-      .toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-      .replace(",", "");
+  // Use centralized formatDateTime
+  const formatDateTimeLocal = (dateString) => {
+    return formatDateTime(dateString);
   };
 
   const statusData = [
@@ -807,7 +803,7 @@ function StatusBarFirstPage({ report }) {
       {statusData.map((item, index) => (
         <View style={styles.statusItem} key={item.label}>
           <Text style={styles.statusLabel}>{item.label}</Text>
-          <Text style={styles.statusValue}>{formatDate(item.date)}</Text>
+          <Text style={styles.statusValue}>{formatDateTimeLocal(item.date)}</Text>
         </View>
       ))}
     </View>
@@ -818,7 +814,7 @@ function StatusBarFirstPage({ report }) {
 const ProfessionalPDFDocument = ({ patient, report, qrUrl, lab, comments }) => {
   // Use report id as barcode, and a URL as QR code (e.g., report view link)
   const barcodeUrl = useUniversalCode("barcode", report?.id ? String(report.id) : "0");
-  // const qrUrl = useQRCodeDataUrl(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ''}`); // This line is now passed as a prop
+  // const qrUrl = useQRCodeDataUrl(`${window.location.origin}/patient?patientcode=${patient?.patientcode || ""}`); // This line is now passed as a prop
 
   // Comments and signatory
   const doctorComment = report?.comment;
@@ -1106,7 +1102,7 @@ const PrintPDF = ({ patient, report, lab, comments }) => {
     return <span style={styles.btn}>Invalid Data</span>;
   }
 
-  const qrUrl = useUniversalCode("qrcode", `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`);
+  const qrUrl = useUniversalCode("qrcode", `${window.location.origin}/patient?patientcode=${patient?.patientcode || ""}`);
 
   if (!qrUrl) {
     return <span style={styles.btn}>Generating QR...</span>;
@@ -1407,7 +1403,7 @@ const DirectPDFDownload = ({ reportId, patient, apiUrl }) => {
   const [loading, setLoading] = React.useState(false);
   const downloadTriggeredRef = useRef(false);
 
-  const qrUrl = useUniversalCode("qrcode", `https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`);
+  const qrUrl = useUniversalCode("qrcode", `${window.location.origin}/patient?patientcode=${patient?.patientcode || ""}`);
 
   if (!qrUrl) {
     return (
@@ -1571,7 +1567,7 @@ export const generatePdfBase64 = async (reportId, patient, apiUrl) => {
     
     // Generate QR Data URL
     const qrUrl = await new Promise((resolve) => {
-      QRCode.toDataURL(`https://doctorslab.com/patient?patientcode=${patient?.patientcode || ""}`, { width: 80, margin: 0 }, (err, url) => {
+      QRCode.toDataURL(`${window.location.origin}/patient?patientcode=${patient?.patientcode || ""}`, { width: 80, margin: 0 }, (err, url) => {
         resolve(err ? null : url);
       });
     });

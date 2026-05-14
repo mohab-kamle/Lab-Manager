@@ -8,23 +8,22 @@ import axios from "axios";
 import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
+import { formatDate } from "../../utils/dateFormatter";
 
 const Branches = () => {
   const { user } = useAuth();
+  const { toast, confirm } = useToast();
   const [branches, setBranches] = useState([]);
   const [labs, setLabs] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLabSelectModal, setShowLabSelectModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [branchToDelete, setBranchToDelete] = useState(null);
   const [selectedLab, setSelectedLab] = useState(null);
   const [editingBranch, setEditingBranch] = useState(null);
   const [newBranch, setNewBranch] = useState({
@@ -64,9 +63,9 @@ const Branches = () => {
       setLoading(false);
     } catch (error) {
       console.error("Error fetching branches:", error);
-      setError("Failed to fetch branches. Please try again later.");
-      setLoading(false);
+      toast.error("Failed to fetch branches. Please try again later.");
     }
+    setLoading(false);
   };
 
   const fetchLabs = async () => {
@@ -82,7 +81,7 @@ const Branches = () => {
       }
     } catch (error) {
       console.error("Error fetching labs:", error);
-      setError("Failed to fetch labs. Please try again later.");
+      toast.error("Failed to fetch labs. Please try again later.");
     }
   };
 
@@ -120,7 +119,7 @@ const Branches = () => {
       setSelectedLab(null);
     } catch (error) {
       console.error("Error adding branch:", error);
-      setError("Failed to add branch. Please try again.");
+      toast.error(error.response?.data?.error || "Failed to add branch. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -143,7 +142,7 @@ const Branches = () => {
       setEditingBranch(null);
     } catch (error) {
       console.error("Error updating branch:", error);
-      setError("Failed to update branch. Please try again.");
+      toast.error(error.response?.data?.error || "Failed to update branch. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -157,12 +156,11 @@ const Branches = () => {
       await axios.delete(`${apiUrl}/branches/${branchId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      toast.success("Branch deleted successfully!");
       await fetchBranches();
-      setShowDeleteModal(false);
-      setBranchToDelete(null);
     } catch (error) {
       console.error("Error deleting branch:", error);
-      setError("Failed to delete branch. Please try again.");
+      toast.error("Failed to delete branch. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -181,64 +179,55 @@ const Branches = () => {
 
       const result = await exportToExcel(exportData, 'branches', 'Branches');
       if (result.success) {
-        setSuccessMessage('Branches exported successfully!');
+        toast.success('Branches exported successfully!');
       } else {
-        setError(`Export failed: ${result.message}`);
+        toast.error(`Export failed: ${result.message}`);
       }
     } catch (error) {
       console.error('Export error:', error);
-      setError('Failed to export branches');
+      toast.error('Failed to export branches');
     }
   };
 
-  // Excel Import Handler
+  // Excel Import Handler (now connected to backend)
   const handleImportXLSX = async () => {
     if (!importFile) {
-      setError("Please select a file to import");
+      toast.error("Please select a file to import");
       return;
     }
 
     setImportLoading(true);
-    setError(null);
-    
+    const loadingToast = toast.loading("Importing branches...");
     try {
-      // Validate file first
-      const validation = validateExcelFile(importFile);
-      if (!validation.valid) {
-        setError(validation.message);
-        return;
-      }
+      const formData = new FormData();
+      formData.append("file", importFile);
 
-      // Import from Excel
-      const result = await importFromExcel(importFile);
-      if (!result.success) {
-        setError(result.message);
-        return;
-      }
-
-      // Process the imported data
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${apiUrl}/branches/bulk`, {
-        branches: result.data
-      }, {
+      const response = await axios.post(`${apiUrl}/branches/import`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'multipart/form-data'
         }
       });
       
+      const { summary, errorDetails, message } = response.data;
+      
       setShowImportModal(false);
       setImportFile(null);
-      setSuccessMessage(`Successfully imported ${response.data.imported} branches${response.data.errors?.length > 0 ? ` with ${response.data.errors.length} errors` : ''}`);
+      toast.dismiss(loadingToast);
       
-      if (response.data.errors?.length > 0) {
-        console.log('Import errors:', response.data.errors);
+      if (summary.errors > 0) {
+        toast.warning(message);
+        console.log('Import errors:', errorDetails);
+      } else {
+        toast.success(message);
       }
       
       await fetchBranches();
     } catch (error) {
       console.error('Import error:', error);
-      setError(error.response?.data?.error || 'Failed to import branches');
+      toast.dismiss(loadingToast);
+      toast.error(error.response?.data?.error || 'Failed to import branches');
     } finally {
       setImportLoading(false);
     }
@@ -277,7 +266,7 @@ const Branches = () => {
 
   const formatCellData = (data, header) => {
     if (header.toLowerCase().includes("date") && data) {
-      return new Date(data).toLocaleDateString();
+      return formatDate(data);
     }
     return data ?? "N/A";
   };
@@ -298,8 +287,7 @@ const Branches = () => {
         variant="outline-danger"
         size="sm"
         onClick={() => {
-          setBranchToDelete(rowData);
-          setShowDeleteModal(true);
+          confirm.delete(rowData.name, () => handleDeleteBranch(rowData.id));
         }}
       >
         <Trash2 size={16} />
@@ -328,8 +316,6 @@ const Branches = () => {
       </div>
       {loading ? (
         <LoadingSpinner message="Loading branches..." />
-      ) : error ? (
-        <Alert variant="danger">{error}</Alert>
       ) : (
         <>
           <Toolbar
@@ -353,12 +339,6 @@ const Branches = () => {
             pageCount={pageCount}
             handlePageChange={handlePageChange}
           />
-
-          {successMessage && (
-            <Alert variant="success" onClose={() => setSuccessMessage(null)} dismissible>
-              {successMessage}
-            </Alert>
-          )}
 
           {/* Lab Selection Modal */}
           <Modal show={showLabSelectModal} onHide={() => setShowLabSelectModal(false)}>
@@ -509,12 +489,6 @@ const Branches = () => {
                   Supported formats: .xlsx, .xls, .csv (max 5MB)
                 </Form.Text>
               </Form.Group>
-              
-              {error && (
-                <Alert variant="danger" className="mb-3">
-                  {error}
-                </Alert>
-              )}
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onClick={() => {
@@ -534,35 +508,7 @@ const Branches = () => {
             </Modal.Footer>
           </Modal>
 
-          {/* Delete Confirmation Modal */}
-          <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-            <Modal.Header>
-              <Modal.Title>Confirm Delete</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              <Alert variant="warning">
-                Are you sure you want to delete the branch "{branchToDelete?.name}"?
-                This action cannot be undone.
-              </Alert>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => {
-                setShowDeleteModal(false);
-                setBranchToDelete(null);
-              }}>
-                Cancel
-              </Button>
-              <Button 
-                variant="danger" 
-                onClick={() => handleDeleteBranch(branchToDelete?.id)}
-              >
-                Delete Branch
-              </Button>
-            </Modal.Footer>
-          </Modal>
+
         </>
       )}
     </Container>

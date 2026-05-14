@@ -556,6 +556,17 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
                     as: "payment_method_id_payment_methods",
                     through: { attributes: ['paid_amount'] },
                     attributes: ['id', 'name']
+                },
+                {
+                    model: receptionist,
+                    as: "receptionist",
+                    include: [
+                        {
+                            model: employee,
+                            as: "id_employee",
+                            attributes: ['name']
+                        }
+                    ]
                 }
             ]
         });
@@ -580,6 +591,7 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
             paid: invoice.paid,
             due: invoice.due,
             receptionist_id: invoice.receptionist_id,
+            receptionist_name: invoice.receptionist?.id_employee?.name,
             referred_doctor_id: invoice.referred_doctor_id,
             branch_id: invoice.branch_id,
             patient_phones: invoice.patient?.phones?.map(p => p.phone_number),

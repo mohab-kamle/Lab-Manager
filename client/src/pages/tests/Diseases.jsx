@@ -5,27 +5,32 @@ import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
-import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
+import {
+  exportToExcel,
+  importFromExcel,
+  validateExcelFile,
+} from "../../utils/excelUtils";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
 
 const Diseases = () => {
+  const { toast, confirm } = useToast();
   const [diseases, setDiseases] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({
+    field: null,
+    direction: "asc",
+  });
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingDisease, setEditingDisease] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [diseaseToDelete, setDiseaseToDelete] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
-    details: ""
+    details: "",
   });
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
@@ -46,7 +51,7 @@ const Diseases = () => {
       setLoading(false);
     } catch (error) {
       console.error("Error fetching diseases:", error);
-      setError("Failed to fetch diseases. Please try again later.");
+      toast.error("Failed to fetch diseases. Please try again later.");
       setLoading(false);
     }
   };
@@ -65,14 +70,24 @@ const Diseases = () => {
     setEditingDisease(disease);
     setFormData({
       name: disease.name || "",
-      details: disease.details || ""
+      details: disease.details || "",
     });
     setShowModal(true);
   };
 
   const handleDelete = (disease) => {
-    setDiseaseToDelete(disease);
-    setShowDeleteModal(true);
+    confirm.delete(disease.name, async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.delete(`${apiUrl}/diseases/${disease.id}`, { headers });
+        toast.success("Disease deleted successfully!");
+        fetchDiseases();
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.error || "Failed to delete disease");
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -83,11 +98,9 @@ const Diseases = () => {
 
       if (editingDisease) {
         // Update existing disease
-        await axios.put(
-          `${apiUrl}/diseases/${editingDisease.id}`,
-          formData,
-          { headers }
-        );
+        await axios.put(`${apiUrl}/diseases/${editingDisease.id}`, formData, {
+          headers,
+        });
       } else {
         // Create new disease
         await axios.post(`${apiUrl}/diseases`, formData, { headers });
@@ -96,82 +109,82 @@ const Diseases = () => {
       setShowModal(false);
       setEditingDisease(null);
       setFormData({ name: "", details: "" });
+      toast.success(
+        editingDisease
+          ? "Disease updated successfully"
+          : "Disease added successfully",
+      );
       fetchDiseases(); // Refresh the list
     } catch (error) {
       console.error("Error saving disease:", error);
-      setError("Failed to save disease. Please try again.");
-    }
-  };
-
-  const confirmDelete = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`${apiUrl}/diseases/${diseaseToDelete.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setShowDeleteModal(false);
-      setDiseaseToDelete(null);
-      fetchDiseases(); // Refresh the list
-    } catch (error) {
-      console.error("Error deleting disease:", error);
-      setError("Failed to delete disease. Please try again.");
+      toast.error(
+        error.response?.data?.error ||
+          "Failed to save disease. Please try again.",
+      );
     }
   };
 
   // Excel Export Handler
   const handleExportXLSX = async () => {
     try {
-      const exportData = filteredDiseases.map(disease => ({
-        'Name': disease.name,
-        'Details': disease.details
+      const exportData = filteredDiseases.map((disease) => ({
+        Name: disease.name,
+        Details: disease.details,
       }));
 
-      const result = await exportToExcel(exportData, 'diseases', 'Diseases');
-      if (!result.success) {
-        setError(`Export failed: ${result.message}`);
+      const result = await exportToExcel(exportData, "diseases", "Diseases");
+      if (result.success) {
+        toast.success("Diseases exported successfully");
+      } else {
+        toast.error(`Export failed: ${result.message}`);
       }
     } catch (error) {
-      console.error('Export error:', error);
-      setError('Failed to export diseases');
+      console.error("Export error:", error);
+      toast.error("Failed to export diseases");
     }
   };
 
   // XLSX Import Handler
   const handleImportXLSX = async () => {
     if (!importFile) {
-      setError("Please select a file to import");
+      toast.error("Please select a file to import");
       return;
     }
 
     const formData = new FormData();
-    formData.append('file', importFile);
-    
+    formData.append("file", importFile);
+
     setImportLoading(true);
-    setError(null);
-    
+    const loadingToast = toast.loading("Importing diseases...");
+
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const response = await axios.post(`${apiUrl}/diseases/import`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
-      
+
+      const { summary, errorDetails, message } = response.data;
+
       setShowImportModal(false);
       setImportFile(null);
-      setSuccessMessage(`Successfully imported ${response.data.imported} diseases${response.data.errors.length > 0 ? ` with ${response.data.errors.length} errors` : ''}`);
-      
-      if (response.data.errors.length > 0) {
-        console.log('Import errors:', response.data.errors);
+
+      if (summary.errors > 0) {
+        toast.warning(message);
+        console.log("Import errors:", errorDetails);
+      } else {
+        toast.success(message);
       }
-      
+
       await fetchDiseases();
     } catch (error) {
-      setError(error.response?.data?.error || 'Failed to import diseases');
+      console.error("Import error:", error);
+      toast.error(error.response?.data?.error || "Failed to import diseases");
     } finally {
       setImportLoading(false);
+      toast.dismiss(loadingToast);
     }
   };
 
@@ -203,7 +216,7 @@ const Diseases = () => {
   const pageCount = Math.ceil(sortedDiseases.length / itemsPerPage);
   const currentDiseases = sortedDiseases.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
@@ -242,16 +255,6 @@ const Diseases = () => {
         <LoadingSpinner message="Loading diseases..." />
       ) : (
         <>
-          {error && (
-            <Alert variant="danger" onClose={() => setError(null)} dismissible>
-              {error}
-            </Alert>
-          )}
-          {successMessage && (
-            <Alert variant="success" onClose={() => setSuccessMessage(null)} dismissible>
-              {successMessage}
-            </Alert>
-          )}
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap">
             <h2>Diseases</h2>
             <div className="d-flex gap-2 flex-wrap">
@@ -259,7 +262,10 @@ const Diseases = () => {
                 <Download size={16} className="me-2" />
                 Export XLSX
               </Button>
-              <Button variant="outline-info" onClick={() => setShowImportModal(true)}>
+              <Button
+                variant="outline-info"
+                onClick={() => setShowImportModal(true)}
+              >
                 <Upload size={16} className="me-2" />
                 Import Excel
               </Button>
@@ -293,14 +299,17 @@ const Diseases = () => {
           />
         </>
       )}
-      
+
       {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
         <Modal.Header>
           <Modal.Title>
             {editingDisease ? "Edit Disease" : "Add New Disease"}
           </Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+          <button
+            className="modal-close-btn"
+            onClick={() => setShowModal(false)}
+          >
             <CircleX size={24} />
           </button>
         </Modal.Header>
@@ -312,7 +321,9 @@ const Diseases = () => {
                 type="text"
                 placeholder="Enter disease name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 required
               />
             </Form.Group>
@@ -323,7 +334,9 @@ const Diseases = () => {
                 rows={3}
                 placeholder="Enter disease details"
                 value={formData.details}
-                onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, details: e.target.value })
+                }
               />
             </Form.Group>
           </Modal.Body>
@@ -339,24 +352,41 @@ const Diseases = () => {
       </Modal>
 
       {/* Import Modal */}
-      <Modal show={showImportModal} onHide={() => setShowImportModal(false)} size="lg">
+      <Modal
+        show={showImportModal}
+        onHide={() => setShowImportModal(false)}
+        size="lg"
+      >
         <Modal.Header>
           <Modal.Title>Import Diseases</Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowImportModal(false)}>
+          <button
+            className="modal-close-btn"
+            onClick={() => setShowImportModal(false)}
+          >
             <CircleX size={24} />
           </button>
         </Modal.Header>
         <Modal.Body>
           <Alert variant="info" className="mb-3">
             <h6>Excel File Format Requirements:</h6>
-            <p className="mb-2">Your Excel file should have the following columns:</p>
+            <p className="mb-2">
+              Your Excel file should have the following columns:
+            </p>
             <ul className="mb-2">
-              <li><strong>Name</strong> (required) - The disease name</li>
-              <li><strong>Details</strong> (optional) - Additional details about the disease</li>
+              <li>
+                <strong>Name</strong> (required) - The disease name
+              </li>
+              <li>
+                <strong>Details</strong> (optional) - Additional details about
+                the disease
+              </li>
             </ul>
-            <p className="mb-0"><strong>Note:</strong> The first row should contain the column headers. Duplicate names will be skipped.</p>
+            <p className="mb-0">
+              <strong>Note:</strong> The first row should contain the column
+              headers. Duplicate names will be skipped.
+            </p>
           </Alert>
-          
+
           <Form.Group className="mb-3">
             <Form.Label>Select Excel/CSV File</Form.Label>
             <Form.Control
@@ -368,48 +398,23 @@ const Diseases = () => {
               Supported formats: .xlsx, .xls, .csv (max 5MB)
             </Form.Text>
           </Form.Group>
-          
-          {error && (
-            <Alert variant="danger" className="mb-3">
-              {error}
-            </Alert>
-          )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => {
-            setShowImportModal(false);
-            setImportFile(null);
-            setError(null);
-          }}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowImportModal(false);
+              setImportFile(null);
+            }}
+          >
             Cancel
           </Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleImportXLSX}
             disabled={!importFile || importLoading}
           >
             {importLoading ? "Importing..." : "Import"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header>
-          <Modal.Title>Confirm Delete</Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
-            <CircleX size={24} />
-          </button>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to delete the disease "{diseaseToDelete?.name}"? This action cannot be undone.
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={confirmDelete}>
-            Delete
           </Button>
         </Modal.Footer>
       </Modal>

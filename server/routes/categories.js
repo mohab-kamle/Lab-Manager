@@ -51,7 +51,6 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
-
     // Check for duplicates in lab space or global space
     const existing = await categories_test_and_culture.findOne({
       where: {
@@ -82,7 +81,9 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
 router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
     const { name } = req.body;
-    const category = await categories_test_and_culture.findByPk(req.params.id);
+    const category = await categories_test_and_culture.findOne({
+      where: { id: req.params.id, lab_id: req.tenant.lab_id }
+    });
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     // Permission check
@@ -122,7 +123,9 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
 // Delete a category
 router.delete('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
   try {
-    const category = await categories_test_and_culture.findByPk(req.params.id);
+    const category = await categories_test_and_culture.findOne({
+      where: { id: req.params.id, lab_id: req.tenant.lab_id }
+    });
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     // Permission check
@@ -201,10 +204,15 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
     if (errors.length > 0) message += ` ${errors.length} errors occurred.`;
 
     res.json({ 
-      imported,
-      skipped,
-      errors,
-      message
+      success: true,
+      summary: {
+        imported,
+        duplicates: skipped,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
     });
   } catch (error) {
     console.error('Error importing categories:', error);

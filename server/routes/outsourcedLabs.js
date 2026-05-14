@@ -137,6 +137,7 @@ router.post('/import', async (req, res) => {
     }
 
     let imported = 0;
+    let skipped = 0;
     let errors = [];
 
     for (let i = 0; i < labs.length; i++) {
@@ -148,7 +149,7 @@ router.post('/import', async (req, res) => {
       const address = row.Address || row.address;
 
       if (!name || name.trim() === '') {
-        errors.push(`Row ${i + 1}: Name is required`);
+        errors.push(`Row ${i + 2}: Name is required`);
         continue;
       }
 
@@ -158,25 +159,34 @@ router.post('/import', async (req, res) => {
       });
 
       if (existingLab) {
-        // Skip if already exists
+        skipped++;
         continue;
       }
 
-      await outsourced_lab.create({
-        name: name.trim(),
-        contact_number,
-        email,
-        address,
-        lab_id
-      });
-
-      imported++;
+      try {
+        await outsourced_lab.create({
+          name: name.trim(),
+          contact_number,
+          email,
+          address,
+          lab_id
+        });
+        imported++;
+      } catch (err) {
+        errors.push(`Row ${i + 2}: ${err.message}`);
+      }
     }
 
-    res.json({
-      imported,
-      errors,
-      message: `Successfully imported ${imported} labs`
+    res.json({ 
+      success: true,
+      summary: {
+        imported,
+        duplicates: skipped,
+        errors: errors.length,
+        total: labs.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
     });
   } catch (error) {
     console.error('Error importing outsourced labs:', error);

@@ -37,6 +37,7 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import "../../styles/EmployeeManagement.css";
 import { useToast } from "../../components/ui/ToastContext";
 import PhoneInput from "../../components/ui/PhoneInput";
+import { formatDate } from "../../utils/dateFormatter";
 const EmployeeManagement = () => {
   const { user } = useAuth();
   const { toast, confirm } = useToast();
@@ -53,9 +54,7 @@ const EmployeeManagement = () => {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
-  const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
   const [rolePermissions, setRolePermissions] = useState(null);
@@ -218,14 +217,10 @@ const EmployeeManagement = () => {
         prevEmployees.filter((emp) => emp.id !== id)
       );
       toast.success(`Employee "${name}" has been removed.`);
-      setShowDeleteModal(false);
-      setEmployeeToDelete(null);
     } catch (error) {
       console.error("Error deleting employee:", error);
       toast.error("Could not delete employee record. Please try again.");
     } finally {
-      setShowDeleteModal(false);
-      setEmployeeToDelete(null);
       setIsDeleting(false);
     }
   };
@@ -354,7 +349,7 @@ const EmployeeManagement = () => {
     if (value === null || value === undefined) return "-";
     switch (field) {
       case "birth_date":
-        return value ? new Date(value).toLocaleDateString() : "-";
+        return formatDate(value);
       case "gender":
         if (value === "m" || value === "Male") {
           return "Male";
@@ -786,7 +781,7 @@ const EmployeeManagement = () => {
                           setEmployee({ ...employee, birth_date: date })
                         }
                         className="form-control"
-                        dateFormat="yyyy-MM-dd"
+                        dateFormat="dd/MM/yyyy"
                         maxDate={new Date()}
                       />
                     </Form.Group>

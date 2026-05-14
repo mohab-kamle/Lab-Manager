@@ -91,7 +91,7 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
       className="w-50"
       style={{ zIndex: 1100 }}
     >
-      <Offcanvas.Header closeButton className="bg-theme-surface border-bottom" data-bs-theme="dark">
+      <Offcanvas.Header closeButton className="bg-primary text-white" data-bs-theme="dark">
         <Offcanvas.Title className="d-flex align-items-center">
           <History className="me-2" />
           Invoice Audit Trail - #{invoiceId}

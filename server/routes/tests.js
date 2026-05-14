@@ -665,81 +665,138 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
       await transaction.rollback();
       return res.status(400).json({ error: "No data found in the uploaded file" });
     }
+    let imported = 0, updated = 0, errors = [];
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      if (!row || Object.keys(row).length === 0) continue;
 
-    const lab_id = req.tenant.lab_id;
-    let imported = 0;
-    let updated = 0;
-    const errors = [];
-
-    for (const row of data) {
-      // Use nested transaction (savepoint) for row-level atomicity
+      // Use a nested transaction (savepoint) for row-level atomicity
       const rowTransaction = await db.sequelize.transaction({ transaction });
-      try {
-        const name = row.Name || row.name;
-        const category_id = row['Category ID'] || row.category_id;
 
-        if (!name || !category_id) {
+      try {
+        const name = row.Name || row.name || row['Test Name'];
+        const shortcut = row.Shortcut || row.shortcut || name;
+        const categoryName = row.Category || row['Category Name'] || row.category || row['Category ID'];
+        const sampleTypeName = row['Sample Type'] || row['Sample Type Name'] || row.sample_type || row['Sample Type ID'];
+        const contractName = row.Contract || row['Contract Name'] || row.contract || row['Contract ID'];
+
+        if (!name) {
           await rowTransaction.rollback();
-          errors.push({ name: name || 'Unknown', error: 'Name and Category ID are required' });
+          errors.push(`Row ${i + 2}: Test Name is required`);
           continue;
         }
 
-        const sanitizedName = name.toString().trim();
+        // Look up Category ID (Auto-create if not found)
+        let categoryId = null;
+        if (categoryName) {
+          const trimmedCatName = categoryName.toString().trim();
+          const [cat] = await db.categories_test_and_culture.findOrCreate({
+            where: { 
+              name: trimmedCatName, 
+              lab_id: req.tenant.lab_id 
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            },
+            transaction: rowTransaction
+          });
+          categoryId = cat.id;
+        }
 
-        // Try to find by name in THIS lab
-        const existingTest = await db.test.findOne({ 
-          where: { name: sanitizedName, lab_id },
-          transaction: rowTransaction
-        });
-        
+        // Look up Sample Type ID (Auto-create if not found)
+        let sampleTypeId = null;
+        if (sampleTypeName) {
+          const trimmedSTName = sampleTypeName.toString().trim();
+          const [st] = await db.sample_type.findOrCreate({
+            where: { 
+              name: trimmedSTName,
+              lab_id: req.tenant.lab_id
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            },
+            transaction: rowTransaction
+          });
+          sampleTypeId = st.id;
+        }
+
+        // Look up Contract ID
+        let contractId = null;
+        if (contractName) {
+          const trimmedCTName = contractName.toString().trim();
+          const ct = await db.contract.findOne({
+            where: { name: trimmedCTName },
+            transaction: rowTransaction
+          });
+          if (ct) {
+            contractId = ct.id;
+          }
+        }
+
         // Normalize Lab-to-Lab fields
-        const normalizedStatus = (row['Lab to Lab Status'] || row.lab_to_lab_status)
-          ? (row['Lab to Lab Status'] || row.lab_to_lab_status).toString().trim().toUpperCase() 
+        const normalizedStatus = (row['Lab to Lab Status'] || row.lab_to_lab_status || row['L2L Status'])
+          ? (row['Lab to Lab Status'] || row.lab_to_lab_status || row['L2L Status']).toString().trim().toUpperCase() 
           : null;
         const normalizedLabName = (row['Lab Name'] || row.lab_name)
           ? (row['Lab Name'] || row.lab_name).toString().trim() 
           : null;
 
         const testData = {
-          lab_id,
-          name: sanitizedName,
-          shortcut: row.Shortcut || row.shortcut || null,
+          lab_id: req.tenant.lab_id,
+          name: name.toString().trim(),
+          shortcut: shortcut || null,
           price: parseFloat(row.Price || row.price) || 0.00,
           cost: parseFloat(row.Cost || row.cost) || 0.00,
           lab_to_lab_status: normalizedStatus,
           lab_name: normalizedLabName,
-          category_id: category_id,
+          category_id: categoryId,
           precautions: row.Precautions || row.precautions || null,
           decreased_in: row['Decreased In'] || row.decreased_in || null,
           increased_in: row['Increased In'] || row.increased_in || null,
-          sample_type_id: row['Sample Type ID'] || row.sample_type_id || null,
-          contract_id: row['Contract ID'] || row.contract_id || null,
+          sample_type_id: sampleTypeId,
+          contract_id: contractId,
           type: row.Type || row.type || 'single',
           tat_hours: (row['TAT Hours'] || row.tat_hours) ? parseInt(row['TAT Hours'] || row.tat_hours) : null
         };
+
+        // Try to find by name in THIS lab
+        const existingTest = await db.test.findOne({ 
+          where: { name: testData.name, lab_id: req.tenant.lab_id },
+          transaction: rowTransaction
+        });
 
         if (existingTest) {
           await existingTest.update(testData, { transaction: rowTransaction });
           updated++;
         } else {
-          await db.test.create(testData, { transaction: rowTransaction });
+          await db.test.create({
+            ...testData,
+            structure_config: [] // Default empty
+          }, { transaction: rowTransaction });
           imported++;
         }
+
         await rowTransaction.commit();
       } catch (rowError) {
         await rowTransaction.rollback();
-        console.error(`Row Import Error (${row.Name}):`, rowError);
-        errors.push({ 
-          name: row.Name || 'Unknown', 
-          error: rowError.name === 'SequelizeUniqueConstraintError' 
-            ? 'Duplicate name or shortcut in this lab' 
-            : rowError.message 
-        });
+        console.error(`Row Import Error (Row ${i + 2}):`, rowError);
+        errors.push(`Row ${i + 2}: ${rowError.message}`);
       }
     }
 
     await transaction.commit();
-    res.json({ imported, updated, errors });
+    
+    res.json({ 
+      success: true,
+      summary: {
+        imported,
+        updated,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${updated} updated${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
+    });
   } catch (error) {
     if (transaction) await transaction.rollback();
     console.error('Error importing tests:', error);

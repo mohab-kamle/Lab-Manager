@@ -420,8 +420,9 @@ export const ToastProvider = ({ children }) => {
           ...options,
         }),
       update: updateToast,
+      dismiss: hideToast,
     }),
-    [showToast, updateToast]
+    [showToast, updateToast, hideToast]
   );
 
   const [confirmData, setConfirmData] = useState({

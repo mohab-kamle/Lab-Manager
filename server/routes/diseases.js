@@ -188,6 +188,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
     }
 
     let imported = 0;
+    let skipped = 0;
     let errors = [];
 
     for (let i = 0; i < data.length; i++) {
@@ -201,7 +202,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
         const details = row.Details || row.details || row[Object.keys(row)[1]] || null;
 
         if (!name || name.toString().trim() === '') {
-          errors.push(`Row ${i + 1}: Name is required`);
+          errors.push(`Row ${i + 2}: Name is required`);
           continue;
         }
 
@@ -211,7 +212,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
         });
 
         if (existingDisease) {
-          errors.push(`Row ${i + 1}: Disease "${name}" already exists`);
+          skipped++;
           continue;
         }
 
@@ -223,14 +224,20 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
 
         imported++;
       } catch (error) {
-        errors.push(`Row ${i + 1}: ${error.message}`);
+        errors.push(`Row ${i + 2}: ${error.message}`);
       }
     }
 
     res.json({ 
-      imported, 
-      errors,
-      message: `Successfully imported ${imported} diseases${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
+      success: true,
+      summary: {
+        imported,
+        duplicates: skipped,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
     });
   } catch (error) {
     console.error('Error importing diseases:', error);
