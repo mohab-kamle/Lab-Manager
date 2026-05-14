@@ -23,6 +23,9 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
+  },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "^3.9.2",
     "@docusaurus/types": "^3.9.2"
