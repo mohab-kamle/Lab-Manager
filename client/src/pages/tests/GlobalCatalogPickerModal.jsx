@@ -106,13 +106,13 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
         autoClose: 3000
       });
       onImportSuccess();
-    } catch (err) {
       const errorMessage = err.response?.data?.details || err.response?.data?.error || "Failed to import selected tests";
       toast.update(toastId, {
         type: 'error',
         render: errorMessage,
         autoClose: 6000
       });
+    } finally {
       setImporting(false);
     }
   };

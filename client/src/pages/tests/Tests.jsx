@@ -182,6 +182,7 @@ const Tests = () => {
     name: "",
     description: ""
   });
+  const [isImporting, setIsImporting] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -809,6 +810,7 @@ const Tests = () => {
     const formData = new FormData();
     formData.append('file', importFile);
     const loadingToast = toast.loading("Importing tests...");
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${apiUrl}/tests/import`, formData, {
@@ -929,7 +931,20 @@ const Tests = () => {
                   <p><strong>Lab to Lab:</strong> {selectedTest.lab_to_lab_status === 'IN' ? 'In' : selectedTest.lab_to_lab_status === 'OUT' ? 'Out' : selectedTest.lab_to_lab_status || 'N/A'}</p>
                   <p><strong>Lab Name:</strong> {selectedTest.lab_name || 'N/A'}</p>
                   <p><strong>Category:</strong> {selectedTest.category?.name || categories.find(cat => cat.id === selectedTest.category_id)?.name || 'N/A'}</p>
-                  <p><strong>Sample Type:</strong> {selectedTest.sample_type?.type || sampleTypes.find(sample => sample.id === selectedTest.sample_type_id)?.type || 'N/A'}</p>
+                  <p>
+                    <strong>Sample Type:</strong> {(() => {
+                      const st = selectedTest.sample_type || sampleTypes.find(s => s.id === selectedTest.sample_type_id);
+                      if (!st) return 'N/A';
+                      return (
+                        <>
+                          {st.type}
+                          <span className="ms-2 small text-muted">
+                            ({st.tube_color || 'No Tube Specified'} | {st.container_type || 'No Container Specified'})
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </p>
                 </Col>
                 <Col md={6}>
                   <h6>Medical Information</h6>
@@ -1161,7 +1176,9 @@ const Tests = () => {
                         sample.type.toLowerCase().includes(sampleTypeSearchTerm.toLowerCase())
                       )
                       .map(sample => (
-                        <option key={sample.id} value={sample.id}>{sample.type}</option>
+                        <option key={sample.id} value={sample.id}>
+                          {sample.type} ({sample.tube_color || 'No Tube'} | {sample.container_type || 'No Container'})
+                        </option>
                       ))}
                   </Form.Select>
                 </Form.Group>
