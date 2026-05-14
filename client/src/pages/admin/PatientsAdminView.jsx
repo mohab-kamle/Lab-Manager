@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
@@ -22,6 +22,7 @@ const PatientsAdminView = () => {
   const { user } = useAuth();
   const { toast, confirm } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [patients, setPatients] = useState([]);
   const [diseases, setDiseases] = useState([]);
@@ -731,6 +732,15 @@ const PatientsAdminView = () => {
     });
     setFormErrors({});
   };
+
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      setEditingPatient(null);
+      handleResetForm();
+      setShowAddModal(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   const handleAddContract = async () => {
     try {
       const token = localStorage.getItem("token");

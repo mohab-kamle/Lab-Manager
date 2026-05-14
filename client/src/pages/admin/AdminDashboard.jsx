@@ -79,12 +79,12 @@ const AdminDashboard = () => {
     {
       icon: <UserPlus size={20} />,
       label: 'Add Patient',
-      onClick: () => navigate(`/admin/patients`),
+      onClick: () => navigate(`/admin/patients`, { state: { openAddModal: true } }),
     },
     {
       icon: <Plus size={20} />,
       label: 'Add Test',
-      onClick: () => navigate(`/admin/tests`),
+      onClick: () => navigate(`/admin/tests`, { state: { openAddModal: true } }),
     },
     {
       icon: <ClipboardList size={20} />,

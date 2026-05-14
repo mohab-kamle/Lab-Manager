@@ -10,6 +10,7 @@ import {
   Badge,
 } from "react-bootstrap";
 import axios from "axios";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
@@ -41,6 +42,8 @@ import RefundModal from "../../components/invoices/RefundModal";
 import InvoiceHistoryDrawer from "../../components/invoices/InvoiceHistoryDrawer";
 
 const Invoices = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { toast, confirm } = useToast();
   const { user } = useAuth();
   const [invoices, setInvoices] = useState([]);
@@ -138,16 +141,16 @@ const Invoices = () => {
     const currentRatePercent = (invoice.tax_rate || 0) * 100;
     if (Math.abs((Number(taxRateInput) || 0) - currentRatePercent) > 0.0001) {
       setTaxRateInput(
-        invoice.tax_rate ? (invoice.tax_rate * 100).toString() : "",
+        invoice.tax_rate ? Number((invoice.tax_rate * 100).toFixed(2)).toString() : "",
       );
     }
 
     if (Math.abs((Number(taxAmountInput) || 0) - (invoice.tax || 0)) > 0.01) {
-      setTaxAmountInput(invoice.tax ? invoice.tax.toString() : "");
+      setTaxAmountInput(invoice.tax ? Number(invoice.tax).toFixed(2) : "");
     }
 
     if (Math.abs((Number(discountInput) || 0) - discountPercentage) > 0.0001) {
-      setDiscountInput(discountPercentage ? discountPercentage.toString() : "");
+      setDiscountInput(discountPercentage ? Number(discountPercentage).toFixed(2) : "");
     }
   }, [invoice.tax, invoice.tax_rate, discountPercentage]);
 
@@ -723,6 +726,78 @@ const Invoices = () => {
     selectedPackages = [],
     customDiscountPercentage = null,
   ) => {
+    // If we are editing an invoice, calculate original + new separate and merge them
+    if (editingInvoice) {
+      const origSubtotal = Number(editingInvoice.subtotal) || 0;
+      const origDiscount = Number(editingInvoice.discount) || 0;
+      const origTax = Number(editingInvoice.tax) || 0;
+      const origTotal = Number(editingInvoice.total) || 0;
+      const origPaid = Number(editingInvoice.paid) || 0;
+
+      // Find new tests and packages
+      const origTestIds = editingInvoice.tests ? editingInvoice.tests.map((t) => String(t.id)) : [];
+      const origPkgIds = editingInvoice.packages ? editingInvoice.packages.map((p) => String(p.id)) : [];
+
+      const newTestIds = (items.tests || []).filter((id) => !origTestIds.includes(String(id)));
+      const newPkgIds = (items.packages || []).filter((id) => !origPkgIds.includes(String(id)));
+
+      let newSubtotal = 0;
+      newTestIds.forEach((testId) => {
+        const test = tests.find((t) => t.id === parseInt(testId));
+        if (test) {
+          const hasOffer = selectedPackages.some(
+            (pkg) =>
+              pkg.type === "offer" &&
+              pkg.item_type === "test" &&
+              pkg.item_id === test.id,
+          );
+          if (!hasOffer) {
+            newSubtotal += test.price;
+          }
+        }
+      });
+
+      newPkgIds.forEach((packageId) => {
+        const pkg = packages.find((p) => p.id === parseInt(packageId));
+        if (pkg) {
+          newSubtotal += pkg.price;
+        }
+      });
+
+      const currentDiscountPercentage =
+        customDiscountPercentage !== null
+          ? customDiscountPercentage
+          : discountPercentage;
+      const newDiscountAmount = newSubtotal * (currentDiscountPercentage / 100) || 0;
+
+      // Use original tax rate
+      const origTaxRate = editingInvoice.tax_rate
+        ? Number(editingInvoice.tax_rate)
+        : origSubtotal > 0
+          ? origTax / origSubtotal
+          : 0;
+      const newTaxAmount = newSubtotal * origTaxRate;
+
+      const newTotal = newSubtotal + newTaxAmount - newDiscountAmount;
+
+      // Calculate new paid amount from new payment methods
+      const newPayments = (items.payments || []).filter((p) => !p.is_original);
+      const newPaidAmount = calculatePaymentTotal(newPayments);
+      
+      const mergedTotal = origTotal + newTotal;
+      const mergedPaid = origPaid + newPaidAmount;
+      const mergedDue = mergedTotal - mergedPaid;
+
+      return {
+        subtotal: origSubtotal + newSubtotal,
+        discount: origDiscount + newDiscountAmount,
+        tax: origTax + newTaxAmount,
+        total: mergedTotal,
+        due: mergedDue,
+        paid: mergedPaid,
+      };
+    }
+
     let subtotal = 0;
 
     // Calculate tests total
@@ -817,6 +892,13 @@ const Invoices = () => {
 
   // Auto-update paid amount from payment methods
   const updatePaidFromPayments = (newInvoice) => {
+    if (editingInvoice) {
+      const origPaid = Number(editingInvoice.paid) || 0;
+      const newPayments = (newInvoice.payments || []).filter((p) => !p.is_original);
+      const newPaid = calculatePaymentTotal(newPayments);
+      const updatedInvoice = { ...newInvoice, paid: origPaid + newPaid };
+      return updateInvoiceCalculations(updatedInvoice);
+    }
     const paymentTotal = calculatePaymentTotal(newInvoice.payments);
     const updatedInvoice = { ...newInvoice, paid: paymentTotal };
     return updateInvoiceCalculations(updatedInvoice);
@@ -1194,6 +1276,15 @@ const Invoices = () => {
     setDiscountInput("");
   };
 
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      resetForm();
+      setModalSuccessMessage("");
+      setShowAddModal(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const filteredInvoices = invoices.filter((invoice) => {
     const searchLower = searchQuery?.toLowerCase();
     const searchDigits = searchQuery?.replace(/\D/g, "");
@@ -1293,10 +1384,8 @@ const Invoices = () => {
           <Button
             variant="link"
             className="p-0 text-decoration-none fw-bold"
-            onClick={() => {
-              toast.info("Full advanced audit feature is coming soon");
-            }}
-            title="View Audit Trail"
+            onClick={() => navigate(`/${user?.role || 'admin'}/invoices/${value}/audit`)}
+            title="View Audit Details"
           >
             #{value}
           </Button>
@@ -1544,26 +1633,26 @@ const Invoices = () => {
             ? rowData.payments.map((p) => ({
                 payment_method_id: String(p.payment_method_id),
                 paid_amount: String(p.paid_amount),
+                is_original: true,
               }))
             : [];
 
           // Calculate discount percentage from discount amount and subtotal
           const calculatedDiscountPercentage =
             rowData.subtotal > 0
-              ? ((Number(rowData.discount) || 0) / Number(rowData.subtotal)) *
-                100
+              ? Number((((Number(rowData.discount) || 0) / Number(rowData.subtotal)) * 100).toFixed(2))
               : 0;
 
           setDiscountPercentage(calculatedDiscountPercentage);
           setDiscountInput(
             calculatedDiscountPercentage
-              ? calculatedDiscountPercentage.toString()
+              ? calculatedDiscountPercentage.toFixed(2)
               : "",
           );
           setTaxRateInput(
-            rowData.tax_rate ? (rowData.tax_rate * 100).toString() : "",
+            rowData.tax_rate ? Number((rowData.tax_rate * 100).toFixed(2)).toString() : "",
           );
-          setTaxAmountInput(rowData.tax ? rowData.tax.toString() : "");
+          setTaxAmountInput(rowData.tax ? Number(rowData.tax).toFixed(2) : "");
           setInvoice({
             ...rowData,
             tests: testIds,
@@ -2926,6 +3015,7 @@ const Invoices = () => {
                           type="text"
                           value={discountInput}
                           placeholder="0"
+                          disabled={!!editingInvoice}
                           onKeyDown={handleNumericKeyDown}
                           onBlur={(e) =>
                             formatInputOnBlur(e.target.value, setDiscountInput)
@@ -2939,12 +3029,16 @@ const Invoices = () => {
                             handleDiscountChange(val);
                           }}
                         />
-                        {discountPercentage > 0 && (
+                        {!!editingInvoice ? (
+                          <Form.Text className="text-muted d-block small mt-1">
+                            🔒 Locked during edit (original percentage applied to new items)
+                          </Form.Text>
+                        ) : discountPercentage > 0 ? (
                           <Form.Text className="text-muted">
                             Discount Amount: EGP{" "}
                             {invoice.discount?.toFixed(2) || "0.00"}
                           </Form.Text>
-                        )}
+                        ) : null}
                       </Form.Group>
                     </Col>
                     <Col md={3}>
@@ -2954,6 +3048,7 @@ const Invoices = () => {
                           type="text"
                           value={taxRateInput}
                           placeholder="0"
+                          disabled={!!editingInvoice}
                           onKeyDown={handleNumericKeyDown}
                           onBlur={(e) =>
                             formatInputOnBlur(e.target.value, setTaxRateInput)
@@ -2971,6 +3066,11 @@ const Invoices = () => {
                             });
                           }}
                         />
+                        {!!editingInvoice && (
+                          <Form.Text className="text-muted d-block small mt-1">
+                            🔒 Locked
+                          </Form.Text>
+                        )}
                       </Form.Group>
                     </Col>
                     <Col md={3}>
@@ -2980,6 +3080,7 @@ const Invoices = () => {
                           type="text"
                           value={taxAmountInput}
                           placeholder="0"
+                          disabled={!!editingInvoice}
                           onKeyDown={handleNumericKeyDown}
                           onBlur={(e) =>
                             formatInputOnBlur(e.target.value, setTaxAmountInput)
@@ -3005,241 +3106,558 @@ const Invoices = () => {
                             });
                           }}
                         />
+                        {!!editingInvoice && (
+                          <Form.Text className="text-muted d-block small mt-1">
+                            🔒 Locked
+                          </Form.Text>
+                        )}
                       </Form.Group>
                     </Col>
                   </Row>
 
-                  <Row>
-                    <Col md={12}>
-                      <div className="border rounded p-3 bg-theme-surface">
-                        <h6 className="mb-3">Invoice Summary</h6>
-                        <Row>
-                          <Col md={3}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Subtotal</Form.Label>
-                              <Form.Control
-                                type="text"
-                                value={`EGP ${invoice.subtotal?.toFixed(2) || "0.00"}`}
-                                disabled
-                              />
-                            </Form.Group>
-                          </Col>
-                          <Col md={3}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Tax</Form.Label>
-                              <Form.Control
-                                type="text"
-                                value={`EGP ${invoice.tax?.toFixed(2) || "0.00"}`}
-                                disabled
-                              />
-                            </Form.Group>
-                          </Col>
-                          <Col md={3}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>
-                                Discount ({discountPercentage}%)
-                              </Form.Label>
-                              <Form.Control
-                                type="text"
-                                value={`EGP ${invoice.discount?.toFixed(2) || "0.00"}`}
-                                disabled
-                              />
-                            </Form.Group>
-                          </Col>
-                          <Col md={3}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Total</Form.Label>
-                              <Form.Control
-                                type="text"
-                                value={`EGP ${invoice.total?.toFixed(2) || "0.00"}`}
-                                disabled
-                                className="fw-bold"
-                              />
-                            </Form.Group>
-                          </Col>
-                        </Row>
-                        <Row>
-                          <Col md={6}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Paid</Form.Label>
-                              <Form.Control
-                                type="text"
-                                value={`EGP ${invoice.paid?.toFixed(2) || "0.00"}`}
-                                disabled
-                                className="fw-bold text-success"
-                              />
-                              {invoice.payments.length === 0 && (
-                                <Form.Text className="text-muted">
-                                  Add payment methods below to automatically
-                                  calculate paid amount
-                                </Form.Text>
-                              )}
-                            </Form.Group>
-                          </Col>
-                          <Col md={6}>
-                            <Form.Group className="mb-3">
-                              <div className="d-flex justify-content-between align-items-center mb-1">
-                                <Form.Label className="mb-0">
-                                  {(invoice.due || 0) < -0.01
-                                    ? "Credit / Refund"
-                                    : "Amount Due"}
-                                </Form.Label>
-                                {(invoice.due || 0) < -0.01 && (
-                                  <Button
-                                    variant={
-                                      giveChange ? "success" : "outline-primary"
-                                    }
-                                    size="sm"
-                                    onClick={() => setGiveChange(!giveChange)}
-                                    className="py-0 px-2"
-                                    style={{ fontSize: "0.8rem" }}
-                                  >
-                                    {giveChange
-                                      ? "✓ Change Given"
-                                      : "Give Change"}
-                                  </Button>
+                  {(() => {
+                    if (editingInvoice) {
+                      const origSubtotal = Number(editingInvoice.subtotal) || 0;
+                      const origTax = Number(editingInvoice.tax) || 0;
+                      const origDiscount = Number(editingInvoice.discount) || 0;
+                      const origTotal = Number(editingInvoice.total) || 0;
+                      const origPaid = Number(editingInvoice.paid) || 0;
+                      const origDue = Number(editingInvoice.due) || 0;
+
+                      const newSubtotal = Math.max(0, (invoice.subtotal || 0) - origSubtotal);
+                      const newTax = Math.max(0, (invoice.tax || 0) - origTax);
+                      const newDiscount = Math.max(0, (invoice.discount || 0) - origDiscount);
+                      const newTotal = Math.max(0, (invoice.total || 0) - origTotal);
+                      
+                      const newPaymentsList = invoice.payments.filter((p) => !p.is_original);
+                      const newPaid = calculatePaymentTotal(newPaymentsList);
+                      const newDue = newTotal - newPaid;
+
+                      const origPaymentsList = invoice.payments.filter((p) => p.is_original);
+
+                      return (
+                        <>
+                          {/* Original Summary Section */}
+                          <Row className="mb-4">
+                            <Col md={12}>
+                              <div className="border rounded p-3 bg-light border-secondary">
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                  <h6 className="mb-0 text-secondary">
+                                    📋 Original Invoice Summary (Read-Only)
+                                  </h6>
+                                  <Badge bg="secondary">Historical Record</Badge>
+                                </div>
+                                <Row className="g-2 mb-3 small">
+                                  <Col md={2}>
+                                    <span className="text-muted d-block">Subtotal:</span>
+                                    <strong>EGP {origSubtotal.toFixed(2)}</strong>
+                                  </Col>
+                                  <Col md={2}>
+                                    <span className="text-muted d-block">Tax:</span>
+                                    <strong>EGP {origTax.toFixed(2)}</strong>
+                                  </Col>
+                                  <Col md={2}>
+                                    <span className="text-muted d-block">Discount:</span>
+                                    <strong>EGP {origDiscount.toFixed(2)}</strong>
+                                  </Col>
+                                  <Col md={2}>
+                                    <span className="text-muted d-block">Total:</span>
+                                    <strong>EGP {origTotal.toFixed(2)}</strong>
+                                  </Col>
+                                  <Col md={2}>
+                                    <span className="text-muted d-block">Paid:</span>
+                                    <strong className="text-success">EGP {origPaid.toFixed(2)}</strong>
+                                  </Col>
+                                  <Col md={2}>
+                                    <span className="text-muted d-block">Due:</span>
+                                    <strong className={origDue > 0 ? "text-danger" : "text-success"}>
+                                      EGP {origDue.toFixed(2)}
+                                    </strong>
+                                  </Col>
+                                </Row>
+                                {origPaymentsList.length > 0 && (
+                                  <div className="mt-3 pt-3 border-top">
+                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                      <span className="text-muted small fw-bold">💳 Original Payment Methods:</span>
+                                      <span className="text-muted" style={{ fontSize: "0.75rem" }}>🔒 Currently Read-Only</span>
+                                    </div>
+                                    {origPaymentsList.map((op, idx) => (
+                                      <div key={idx} className="d-flex gap-2 mb-2 align-items-center">
+                                        <Form.Select
+                                          value={op.payment_method_id}
+                                          disabled
+                                          size="sm"
+                                          style={{ maxWidth: "220px" }}
+                                        >
+                                          <option value="">Select Payment Method</option>
+                                          {paymentMethods.map((method) => (
+                                            <option key={method.id} value={method.id}>
+                                              {method.name}
+                                            </option>
+                                          ))}
+                                        </Form.Select>
+                                        <Form.Control
+                                          type="number"
+                                          value={op.paid_amount}
+                                          disabled
+                                          size="sm"
+                                          style={{ maxWidth: "150px" }}
+                                        />
+                                        <span className="text-muted small">EGP</span>
+                                      </div>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
-                              <Form.Control
-                                type="text"
-                                value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
-                                disabled
-                                className={
-                                  (invoice.due || 0) > 0.01
-                                    ? "text-danger fw-bold"
-                                    : "text-success fw-bold"
-                                }
-                              />
-                            </Form.Group>
+                            </Col>
+                          </Row>
+
+                          {/* New Items Summary Section */}
+                          {newSubtotal > 0 && (
+                            <Row className="mb-4">
+                              <Col md={12}>
+                                <div className="border rounded p-3 bg-theme-surface border-primary">
+                                  <h6 className="mb-3 text-primary">
+                                    🆕 New Additions Summary
+                                  </h6>
+                                  <Row>
+                                    <Col md={3}>
+                                      <Form.Group className="mb-3">
+                                        <Form.Label>New Subtotal</Form.Label>
+                                        <Form.Control
+                                          type="text"
+                                          value={`EGP ${newSubtotal.toFixed(2)}`}
+                                          disabled
+                                        />
+                                      </Form.Group>
+                                    </Col>
+                                    <Col md={3}>
+                                      <Form.Group className="mb-3">
+                                        <Form.Label>New Tax</Form.Label>
+                                        <Form.Control
+                                          type="text"
+                                          value={`EGP ${newTax.toFixed(2)}`}
+                                          disabled
+                                        />
+                                      </Form.Group>
+                                    </Col>
+                                    <Col md={3}>
+                                      <Form.Group className="mb-3">
+                                        <Form.Label>New Discount</Form.Label>
+                                        <Form.Control
+                                          type="text"
+                                          value={`EGP ${newDiscount.toFixed(2)}`}
+                                          disabled
+                                        />
+                                      </Form.Group>
+                                    </Col>
+                                    <Col md={3}>
+                                      <Form.Group className="mb-3">
+                                        <Form.Label>New Total</Form.Label>
+                                        <Form.Control
+                                          type="text"
+                                          value={`EGP ${newTotal.toFixed(2)}`}
+                                          disabled
+                                          className="fw-bold text-primary"
+                                        />
+                                      </Form.Group>
+                                    </Col>
+                                  </Row>
+                                  <Row>
+                                    <Col md={6}>
+                                      <Form.Group className="mb-3">
+                                        <Form.Label>New Paid</Form.Label>
+                                        <Form.Control
+                                          type="text"
+                                          value={`EGP ${newPaid.toFixed(2)}`}
+                                          disabled
+                                          className="fw-bold text-success"
+                                        />
+                                      </Form.Group>
+                                    </Col>
+                                    <Col md={6}>
+                                      <Form.Group className="mb-3">
+                                        <div className="d-flex justify-content-between align-items-center mb-1">
+                                          <Form.Label className="mb-0">
+                                            {newDue < -0.01 ? "New Credit / Change" : "New Balance Due"}
+                                          </Form.Label>
+                                          {newDue < -0.01 && (
+                                            <Button
+                                              variant={giveChange ? "success" : "outline-primary"}
+                                              size="sm"
+                                              onClick={() => setGiveChange(!giveChange)}
+                                              className="py-0 px-2"
+                                              style={{ fontSize: "0.8rem" }}
+                                            >
+                                              {giveChange ? "✓ Change Given" : "Give Change"}
+                                            </Button>
+                                          )}
+                                        </div>
+                                        <Form.Control
+                                          type="text"
+                                          value={`EGP ${Math.abs(newDue).toFixed(2)}`}
+                                          disabled
+                                          className={newDue > 0.01 ? "fw-bold text-danger" : "fw-bold text-success"}
+                                        />
+                                      </Form.Group>
+                                    </Col>
+                                  </Row>
+
+                                  <div className="mt-2 p-2 bg-light rounded text-center small border">
+                                    <strong>Final Merged Totals:</strong> Total: EGP {(invoice.total || 0).toFixed(2)} | Paid: EGP {(invoice.paid || 0).toFixed(2)} | Balance Due: EGP {(invoice.due || 0).toFixed(2)}
+                                  </div>
+                                </div>
+                              </Col>
+                            </Row>
+                          )}
+
+                          {/* Payment Methods Section for New Items */}
+                          <Row className="mt-4">
+                            <Col md={12}>
+                              <div className="border rounded p-3 bg-theme-surface">
+                                <h6 className="mb-3 text-primary">
+                                  💳 Payment Methods - New Additions
+                                </h6>
+                                <p className="text-muted mb-3">
+                                  Pay for the newly added items balance (EGP {newTotal.toFixed(2)}):
+                                </p>
+
+                                {invoice.payments.map((payment, index) => {
+                                  if (payment.is_original) return null;
+                                  return (
+                                    <div key={index} className="d-flex gap-2 mb-2">
+                                      <Form.Select
+                                        value={payment.payment_method_id}
+                                        onChange={(e) => {
+                                          const newPayments = [...invoice.payments];
+                                          newPayments[index].payment_method_id = e.target.value;
+                                          const newInvoice = {
+                                            ...invoice,
+                                            payments: newPayments,
+                                          };
+                                          setInvoice(updatePaidFromPayments(newInvoice));
+                                        }}
+                                        style={{ minWidth: "200px" }}
+                                      >
+                                        <option value="">Select Payment Method</option>
+                                        {paymentMethods.map((method) => (
+                                          <option key={method.id} value={method.id}>
+                                            {method.name}
+                                          </option>
+                                        ))}
+                                      </Form.Select>
+                                      <Form.Control
+                                        type="number"
+                                        placeholder="Amount to pay"
+                                        value={payment.paid_amount}
+                                        onChange={(e) => {
+                                          const newPayments = [...invoice.payments];
+                                          newPayments[index].paid_amount = e.target.value;
+                                          const newInvoice = {
+                                            ...invoice,
+                                            payments: newPayments,
+                                          };
+                                          setInvoice(updatePaidFromPayments(newInvoice));
+                                        }}
+                                        disabled={!payment.payment_method_id}
+                                        style={{ minWidth: "150px" }}
+                                      />
+                                      <Button
+                                        variant="outline-danger"
+                                        onClick={() => {
+                                          const newPayments = invoice.payments.filter(
+                                            (_, i) => i !== index,
+                                          );
+                                          const newInvoice = {
+                                            ...invoice,
+                                            payments: newPayments,
+                                          };
+                                          setInvoice(updatePaidFromPayments(newInvoice));
+                                        }}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
+
+                                <div className="d-flex gap-2 align-items-center mt-3">
+                                  <Button
+                                    variant="outline-primary"
+                                    onClick={() => {
+                                      const newInvoice = {
+                                        ...invoice,
+                                        payments: [
+                                          ...invoice.payments,
+                                          { payment_method_id: "", paid_amount: "", is_original: false },
+                                        ],
+                                      };
+                                      setInvoice(updatePaidFromPayments(newInvoice));
+                                    }}
+                                  >
+                                    + Add Payment Method
+                                  </Button>
+
+                                  {newPaymentsList.length > 0 && (
+                                    <div className="ms-3">
+                                      <Badge bg="info" className="fs-6">
+                                        New Paid: EGP {newPaid.toFixed(2)}
+                                      </Badge>
+                                      {newPaid < newTotal && (
+                                        <Badge
+                                          bg="warning"
+                                          text="dark"
+                                          className="ms-2 fs-6"
+                                        >
+                                          Remaining for New Items: EGP {(newTotal - newPaid).toFixed(2)}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </Col>
+                          </Row>
+                        </>
+                      );
+                    }
+
+                    // Standard Mode (Creating New Invoice)
+                    return (
+                      <>
+                        <Row>
+                          <Col md={12}>
+                            <div className="border rounded p-3 bg-theme-surface">
+                              <h6 className="mb-3">Invoice Summary</h6>
+                              <Row>
+                                <Col md={3}>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>Subtotal</Form.Label>
+                                    <Form.Control
+                                      type="text"
+                                      value={`EGP ${invoice.subtotal?.toFixed(2) || "0.00"}`}
+                                      disabled
+                                    />
+                                  </Form.Group>
+                                </Col>
+                                <Col md={3}>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>Tax</Form.Label>
+                                    <Form.Control
+                                      type="text"
+                                      value={`EGP ${invoice.tax?.toFixed(2) || "0.00"}`}
+                                      disabled
+                                    />
+                                  </Form.Group>
+                                </Col>
+                                <Col md={3}>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>
+                                      Discount ({discountPercentage}%)
+                                    </Form.Label>
+                                    <Form.Control
+                                      type="text"
+                                      value={`EGP ${invoice.discount?.toFixed(2) || "0.00"}`}
+                                      disabled
+                                    />
+                                  </Form.Group>
+                                </Col>
+                                <Col md={3}>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>Total</Form.Label>
+                                    <Form.Control
+                                      type="text"
+                                      value={`EGP ${invoice.total?.toFixed(2) || "0.00"}`}
+                                      disabled
+                                      className="fw-bold"
+                                    />
+                                  </Form.Group>
+                                </Col>
+                              </Row>
+                              <Row>
+                                <Col md={6}>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>Paid</Form.Label>
+                                    <Form.Control
+                                      type="text"
+                                      value={`EGP ${invoice.paid?.toFixed(2) || "0.00"}`}
+                                      disabled
+                                      className="fw-bold text-success"
+                                    />
+                                    {invoice.payments.length === 0 && (
+                                      <Form.Text className="text-muted">
+                                        Add payment methods below to automatically
+                                        calculate paid amount
+                                      </Form.Text>
+                                    )}
+                                  </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                  <Form.Group className="mb-3">
+                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                      <Form.Label className="mb-0">
+                                        {(invoice.due || 0) < -0.01
+                                          ? "Credit / Refund"
+                                          : "Amount Due"}
+                                      </Form.Label>
+                                      {(invoice.due || 0) < -0.01 && (
+                                        <Button
+                                          variant={
+                                            giveChange ? "success" : "outline-primary"
+                                          }
+                                          size="sm"
+                                          onClick={() => setGiveChange(!giveChange)}
+                                          className="py-0 px-2"
+                                          style={{ fontSize: "0.8rem" }}
+                                        >
+                                          {giveChange
+                                            ? "✓ Change Given"
+                                            : "Give Change"}
+                                        </Button>
+                                      )}
+                                    </div>
+                                    <Form.Control
+                                      type="text"
+                                      value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
+                                      disabled
+                                      className={
+                                        (invoice.due || 0) > 0.01
+                                          ? "text-danger fw-bold"
+                                          : "text-success fw-bold"
+                                      }
+                                    />
+                                  </Form.Group>
+                                </Col>
+                              </Row>
+                            </div>
                           </Col>
                         </Row>
-                      </div>
-                    </Col>
-                  </Row>
 
-                  {/* Payment Methods Section - Final Step */}
-                  <Row className="mt-4">
-                    <Col md={12}>
-                      <div className="border rounded p-3 bg-theme-surface">
-                        <h6 className="mb-3 text-primary">
-                          💳 Payment Methods - Final Step
-                        </h6>
-                        <p className="text-muted mb-3">
-                          Now that you know the total amount (EGP{" "}
-                          {invoice.total?.toFixed(2) || "0.00"}), choose how the
-                          payment will be made:
-                        </p>
+                        {/* Payment Methods Section - Final Step */}
+                        <Row className="mt-4">
+                          <Col md={12}>
+                            <div className="border rounded p-3 bg-theme-surface">
+                              <h6 className="mb-3 text-primary">
+                                💳 Payment Methods - Final Step
+                              </h6>
+                              <p className="text-muted mb-3">
+                                Now that you know the total amount (EGP{" "}
+                                {invoice.total?.toFixed(2) || "0.00"}), choose how the
+                                payment will be made:
+                              </p>
 
-                        {invoice.payments.map((payment, index) => (
-                          <div key={index} className="d-flex gap-2 mb-2">
-                            <Form.Select
-                              value={payment.payment_method_id}
-                              onChange={(e) => {
-                                const newPayments = [...invoice.payments];
-                                newPayments[index].payment_method_id =
-                                  e.target.value;
-                                const newInvoice = {
-                                  ...invoice,
-                                  payments: newPayments,
-                                };
-                                setInvoice(updatePaidFromPayments(newInvoice));
-                              }}
-                              style={{ minWidth: "200px" }}
-                            >
-                              <option value="">Select Payment Method</option>
-                              {paymentMethods.map((method) => (
-                                <option key={method.id} value={method.id}>
-                                  {method.name}
-                                </option>
+                              {invoice.payments.map((payment, index) => (
+                                <div key={index} className="d-flex gap-2 mb-2">
+                                  <Form.Select
+                                    value={payment.payment_method_id}
+                                    onChange={(e) => {
+                                      const newPayments = [...invoice.payments];
+                                      newPayments[index].payment_method_id =
+                                        e.target.value;
+                                      const newInvoice = {
+                                        ...invoice,
+                                        payments: newPayments,
+                                      };
+                                      setInvoice(updatePaidFromPayments(newInvoice));
+                                    }}
+                                    style={{ minWidth: "200px" }}
+                                  >
+                                    <option value="">Select Payment Method</option>
+                                    {paymentMethods.map((method) => (
+                                      <option key={method.id} value={method.id}>
+                                        {method.name}
+                                      </option>
+                                    ))}
+                                  </Form.Select>
+                                  <Form.Control
+                                    type="number"
+                                    placeholder="Amount to pay"
+                                    value={payment.paid_amount}
+                                    onChange={(e) => {
+                                      const newPayments = [...invoice.payments];
+                                      newPayments[index].paid_amount = e.target.value;
+                                      const newInvoice = {
+                                        ...invoice,
+                                        payments: newPayments,
+                                      };
+                                      setInvoice(updatePaidFromPayments(newInvoice));
+                                    }}
+                                    disabled={!payment.payment_method_id}
+                                    style={{ minWidth: "150px" }}
+                                  />
+                                  <Button
+                                    variant="outline-danger"
+                                    onClick={() => {
+                                      const newPayments = invoice.payments.filter(
+                                        (_, i) => i !== index,
+                                      );
+                                      const newInvoice = {
+                                        ...invoice,
+                                        payments: newPayments,
+                                      };
+                                      setInvoice(updatePaidFromPayments(newInvoice));
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
                               ))}
-                            </Form.Select>
-                            <Form.Control
-                              type="number"
-                              placeholder="Amount to pay"
-                              value={payment.paid_amount}
-                              onChange={(e) => {
-                                const newPayments = [...invoice.payments];
-                                newPayments[index].paid_amount = e.target.value;
-                                const newInvoice = {
-                                  ...invoice,
-                                  payments: newPayments,
-                                };
-                                setInvoice(updatePaidFromPayments(newInvoice));
-                              }}
-                              disabled={!payment.payment_method_id}
-                              style={{ minWidth: "150px" }}
-                            />
-                            <Button
-                              variant="outline-danger"
-                              onClick={() => {
-                                const newPayments = invoice.payments.filter(
-                                  (_, i) => i !== index,
-                                );
-                                const newInvoice = {
-                                  ...invoice,
-                                  payments: newPayments,
-                                };
-                                setInvoice(updatePaidFromPayments(newInvoice));
-                              }}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        ))}
 
-                        <div className="d-flex gap-2 align-items-center mt-3">
-                          <Button
-                            variant="outline-primary"
-                            onClick={() => {
-                              const newInvoice = {
-                                ...invoice,
-                                payments: [
-                                  ...invoice.payments,
-                                  { payment_method_id: "", paid_amount: "" },
-                                ],
-                              };
-                              setInvoice(updatePaidFromPayments(newInvoice));
-                            }}
-                          >
-                            + Add Payment Method
-                          </Button>
-
-                          {invoice.payments.length > 0 && (
-                            <div className="ms-3">
-                              <Badge bg="info" className="fs-6">
-                                Total Paid: EGP{" "}
-                                {calculatePaymentTotal(
-                                  invoice.payments,
-                                ).toFixed(2)}
-                              </Badge>
-                              {calculatePaymentTotal(invoice.payments) <
-                                (invoice.total || 0) && (
-                                <Badge
-                                  bg="warning"
-                                  text="dark"
-                                  className="ms-2 fs-6"
+                              <div className="d-flex gap-2 align-items-center mt-3">
+                                <Button
+                                  variant="outline-primary"
+                                  onClick={() => {
+                                    const newInvoice = {
+                                      ...invoice,
+                                      payments: [
+                                        ...invoice.payments,
+                                        { payment_method_id: "", paid_amount: "" },
+                                      ],
+                                    };
+                                    setInvoice(updatePaidFromPayments(newInvoice));
+                                  }}
                                 >
-                                  Remaining: EGP{" "}
-                                  {(
-                                    (invoice.total || 0) -
-                                    calculatePaymentTotal(invoice.payments)
-                                  ).toFixed(2)}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                                  + Add Payment Method
+                                </Button>
 
-                        {invoice.payments.length === 0 && (
-                          <Alert variant="info" className="mt-3 mb-0">
-                            <i className="fas fa-info-circle me-2"></i>
-                            You can add multiple payment methods if the customer
-                            pays using different methods (e.g., cash + card).
-                          </Alert>
-                        )}
-                      </div>
-                    </Col>
-                  </Row>
+                                {invoice.payments.length > 0 && (
+                                  <div className="ms-3">
+                                    <Badge bg="info" className="fs-6">
+                                      Total Paid: EGP{" "}
+                                      {calculatePaymentTotal(
+                                        invoice.payments,
+                                      ).toFixed(2)}
+                                    </Badge>
+                                    {calculatePaymentTotal(invoice.payments) <
+                                      (invoice.total || 0) && (
+                                      <Badge
+                                        bg="warning"
+                                        text="dark"
+                                        className="ms-2 fs-6"
+                                      >
+                                        Remaining: EGP{" "}
+                                        {(
+                                          (invoice.total || 0) -
+                                          calculatePaymentTotal(invoice.payments)
+                                        ).toFixed(2)}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                                {invoice.payments.length === 0 && (
+                                  <Alert variant="info" className="mt-3 mb-0">
+                                    <i className="fas fa-info-circle me-2"></i>
+                                    You can add multiple payment methods if the customer
+                                    pays using different methods (e.g., cash + card).
+                                  </Alert>
+                                )}
+                              </div>
+                            </div>
+                          </Col>
+                        </Row>
+                      </>
+                    );
+                  })()}
 
                   {showFormErrorAlert && Object.keys(formErrors).length > 0 && (
                     <Alert

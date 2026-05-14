@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { Container, Button, Modal, Form, Alert, Row, Col, Card, InputGroup } from "react-bootstrap";
 import PropTypes from 'prop-types';
 import Toolbar from "../../components/layout/Toolbar";
@@ -108,6 +109,7 @@ RangeAdder.propTypes = {
 
 const Tests = () => {
   const { toast, confirm } = useToast();
+  const location = useLocation();
   const [tests, setTests] = useState([]);
   const [categories, setCategories] = useState([]);
   const [sampleTypes, setSampleTypes] = useState([]);
@@ -443,6 +445,14 @@ const Tests = () => {
     setQuestionSearchTerm("");
     setShowModal(true);
   };
+
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      handleAdd();
+      window.history.replaceState({}, document.title);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const handleEdit = useCallback(async (test) => {
     setEditingTest(test);

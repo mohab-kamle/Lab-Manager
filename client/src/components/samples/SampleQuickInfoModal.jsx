@@ -53,6 +53,7 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
 
       if (e.key === 'Enter') {
         if (barcodeData.trim() !== '') {
+          setManualInput(barcodeData.trim());
           fetchSampleData(barcodeData.trim());
           setBarcodeData('');
         }
