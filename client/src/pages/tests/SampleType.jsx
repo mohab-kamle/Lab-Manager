@@ -22,7 +22,11 @@ const Samples = () => {
   const [editingSample, setEditingSample] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sampleToDelete, setSampleToDelete] = useState(null);
-  const [formData, setFormData] = useState({ name: "" });
+  const [formData, setFormData] = useState({ 
+    name: "",
+    tube_color: "",
+    container_type: ""
+  });
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -129,13 +133,21 @@ const Samples = () => {
 
   const handleAdd = () => {
     setEditingSample(null);
-    setFormData({ name: "" });
+    setFormData({ 
+      name: "",
+      tube_color: "",
+      container_type: ""
+    });
     setShowModal(true);
   };
 
   const handleEdit = (sample) => {
     setEditingSample(sample);
-    setFormData({ name: sample.type || "" });
+    setFormData({ 
+      name: sample.type || "",
+      tube_color: sample.tube_color || "",
+      container_type: sample.container_type || ""
+    });
     setShowModal(true);
   };
 
@@ -158,7 +170,11 @@ const Samples = () => {
       }
       setShowModal(false);
       setEditingSample(null);
-      setFormData({ name: "" });
+      setFormData({ 
+        name: "",
+        tube_color: "",
+        container_type: ""
+      });
       setError(null); // Clear any previous errors
       setSuccessMessage(editingSample ? "Sample type updated successfully!" : "Sample type added successfully!");
       // Refresh using extracted function
@@ -244,7 +260,9 @@ const Samples = () => {
   const ActionComponent = ({ rowData }) => (
     <div className="d-flex gap-2">
       <Button variant="outline-primary" size="sm" onClick={() => handleEdit(rowData)} title="Edit Sample Type"><Pencil size={16} /></Button>
-      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)} title="Delete Sample Type"><Trash2 size={16} /></Button>
+      {rowData.lab_id !== null && (
+        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)} title="Delete Sample Type"><Trash2 size={16} /></Button>
+      )}
     </div>
   );
 
@@ -319,8 +337,39 @@ const Samples = () => {
                 value={formData.name} 
                 onChange={e => setFormData({ ...formData, name: e.target.value })} 
                 required 
+                disabled={editingSample && editingSample.lab_id === null}
               />
+              {editingSample && editingSample.lab_id === null && (
+                <Form.Text className="text-muted">
+                  Global sample types cannot be renamed.
+                </Form.Text>
+              )}
             </Form.Group>
+            
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Tube Color</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={formData.tube_color} 
+                    onChange={e => setFormData({ ...formData, tube_color: e.target.value })} 
+                    placeholder="e.g. Red, Lavender, Blue"
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Container Type</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={formData.container_type} 
+                    onChange={e => setFormData({ ...formData, container_type: e.target.value })} 
+                    placeholder="e.g. Vacuum Tube, Container"
+                  />
+                </Form.Group>
+              </div>
+            </div>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>

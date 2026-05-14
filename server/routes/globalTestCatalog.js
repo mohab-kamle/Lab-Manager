@@ -67,12 +67,20 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
     }
 
     // Cache categories to map global_category to local category_id
-    const localCategories = await db.categories_test_and_culture.findAll({ transaction });
+    const localCategories = await db.categories_test_and_culture.findAll({ 
+      where: {
+        [Op.or]: [{ lab_id: null }, { lab_id: req.tenant.lab_id }]
+      },
+      transaction 
+    });
     let fallbackCategory = localCategories.length > 0 ? localCategories[0].id : null;
 
     if (!fallbackCategory) {
       // If the user's DB has no categories, create a default one to safely proceed with the import
-      const defaultCat = await db.categories_test_and_culture.create({ name: 'General Tests' }, { transaction });
+      const defaultCat = await db.categories_test_and_culture.create({ 
+        name: 'General Tests',
+        lab_id: req.tenant.lab_id 
+      }, { transaction });
       fallbackCategory = defaultCat.id;
       localCategories.push(defaultCat);
     }
@@ -83,7 +91,10 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
     for (const globalTest of globalTests) {
       // Avoid inserting if test with the exact name already exists locally to prevent unique contraint errors
       const existingTest = await db.test.findOne({
-        where: { name: globalTest.name },
+        where: { 
+          name: globalTest.name,
+          lab_id: req.tenant.lab_id
+        },
         transaction
       });
 
@@ -100,7 +111,8 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
         } else {
           // Dynamic category creation: If this specific category doesn't exist locally, create it exactly as named!
           const newCat = await db.categories_test_and_culture.create({ 
-            name: globalTest.global_category 
+            name: globalTest.global_category,
+            lab_id: req.tenant.lab_id
           }, { transaction });
           localCategories.push(newCat);
           categoryId = newCat.id;
@@ -184,6 +196,7 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
         cost: 0.00,
         lab_to_lab_status: 'IN', // Default
         category_id: categoryId,
+        sample_type_id: globalTest.default_sample_type_id,
         global_test_id: globalTest.id,
         structure_config: structureConfig,
         type: globalTest.type || 'single'

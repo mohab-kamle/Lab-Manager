@@ -9,8 +9,15 @@ module.exports = function(sequelize, DataTypes) {
     },
     name: {
       type: DataTypes.STRING(45),
-      allowNull: false,
-      unique: "name_UNIQUE"
+      allowNull: false
+    },
+    lab_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'lab',
+        key: 'id'
+      }
     }
   }, {
     sequelize,
@@ -26,10 +33,11 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "name_UNIQUE",
+        name: "unique_category_name_per_lab",
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "name" },
         ]
       },
