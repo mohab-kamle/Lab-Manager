@@ -71,6 +71,9 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
     res.status(201).json(category);
   } catch (error) {
     console.error('Error creating category:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ error: 'Category with this name already exists' });
+    }
     res.status(500).json({ error: 'Failed to create category' });
   }
 });
@@ -111,6 +114,9 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
     res.json(category);
   } catch (error) {
     console.error('Error updating category:', error);
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ error: 'Category with this name already exists' });
+    }
     res.status(500).json({ error: 'Failed to update category' });
   }
 });

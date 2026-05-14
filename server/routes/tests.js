@@ -670,22 +670,27 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
     let updated = 0;
     const errors = [];
 
+<<<<<<< HEAD
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       if (!row || Object.keys(row).length === 0) continue;
 
+      // Use nested transaction (savepoint) for row-level atomicity
+      const rowTransaction = await db.sequelize.transaction({ transaction });
       try {
         const name = row.Name || row.name || row['Test Name'];
-        const categoryName = row.Category || row['Category Name'] || row.category || row['Category ID'];
-        const sampleTypeName = row['Sample Type'] || row['Sample Type Name'] || row.sample_type || row['Sample Type ID'];
-        const contractName = row.Contract || row['Contract Name'] || row.contract || row['Contract ID'];
+        const categoryName = row.Category || row['Category Name'] || row.category || row['Category ID'] || row.category_id;
+        const sampleTypeName = row['Sample Type'] || row['Sample Type Name'] || row.sample_type || row['Sample Type ID'] || row.sample_type_id;
+        const contractName = row.Contract || row['Contract Name'] || row.contract || row['Contract ID'] || row.contract_id;
 
         if (!name) {
+          await rowTransaction.rollback();
           errors.push({ name: 'Unknown', error: `Row ${i + 2}: Test Name is required` });
           continue;
         }
 
         if (!categoryName) {
+          await rowTransaction.rollback();
           errors.push({ name: name, error: `Row ${i + 2}: Category is required` });
           continue;
         }
@@ -702,7 +707,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
             defaults: {
               lab_id: req.tenant.lab_id
             },
-            transaction
+            transaction: rowTransaction
           });
           
           if (cat) {
@@ -710,6 +715,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           } else if (!isNaN(categoryName)) {
             categoryId = parseInt(categoryName);
           } else {
+            await rowTransaction.rollback();
             errors.push({ name: name, error: `Row ${i + 2}: Category "${categoryName}" could not be created or found` });
             continue;
           }
@@ -721,7 +727,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           const trimmedSTName = sampleTypeName.toString().trim();
           const [st] = await db.sample_type.findOrCreate({
             where: { type: trimmedSTName },
-            transaction
+            transaction: rowTransaction
           });
           
           if (st) {
@@ -737,7 +743,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           const trimmedCTName = contractName.toString().trim();
           const ct = await db.contract.findOne({
             where: { name: trimmedCTName },
-            transaction
+            transaction: rowTransaction
           });
           if (ct) {
             contractId = ct.id;
@@ -749,7 +755,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
         // Try to find by name
         let existingTest = await db.test.findOne({ 
           where: { name: name.toString().trim(), lab_id: req.tenant.lab_id },
-          transaction
+          transaction: rowTransaction
         });
         
         // Normalize Lab-to-Lab fields
@@ -779,14 +785,22 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
         };
 
         if (existingTest) {
-          await existingTest.update(testData, { transaction });
+          await existingTest.update(testData, { transaction: rowTransaction });
           updated++;
         } else {
-          await db.test.create(testData, { transaction });
+          await db.test.create(testData, { transaction: rowTransaction });
           imported++;
         }
+        await rowTransaction.commit();
       } catch (rowError) {
-        errors.push({ name: row.Name || 'Unknown', error: rowError.message });
+        await rowTransaction.rollback();
+        console.error(`Row Import Error (${row.Name || 'Unknown'}):`, rowError);
+        errors.push({ 
+          name: row.Name || 'Unknown', 
+          error: rowError.name === 'SequelizeUniqueConstraintError' 
+            ? 'Duplicate name or shortcut in this lab' 
+            : rowError.message 
+        });
       }
     }
 

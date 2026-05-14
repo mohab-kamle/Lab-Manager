@@ -9,7 +9,8 @@ module.exports = {
       await queryInterface.addColumn('sample_type', 'standard_code', {
         type: Sequelize.STRING(50),
         allowNull: true,
-        unique: true,
+        // Using a named composite index to handle multi-tenancy correctly
+        unique: "unique_standard_code_per_lab",
         comment: "Stores the LOINC Part Number or SNOMED CT code"
       });
     }
@@ -29,11 +30,22 @@ module.exports = {
         comment: "e.g., 'EDTA Tube', 'Serum Separator', 'Sterile Cup'"
       });
     }
+
+    // Ensure lab_id is part of the unique constraint if it's not already
+    // Note: If standard_code was already added with unique: true, we might need to drop that index first.
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeColumn('sample_type', 'container_type');
-    await queryInterface.removeColumn('sample_type', 'tube_color');
-    await queryInterface.removeColumn('sample_type', 'standard_code');
+    const tableInfo = await queryInterface.describeTable('sample_type');
+
+    if (tableInfo.container_type) {
+      await queryInterface.removeColumn('sample_type', 'container_type');
+    }
+    if (tableInfo.tube_color) {
+      await queryInterface.removeColumn('sample_type', 'tube_color');
+    }
+    if (tableInfo.standard_code) {
+      await queryInterface.removeColumn('sample_type', 'standard_code');
+    }
   }
 };

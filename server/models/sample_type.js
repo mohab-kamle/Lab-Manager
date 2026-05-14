@@ -14,7 +14,7 @@ module.exports = function(sequelize, DataTypes) {
     standard_code: {
       type: DataTypes.STRING(50),
       allowNull: true,
-      unique: "standard_code_UNIQUE"
+      unique: "unique_standard_code_per_lab"
     },
     tube_color: {
       type: DataTypes.STRING(255),
@@ -55,10 +55,11 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "standard_code_UNIQUE",
+        name: "unique_standard_code_per_lab",
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "standard_code" },
         ]
       },

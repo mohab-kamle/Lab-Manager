@@ -208,7 +208,14 @@ async function runETL() {
     const hw = hardwareDictionary[system] || {};
     const standard_code = hw.standard_code || `LOINC-${system.substring(0, 40)}`; 
     
-    let sampleRecord = await sample_type.findOne({ where: { type: system.substring(0, 45) } });
+    // Explicitly scope to global (lab_id: null)
+    let sampleRecord = await sample_type.findOne({ 
+        where: { 
+            type: system.substring(0, 45),
+            lab_id: null 
+        } 
+    });
+
     if (sampleRecord) {
       await sampleRecord.update({
         standard_code: standard_code.substring(0, 50),
@@ -220,7 +227,8 @@ async function runETL() {
         type: system.substring(0, 45),
         standard_code: standard_code.substring(0, 50),
         tube_color: hw.tube_color || null,
-        container_type: hw.container_type || null
+        container_type: hw.container_type || null,
+        lab_id: null // Ensure it's global
       });
     }
     sampleTypeRecords[system] = sampleRecord.id;
@@ -243,7 +251,10 @@ async function runETL() {
     
     // Seed standard categories
     const uniqueCategories = [...new Set(finalData.map(item => item.global_category).filter(Boolean))];
-    const categoriesData = uniqueCategories.map(name => ({ name }));
+    const categoriesData = uniqueCategories.map(name => ({ 
+        name,
+        lab_id: null // Explicitly mark as global
+    }));
     console.log(`5.5. Ensuring ${categoriesData.length} categories exist...`);
     if (categories_test_and_culture) {
       await categories_test_and_culture.bulkCreate(categoriesData, { ignoreDuplicates: true });

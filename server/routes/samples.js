@@ -137,11 +137,16 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
       await sample.save();
     } else {
       // It's a global sample type, use override table
+      // Prevent renaming global sample types even via settings
+      if (name && name.trim() !== sample.type) {
+          return res.status(403).json({ error: "Global sample types cannot be renamed" });
+      }
+
       await lab_sample_type_settings.upsert({
         lab_id: req.tenant.lab_id,
         sample_type_id: id,
-        tube_color: tube_color,
-        container_type: container_type
+        tube_color: tube_color !== undefined ? tube_color : sample.tube_color,
+        container_type: container_type !== undefined ? container_type : sample.container_type
       });
     }
 
@@ -208,22 +213,26 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           continue;
         }
 
+        const sanitizedType = type.toString().trim();
+
         // Check if sample type already exists in lab or global space
         const existingSampleType = await sample_type.findOne({ 
-          where: { 
-            type: type.toString().trim(),
-            [Op.or]: [{ lab_id: null }, { lab_id: req.tenant.lab_id }]
-          } 
-        });
+            where: { 
+              type: sanitizedType,
+              [Op.or]: [{ lab_id: null }, { lab_id: req.tenant.lab_id }]
+            } 
+          });
 
         if (existingSampleType) {
-          errors.push(`Row ${i + 2}: Sample type "${type}" already exists`);
+          // If it's a global one and we're importing, we don't need to do anything
+          // If it's a lab-specific one, it's already there
+          errors.push(`Row ${i + 2}: Sample type "${sanitizedType}" already exists`);
           continue;
         }
 
         // Create new sample type specifically for this lab
         await sample_type.create({
-          type: type.toString().trim(),
+          type: sanitizedType,
           lab_id: req.tenant.lab_id
         });
 
