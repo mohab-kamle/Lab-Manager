@@ -40,6 +40,7 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
       setSelectedIds([]);
       setError(null);
       setImportResult(null); // Clear any previous import result when reopening
+      setImporting(false);
     }
   }, [show]); // Refetch when opened
 
@@ -109,6 +110,7 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
       onImportSuccess();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to import selected tests");
+    } finally {
       setImporting(false);
     }
   };

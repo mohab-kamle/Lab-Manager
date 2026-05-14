@@ -1,27 +1,39 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('categories_test_and_culture', {
+  return sequelize.define('lab_sample_type_settings', {
     id: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
     },
-    name: {
-      type: DataTypes.STRING(45),
-      allowNull: false
-    },
     lab_id: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: false,
       references: {
         model: 'lab',
         key: 'id'
       }
+    },
+    sample_type_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'sample_type',
+        key: 'id'
+      }
+    },
+    tube_color: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    container_type: {
+      type: DataTypes.STRING(255),
+      allowNull: true
     }
   }, {
     sequelize,
-    tableName: 'categories_test_and_culture',
+    tableName: 'lab_sample_type_settings',
     timestamps: false,
     indexes: [
       {
@@ -33,12 +45,12 @@ module.exports = function(sequelize, DataTypes) {
         ]
       },
       {
-        name: "unique_category_name_per_lab",
+        name: "unique_lab_sample_type",
         unique: true,
         using: "BTREE",
         fields: [
           { name: "lab_id" },
-          { name: "name" },
+          { name: "sample_type_id" },
         ]
       },
     ]

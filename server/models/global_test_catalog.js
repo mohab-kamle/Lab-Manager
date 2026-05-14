@@ -36,6 +36,14 @@ module.exports = function (sequelize, DataTypes) {
         default_structure: {
             type: DataTypes.JSON,
             allowNull: true
+        },
+        default_sample_type_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: 'sample_type',
+                key: 'id'
+            }
         }
     }, {
         sequelize,
@@ -59,6 +67,13 @@ module.exports = function (sequelize, DataTypes) {
                 using: "BTREE",
                 fields: [
                     { name: "loinc_code" },
+                ]
+            },
+            {
+                name: "fk_global_test_catalog_sample_type_idx",
+                using: "BTREE",
+                fields: [
+                    { name: "default_sample_type_id" },
                 ]
             },
         ]

@@ -165,6 +165,7 @@ const Tests = () => {
     name: "",
     description: ""
   });
+  const [isImporting, setIsImporting] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -782,8 +783,11 @@ const Tests = () => {
   const handleImportXLSX = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    
     const formData = new FormData();
     formData.append('file', file);
+    setIsImporting(true);
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${apiUrl}/tests/import`, formData, {
@@ -792,10 +796,25 @@ const Tests = () => {
           'Content-Type': 'multipart/form-data'
         }
       });
-      toast.success(`Imported: ${response.data.imported}, Updated: ${response.data.updated}, Errors: ${response.data.errors.length}`);
+      
+      const { imported, updated, errors } = response.data;
+      
+      if (errors && errors.length > 0) {
+        toast.warning(`Import complete with ${errors.length} errors. Success: ${imported}, Updated: ${updated}`);
+        console.table(errors);
+      } else {
+        toast.success(`Successfully imported: ${imported}, Updated: ${updated}`);
+      }
+      
       await fetchTestsAndRelated();
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to import tests');
+      console.error('Import error:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.details || 'Failed to import tests';
+      toast.error(errorMsg);
+    } finally {
+      setIsImporting(false);
+      // Reset the file input so the same file can be selected again
+      e.target.value = '';
     }
   };
 
@@ -808,10 +827,16 @@ const Tests = () => {
             <Download size={16} className="me-2" />
             Export XLSX
           </Button>
-          <Button variant="outline-info" as="label">
+          <Button variant="outline-info" as="label" disabled={isImporting} style={{ cursor: isImporting ? 'not-allowed' : 'pointer' }}>
             <Upload size={16} className="me-2" />
-            Import Excel
-            <input type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={handleImportXLSX} />
+            {isImporting ? 'Importing...' : 'Import Excel'}
+            <input 
+              type="file" 
+              accept=".xlsx,.xls,.csv" 
+              style={{ display: 'none' }} 
+              onChange={handleImportXLSX} 
+              disabled={isImporting} 
+            />
           </Button>
           <Button variant="primary" onClick={() => setShowGlobalCatalogModal(true)}>
             <Search size={16} className="me-2" />Search Global Catalog
@@ -890,7 +915,20 @@ const Tests = () => {
                   <p><strong>Lab to Lab:</strong> {selectedTest.lab_to_lab_status === 'IN' ? 'In' : selectedTest.lab_to_lab_status === 'OUT' ? 'Out' : selectedTest.lab_to_lab_status || 'N/A'}</p>
                   <p><strong>Lab Name:</strong> {selectedTest.lab_name || 'N/A'}</p>
                   <p><strong>Category:</strong> {selectedTest.category?.name || categories.find(cat => cat.id === selectedTest.category_id)?.name || 'N/A'}</p>
-                  <p><strong>Sample Type:</strong> {selectedTest.sample_type?.type || sampleTypes.find(sample => sample.id === selectedTest.sample_type_id)?.type || 'N/A'}</p>
+                  <p>
+                    <strong>Sample Type:</strong> {(() => {
+                      const st = selectedTest.sample_type || sampleTypes.find(s => s.id === selectedTest.sample_type_id);
+                      if (!st) return 'N/A';
+                      return (
+                        <>
+                          {st.type}
+                          <span className="ms-2 small text-muted">
+                            ({st.tube_color || 'No Tube Specified'} | {st.container_type || 'No Container Specified'})
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </p>
                 </Col>
                 <Col md={6}>
                   <h6>Medical Information</h6>
@@ -1108,7 +1146,9 @@ const Tests = () => {
                         sample.type.toLowerCase().includes(sampleTypeSearchTerm.toLowerCase())
                       )
                       .map(sample => (
-                        <option key={sample.id} value={sample.id}>{sample.type}</option>
+                        <option key={sample.id} value={sample.id}>
+                          {sample.type} ({sample.tube_color || 'No Tube'} | {sample.container_type || 'No Container'})
+                        </option>
                       ))}
                   </Form.Select>
                 </Form.Group>
