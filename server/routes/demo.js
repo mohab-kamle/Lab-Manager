@@ -2,19 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const { lab, employee, admin, lab_settings, sequelize, phone_number } = require('../models');
-
-// Configure email transporter 
-var transporter = nodemailer.createTransport({
-  host: 'smtp.zoho.com',
-  port: 465,
-  secure: true, // use SSL
-  auth: {
-      user: process.env.EMAIL_USER || 'myzoho@zoho.com',
-      pass: process.env.EMAIL_PASS || 'myPassword'
-  }
-});
+const EmailService = require('../services/email/email.service');
 
 // Request demo account
 router.post('/request', async (req, res) => {
@@ -221,7 +209,7 @@ router.post('/request', async (req, res) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await EmailService.sendEmail(email, mailOptions.subject, mailOptions.html);
 
     res.json({
       success: true,

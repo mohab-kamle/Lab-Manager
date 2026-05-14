@@ -25,8 +25,8 @@ Allow: /know-us
 # Crawl delay (optional - be respectful to server resources)
 Crawl-delay: 1
 
-# Sitemap location (you should create this)
-Sitemap: https://labdoctors-laboratories.com/sitemap.xml
+# Sitemap location
+# Sitemap: https://curasystem.online/sitemap.xml
 
 # Notes:
 # - This is a medical system handling sensitive patient data

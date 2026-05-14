@@ -61,6 +61,7 @@ var _inventory_notification = require("./inventory_notification");
 var _lab_whatsapp_account = require("./lab_whatsapp_account");
 var _whatsapp_message = require("./whatsapp_message");
 var _outsourced_lab = require("./outsourced_lab");
+var _otp_verification = require("./otp_verification");
 
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
@@ -119,6 +120,7 @@ function initModels(sequelize) {
   var lab_whatsapp_account = _lab_whatsapp_account(sequelize, DataTypes);
   var whatsapp_message = _whatsapp_message(sequelize, DataTypes);
   var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
+  var otp_verification = _otp_verification(sequelize, DataTypes);
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -664,7 +666,8 @@ function initModels(sequelize) {
     inventory_notification,
     lab_whatsapp_account,
     whatsapp_message,
-    outsourced_lab
+    outsourced_lab,
+    otp_verification
   };
 }
 

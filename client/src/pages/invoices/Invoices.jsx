@@ -160,6 +160,8 @@ const Invoices = () => {
     }
   };
 
+
+
   const formatInputOnBlur = (value, inputSetter) => {
     if (value === "" || isNaN(parseFloat(value))) {
       inputSetter("");
@@ -242,10 +244,11 @@ const Invoices = () => {
           ? axios.get(`${apiUrl}/receptionists`, { headers })
           : Promise.resolve({ data: [] }),
         axios.get(`${apiUrl}/contracts`, { headers }),
-        axios.get(`${apiUrl}/patient/diseases`, { headers }),
+        axios.get(`${apiUrl}/diseases`, { headers }),
         axios.get(`${apiUrl}/doctor`, { headers }), // Fetch doctors
         axios.get(`${apiUrl}/branches`, { headers }),
       ]);
+
 
       setInvoices(invoicesRes.data || []);
       setPatients(patientsRes.data || []);
@@ -3807,6 +3810,11 @@ const Invoices = () => {
                               }
                               placeholder="e.g., Payment pending, Fully paid, Refund needed"
                             />
+                            {giveChange && (invoice.due || 0) < -0.01 && (
+                              <Form.Text className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
+                                Change of EGP {Math.abs(invoice.due || 0).toFixed(2)} is handed to patient
+                              </Form.Text>
+                            )}
                           </Form.Group>
                         </Col>
                       </Row>

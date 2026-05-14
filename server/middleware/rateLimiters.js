@@ -31,8 +31,28 @@ const registrationLimiter = rateLimit({
   message: { error: "Too many registration attempts, please try again later." }
 });
 
+// OTP Send limiter: 5 requests per 15 minutes
+const otpSendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many OTP requests. Please wait before requesting another." }
+});
+
+// OTP Verify limiter: 10 attempts per 15 minutes
+const otpVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many failed attempts. Please try again later." }
+});
+
 module.exports = {
   globalLimiter,
   loginLimiter,
-  registrationLimiter
+  registrationLimiter,
+  otpSendLimiter,
+  otpVerifyLimiter
 };

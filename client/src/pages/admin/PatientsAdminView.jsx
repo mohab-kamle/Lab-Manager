@@ -136,7 +136,7 @@ const PatientsAdminView = () => {
           axios.get(`${apiUrl}/patient`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          axios.get(`${apiUrl}/patient/diseases`, {
+          axios.get(`${apiUrl}/diseases`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
           axios.get(`${apiUrl}/contracts`, {
@@ -788,7 +788,7 @@ const PatientsAdminView = () => {
       });
 
       // Refetch diseases from server to ensure full synchronization
-      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
+      const diseasesRes = await axios.get(`${apiUrl}/diseases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const updatedDiseases = diseasesRes.data || [];

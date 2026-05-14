@@ -77,13 +77,13 @@ const ReceptionistDashboard = () => {
       title: 'View Reports',
       description: 'Check medical reports',
       icon: <ClipboardList size={24} />,
-      action: () => navigate('/admin/dashboard/medical-reports')
+      action: () => navigate(`/${user?.role}/medical-reports`)
     },
     {
       title: 'Patient List',
       description: 'Manage patients',
       icon: <Users size={24} />,
-      action: () => navigate('/admin/dashboard/patients')
+      action: () => navigate(`/${user?.role}/patients`)
     },
     {
       title: 'Settlement',
@@ -169,7 +169,7 @@ const ReceptionistDashboard = () => {
             <Card.Body>
               <Row>
                 {quickActions.map((action, index) => (
-                  <Col md={12} lg={true} key={index} className="mb-3">
+                  <Col xs={6} md={4} lg={2} key={index} className="mb-3">
                     <Button
                       className="btn-dashboard-action w-100"
                       onClick={action.action}
@@ -202,11 +202,11 @@ const ReceptionistDashboard = () => {
                         <strong>Invoice #{invoice.id}</strong>
                         <br />
                         <small className="text-muted">
-                          {invoice.patient?.name || 'Unknown Patient'}
+                          {invoice.patient_name || 'Unknown Patient'}
                         </small>
                       </div>
-                      <Badge bg={invoice.status === 'paid' ? 'success' : 'warning'}>
-                        {invoice.status || 'pending'}
+                      <Badge bg={(invoice.status?.state || invoice.status) === 'paid' ? 'success' : 'warning'}>
+                        {invoice.status?.state || invoice.status || 'pending'}
                       </Badge>
                     </ListGroup.Item>
                   ))}

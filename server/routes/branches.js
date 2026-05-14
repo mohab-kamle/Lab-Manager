@@ -25,11 +25,11 @@ const upload = multer({
 });
 
 // Get all branches for the user
-router.get('/', authenticateUser , authorizeRoles('admin'), async (req, res) => {
+router.get('/', authenticateUser , authorizeRoles('admin', 'receptionist'), tenantContext, async (req, res) => {
     try {
         const branches = await branch.findAll({
             where: {
-                manager_id: req.user.id
+                lab_id: req.tenant.lab_id
             },
             order: [['name', 'ASC']]
         });
