@@ -66,6 +66,10 @@ var _reconciliation = require("./reconciliation");
 var _reconciliation_item = require("./reconciliation_item");
 var _otp_verification = require("./otp_verification");
 
+/**
+ * Instantiate all Sequelize model factories, wire their associations, and expose the created models.
+ * @param {import("sequelize").Sequelize} sequelize - Sequelize instance used to initialize the model factories.
+ * @returns {Object} An object mapping model names to the instantiated Sequelize model objects (e.g., `admin`, `bill`, `patient`, `test`, `medical_report`, `lab_sample_type_settings`, etc.) with associations already configured.
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
   var admin_packages_and_offers = _admin_packages_and_offers(sequelize, DataTypes);

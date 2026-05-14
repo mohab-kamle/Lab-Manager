@@ -45,6 +45,16 @@ const hardwareDictionary = {
   'Urine': { tube_color: 'Yellow Cap', container_type: 'Sterile Cup', standard_code: '122575003' }
 };
 
+/**
+ * Run the full ETL pipeline that builds and persists the Smart LIMS global test catalog.
+ *
+ * Extracts core LOINC tests, assembles panel hierarchies (and backfills missing children),
+ * merges consumer-friendly names, constructs UI dropdown answer options, upserts sample type
+ * records, and upserts the final test/catalog records into the database while seeding categories.
+ *
+ * Side effects: reads CSV data files, writes/updates `sample_type`, `global_test_catalog`,
+ * and `categories_test_and_culture` records in the database.
+ */
 async function runETL() {
   console.log("Starting Smart LIMS Master ETL Pipeline...");
   
