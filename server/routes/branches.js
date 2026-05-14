@@ -254,7 +254,7 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
         imported,
         duplicates: skipped,
         errors: errors.length,
-        total: data.length
+        total: imported + skipped + errors.length
       },
       errorDetails: errors,
       message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`

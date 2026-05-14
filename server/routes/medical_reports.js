@@ -1317,9 +1317,15 @@ router.post(
           }
           let report = null;
           if (row.ID) {
-            report = await db.medical_report.findOne({ 
-              where: { id: row.ID, lab_id: req.tenant.lab_id } 
-            });
+            const reportId = Number(row.ID);
+            if (Number.isFinite(reportId) && reportId > 0) {
+              report = await db.medical_report.findOne({ 
+                where: { id: reportId, lab_id: req.tenant.lab_id } 
+              });
+            } else {
+              errors.push(`Row ${i + 2}: Invalid Medical Report ID format`);
+              continue;
+            }
           }
           const reportData = {
             patient_id: row["Patient ID"],
