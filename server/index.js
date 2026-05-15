@@ -350,6 +350,7 @@ app.use("/analytics", require("./routes/analytics"));
 app.use("/whatsapp", require("./routes/whatsapp.routes"));
 app.use("/reconciliation", require("./routes/reconciliation"));
 app.use("/auth", require("./routes/auth"));
+app.use("/tracked-samples", require("./routes/tracked_samples"));
 
 // Global error handler
 app.use((error, req, res, next) => {
