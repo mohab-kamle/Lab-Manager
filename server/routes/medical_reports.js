@@ -1899,21 +1899,44 @@ router.get(
         return res.status(404).json({ error: "Medical report not found" });
       }
 
-      // Also get existing results if any
-      const existingResults = await db.medical_report_results.findAll({
-        where: { medical_report_id: report.id }
-      });
+      // Get results from BOTH tables for full coverage
+      const [dynamicResults, mainResults] = await Promise.all([
+        db.medical_report_results.findAll({ where: { medical_report_id: report.id } }),
+        db.medical_report_has_test.findAll({ where: { medical_report_id: report.id } })
+      ]);
 
       const resultsMap = {};
-      existingResults.forEach(r => {
+
+      // 1. Process main results (simple tests)
+      mainResults.forEach(r => {
         if (!resultsMap[r.test_id]) resultsMap[r.test_id] = {};
+        resultsMap[r.test_id]["result"] = {
+          value: r.result,
+          clinical_flag: r.status || "pending"
+        };
+      });
+
+      // 2. Process dynamic results (override or add components)
+      dynamicResults.forEach(r => {
+        if (!resultsMap[r.test_id]) resultsMap[r.test_id] = {};
+        
         let val = r.result_value;
+        let status = r.clinical_flag;
+
+        // Flatten if it's the new { result, status } structure
         try {
-          if (typeof val === 'string') val = JSON.parse(val);
+          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+          if (parsed && typeof parsed === 'object' && parsed.result !== undefined) {
+            val = parsed.result;
+            status = parsed.status || status;
+          } else {
+            val = parsed;
+          }
         } catch (e) { }
+
         resultsMap[r.test_id][r.parameter_key] = {
           value: val,
-          clinical_flag: r.clinical_flag
+          clinical_flag: status || "pending"
         };
       });
 

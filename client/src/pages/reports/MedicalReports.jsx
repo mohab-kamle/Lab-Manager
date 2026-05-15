@@ -801,10 +801,15 @@ const MedicalReports = () => {
           // Check if this test has a simple 'result' (fallback type)
           // or if it has component results
           if (test.results.result !== undefined) {
+            // Handle both flat string and { value, clinical_flag } object
+            const resObj = test.results.result;
+            const finalVal = (resObj && typeof resObj === 'object' && resObj.value !== undefined) ? resObj.value : resObj;
+            const finalStatus = (resObj && typeof resObj === 'object' && resObj.clinical_flag !== undefined) ? resObj.clinical_flag : (test.results.status || "pending");
+
             initialTestResults.push({
               test_id: test.id,
-              result: test.results.result,
-              status: test.results.status || "pending",
+              result: finalVal,
+              status: finalStatus,
             });
           }
 
