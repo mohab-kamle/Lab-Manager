@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Card, Button, ListGroup, Spinner, Alert, Badge } from 'react-bootstrap';
-import { Eye, FileText, Plus, Activity, User, ClipboardList, TestTube, Beaker, TrendingUp, AlertTriangle, CheckCircle, Users, ScanBarcode } from 'lucide-react';
+import { Eye, FileText, Plus, Activity, User, ClipboardList, TestTube, Beaker, TrendingUp, AlertTriangle, CheckCircle, Users, ScanBarcode, FlaskConical, Microscope, LayoutGrid, FlaskRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -53,32 +53,47 @@ const EmployeeDashboard = () => {
     fetchStats();
   }, [apiUrl]);
 
-  const quickActions = [
+  const actions = [
     {
-      title: 'Scan Sample',
-      description: 'Quick scan a sample barcode',
-      icon: <ScanBarcode size={24} />,
-      action: () => setShowScanModal(true)
+      icon: <ScanBarcode size={20} />,
+      label: 'Scan Sample',
+      onClick: () => setShowScanModal(true),
     },
     {
-      title: 'View Reports',
-      description: 'Browse medical reports',
-      icon: <FileText size={24} />,
-      action: () => navigate('/admin/dashboard/medical-reports')
+      icon: <FileText size={20} />,
+      label: 'Medical Reports',
+      onClick: () => navigate(`/${user.role}/medical-reports`),
     },
     {
-      title: 'View Tests',
-      description: 'Browse test catalog',
-      icon: <TestTube size={24} />,
-      action: () => navigate('/admin/dashboard/tests')
+      icon: <Activity size={20} />,
+      label: 'Samples Kanban',
+      onClick: () => navigate(`/${user.role}/samples-kanban`),
     },
-
     {
-      title: 'View Invoices',
-      description: 'Browse invoices',
-      icon: <ClipboardList size={24} />,
-      action: () => navigate('/admin/dashboard/invoices')
-    }
+      icon: <ClipboardList size={20} />,
+      label: 'Invoices',
+      onClick: () => navigate(`/${user.role}/invoices`),
+    },
+    {
+      icon: <Microscope size={20} />,
+      label: 'Test Catalog',
+      onClick: () => navigate(`/${user.role}/tests`),
+    },
+    {
+      icon: <LayoutGrid size={20} />,
+      label: 'Categories',
+      onClick: () => navigate(`/${user.role}/categories`),
+    },
+    {
+      icon: <FlaskRound size={20} />,
+      label: 'Outsourced Labs',
+      onClick: () => navigate(`/${user.role}/outsourced-labs`),
+    },
+    {
+      icon: <User size={20} />,
+      label: 'My Profile',
+      onClick: () => navigate('/employee/profile'),
+    },
   ];
 
   if (loading) {
@@ -108,61 +123,55 @@ const EmployeeDashboard = () => {
       )}
 
       {/* Stats Cards */}
-      <Row className="mb-4">
-        <Col md={4}>
-          <Card className="text-center h-100">
+      <Row className="g-3 mb-3">
+        <Col xs={6} sm={4}>
+          <Card className="text-center h-100 shadow-sm border-0">
             <Card.Body>
-              <FileText size={32} className="text-primary mb-2" />
-              <h4>{stats?.totalReports || 0}</h4>
-              <p className="text-muted mb-0">Medical Reports</p>
+              <div className="mb-2 text-primary">
+                <FileText size={28} />
+              </div>
+              <h4 className="mb-1">{stats?.totalReports || 0}</h4>
+              <div className="text-muted small">Medical Reports</div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card className="text-center h-100">
+        <Col xs={6} sm={4}>
+          <Card className="text-center h-100 shadow-sm border-0">
             <Card.Body>
-              <TestTube size={32} className="text-success mb-2" />
-              <h4>{stats?.totalTests || 0}</h4>
-              <p className="text-muted mb-0">Available Tests</p>
+              <div className="mb-2 text-success">
+                <TestTube size={28} />
+              </div>
+              <h4 className="mb-1">{stats?.totalTests || 0}</h4>
+              <div className="text-muted small">Available Tests</div>
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card className="text-center h-100">
+        <Col xs={12} sm={4}>
+          <Card className="text-center h-100 shadow-sm border-0">
             <Card.Body>
-              <ClipboardList size={32} className="text-warning mb-2" />
-              <h4>{stats?.totalInvoices || 0}</h4>
-              <p className="text-muted mb-0">Total Invoices</p>
+              <div className="mb-2 text-warning">
+                <ClipboardList size={28} />
+              </div>
+              <h4 className="mb-1">{stats?.totalInvoices || 0}</h4>
+              <div className="text-muted small">Total Invoices</div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Quick Actions */}
-      <Row className="mb-4">
-        <Col>
-          <Card>
-            <Card.Header>
-              <h5 className="mb-0">Quick Actions (Read-Only)</h5>
-            </Card.Header>
-            <Card.Body>
-              <Row>
-                {quickActions.map((action, index) => (
-                  <Col md={3} key={index} className="mb-3">
-                    <Button
-                      className="btn-dashboard-action w-100"
-                      onClick={action.action}
-                    >
-                      <div className="mb-1">{action.icon}</div>
-                      <strong>{action.title}</strong>
-                      <small className="d-block text-center mt-1">{action.description}</small>
-                    </Button>
-                  </Col>
-                ))}
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
+      {/* Action Shortcuts */}
+      <Row className="g-3 mb-4">
+        {actions.map((action, idx) => (
+          <Col xs={6} sm={3} key={idx}>
+            <Button
+              className="btn-dashboard-action w-100"
+              onClick={action.onClick}
+            >
+              {action.icon}
+              <span className="small fw-bold">{action.label}</span>
+            </Button>
+          </Col>
+        ))}
       </Row>
 
       {/* Recent Activity */}

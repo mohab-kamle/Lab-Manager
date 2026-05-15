@@ -16,10 +16,12 @@ const ChemistDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const apiUrl = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
-      resetNavbarTitles();
-      resetNavbarActiveState();
-    }, []);
+    resetNavbarTitles();
+    resetNavbarActiveState();
+  }, []);
+
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
@@ -28,20 +30,19 @@ const ChemistDashboard = () => {
         const token = localStorage.getItem('token');
         const headers = { Authorization: `Bearer ${token}` };
         
-        // Fetch chemist-specific stats
         const [reportsResponse, testsResponse] = await Promise.all([
           axios.get(`${apiUrl}/medical-reports`, { headers }),
           axios.get(`${apiUrl}/tests`, { headers })
         ]);
 
-        const stats = {
+        const statsData = {
           totalReports: reportsResponse.data.length || 0,
           totalTests: testsResponse.data.length || 0,
           recentReports: reportsResponse.data.slice(0, 5) || [],
           pendingReports: reportsResponse.data.filter(report => report.status === 'pending').length || 0
         };
 
-        setStats(stats);
+        setStats(statsData);
       } catch (err) {
         console.error('Error fetching stats:', err);
         setError('Failed to load dashboard stats.');
@@ -51,187 +52,184 @@ const ChemistDashboard = () => {
     fetchStats();
   }, [apiUrl]);
 
-  const quickActions = [
+  const actions = [
     {
-      title: 'Scan Sample',
-      description: 'Quick scan a sample barcode',
-      icon: <ScanBarcode size={24} />,
-      action: () => setShowScanModal(true)
+      icon: <ScanBarcode size={20} />,
+      label: 'Scan Sample',
+      onClick: () => setShowScanModal(true),
     },
     {
-      title: 'Medical Reports',
-      description: 'View and manage reports',
-      icon: <FileText size={24} />,
-      action: () => navigate('/admin/dashboard/medical-reports')
+      icon: <FileText size={20} />,
+      label: 'Medical Reports',
+      onClick: () => navigate('/chemist/medical-reports'),
     },
     {
-      title: 'Test Groups',
-      description: 'Manage test configurations',
-      icon: <TestTube size={24} />,
-      action: () => navigate('/admin/dashboard/test-groups')
+      icon: <Activity size={20} />,
+      label: 'Samples Kanban',
+      onClick: () => navigate('/chemist/samples-kanban'),
     },
     {
-      title: 'Tests',
-      description: 'View test catalog',
-      icon: <Microscope size={24} />,
-      action: () => navigate('/admin/dashboard/tests')
-    }
+      icon: <Microscope size={20} />,
+      label: 'Test Catalog',
+      onClick: () => navigate('/chemist/tests'),
+    },
+    {
+      icon: <Beaker size={20} />,
+      label: 'Inventory',
+      onClick: () => navigate('/chemist/inventory'),
+    },
+    {
+      icon: <TrendingUp size={20} />,
+      label: 'TAT Analytics',
+      onClick: () => navigate('/chemist/tat-analytics'),
+    },
+    {
+      icon: <Plus size={20} />,
+      label: 'Packages',
+      onClick: () => navigate('/chemist/packages-and-offers'),
+    },
+    {
+      icon: <CheckCircle size={20} />,
+      label: 'My Profile',
+      onClick: () => navigate('/chemist/profile'),
+    },
   ];
 
   if (loading) {
-    return (
-      <LoadingSpinner message="Loading dashboard stats..." />
-    );
+    return <LoadingSpinner message="Loading dashboard stats..." />;
   }
   
   return (
     <>
-    <SampleQuickInfoModal show={showScanModal} onHide={() => setShowScanModal(false)} />
-    <Container fluid className="py-4">
-      <Row className="mb-4">
-        <Col>
-          <h2 className="mb-3 text-center text-md-center">
-            <FlaskConical size={28} className="me-2" />
-            Chemist Dashboard
-          </h2>
-          <p className="text-muted">Welcome back, {user?.name || 'Chemist'}! Manage lab work, test results, and medical reports.</p>
-        </Col>
-      </Row>
+      <SampleQuickInfoModal show={showScanModal} onHide={() => setShowScanModal(false)} />
+      <Container fluid className="py-3 px-2 px-md-4">
+        <h2 className="mb-3 text-center text-md-center">
+          <FlaskConical size={28} className="me-2" />
+          Chemist Dashboard
+        </h2>
+        
+        {error && (
+          <Alert variant="danger" className="mb-4">
+            {error}
+          </Alert>
+        )}
 
-      {error && (
-        <Alert variant="danger" className="mb-4">
-          {error}
-        </Alert>
-      )}
+        {/* Stats Cards */}
+        <Row className="g-3 mb-3">
+          <Col xs={6} sm={4}>
+            <Card className="text-center h-100 shadow-sm border-0">
+              <Card.Body>
+                <div className="mb-2 text-primary">
+                  <FileText size={28} />
+                </div>
+                <h4 className="mb-1">{stats?.totalReports || 0}</h4>
+                <div className="text-muted small">Total Reports</div>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col xs={6} sm={4}>
+            <Card className="text-center h-100 shadow-sm border-0">
+              <Card.Body>
+                <div className="mb-2 text-warning">
+                  <AlertTriangle size={28} />
+                </div>
+                <h4 className="mb-1">{stats?.pendingReports || 0}</h4>
+                <div className="text-muted small">Pending Reports</div>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col xs={12} sm={4}>
+            <Card className="text-center h-100 shadow-sm border-0">
+              <Card.Body>
+                <div className="mb-2 text-success">
+                  <TestTube size={28} />
+                </div>
+                <h4 className="mb-1">{stats?.totalTests || 0}</h4>
+                <div className="text-muted small">Available Tests</div>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
 
-      {/* Stats Cards */}
-      <Row className="mb-4">
-        <Col md={4}>
-          <Card className="text-center h-100">
-            <Card.Body>
-              <FileText size={32} className="text-primary mb-2" />
-              <h4>{stats?.totalReports || 0}</h4>
-              <p className="text-muted mb-0">Total Reports</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card className="text-center h-100">
-            <Card.Body>
-              <AlertTriangle size={32} className="text-warning mb-2" />
-              <h4>{stats?.pendingReports || 0}</h4>
-              <p className="text-muted mb-0">Pending Reports</p>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={4}>
-          <Card className="text-center h-100">
-            <Card.Body>
-              <TestTube size={32} className="text-success mb-2" />
-              <h4>{stats?.totalTests || 0}</h4>
-              <p className="text-muted mb-0">Available Tests</p>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+        {/* Action Shortcuts */}
+        <Row className="g-3 mb-4">
+          {actions.map((action, idx) => (
+            <Col xs={6} sm={3} key={idx}>
+              <Button
+                className="btn-dashboard-action w-100"
+                onClick={action.onClick}
+              >
+                {action.icon}
+                <span className="small fw-bold">{action.label}</span>
+              </Button>
+            </Col>
+          ))}
+        </Row>
 
-      {/* Quick Actions */}
-      <Row className="mb-4">
-        <Col>
-          <Card>
-            <Card.Header>
-              <h5 className="mb-0">Quick Actions</h5>
-            </Card.Header>
-            <Card.Body>
-              <Row>
-                {quickActions.map((action, index) => (
-                  <Col md={4} key={index} className="mb-3">
-                    <Button
-                      className="btn-dashboard-action w-100"
-                      onClick={action.action}
-                    >
-                      <div className="mb-1">{action.icon}</div>
-                      <strong>{action.title}</strong>
-                      <small className="d-block text-center mt-1">{action.description}</small>
-                    </Button>
-                  </Col>
-                ))}
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Recent Activity */}
-      <Row>
-        <Col md={6}>
-          <Card>
-            <Card.Header>
-              <h5 className="mb-0">Recent Medical Reports</h5>
-            </Card.Header>
-            <Card.Body>
-              {stats?.recentReports?.length > 0 ? (
-                <ListGroup variant="flush">
-                  {stats.recentReports.map((report, index) => (
-                    <ListGroup.Item key={index} className="d-flex justify-content-between align-items-center">
-                      <div>
-                        <strong>Report #{report.id}</strong>
-                        <br />
-                        <small className="text-muted">
-                          Patient: {report.patient?.name || 'Unknown'}
-                        </small>
-                      </div>
-                      <Badge bg={report.status === 'completed' ? 'success' : report.status === 'pending' ? 'warning' : 'secondary'}>
-                        {report.status || 'pending'}
-                      </Badge>
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
-              ) : (
-                <p className="text-muted text-center">No recent reports</p>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={6}>
-          <Card>
-            <Card.Header>
-              <h5 className="mb-0">Lab Status</h5>
-            </Card.Header>
-            <Card.Body>
+        <Row>
+          <Col md={6} className="mb-3">
+            <Card className="shadow-sm border-0">
+              <Card.Header className="bg-theme fw-bold">
+                Recent Medical Reports
+              </Card.Header>
+              <Card.Body className="p-0">
+                {stats?.recentReports?.length > 0 ? (
+                  <ListGroup variant="flush">
+                    {stats.recentReports.map((report, index) => (
+                      <ListGroup.Item key={index} className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>Report #{report.id}</strong>
+                          <div className="text-muted small">
+                            Patient: {report.patient?.name || 'Unknown'}
+                          </div>
+                        </div>
+                        <Badge bg={report.status === 'completed' ? 'success' : report.status === 'pending' ? 'warning' : 'secondary'}>
+                          {report.status || 'pending'}
+                        </Badge>
+                      </ListGroup.Item>
+                    ))}
+                  </ListGroup>
+                ) : (
+                  <div className="p-3 text-muted text-center">No recent reports</div>
+                )}
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={6}>
+            <Card className="shadow-sm border-0">
+              <Card.Header className="bg-theme fw-bold">
+                Lab Status
+              </Card.Header>
               <ListGroup variant="flush">
                 <ListGroup.Item className="d-flex justify-content-between align-items-center">
                   <div>
                     <strong>Equipment Status</strong>
-                    <br />
-                    <small className="text-muted">All systems operational</small>
+                    <div className="text-muted small">All systems operational</div>
                   </div>
                   <CheckCircle size={20} className="text-success" />
                 </ListGroup.Item>
                 <ListGroup.Item className="d-flex justify-content-between align-items-center">
                   <div>
                     <strong>Sample Processing</strong>
-                    <br />
-                    <small className="text-muted">Normal queue</small>
+                    <div className="text-muted small">Normal queue</div>
                   </div>
                   <Badge bg="info">Normal</Badge>
                 </ListGroup.Item>
                 <ListGroup.Item className="d-flex justify-content-between align-items-center">
                   <div>
                     <strong>Quality Control</strong>
-                    <br />
-                    <small className="text-muted">All tests passed</small>
+                    <div className="text-muted small">All tests passed</div>
                   </div>
                   <CheckCircle size={20} className="text-success" />
                 </ListGroup.Item>
               </ListGroup>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
     </>
   );
 };
 
-export default ChemistDashboard; 
+export default ChemistDashboard;
+ 
