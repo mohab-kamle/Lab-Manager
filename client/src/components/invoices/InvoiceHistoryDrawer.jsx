@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Offcanvas, Table, Badge, Spinner } from 'react-bootstrap';
 import { formatDate } from '../../utils/dateFormatter';
-import { History, PlusCircle, CircleDollarSign, Undo, CheckCheck, Clock } from 'lucide-react';
-import axios from 'axios';
-
+import { History, PlusCircle, CircleDollarSign, Undo, CheckCheck, Clock, Activity } from 'lucide-react';
+import api from '../../utils/api';
 const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -17,55 +16,8 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      // Mock API call - replace with actual endpoint
-      // const response = await axios.get(`/api/invoices/${invoiceId}/history`);
-      // setHistory(response.data);
-
-      // Mock data based on implementation plan
-      const mockHistory = [
-        {
-          type: 'Creation',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Invoice opened',
-          user: 'Admin Sarah',
-          status: 'Pending'
-        },
-        {
-          type: 'Payment',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Paid $50.00 via Cash',
-          user: 'Receptionist John',
-          amount: 50.00,
-          method: 'Cash',
-          remaining: 100.00
-        },
-        {
-          type: 'Payment',
-          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Paid $100.00 via Visa',
-          user: 'Receptionist John',
-          amount: 100.00,
-          method: 'Visa',
-          remaining: 0.00
-        },
-        {
-          type: 'StatusChange',
-          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Moved to Fully Paid',
-          user: 'System'
-        },
-        {
-          type: 'Refund',
-          date: new Date().toISOString(),
-          details: 'Partial Refund of $30.00',
-          user: 'Admin Sarah',
-          authKeyName: 'Sarah_ManagerKey1',
-          amount: 30.00,
-          refundType: 'Partial'
-        }
-      ].reverse(); // Show newest first
-      
-      setHistory(mockHistory);
+      const response = await api.get(`/invoices/${invoiceId}/history`);
+      setHistory(response.data || []);
     } catch (error) {
       console.error('Failed to fetch invoice history:', error);
     } finally {
@@ -75,10 +27,11 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
 
   const getEventIcon = (type) => {
     switch (type) {
-      case 'Creation': return <PlusCircle size={18} className="text-primary" />;
-      case 'Payment': return <CircleDollarSign size={18} className="text-success" />;
-      case 'Refund': return <Undo size={18} className="text-danger" />;
-      case 'StatusChange': return <CheckCheck size={18} className="text-info" />;
+      case 'created': return <PlusCircle size={18} className="text-primary" />;
+      case 'payment': return <CircleDollarSign size={18} className="text-success" />;
+      case 'refund': return <Undo size={18} className="text-danger" />;
+      case 'status_change': return <CheckCheck size={18} className="text-info" />;
+      case 'activity': return <Activity size={18} className="text-warning" />;
       default: return <Clock size={18} className="text-secondary" />;
     }
   };
@@ -115,15 +68,17 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
                 </div>
                 <div className="timeline-content pb-4 flex-grow-1 border-bottom">
                   <div className="d-flex justify-content-between align-items-start mb-1">
-                    <h6 className="mb-0 fw-bold text-theme">{event.type}</h6>
+                    <h6 className="mb-0 fw-bold text-theme text-capitalize">{event.type.replace('_', ' ')}</h6>
                     <span className="small text-muted">{formatDate(new Date(event.date))}</span>
                   </div>
-                   <p className="mb-2 text-theme opacity-75">{event.details}</p>
+                   <p className="mb-2 text-theme opacity-75">{event.summary}</p>
                   
                   <div className="d-flex flex-wrap gap-2 align-items-center">
-                     <Badge bg="subtle" className="text-theme border border-muted font-weight-normal">
-                       By: {event.user}
-                     </Badge>
+                     {event.user && (
+                       <Badge bg="subtle" className="text-theme border border-muted font-weight-normal">
+                         By: {event.user}
+                       </Badge>
+                     )}
                     
                     {event.method && (
                       <Badge bg="info" className="text-white border border-info font-weight-normal">
@@ -131,18 +86,38 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
                       </Badge>
                     )}
                     
-                    {event.authKeyName && (
+                    {event.authorized_by && (
                       <Badge bg="warning" className="text-theme border border-muted font-weight-normal">
-                        Auth Key: {event.authKeyName}
+                        Auth Key: {event.authorized_by}
                       </Badge>
                     )}
                     
-                    {event.remaining !== undefined && (
-                      <Badge bg={event.remaining === 0 ? 'success' : 'secondary'} className="font-weight-normal">
-                        Due: ${event.remaining.toFixed(2)}
+                    {event.amount !== undefined && (
+                      <Badge bg={event.type === 'refund' ? 'danger' : 'success'} className="font-weight-normal">
+                        Amount: ${parseFloat(event.amount).toFixed(2)}
+                      </Badge>
+                    )}
+
+                    {event.type === 'status_change' && (
+                      <Badge bg="secondary" className="font-weight-normal">
+                        {event.from} &rarr; {event.to}
                       </Badge>
                     )}
                   </div>
+
+                  {event.type === 'activity' && event.details && event.details.diff && (
+                    <div className="mt-2 p-2 bg-theme-inset rounded small border border-muted">
+                      <div className="fw-bold mb-1 opacity-75">Changes:</div>
+                      {Object.entries(event.details.diff).map(([key, changes]) => (
+                        <div key={key} className="d-flex align-items-center gap-2">
+                          <span className="text-muted text-capitalize">{key}:</span>
+                          <span className="text-danger text-decoration-line-through">{JSON.stringify(changes.old)}</span>
+                          <span>&rarr;</span>
+                          <span className="text-success">{JSON.stringify(changes.new)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
