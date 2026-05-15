@@ -553,6 +553,7 @@ async function getSubscriptionDetails(plan, transaction = null) {
     
     // Fallback to hardcoded plans if not found in database
     const fallbackPlans = {
+      free_trial: { duration: 7 * 24 * 60 * 60 * 1000, amount: 0 },
       monthly: { duration: 30 * 24 * 60 * 60 * 1000, amount: 29 },
       '3_months': { duration: 90 * 24 * 60 * 60 * 1000, amount: 79 },
       '6_months': { duration: 180 * 24 * 60 * 60 * 1000, amount: 149 },
@@ -599,12 +600,6 @@ async function createPaymentIntention(registrationData, subscriptionDetails) {
         };
     }
     
-    // Validate payment gateway configuration
-    if (!paymobConfig.apiKey || !paymobConfig.integrationId) {
-      console.error('Payment gateway configuration missing');
-      return false;
-    }
-    
     // Convert amount to cents
     const amountCents = Math.round(subscriptionDetails.amount * 100);
     
@@ -646,6 +641,12 @@ async function createPaymentIntention(registrationData, subscriptionDetails) {
         amount: 0,
         currency: 'EGP'
       };
+    }
+
+    // Validate payment gateway configuration
+    if (!paymobConfig.apiKey || !paymobConfig.integrationId) {
+      console.error('Payment gateway configuration missing');
+      return false;
     }
     
     // Prepare billing data from subscription data

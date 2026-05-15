@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
 const db = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
@@ -627,6 +628,44 @@ router.post(
       // Associate tests if provided
       if (test_ids && test_ids.length > 0) {
         await report.setTests(test_ids);
+
+        // ── Auto-create tracked samples for each test ──────────────
+        // Each test gets a lab_samples record with a unique barcode-friendly ID.
+        const now = new Date().toISOString();
+        for (const testId of test_ids) {
+          const parsedTestId = parseInt(testId);
+          // Fetch the test to get its sample_type_id, scoped to this lab
+          const testRecord = await db.test.findOne({
+            where: { id: parsedTestId, lab_id },
+            attributes: ['id', 'sample_type_id'],
+          });
+
+          // Skip sample creation for tests that don't belong to this lab
+          if (!testRecord) {
+            console.warn(`[MEDICAL_REPORT] Skipping sample creation for test ${parsedTestId}: not found or lab mismatch.`);
+            continue;
+          }
+
+          // Generate a unique, barcode-scannable sample ID matching tracked_samples pattern
+          const sampleId = `SMP-${crypto.randomUUID()}`;
+
+          await db.lab_samples.create({
+            sample_id: sampleId,
+            medical_report_id: report.id,
+            test_id: parsedTestId,
+            sample_type_id: testRecord?.sample_type_id || null,
+            status: 'Pending Collection',
+            status_history: {
+              pending_collection_at: now,
+              collected_at: null,
+              dispatched_at: null,
+              in_process_at: null,
+              completed_at: null,
+              rejected_at: null,
+            }
+          });
+        }
+        console.log(`[MEDICAL_REPORT] Auto-created ${test_ids.length} tracked sample(s) for report ${report.id}`);
       }
       // Fetch the created report with associations
       const createdReport = await db.medical_report.findByPk(report.id, {
@@ -1899,21 +1938,44 @@ router.get(
         return res.status(404).json({ error: "Medical report not found" });
       }
 
-      // Also get existing results if any
-      const existingResults = await db.medical_report_results.findAll({
-        where: { medical_report_id: report.id }
-      });
+      // Get results from BOTH tables for full coverage
+      const [dynamicResults, mainResults] = await Promise.all([
+        db.medical_report_results.findAll({ where: { medical_report_id: report.id } }),
+        db.medical_report_has_test.findAll({ where: { medical_report_id: report.id } })
+      ]);
 
       const resultsMap = {};
-      existingResults.forEach(r => {
+
+      // 1. Process main results (simple tests)
+      mainResults.forEach(r => {
         if (!resultsMap[r.test_id]) resultsMap[r.test_id] = {};
+        resultsMap[r.test_id]["result"] = {
+          value: r.result,
+          clinical_flag: r.status || "pending"
+        };
+      });
+
+      // 2. Process dynamic results (override or add components)
+      dynamicResults.forEach(r => {
+        if (!resultsMap[r.test_id]) resultsMap[r.test_id] = {};
+        
         let val = r.result_value;
+        let status = r.clinical_flag;
+
+        // Flatten if it's the new { result, status } structure
         try {
-          if (typeof val === 'string') val = JSON.parse(val);
+          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+          if (parsed && typeof parsed === 'object' && parsed.result !== undefined) {
+            val = parsed.result;
+            status = parsed.status || status;
+          } else {
+            val = parsed;
+          }
         } catch (e) { }
+
         resultsMap[r.test_id][r.parameter_key] = {
           value: val,
-          clinical_flag: r.clinical_flag
+          clinical_flag: status || "pending"
         };
       });
 
@@ -1975,8 +2037,8 @@ router.post(
         where: { id: test_id }
       });
 
-      if (!test || !test.structure_config) {
-        return res.status(400).json({ error: "Test not found or has no structure config" });
+      if (!test) {
+        return res.status(404).json({ error: "Test not found" });
       }
 
       // Age calculation is simplified to years for now
@@ -2073,6 +2135,30 @@ router.post(
           }));
 
           await db.medical_report_results.bulkCreate(preparedResults, { transaction: t });
+
+          // Update main medical_report_has_test table for backward compatibility and status tracking
+          let mainStatus = "done";
+          let mainResult = null;
+
+          // If there's a result with key 'result', it's likely a simple test save
+          if (results.result !== undefined) {
+            mainResult = String(results.result ?? '').trim();
+            // If we have a clinical flag for it, use it, otherwise 'done'
+            const resultEntry = resultsToSave.find(r => r.parameter_key === 'result');
+            mainStatus = resultEntry ? resultEntry.clinical_flag : (mainResult !== "" ? "done" : "pending");
+          }
+
+          await db.medical_report_has_test.update(
+            {
+              result: mainResult,
+              status: mainStatus,
+              updatedAt: new Date()
+            },
+            {
+              where: { medical_report_id: report.id, test_id: test.id },
+              transaction: t
+            }
+          );
 
           // Stamp received_at now that results have been entered
           if (preparedResults.length > 0) {

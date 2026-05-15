@@ -672,6 +672,17 @@ function initModels(sequelize) {
 
   manager_key.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(manager_key, { as: "manager_keys", foreignKey: "lab_id" });
+  lab_samples.belongsTo(medical_report, { as: "medical_report", foreignKey: "medical_report_id"});
+
+  medical_report.hasMany(lab_samples, { as: "lab_samples", foreignKey: "medical_report_id"});
+
+  lab_samples.belongsTo(test, { as: "test", foreignKey: "test_id"});
+
+  test.hasMany(lab_samples, { as: "lab_samples", foreignKey: "test_id"});
+
+  lab_samples.belongsTo(sample_type, { as: "sample_type", foreignKey: "sample_type_id"});
+  
+  sample_type.hasMany(lab_samples, { as: "lab_samples", foreignKey: "sample_type_id"});
 
   return {
     admin,

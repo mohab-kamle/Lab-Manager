@@ -1,62 +1,68 @@
 import React, { useState } from "react";
 import { Container, Form, Button, Card, Row, Col } from "react-bootstrap";
-import { ArrowRight, KeyRound } from "lucide-react";
+import { ArrowRight, KeyRound, User, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../components/ui/ToastContext";
+import axios from "axios";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 const OTPVerify = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
-    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [otp, setOtp] = useState("");
     const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify OTP
+    const [loading, setLoading] = useState(false);
+    const apiUrl = import.meta.env.VITE_API_URL;
 
-    const handleRequestOTP = (e) => {
+    const handleRequestOTP = async (e) => {
         e.preventDefault();
-        if (!email.trim()) {
-            toast.error("Please enter your email address");
+        if (!username.trim()) {
+            toast.error("Please enter your username");
             return;
         }
 
-        // 🛑 API INTEGRATION POINT (1/2): REQUEST OTP
-        // Here you should call your backend to send the OTP to the user's email.
-        // Example:
-        // axios.post(`${apiUrl}/auth/request-otp`, { email })
-        //   .then(() => {
-        //       toast.success("OTP sent successfully to your email.");
-        //       setStep(2);
-        //   })
-        //   .catch(err => toast.error(err.response?.data?.message || "Failed to send OTP"));
-
-        // Placeholder behavior (remove when API is ready):
-        console.log("Requesting OTP for:", email);
-        toast.info("Mock API: OTP requested. Proceeding to verification.");
-        setStep(2);
+        try {
+            setLoading(true);
+            const response = await axios.post(`${apiUrl}/emp/forgotPassword`, { username });
+            toast.success(response.data || "OTP sent successfully to your email.");
+            setStep(2);
+        } catch (err) {
+            console.error("Request OTP error:", err);
+            toast.error(err.response?.data?.error || "Failed to send OTP. Please check your username.");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleVerifyOTP = (e) => {
+    const handleVerifyOTP = async (e) => {
         e.preventDefault();
         if (!otp.trim()) {
             toast.error("Please enter the OTP code");
             return;
         }
 
-        // 🛑 API INTEGRATION POINT (2/2): VERIFY OTP
-        // Here you should call your backend to verify the OTP.
-        // Example:
-        // axios.post(`${apiUrl}/auth/verify-otp`, { email, otp })
-        //   .then((res) => {
-        //       toast.success("OTP verified successfully.");
-        //       // Optional: Save reset token if required for change password
-        //       // localStorage.setItem("reset_token", res.data.token);
-        //       navigate('/change-password');
-        //   })
-        //   .catch(err => toast.error(err.response?.data?.message || "Invalid OTP"));
-
-        // Placeholder behavior (remove when API is ready):
-        console.log("Verifying OTP:", otp);
-        toast.success("Mock API: OTP verified successfully!");
-        navigate('/change-password', { state: { type: 'Forget' } });
+        try {
+            setLoading(true);
+            const response = await axios.post(`${apiUrl}/emp/verifyOtp`, { username, otp });
+            
+            if (response.data.success) {
+                toast.success("OTP verified successfully.");
+                // Pass the resetToken and username to the change-password page
+                navigate('/change-password', { 
+                    state: { 
+                        type: 'Forget', 
+                        resetToken: response.data.resetToken,
+                        username: username
+                    } 
+                });
+            }
+        } catch (err) {
+            console.error("Verify OTP error:", err);
+            toast.error(err.response?.data?.error || "Invalid OTP. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -73,7 +79,7 @@ const OTPVerify = () => {
                                 </div>
                                 <h2 className="fw-bold">{step === 1 ? "Forgot Password" : "Verify OTP"}</h2>
                                 <p className="mb-0 opacity-75">
-                                    {step === 1 ? "Enter your email to receive an OTP" : "Enter the verification code sent to your email"}
+                                    {step === 1 ? "Enter your username to receive an OTP" : "Enter the verification code sent to your email"}
                                 </p>
                             </div>
 
@@ -81,30 +87,38 @@ const OTPVerify = () => {
                                 {step === 1 ? (
                                     <Form onSubmit={handleRequestOTP}>
                                         <Form.Group className="mb-4">
-                                            <Form.Label className="fw-semibold text-theme">Email Address</Form.Label>
+                                            <Form.Label className="fw-semibold text-theme">
+                                                <User size={18} className="me-2" />
+                                                Username
+                                            </Form.Label>
                                             <Form.Control
-                                                type="email"
-                                                placeholder="Enter your registered email"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
+                                                type="text"
+                                                placeholder="Enter your username"
+                                                value={username}
+                                                onChange={(e) => setUsername(e.target.value)}
                                                 required
-                                                className="py-3 px-4 border-0 text-theme"
-                                                style={{
-                                                    backgroundColor: 'var(--bg-inset)',
-                                                    borderRadius: '12px',
-                                                    fontSize: '1.1em',
-                                                    paddingRight: '50px'
-                                                }}
+                                                className="py-3 px-4 border-1 bg-theme-surface text-theme"
+                                                style={{ borderRadius: '12px', fontSize: '1.1em' }}
                                             />
                                         </Form.Group>
-                                        <Button type="submit" variant="primary" size="lg" className="w-100 py-3 fw-semibold border-0" style={{ borderRadius: '12px', fontSize: '1.1em' }}>
-                                            Send OTP <ArrowRight size={18} className="ms-2" />
+                                        <Button 
+                                            type="submit" 
+                                            variant="primary" 
+                                            size="lg" 
+                                            className="w-100 py-3 fw-semibold border-0" 
+                                            style={{ borderRadius: '12px', fontSize: '1.1em' }}
+                                            disabled={loading}
+                                        >
+                                            {loading ? <LoadingSpinner size={20} /> : <>Send OTP <ArrowRight size={18} className="ms-2" /></>}
                                         </Button>
                                     </Form>
                                 ) : (
                                     <Form onSubmit={handleVerifyOTP}>
                                         <Form.Group className="mb-4">
-                                            <Form.Label className="fw-semibold text-theme">One-Time Password (OTP)</Form.Label>
+                                            <Form.Label className="fw-semibold text-theme">
+                                                <Mail size={18} className="me-2" />
+                                                One-Time Password (OTP)
+                                            </Form.Label>
                                             <Form.Control
                                                 type="text"
                                                 inputMode="numeric"
@@ -112,29 +126,35 @@ const OTPVerify = () => {
                                                 placeholder="Enter 6-digit OTP"
                                                 value={otp}
                                                 onChange={(e) => {
-                                                    // Only allow numeric input, max 6 digits
                                                     const numericValue = e.target.value.replace(/\D/g, '').slice(0, 6);
                                                     setOtp(numericValue);
                                                 }}
                                                 required
-                                                className="py-3 px-4 border-0 text-center text-theme"
-                                                style={{ backgroundColor: 'var(--bg-inset)', borderRadius: '12px', fontSize: '1.5em', letterSpacing: '8px' }}
+                                                className="py-3 px-4 border-1 bg-theme-surface text-theme text-center"
+                                                style={{ borderRadius: '12px', fontSize: '1.5em', letterSpacing: '8px' }}
                                                 maxLength="6"
                                             />
                                         </Form.Group>
-                                        <Button type="submit" variant="primary" size="lg" className="w-100 py-3 fw-semibold border-0 mb-3" style={{ borderRadius: '12px', fontSize: '1.1em' }}>
-                                            Verify & Proceed <ArrowRight size={18} className="ms-2" />
+                                        <Button 
+                                            type="submit" 
+                                            variant="primary" 
+                                            size="lg" 
+                                            className="w-100 py-3 fw-semibold border-0 mb-3" 
+                                            style={{ borderRadius: '12px', fontSize: '1.1em' }}
+                                            disabled={loading}
+                                        >
+                                            {loading ? <LoadingSpinner size={20} /> : <>Verify & Proceed <ArrowRight size={18} className="ms-2" /></>}
                                         </Button>
                                         <div className="text-center">
-                                            <Button variant="link" className="text-muted text-decoration-none" onClick={() => setStep(1)}>
-                                                Use a different email
+                                            <Button variant="link" className="text-muted text-decoration-none" onClick={() => setStep(1)} disabled={loading}>
+                                                Use a different username
                                             </Button>
                                         </div>
                                     </Form>
                                 )}
 
                                 <div className="text-center mt-4">
-                                    <Button variant="link" className="text-secondary text-decoration-none" onClick={() => navigate('/login')}>
+                                    <Button variant="link" className="text-secondary text-decoration-none" onClick={() => navigate('/login')} disabled={loading}>
                                         Back to Login
                                     </Button>
                                 </div>
@@ -148,3 +168,4 @@ const OTPVerify = () => {
 };
 
 export default OTPVerify;
+
