@@ -10,6 +10,9 @@ if (!process.env.SECRET_KEY) {
 
 // Core dependencies
 const express = require("express");
+const { Server } = require("socket.io");
+const { createAdapter } = require("@socket.io/redis-adapter");
+const { createClient } = require("redis");
 const cors = require("cors");
 const helmet = require("helmet");
 const db = require("./models");
@@ -21,7 +24,6 @@ const { getS3FileUrl } = require('./services/s3Service');
 
 // Socket.io for Real-Time Events
 const http = require("http");
-const { Server } = require("socket.io");
 
 // Subscription scheduler service
 const { initializeSubscriptionScheduler, stopSubscriptionScheduler } = require('./services/subscriptionScheduler');
@@ -39,10 +41,35 @@ const server = http.createServer(app);
 // Initialize Socket.io
 const io = new Server(server, {
   cors: {
-    origin: "*", // Use stricter CORS in production
-    methods: ["GET", "POST"]
-  }
+    origin: process.env.NODE_ENV === 'production' 
+      ? [
+          `https://${process.env.DOMAIN_NAME}`,
+          `https://*.${process.env.DOMAIN_NAME}`,
+          "http://localhost:5173",
+          "http://127.0.0.1:5173"
+        ]
+      : "*",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
+
+// Configure Redis adapter for clustered environments (PM2)
+if (process.env.REDIS_HOST) {
+  const pubClient = createClient({ 
+    url: `redis://${process.env.REDIS_PASSWORD ? `:${process.env.REDIS_PASSWORD}@` : ''}${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}` 
+  });
+  const subClient = pubClient.duplicate();
+
+  Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log("✅ Socket.io Redis adapter connected");
+  }).catch(err => {
+    console.error("❌ Socket.io Redis adapter connection failed:", err);
+  });
+}
 app.set("io", io); // Make it available to routes
 
 // Trust first proxy (Cloudflare/Nginx) for correct IP rate limiting
@@ -54,7 +81,7 @@ const router = express.Router();
 // =========================
 
 // Configure the main domain - fallback to hardcoded default if not in env
-const MAIN_DOMAIN = process.env.DOMAIN_NAME || 'labdoctors-laboratories.com';
+const MAIN_DOMAIN = process.env.DOMAIN_NAME || 'localhost';
 
 // Securely check for subdomains using regex to prevent partial matches
 // Matches https://MAIN_DOMAIN and any subdomains (e.g. https://api.MAIN_DOMAIN)
@@ -72,8 +99,6 @@ const corsOptions = {
 
     const allowedOrigins = [
       'https://mlab-manager.vercel.app',
-      'https://www.labdoctors-laboratories.com',
-      'https://labdoctors-laboratories.com',
       'http://localhost:5173',
       'http://localhost:3000',
       'http://127.0.0.1:5173',
@@ -124,7 +149,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:", "http:", "https:"],
-      connectSrc: ["'self'", "http://localhost:3001", "ws://localhost:3001", "https://*.labdoctors-laboratories.com", "wss://*.labdoctors-laboratories.com"],
+      connectSrc: ["'self'", "http://localhost:3001", "ws://localhost:3001", `https://*.${MAIN_DOMAIN}`, `wss://*.${MAIN_DOMAIN}`],
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -324,6 +349,7 @@ app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
 app.use("/whatsapp", require("./routes/whatsapp.routes"));
 app.use("/tracked-samples", require("./routes/tracked_samples"));
+app.use("/auth", require("./routes/auth"));
 
 // Global error handler
 app.use((error, req, res, next) => {
@@ -409,8 +435,8 @@ console.log('- PORT:', process.env.PORT);
 console.log('- Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
 console.log('- CORS Origins:', [
   'https://mlab-manager.vercel.app',
-  'https://www.labdoctors-laboratories.com',
-  'https://labdoctors-laboratories.com',
+  `https://www.${MAIN_DOMAIN}`,
+  `https://${MAIN_DOMAIN}`,
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
@@ -653,5 +679,6 @@ async function startServer() {
     console.log(`🔌 Connection pool: max=${db.sequelize.config.pool?.max || 'default'}, min=${db.sequelize.config.pool?.min || 'default'}`);
     console.log(`🗄️ Redis cache: ${cacheService.isConnected ? 'CONNECTED' : 'DISCONNECTED (fallback to database)'}`);
     console.log(`⏰ Subscription auto-expiry: ENABLED (every 3 hours)`);
+    console.log(`📡 Socket.io CORS Origin:`, io.opts.cors.origin);
   });
 }

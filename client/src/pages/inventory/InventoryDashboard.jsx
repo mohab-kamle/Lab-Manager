@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Spinner } from "react-bootstrap";
 import { Link, useParams } from "react-router-dom";
 import api from "../../utils/api";
+import { formatDate } from "../../utils/dateFormatter";
 
 const InventoryDashboard = () => {
   const { role } = useParams();
@@ -111,7 +112,7 @@ const InventoryDashboard = () => {
                             <td>{batch.item?.name}</td>
                             <td>{batch.batch_number}</td>
                             <td className={isExpired ? "text-danger fw-bold" : ""}>
-                              {new Date(batch.expiration_date).toLocaleDateString()}
+                              {formatDate(batch.expiration_date)}
                               {isExpired && " (Expired)"}
                             </td>
                             <td>{batch.current_quantity}</td>

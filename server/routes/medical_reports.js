@@ -832,7 +832,7 @@ router.get(
 router.put(
   "/:id/results",
   authenticateUser,
-  authorizeRoles("admin", "chemist"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
   tenantContext,
   invalidateTestResultsCache, // Invalidate cache when test results are updated
   async (req, res) => {
@@ -1284,6 +1284,7 @@ router.post(
   "/import",
   authenticateUser,
   authorizeRoles("admin"),
+  tenantContext,
   upload.single("file"),
   async (req, res) => {
     try {
@@ -1305,40 +1306,64 @@ router.post(
       let imported = 0,
         updated = 0,
         errors = [];
-      for (const row of data) {
-        if (!row["Patient ID"]) {
-          errors.push(
-            `Missing required field Patient ID in row: ${JSON.stringify(row)}`
-          );
-          continue;
-        }
-        let report = null;
-        if (row.ID) {
-          report = await db.medical_report.findByPk(row.ID);
-        }
-        const reportData = {
-          patient_id: row["Patient ID"],
-          date: row.Date || null,
-          prints_number: row.Prints || 0,
-          whatsapp_sends: row["WhatsApp Sends"] || 0,
-          done: row.Done || 0,
-          signatory_id: row["Signatory ID"] || null,
-          pending: row.Pending || 0,
-          comment: row.Comment || null,
-          signatory_admin_id: row["Signatory Admin ID"] || null,
-          signatory_name: row["Signatory Name"] || null,
-          bill_id: row["Bill ID"] || null,
-        };
-        if (report) {
-          await report.update(reportData);
-          updated++;
-        } else {
-          await db.medical_report.create(reportData);
-          imported++;
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        if (!row || Object.keys(row).length === 0) continue;
+
+        try {
+          if (!row["Patient ID"]) {
+            errors.push(`Row ${i + 2}: Missing required field Patient ID`);
+            continue;
+          }
+          let report = null;
+          if (row.ID) {
+            const reportId = Number(row.ID);
+            if (Number.isFinite(reportId) && reportId > 0) {
+              report = await db.medical_report.findOne({ 
+                where: { id: reportId, lab_id: req.tenant.lab_id } 
+              });
+            } else {
+              errors.push(`Row ${i + 2}: Invalid Medical Report ID format`);
+              continue;
+            }
+          }
+          const reportData = {
+            patient_id: row["Patient ID"],
+            date: row.Date || null,
+            prints_number: row.Prints || 0,
+            whatsapp_sends: row["WhatsApp Sends"] || 0,
+            done: row.Done || 0,
+            signatory_id: row["Signatory ID"] || null,
+            pending: row.Pending || 0,
+            comment: row.Comment || null,
+            signatory_admin_id: row["Signatory Admin ID"] || null,
+            signatory_name: row["Signatory Name"] || null,
+            bill_id: row["Bill ID"] || null,
+            lab_id: req.tenant.lab_id,
+          };
+          if (report) {
+            await report.update(reportData);
+            updated++;
+          } else {
+            await db.medical_report.create(reportData);
+            imported++;
+          }
+        } catch (error) {
+          errors.push(`Row ${i + 2}: ${error.message}`);
         }
       }
-      // No need to clean up file since we're using memory storage
-      res.json({ imported, updated, errors });
+      
+      res.json({ 
+        success: true,
+        summary: {
+          imported,
+          duplicates: updated,
+          errors: errors.length,
+          total: data.length
+        },
+        errorDetails: errors,
+        message: `Import completed: ${imported} imported, ${updated} updated (duplicates)${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
+      });
     } catch (error) {
       console.error("Error importing medical reports:", error);
       res.status(500).json({ error: "Failed to import medical reports" });
@@ -1350,7 +1375,7 @@ router.post(
 router.post(
   "/:id/results/bulk",
   authenticateUser,
-  authorizeRoles("admin", "chemist", "receptionist"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
   invalidateTestResultsCache, // Invalidate cache when bulk results are updated
   async (req, res) => {
     const t = await db.sequelize.transaction();
@@ -1471,7 +1496,7 @@ router.post(
                 medical_report_id: parseInt(reportId, 10),
                 test_id: parseInt(testId, 10),
                 parameter_key: componentId,
-                result_value: JSON.stringify({ result: componentData.result, status: calculatedStatus }),
+                result_value: { result: componentData.result, status: calculatedStatus },
                 clinical_flag: calculatedStatus,
                 workflow_status: 'analyzed',
               });
@@ -1485,16 +1510,8 @@ router.post(
               { replacements: [parseInt(reportId, 10), parseInt(testId, 10)], transaction: t }
             );
 
-            // Bulk create new results via raw queries
-            for (const r of componentResultsToSave) {
-              await db.sequelize.query(
-                'INSERT INTO medical_report_results (medical_report_id, test_id, parameter_key, result_value, clinical_flag, workflow_status) VALUES (?, ?, ?, ?, ?, ?)',
-                {
-                  replacements: [r.medical_report_id, r.test_id, r.parameter_key, r.result_value, r.clinical_flag, r.workflow_status],
-                  transaction: t
-                }
-              );
-            }
+            // Bulk create new results via Sequelize model
+            await db.medical_report_results.bulkCreate(componentResultsToSave, { transaction: t });
           }
         }
       }
@@ -1934,7 +1951,7 @@ function calculatePatientAge(birthDate) {
 router.post(
   "/:id/results",
   authenticateUser,
-  authorizeRoles("admin", "chemist", "employee"),
+  authorizeRoles("admin", "chemist", "receptionist", "employee"),
   tenantContext,
   async (req, res) => {
     try {
@@ -2038,43 +2055,46 @@ router.post(
         });
       }
 
-      // Since there is no unique constraint on medical_report_results for Upsert,
-      // we'll destroy and rewrite for this test specifically.
-      const t = await db.sequelize.transaction();
-      try {
-        await db.medical_report_results.destroy({
-          where: {
-            medical_report_id: report.id,
-            test_id: test.id,
-            parameter_key: { [Op.in]: Object.keys(results) }
-          },
-          transaction: t
-        });
-
-        await db.medical_report_results.bulkCreate(resultsToSave, { transaction: t });
-
-        // Stamp received_at now that results have been entered
-        if (resultsToSave.length > 0) {
-          await updateMedicalReportDates(report.id, "received", t);
-        }
-
-        await t.commit();
-        res.json({ success: true, message: "Results saved successfully", results: resultsToSave });
-      } catch (err) {
-        console.error("TRANSACTION ERROR inside POST /results:", err);
+      await executeWithDeadlockRetry(async () => {
+        const t = await db.sequelize.transaction();
         try {
+          await db.medical_report_results.destroy({
+            where: {
+              medical_report_id: report.id,
+              test_id: test.id,
+              parameter_key: { [Op.in]: Object.keys(results) }
+            },
+            transaction: t
+          });
+
+          const preparedResults = resultsToSave.map(r => ({
+            ...r,
+            result_value: { result: r.result_value, status: r.clinical_flag }
+          }));
+
+          await db.medical_report_results.bulkCreate(preparedResults, { transaction: t });
+
+          // Stamp received_at now that results have been entered
+          if (preparedResults.length > 0) {
+            await updateMedicalReportDates(report.id, "received", t);
+          }
+
+          await t.commit();
+          res.json({ success: true, message: "Results saved successfully", results: preparedResults });
+        } catch (err) {
+          console.error("TRANSACTION ERROR inside POST /results:", err);
           if (!t.finished) {
             await t.rollback();
           }
-        } catch (rollbackErr) {
-          console.error("Rollback failed:", rollbackErr);
+          throw err; // Re-throw to trigger deadlock retry or outer catch
         }
-        throw err;
-      }
-
+      });
     } catch (error) {
-      console.error("Error saving dynamic results:", error);
-      res.status(500).json({ error: "Failed to save results" });
+      console.error("Error in POST /:id/results:", error);
+      res.status(500).json({
+        error: "Failed to save results",
+        details: error.message
+      });
     }
   }
 );

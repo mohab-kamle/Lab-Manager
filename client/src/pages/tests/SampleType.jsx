@@ -7,8 +7,10 @@ import DynamicTable from "../../components/ui/DynamicTable";
 import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
 import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/excelUtils';
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useToast } from "../../components/ui/ToastContext";
 
 const Samples = () => {
+  const { toast, confirm } = useToast();
   const [samples, setSamples] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,9 +22,11 @@ const Samples = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingSample, setEditingSample] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [sampleToDelete, setSampleToDelete] = useState(null);
-  const [formData, setFormData] = useState({ name: "" });
+  const [formData, setFormData] = useState({ 
+    name: "",
+    tube_color: "",
+    container_type: ""
+  });
   const [showImportModal, setShowImportModal] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
@@ -119,7 +123,7 @@ const Samples = () => {
       );
     }
     if (header.toLowerCase().includes("date") && data) {
-      return new Date(data).toLocaleDateString();
+      return formatDate(data);
     }
     if (typeof data === "boolean") {
       return data ? "Yes" : "No";
@@ -129,19 +133,37 @@ const Samples = () => {
 
   const handleAdd = () => {
     setEditingSample(null);
-    setFormData({ name: "" });
+    setFormData({ 
+      name: "",
+      tube_color: "",
+      container_type: ""
+    });
     setShowModal(true);
   };
 
   const handleEdit = (sample) => {
     setEditingSample(sample);
-    setFormData({ name: sample.type || "" });
+    setFormData({ 
+      name: sample.type || "",
+      tube_color: sample.tube_color || "",
+      container_type: sample.container_type || ""
+    });
     setShowModal(true);
   };
 
   const handleDelete = (sample) => {
-    setSampleToDelete(sample);
-    setShowDeleteModal(true);
+    confirm.delete(sample.type, async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+        await axios.delete(`${apiUrl}/samples/${sample.id}`, { headers });
+        toast.success("Sample type deleted successfully!");
+        fetchSamples();
+      } catch (error) {
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.error || "Failed to delete sample type");
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -158,7 +180,11 @@ const Samples = () => {
       }
       setShowModal(false);
       setEditingSample(null);
-      setFormData({ name: "" });
+      setFormData({ 
+        name: "",
+        tube_color: "",
+        container_type: ""
+      });
       setError(null); // Clear any previous errors
       setSuccessMessage(editingSample ? "Sample type updated successfully!" : "Sample type added successfully!");
       // Refresh using extracted function
@@ -169,22 +195,7 @@ const Samples = () => {
     }
   };
 
-  const confirmDelete = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.delete(`${apiUrl}/samples/${sampleToDelete.id}`, { headers });
-      setShowDeleteModal(false);
-      setSampleToDelete(null);
-      setError(null); // Clear any previous errors
-      setSuccessMessage("Sample type deleted successfully!");
-      // Refresh using extracted function
-      await fetchSamples();
-    } catch (error) {
-      const errorMessage = error.response?.data?.error || "Failed to delete sample type";
-      setError(errorMessage);
-    }
-  };
+
 
   // Excel Export Handler
   const handleExportXLSX = async () => {
@@ -244,7 +255,9 @@ const Samples = () => {
   const ActionComponent = ({ rowData }) => (
     <div className="d-flex gap-2">
       <Button variant="outline-primary" size="sm" onClick={() => handleEdit(rowData)} title="Edit Sample Type"><Pencil size={16} /></Button>
-      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)} title="Delete Sample Type"><Trash2 size={16} /></Button>
+      {rowData.lab_id !== null && (
+        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)} title="Delete Sample Type"><Trash2 size={16} /></Button>
+      )}
     </div>
   );
 
@@ -319,8 +332,39 @@ const Samples = () => {
                 value={formData.name} 
                 onChange={e => setFormData({ ...formData, name: e.target.value })} 
                 required 
+                disabled={editingSample && editingSample.lab_id === null}
               />
+              {editingSample && editingSample.lab_id === null && (
+                <Form.Text className="text-muted">
+                  Global sample types cannot be renamed.
+                </Form.Text>
+              )}
             </Form.Group>
+            
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Tube Color</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={formData.tube_color} 
+                    onChange={e => setFormData({ ...formData, tube_color: e.target.value })} 
+                    placeholder="e.g. Red, Lavender, Blue"
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label>Container Type</Form.Label>
+                  <Form.Control 
+                    type="text" 
+                    value={formData.container_type} 
+                    onChange={e => setFormData({ ...formData, container_type: e.target.value })} 
+                    placeholder="e.g. Vacuum Tube, Container"
+                  />
+                </Form.Group>
+              </div>
+            </div>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
@@ -383,20 +427,7 @@ const Samples = () => {
         </Modal.Footer>
       </Modal>
       
-      {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-        <Modal.Header>
-          <Modal.Title>Confirm Delete</Modal.Title>
-          <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
-            <CircleX size={24} />
-          </button>
-        </Modal.Header>
-        <Modal.Body>Are you sure you want to delete the sample type "{sampleToDelete?.type}"? This action cannot be undone.</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <Button variant="danger" onClick={confirmDelete}>Delete</Button>
-        </Modal.Footer>
-      </Modal>
+
     </Container>
   );
 };

@@ -6,21 +6,10 @@ const axios = require('axios');
 const db = require('../models');
 const { lab, employee, admin, lab_settings, subscription, lab_payment, Sequelize, phone_number } = db;
 const { Op } = Sequelize;
-const nodemailer = require('nodemailer');
+const EmailService = require('../services/email/email.service');
 const { registrationLimiter } = require('../middleware/rateLimiters');
 const { validatePassword } = require('../utils/passwordValidator');
 const authenticateUser = require('../middleware/authenticateUser');
-
-// Configure email transporter
-var transporter = nodemailer.createTransport({
-  host: 'smtp.zoho.com',
-  port: 465,
-  secure: true, // use SSL
-  auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-  }
-});
 
 // Complete lab registration after successful payment
 router.post('/complete/:merchantOrderId', registrationLimiter, async (req, res) => {
@@ -1060,13 +1049,13 @@ async function sendWelcomeEmail(email, adminName, labName, username, subdomain, 
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="font-size: 12px; color: #666;">
             This is an automated message. Please do not reply to this email.
-            For support, contact us at <a href="mailto:techsupport@labdoctors-laboratories.com">techsupport@labdoctors-laboratories.com</a>
+            For support, contact us at <a href="mailto:${process.env.SUPPORT_EMAIL || 'techsupport@localhost'}">${process.env.SUPPORT_EMAIL || 'techsupport@localhost'}</a>
           </p>
         </div>
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await EmailService.sendEmail(email, mailOptions.subject, mailOptions.html);
     console.log(`Welcome email sent to ${email}`);
   } catch (error) {
     console.error('Error sending welcome email:', error);

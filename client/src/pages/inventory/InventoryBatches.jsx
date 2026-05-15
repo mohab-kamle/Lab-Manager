@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../../utils/api";
 // import { ThemeContext } from "../../context/ThemeContext";
 import { useToast } from "../../components/ui/ToastContext";
+import { formatDate, formatDateTime } from "../../utils/dateFormatter";
 
 const InventoryBatches = () => {
   const { role, itemId } = useParams();
@@ -123,11 +124,11 @@ const InventoryBatches = () => {
                       <td>{b.batch_number}</td>
                       <td>{b.supplier?.name || 'N/A'}</td>
                       <td className={new Date(b.expiration_date) < new Date() && b.current_quantity > 0 ? "text-danger fw-bold" : ""}>
-                        {b.expiration_date ? new Date(b.expiration_date).toLocaleDateString() : 'N/A'}
+                        {formatDate(b.expiration_date)}
                       </td>
                       <td>{b.initial_quantity}</td>
                       <td className="fw-bold">{b.current_quantity}</td>
-                      <td>{new Date(b.received_date).toLocaleDateString()}</td>
+                      <td>{formatDate(b.received_date)}</td>
                     </tr>
                   ))
                 )}
@@ -154,7 +155,7 @@ const InventoryBatches = () => {
                 ) : (
                   transactions.map(tx => (
                     <tr key={tx.id}>
-                      <td>{new Date(tx.createdAt).toLocaleString()}</td>
+                      <td>{formatDateTime(tx.createdAt)}</td>
                       <td>
                         <span className={`badge ${tx.transaction_type === 'RECEIVE' ? 'bg-success' : tx.transaction_type === 'CONSUME' ? 'bg-warning text-dark' : 'bg-secondary'}`}>
                           {tx.transaction_type}

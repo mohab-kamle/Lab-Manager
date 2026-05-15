@@ -38,8 +38,13 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
         // Create lookup maps for tests and cultures
         const testMap = new Map(tests.map(t => [t.id, t]));
 
-        // Combine the data
         const result = packagesAndOffers.map(item => {
+            const itemJSON = item.toJSON();
+            // Handle optional end_date by converting 9999-12-31 back to null
+            if (itemJSON.end_date && new Date(itemJSON.end_date).getFullYear() === 9999) {
+                itemJSON.end_date = null;
+            }
+
             const itemTests = testAssociations
                 .filter(t => t.packages_and_offers_id === item.id)
                 .map(t => testMap.get(t.test_id))
@@ -48,7 +53,7 @@ router.get('/', authenticateUser, authorizeRoles('admin', 'receptionist', 'chemi
             console.log(`Package ${item.id} has ${itemTests.length} tests`);
 
             return {
-                ...item.toJSON(),
+                ...itemJSON,
                 tests: itemTests
             };
         });
@@ -84,8 +89,13 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
         const testIds = testAssociations.map(t => t.test_id);
         const tests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
 
+        const packageJSON = packageAndOffer.toJSON();
+        if (packageJSON.end_date && new Date(packageJSON.end_date).getFullYear() === 9999) {
+            packageJSON.end_date = null;
+        }
+
         const result = {
-            ...packageAndOffer.toJSON(),
+            ...packageJSON,
             tests: tests
         };
 
@@ -96,80 +106,17 @@ router.get('/:id', authenticateUser, tenantContext, async (req, res) => {
     }
 });
 
-// Create a new package/offer
-router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
-    const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
-    console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type });
-
-    // Validate required fields
-    if (!name || !price || !type) {
-        console.log('Missing required fields:', { name, price, type });
-        return res.status(400).json({ error: 'Name, price, and type are required fields' });
-    }
-
-    // Start a transaction to ensure data consistency
-    const transaction = await packages_and_offers.sequelize.transaction();
-    console.log('Transaction started');
-
-    try {
-        const newPackageAndOffer = await packages_and_offers.create({
-            name,
-            shortcut,
-            price,
-            start_date,
-            end_date,
-            type,
-            lab_id: req.tenant.lab_id
-        }, { transaction });
-        console.log('Created new package/offer:', newPackageAndOffer.toJSON());
-
-        if (!newPackageAndOffer || !newPackageAndOffer.id) {
-            throw new Error('Failed to create package/offer - ID is null');
-        }
-
-        // Create admin association
-        await admin_packages_and_offers.create({
-            admin_id: req.user.id,
-            package_and_offer_id: newPackageAndOffer.id
-        }, { transaction });
-
-        // Handle tests
-        if (tests && tests.length > 0) {
-            // First verify that all test IDs exist and are valid numbers
-            const testIds = tests.map(id => parseInt(id));
-            if (testIds.some(isNaN)) {
-                await transaction.rollback();
-                return res.status(400).json({ error: 'Invalid test IDs provided' });
-            }
-
-            const existingTests = await test.findAll({
-                where: { id: testIds }
-            });
-
-            if (existingTests.length !== tests.length) {
-                await transaction.rollback();
-                return res.status(400).json({ error: 'One or more test IDs do not exist' });
-            }
-
-            await Promise.all(tests.map(testId =>
-                pao_has_test.create({
-                    packages_and_offers_id: newPackageAndOffer.id,
-                    test_id: parseInt(testId)
-                })));
-
-            res.json(result);
-        }
-    } catch (error) {
-        console.error('Error fetching package/offer:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 // Create a new package/offer
 router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
     try {
-        const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
+        let { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
         console.log('Received request body:', { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type });
+
+        // If end_date is missing, use a far future date to satisfy NOT NULL constraint
+        if (!end_date) {
+            end_date = '9999-12-31 23:59:59';
+        }
 
         // Validate required fields
         if (!name || !price || !type) {
@@ -252,8 +199,13 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
             const testIds = testAssociations.map(t => t.test_id);
             const createdTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
 
+            const packageJSON = newPackageAndOffer.toJSON();
+            if (packageJSON.end_date && new Date(packageJSON.end_date).getFullYear() === 9999) {
+                packageJSON.end_date = null;
+            }
+
             const result = {
-                ...newPackageAndOffer.toJSON(),
+                ...packageJSON,
                 tests: createdTests
             };
 
@@ -272,7 +224,12 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
 // Update a package/offer
 router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
-        const { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
+        let { name, shortcut, price, start_date, end_date, type, tests, item_id, item_type } = req.body;
+
+        // If end_date is missing, use a far future date to satisfy NOT NULL constraint
+        if (!end_date) {
+            end_date = '9999-12-31 23:59:59';
+        }
 
         // Start a transaction
         const transaction = await packages_and_offers.sequelize.transaction();
@@ -338,7 +295,6 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                     ));
                 }
 
-
             } else if (type === "offer") {
                 // Handle offer item
                 if (item_id && item_type) {
@@ -347,28 +303,32 @@ router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
                             packages_and_offers_id: req.params.id,
                             test_id: item_id
                         }, { transaction });
-
                     }
                 }
-
-                // Commit the transaction
-                await transaction.commit();
-
-                // Get the updated item with its associations
-                const testAssociations = await pao_has_test.findAll({
-                    where: { packages_and_offers_id: req.params.id }
-                });
-
-                const testIds = testAssociations.map(t => t.test_id);
-                const updatedTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
-
-                const result = {
-                    ...packageAndOffer.toJSON(),
-                    tests: updatedTests
-                };
-
-                res.json(result);
             }
+
+            // Commit the transaction
+            await transaction.commit();
+
+            // Get the updated item with its associations
+            const testAssociations = await pao_has_test.findAll({
+                where: { packages_and_offers_id: req.params.id }
+            });
+
+            const testIds = testAssociations.map(t => t.test_id);
+            const updatedTests = testIds.length > 0 ? await test.findAll({ where: { id: testIds } }) : [];
+
+            const packageJSON = packageAndOffer.toJSON();
+            if (packageJSON.end_date && new Date(packageJSON.end_date).getFullYear() === 9999) {
+                packageJSON.end_date = null;
+            }
+
+            const result = {
+                ...packageJSON,
+                tests: updatedTests
+            };
+
+            res.json(result);
         } catch (error) {
             // Rollback the transaction if anything fails
             await transaction.rollback();

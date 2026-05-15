@@ -738,8 +738,8 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
 
         // Validate file
         const validation = validateExcelBuffer(req.file.buffer);
-        if (!validation.isValid) {
-            return res.status(400).json({ error: validation.error });
+        if (!validation.valid) {
+            return res.status(400).json({ error: validation.message });
         }
 
         // Read Excel data
@@ -750,6 +750,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
         }
 
         let imported = 0;
+        let skipped = 0;
         let errors = [];
 
         for (let i = 0; i < data.length; i++) {
@@ -776,7 +777,7 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
                 });
 
                 if (existingPhone) {
-                    errors.push(`Row ${i + 2}: Patient with phone number ${row['Primary Phone']} already exists`);
+                    skipped++;
                     continue;
                 }
 
@@ -863,10 +864,16 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
             }
         }
 
-        res.json({
-            imported,
-            errors: errors.length > 0 ? errors : undefined,
-            message: `Successfully imported ${imported} patients${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
+        res.json({ 
+            success: true,
+            summary: {
+                imported,
+                duplicates: skipped,
+                errors: errors.length,
+                total: data.length
+            },
+            errorDetails: errors,
+            message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
         });
     } catch (error) {
         console.error('Error importing patients:', error);

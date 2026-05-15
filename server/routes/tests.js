@@ -109,13 +109,33 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
         {
           model: db.sample_type,
           as: 'sample_type',
-          attributes: ['id', 'type']
+          attributes: ['id', 'type', 'tube_color', 'container_type', 'standard_code'],
+          include: [{
+            model: db.lab_sample_type_settings,
+            as: 'lab_settings',
+            where: { lab_id },
+            required: false
+          }]
         }
       ]
     });
 
-    console.log(`Found ${testsList.length} tests`);
-    res.json(testsList || []);
+    // Merge lab-specific settings into sample_type
+    const mappedTestsList = testsList.map(t => {
+      const testJson = t.toJSON();
+      if (testJson.sample_type) {
+        const settings = testJson.sample_type.lab_settings && testJson.sample_type.lab_settings[0];
+        if (settings) {
+          testJson.sample_type.tube_color = settings.tube_color || testJson.sample_type.tube_color;
+          testJson.sample_type.container_type = settings.container_type || testJson.sample_type.container_type;
+        }
+        delete testJson.sample_type.lab_settings;
+      }
+      return testJson;
+    });
+
+    console.log(`Found ${mappedTestsList.length} tests`);
+    res.json(mappedTestsList || []);
   } catch (error) {
     console.error('Error in tests route:', error);
     // Return empty array on error to prevent frontend crashes
@@ -125,6 +145,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 
 // Create a new test
 router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
     const {
       name,
@@ -137,28 +158,47 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
       precautions,
       decreased_in,
       increased_in,
-      sample_type_id,
       contract_id,
       global_test_id,
       structure_config,
       type,
       tat_hours
     } = req.body;
+    let { sample_type_id } = req.body;
     const lab_id = req.tenant.lab_id;
 
-    if (!name) return res.status(400).json({ error: 'Name is required' });
-
-    // Check if test with same name already exists
-    const existingTest = await db.test.findOne({ where: { name, lab_id } });
-    if (existingTest) {
-      return res.status(400).json({ error: `A test with the name "${name}" already exists` });
+    if (!name) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Name is required' });
     }
 
-    // Check if shortcut already exists (only for non-empty shortcuts)
+    // The Automation Magic: If they selected a global test, auto-fetch the sample type
+    if (global_test_id && !sample_type_id) {
+      const globalTest = await db.global_test_catalog.findByPk(global_test_id, { transaction });
+      if (globalTest && globalTest.default_sample_type_id) {
+        sample_type_id = globalTest.default_sample_type_id;
+      }
+    }
+
+    // Check if test with same name already exists in THIS lab
+    const existingTest = await db.test.findOne({ 
+      where: { name, lab_id },
+      transaction 
+    });
+    if (existingTest) {
+      await transaction.rollback();
+      return res.status(400).json({ error: `A test with the name "${name}" already exists in your lab` });
+    }
+
+    // Check if shortcut already exists in THIS lab (only for non-empty shortcuts)
     if (shortcut && shortcut.trim()) {
-      const existingShortcut = await db.test.findOne({ where: { shortcut, lab_id } });
+      const existingShortcut = await db.test.findOne({ 
+        where: { shortcut, lab_id },
+        transaction 
+      });
       if (existingShortcut) {
-        return res.status(400).json({ error: `A test with the shortcut "${shortcut}" already exists` });
+        await transaction.rollback();
+        return res.status(400).json({ error: `A test with the shortcut "${shortcut}" already exists in your lab` });
       }
     }
 
@@ -167,14 +207,15 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
     const normalizedLabName = (lab_name && lab_name.trim()) ? lab_name.trim() : null;
 
     if (normalizedStatus === 'OUT' && !normalizedLabName) {
+      await transaction.rollback();
       return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
     }
 
     const test = await db.test.create({
       lab_id,
       name,
-      shortcut: shortcut || null, // Convert empty string to null
-      price: price || 0.00, // Default to 0 if no price provided
+      shortcut: shortcut || null,
+      price: price || 0.00,
       cost,
       lab_to_lab_status: normalizedStatus,
       lab_name: normalizedLabName,
@@ -188,19 +229,18 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
       structure_config,
       type: type || 'single',
       tat_hours
-    });
+    }, { transaction });
+
+    await transaction.commit();
     res.status(201).json(test);
   } catch (error) {
+    if (transaction) await transaction.rollback();
     console.error('Error creating test:', error);
 
     // Handle specific database errors
     if (error.name === 'SequelizeUniqueConstraintError') {
-      if (error.fields && error.fields.name) {
-        return res.status(400).json({ error: `A test with the name "${req.body.name}" already exists` });
-      }
-      if (error.fields && error.fields.shortcut) {
-        return res.status(400).json({ error: `A test with the shortcut "${req.body.shortcut}" already exists` });
-      }
+      const field = Object.keys(error.fields)[0];
+      return res.status(400).json({ error: `A test with this ${field} already exists in your lab` });
     }
 
     if (error.name === 'SequelizeValidationError') {
@@ -237,6 +277,7 @@ router.post('/bulk-delete', authenticateUser, authorizeRoles('admin'), tenantCon
 
 // Update a test
 router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
     const {
       name,
@@ -257,8 +298,38 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
       tat_hours
     } = req.body;
 
-    const test = await db.test.findOne({ where: { id: req.params.id, lab_id: req.tenant.lab_id } });
-    if (!test) return res.status(404).json({ error: 'Test not found' });
+    const test = await db.test.findOne({ 
+      where: { id: req.params.id, lab_id: req.tenant.lab_id },
+      transaction 
+    });
+    if (!test) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    // Check for name collision if name is being changed
+    if (name && name !== test.name) {
+      const nameExists = await db.test.findOne({ 
+        where: { name, lab_id: req.tenant.lab_id, id: { [db.Sequelize.Op.ne]: test.id } },
+        transaction 
+      });
+      if (nameExists) {
+        await transaction.rollback();
+        return res.status(400).json({ error: `A test with the name "${name}" already exists in your lab` });
+      }
+    }
+
+    // Check for shortcut collision if shortcut is being changed
+    if (shortcut && (shortcut || null) !== test.shortcut) {
+      const shortcutExists = await db.test.findOne({ 
+        where: { shortcut, lab_id: req.tenant.lab_id, id: { [db.Sequelize.Op.ne]: test.id } },
+        transaction 
+      });
+      if (shortcutExists) {
+        await transaction.rollback();
+        return res.status(400).json({ error: `A test with the shortcut "${shortcut}" already exists in your lab` });
+      }
+    }
 
     // Update fields, allowing empty strings for text fields
     test.name = name !== undefined ? name : test.name;
@@ -276,6 +347,7 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
     }
 
     if (test.lab_to_lab_status === 'OUT' && !test.lab_name) {
+      await transaction.rollback();
       return res.status(400).json({ error: 'Lab Name is required when Lab-to-Lab status is set to "Out"' });
     }
     test.category_id = category_id !== undefined ? category_id : test.category_id;
@@ -289,19 +361,17 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
     test.type = type !== undefined ? type : test.type;
     test.tat_hours = tat_hours !== undefined ? tat_hours : test.tat_hours;
 
-    await test.save();
+    await test.save({ transaction });
+    await transaction.commit();
     res.json(test);
   } catch (error) {
+    if (transaction) await transaction.rollback();
     console.error('Error updating test:', error);
 
     // Handle specific database errors
     if (error.name === 'SequelizeUniqueConstraintError') {
-      if (error.fields && error.fields.name) {
-        return res.status(400).json({ error: `A test with the name "${req.body.name}" already exists` });
-      }
-      if (error.fields && error.fields.shortcut) {
-        return res.status(400).json({ error: `A test with the shortcut "${req.body.shortcut}" already exists` });
-      }
+      const field = Object.keys(error.fields)[0];
+      return res.status(400).json({ error: `A test with this ${field} already exists in your lab` });
     }
 
     res.status(500).json({ error: 'Failed to update test' });
@@ -496,7 +566,13 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
         {
           model: db.sample_type,
           as: 'sample_type',
-          attributes: ['id', 'type']
+          attributes: ['id', 'type', 'tube_color', 'container_type', 'standard_code'],
+          include: [{
+            model: db.lab_sample_type_settings,
+            as: 'lab_settings',
+            where: { lab_id: req.tenant.lab_id },
+            required: false
+          }]
         },
         {
           model: db.question,
@@ -536,6 +612,15 @@ router.get('/all-with-components', authenticateUser, authorizeRoles('admin', 're
           });
       }
 
+      if (testJson.sample_type) {
+        const settings = testJson.sample_type.lab_settings && testJson.sample_type.lab_settings[0];
+        if (settings) {
+          testJson.sample_type.tube_color = settings.tube_color || testJson.sample_type.tube_color;
+          testJson.sample_type.container_type = settings.container_type || testJson.sample_type.container_type;
+        }
+        delete testJson.sample_type.lab_settings;
+      }
+
       testJson.components = mappedComponents;
       return testJson;
     });
@@ -559,65 +644,163 @@ router.get('/count', authenticateUser, authorizeRoles('admin'), tenantContext, a
 
 // Import tests from Excel/CSV
 router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext, upload.single('file'), async (req, res) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!req.file) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
 
     // Validate file
     const validation = validateExcelBuffer(req.file.buffer);
-    if (!validation.isValid) {
-      return res.status(400).json({ error: validation.error });
+    if (!validation.valid) {
+      await transaction.rollback();
+      return res.status(400).json({ error: validation.message });
     }
 
     // Read Excel data
     const data = await readExcelBuffer(req.file.buffer);
 
     if (!data || data.length === 0) {
+      await transaction.rollback();
       return res.status(400).json({ error: "No data found in the uploaded file" });
     }
     let imported = 0, updated = 0, errors = [];
-    for (const row of data) {
-      if (!row.Name || !row['Category ID']) {
-        errors.push(`Missing required fields in row: ${JSON.stringify(row)}`);
-        continue;
-      }
-      // Try to find by name
-      let test = await db.test.findOne({ where: { name: row.Name, lab_id: req.tenant.lab_id } });
-      
-      // Normalize Lab-to-Lab fields
-      const normalizedStatus = (row['Lab to Lab Status'] && row['Lab to Lab Status'].toString().trim()) 
-        ? row['Lab to Lab Status'].toString().trim().toUpperCase() 
-        : null;
-      const normalizedLabName = (row['Lab Name'] && row['Lab Name'].toString().trim()) 
-        ? row['Lab Name'].toString().trim() 
-        : null;
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      if (!row || Object.keys(row).length === 0) continue;
 
-      const testData = {
-        lab_id: req.tenant.lab_id,
-        name: row.Name,
-        shortcut: row.Shortcut || null,
-        price: row.Price || null,
-        cost: row.Cost || null,
-        lab_to_lab_status: normalizedStatus,
-        lab_name: normalizedLabName,
-        category_id: row['Category ID'],
-        precautions: row.Precautions || null,
-        decreased_in: row['Decreased In'] || null,
-        increased_in: row['Increased In'] || null,
-        sample_type_id: row['Sample Type ID'] || null,
-        contract_id: row['Contract ID'] || null
-      };
-      if (test) {
-        await test.update(testData);
-        updated++;
-      } else {
-        await db.test.create(testData);
-        imported++;
+      // Use a nested transaction (savepoint) for row-level atomicity
+      const rowTransaction = await db.sequelize.transaction({ transaction });
+
+      try {
+        const name = row.Name || row.name || row['Test Name'];
+        const shortcut = row.Shortcut || row.shortcut || name;
+        const categoryName = row.Category || row['Category Name'] || row.category || row['Category ID'];
+        const sampleTypeName = row['Sample Type'] || row['Sample Type Name'] || row.sample_type || row['Sample Type ID'];
+        const contractName = row.Contract || row['Contract Name'] || row.contract || row['Contract ID'];
+
+        if (!name) {
+          await rowTransaction.rollback();
+          errors.push(`Row ${i + 2}: Test Name is required`);
+          continue;
+        }
+
+        // Look up Category ID (Auto-create if not found)
+        let categoryId = null;
+        if (categoryName) {
+          const trimmedCatName = categoryName.toString().trim();
+          const [cat] = await db.categories_test_and_culture.findOrCreate({
+            where: { 
+              name: trimmedCatName, 
+              lab_id: req.tenant.lab_id 
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            },
+            transaction: rowTransaction
+          });
+          categoryId = cat.id;
+        }
+
+        // Look up Sample Type ID (Auto-create if not found)
+        let sampleTypeId = null;
+        if (sampleTypeName) {
+          const trimmedSTName = sampleTypeName.toString().trim();
+          const [st] = await db.sample_type.findOrCreate({
+            where: { 
+              name: trimmedSTName,
+              lab_id: req.tenant.lab_id
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            },
+            transaction: rowTransaction
+          });
+          sampleTypeId = st.id;
+        }
+
+        // Look up Contract ID
+        let contractId = null;
+        if (contractName) {
+          const trimmedCTName = contractName.toString().trim();
+          const ct = await db.contract.findOne({
+            where: { name: trimmedCTName },
+            transaction: rowTransaction
+          });
+          if (ct) {
+            contractId = ct.id;
+          }
+        }
+
+        // Normalize Lab-to-Lab fields
+        const normalizedStatus = (row['Lab to Lab Status'] || row.lab_to_lab_status || row['L2L Status'])
+          ? (row['Lab to Lab Status'] || row.lab_to_lab_status || row['L2L Status']).toString().trim().toUpperCase() 
+          : null;
+        const normalizedLabName = (row['Lab Name'] || row.lab_name)
+          ? (row['Lab Name'] || row.lab_name).toString().trim() 
+          : null;
+
+        const testData = {
+          lab_id: req.tenant.lab_id,
+          name: name.toString().trim(),
+          shortcut: shortcut || null,
+          price: parseFloat(row.Price || row.price) || 0.00,
+          cost: parseFloat(row.Cost || row.cost) || 0.00,
+          lab_to_lab_status: normalizedStatus,
+          lab_name: normalizedLabName,
+          category_id: categoryId,
+          precautions: row.Precautions || row.precautions || null,
+          decreased_in: row['Decreased In'] || row.decreased_in || null,
+          increased_in: row['Increased In'] || row.increased_in || null,
+          sample_type_id: sampleTypeId,
+          contract_id: contractId,
+          type: row.Type || row.type || 'single',
+          tat_hours: (row['TAT Hours'] || row.tat_hours) ? parseInt(row['TAT Hours'] || row.tat_hours) : null
+        };
+
+        // Try to find by name in THIS lab
+        const existingTest = await db.test.findOne({ 
+          where: { name: testData.name, lab_id: req.tenant.lab_id },
+          transaction: rowTransaction
+        });
+
+        if (existingTest) {
+          await existingTest.update(testData, { transaction: rowTransaction });
+          updated++;
+        } else {
+          await db.test.create({
+            ...testData,
+            structure_config: [] // Default empty
+          }, { transaction: rowTransaction });
+          imported++;
+        }
+
+        await rowTransaction.commit();
+      } catch (rowError) {
+        await rowTransaction.rollback();
+        console.error(`Row Import Error (Row ${i + 2}):`, rowError);
+        errors.push(`Row ${i + 2}: ${rowError.message}`);
       }
     }
-    res.json({ imported, updated, errors });
+
+    await transaction.commit();
+    
+    res.json({ 
+      success: true,
+      summary: {
+        imported,
+        updated,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${updated} updated${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
+    });
   } catch (error) {
+    if (transaction) await transaction.rollback();
     console.error('Error importing tests:', error);
-    res.status(500).json({ error: 'Failed to import tests' });
+    res.status(500).json({ error: 'Failed to import tests', details: error.message });
   }
 });
 

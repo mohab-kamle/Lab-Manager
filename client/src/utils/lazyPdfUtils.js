@@ -1,4 +1,5 @@
 // Step 2: Lazy-load Heavy Libraries Implementation
+import { formatDate } from './dateFormatter';
 // This utility demonstrates how to lazy-load PDF generation libraries
 // to improve initial bundle size and loading performance
 
@@ -85,7 +86,7 @@ export const generateLazyInvoicePDF = async (invoiceData, filename = 'invoice.pd
       content: [
         { text: 'INVOICE', style: 'header' },
         { text: `Invoice #: ${invoiceData.id}`, margin: [0, 10, 0, 5] },
-        { text: `Date: ${new Date(invoiceData.date).toLocaleDateString()}`, margin: [0, 0, 0, 10] },
+        { text: `Date: ${formatDate(invoiceData.date)}`, margin: [0, 0, 0, 10] },
         
         // Customer information
         {

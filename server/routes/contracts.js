@@ -171,7 +171,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
 /**
  * POST /contracts/import - Import contracts from Excel/CSV file
  */
-router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist"), upload.single("file"), async (req, res) => {
+router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });

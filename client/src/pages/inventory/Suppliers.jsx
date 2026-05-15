@@ -9,7 +9,7 @@ import PhoneInput from "../../components/ui/PhoneInput";
 import { Plus, Trash2 } from "lucide-react";
 
 const Suppliers = () => {
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -80,16 +80,16 @@ const Suppliers = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this supplier?")) {
+  const handleDelete = (supplier) => {
+    confirm.delete(supplier.name, async () => {
       try {
-        await api.delete(`/suppliers/${id}`);
+        await api.delete(`/suppliers/${supplier.id}`);
         toast.success("Supplier deleted successfully!");
         fetchSuppliers();
       } catch (error) {
         toast.error(error.response?.data?.message || "Failed to delete supplier");
       }
-    }
+    });
   };
 
   const ActionComponent = useMemo(() => {
@@ -97,7 +97,7 @@ const Suppliers = () => {
     const Component = ({ rowData }) => (
       <div className="d-flex gap-2">
         <Button variant="outline-primary" size="sm" onClick={() => handleShowModal(rowData)}>Edit</Button>
-        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData.id)}>Delete</Button>
+        <Button variant="outline-danger" size="sm" onClick={() => handleDelete(rowData)}>Delete</Button>
       </div>
     );
     Component.displayName = "SupplierActionComponent";

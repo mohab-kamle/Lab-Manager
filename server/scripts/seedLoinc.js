@@ -3,7 +3,7 @@ const path = require('path');
 const csv = require('csv-parser');
 
 require('dotenv').config({ path: path.join(__dirname, '../../.env.development') });
-const { global_test_catalog, categories_test_and_culture } = require(path.join(__dirname, '../models')); 
+const { global_test_catalog, categories_test_and_culture, sample_type } = require(path.join(__dirname, '../models')); 
 
 const getDataPath = (fileName) => path.join(__dirname, '../data', fileName);
 
@@ -36,6 +36,25 @@ const departmentDictionary = {
   'ALLERGY': 'Allergy'
 };
 
+const hardwareDictionary = {
+  'Ser/Plas': { tube_color: 'Gold/Red (SST)', container_type: 'Serum Separator Tube', standard_code: '119364003' },
+  'Bld': { tube_color: 'Lavender', container_type: 'EDTA Tube', standard_code: '119297000' },
+  'Fluoride Bld': { tube_color: 'Grey', container_type: 'Sodium Fluoride Tube', standard_code: '122552005' },
+  'Coag': { tube_color: 'Light Blue', container_type: 'Sodium Citrate Tube', standard_code: '119294007' },
+  'Plas': { tube_color: 'Light Green', container_type: 'Lithium Heparin Tube', standard_code: '119295008' },
+  'Urine': { tube_color: 'Yellow Cap', container_type: 'Sterile Cup', standard_code: '122575003' }
+};
+
+/**
+ * Run the full ETL pipeline that builds and persists the Smart LIMS global test catalog.
+ *
+ * Extracts core LOINC tests, assembles panel hierarchies (and backfills missing children),
+ * merges consumer-friendly names, constructs UI dropdown answer options, upserts sample type
+ * records, and upserts the final test/catalog records into the database while seeding categories.
+ *
+ * Side effects: reads CSV data files, writes/updates `sample_type`, `global_test_catalog`,
+ * and `categories_test_and_culture` records in the database.
+ */
 async function runETL() {
   console.log("Starting Smart LIMS Master ETL Pipeline...");
   
@@ -190,8 +209,44 @@ async function runETL() {
   // PHASE 5: DATABASE INSERTION
   // ==========================================
   console.log("5. Formatting and saving to MySQL...");
+  
+  const uniqueSystems = [...new Set(Array.from(catalog.values()).map(item => item.default_structure.system).filter(Boolean))];
+  const sampleTypeRecords = {}; 
+  
+  console.log(`5.1 Upserting ${uniqueSystems.length} unique sample types...`);
+  for (const system of uniqueSystems) {
+    const hw = hardwareDictionary[system] || {};
+    const standard_code = hw.standard_code || `LOINC-${system.substring(0, 40)}`; 
+    
+    // Explicitly scope to global (lab_id: null)
+    let sampleRecord = await sample_type.findOne({ 
+        where: { 
+            type: system.substring(0, 45),
+            lab_id: null 
+        } 
+    });
+
+    if (sampleRecord) {
+      await sampleRecord.update({
+        standard_code: standard_code.substring(0, 50),
+        tube_color: hw.tube_color || null,
+        container_type: hw.container_type || null
+      });
+    } else {
+      sampleRecord = await sample_type.create({
+        type: system.substring(0, 45),
+        standard_code: standard_code.substring(0, 50),
+        tube_color: hw.tube_color || null,
+        container_type: hw.container_type || null,
+        lab_id: null // Ensure it's global
+      });
+    }
+    sampleTypeRecords[system] = sampleRecord.id;
+  }
+
   const finalData = Array.from(catalog.values()).map(item => ({
     ...item,
+    default_sample_type_id: item.default_structure.system ? sampleTypeRecords[item.default_structure.system] : null,
     default_structure: JSON.stringify(item.default_structure)
   }));
 
@@ -199,14 +254,17 @@ async function runETL() {
     await global_test_catalog.bulkCreate(finalData, {
       updateOnDuplicate: [
         'name', 'type', 'order_rank', 'patient_friendly_name', 
-        'search_tags', 'global_category', 'default_structure'
+        'search_tags', 'global_category', 'default_structure', 'default_sample_type_id'
       ]
     });
     console.log(`\n✅ Success! Inserted ${finalData.length} records into the Global Catalog.`);
     
     // Seed standard categories
     const uniqueCategories = [...new Set(finalData.map(item => item.global_category).filter(Boolean))];
-    const categoriesData = uniqueCategories.map(name => ({ name }));
+    const categoriesData = uniqueCategories.map(name => ({ 
+        name,
+        lab_id: null // Explicitly mark as global
+    }));
     console.log(`5.5. Ensuring ${categoriesData.length} categories exist...`);
     if (categories_test_and_culture) {
       await categories_test_and_culture.bulkCreate(categoriesData, { ignoreDuplicates: true });

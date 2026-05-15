@@ -5,7 +5,7 @@ import api from '../../utils/api';
 import TransactionSummaryRow from '../../components/ui/TransactionSummaryRow';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatCurrency } from '../../utils/currencyFormatter';
-import { formatDateForInput } from '../../utils/dateFormatter';
+import { formatDateForInput, formatDateTime } from '../../utils/dateFormatter';
 import { useToast } from '../../components/ui/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import Toolbar from '../../components/layout/Toolbar';
@@ -130,7 +130,7 @@ const TransactionsVault = () => {
       const change = parseFloat(t.changeAmount) || 0;
       return [
         t.transactionId,
-        new Date(t.date).toLocaleString(),
+        formatDateTime(t.date),
         t.processType,
         t.paidWith || 'N/A',
         amount,

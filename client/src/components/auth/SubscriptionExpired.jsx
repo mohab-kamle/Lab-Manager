@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLab } from '../context/LabContext';
+import { formatDate } from '../../utils/dateFormatter';
 import './SubscriptionExpired.css';
 
 const SubscriptionExpired = () => {
@@ -28,7 +29,7 @@ const SubscriptionExpired = () => {
           <div className="subscription-details">
             <p><strong>Current Status:</strong> {subscriptionStatus.subscription?.status}</p>
             {subscriptionStatus.subscription?.end_date && (
-              <p><strong>Expired:</strong> {new Date(subscriptionStatus.subscription.end_date).toLocaleDateString()}</p>
+              <p><strong>Expired:</strong> {formatDate(subscriptionStatus.subscription.end_date)}</p>
             )}
           </div>
         )}

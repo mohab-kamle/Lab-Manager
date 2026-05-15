@@ -60,8 +60,15 @@ var _inventory_transaction = require("./inventory_transaction");
 var _inventory_notification = require("./inventory_notification");
 var _lab_whatsapp_account = require("./lab_whatsapp_account");
 var _whatsapp_message = require("./whatsapp_message");
+var _lab_sample_type_settings = require("./lab_sample_type_settings");
 var _outsourced_lab = require("./outsourced_lab");
+var _otp_verification = require("./otp_verification");
 
+/**
+ * Instantiate all Sequelize model factories, wire their associations, and expose the created models.
+ * @param {import("sequelize").Sequelize} sequelize - Sequelize instance used to initialize the model factories.
+ * @returns {Object} An object mapping model names to the instantiated Sequelize model objects (e.g., `admin`, `bill`, `patient`, `test`, `medical_report`, `lab_sample_type_settings`, etc.) with associations already configured.
+ */
 function initModels(sequelize) {
   var admin = _admin(sequelize, DataTypes);
   var admin_packages_and_offers = _admin_packages_and_offers(sequelize, DataTypes);
@@ -118,7 +125,9 @@ function initModels(sequelize) {
   var inventory_notification = _inventory_notification(sequelize, DataTypes);
   var lab_whatsapp_account = _lab_whatsapp_account(sequelize, DataTypes);
   var whatsapp_message = _whatsapp_message(sequelize, DataTypes);
+  var lab_sample_type_settings = _lab_sample_type_settings(sequelize, DataTypes);
   var outsourced_lab = _outsourced_lab(sequelize, DataTypes);
+  var otp_verification = _otp_verification(sequelize, DataTypes);
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -455,6 +464,14 @@ function initModels(sequelize) {
     foreignKey: "sample_type_id",
   });
   sample_type.hasMany(test, { as: "tests", foreignKey: "sample_type_id" });
+  global_test_catalog.belongsTo(sample_type, {
+    as: "default_sample_type",
+    foreignKey: "default_sample_type_id",
+  });
+  sample_type.hasMany(global_test_catalog, {
+    as: "global_tests",
+    foreignKey: "default_sample_type_id",
+  });
   bill.belongsTo(status, { as: "status", foreignKey: "status_id" });
   status.hasMany(bill, { as: "bills", foreignKey: "status_id" });
   bill_has_test.belongsTo(test, { as: "test", foreignKey: "test_id" });
@@ -552,6 +569,9 @@ function initModels(sequelize) {
   lab.hasMany(outsourced_lab, { as: "outsourced_labs", foreignKey: "lab_id" });
   outsourced_lab.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
 
+  lab.hasMany(categories_test_and_culture, { as: "categories", foreignKey: "lab_id" });
+  categories_test_and_culture.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+
   // Lab Payment relationships
   lab_payment.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
   lab.hasMany(lab_payment, { as: "payments", foreignKey: "lab_id" });
@@ -565,6 +585,16 @@ function initModels(sequelize) {
 
   whatsapp_message.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
   patient.hasMany(whatsapp_message, { as: "whatsapp_messages", foreignKey: "patient_id" });
+
+  // Lab Sample Type Settings associations
+  lab_sample_type_settings.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(lab_sample_type_settings, { as: "sample_type_settings", foreignKey: "lab_id" });
+  lab_sample_type_settings.belongsTo(sample_type, { as: "sample_type", foreignKey: "sample_type_id" });
+  sample_type.hasMany(lab_sample_type_settings, { as: "lab_settings", foreignKey: "sample_type_id" });
+
+  // Multi-tenant associations for sample_type
+  sample_type.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(sample_type, { as: "sample_types", foreignKey: "lab_id" });
 
   // Test Group Result associations
   // Test Comments associations
@@ -673,7 +703,9 @@ function initModels(sequelize) {
     inventory_notification,
     lab_whatsapp_account,
     whatsapp_message,
-    outsourced_lab
+    lab_sample_type_settings,
+    outsourced_lab,
+    otp_verification
   };
 }
 

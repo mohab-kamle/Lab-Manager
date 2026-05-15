@@ -18,7 +18,7 @@ const KANBAN_STATES = [
 ];
 
 const SamplesKanban = () => {
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -64,8 +64,21 @@ const SamplesKanban = () => {
 
   const handleDeleteSample = async (e, id) => {
     e.stopPropagation(); // Prevent card click
-    const confirmation = window.prompt("Type 'confirm delete' to delete this sample:");
-    if (confirmation && confirmation.toLowerCase() === "confirm delete") {
+    
+    confirm.custom({
+      title: "Delete Sample?",
+      message: (
+        <div>
+          <p className="text-danger">
+            Warning: This action cannot be undone.
+          </p>
+          <p>Please type <strong>confirm delete</strong> to proceed:</p>
+        </div>
+      ),
+      confirmText: "Delete Sample",
+      requireMatch: "confirm delete",
+      type: "danger"
+    }, async () => {
       try {
         const token = localStorage.getItem("token");
         await axios.delete(`${apiUrl}/tracked-samples/${id}`, {
@@ -76,9 +89,7 @@ const SamplesKanban = () => {
       } catch (err) {
         toast.error("Failed to delete sample.");
       }
-    } else if (confirmation !== null) {
-      toast.error("Deletion cancelled. Text did not match.");
-    }
+    });
   };
 
   const handleUpdateStatus = async (id, newStatus) => {
