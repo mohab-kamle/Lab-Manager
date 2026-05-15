@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, sample_type, financial_transaction, lab, manager_key } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, sample_type, financial_transaction, lab, manager_key, lab_samples } = require("../models");
 const { Op } = require("sequelize");
 const bcrypt = require("bcrypt");
 const authenticateUser = require("../middleware/authenticateUser");
@@ -459,6 +459,41 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                     }));
                     await medical_report_has_test.bulkCreate(testRecords, { transaction });
                 }
+
+                // ── Auto-create tracked samples for each test ──────────────
+                // Each test gets its own lab_samples record with a unique barcode-friendly ID.
+                // The sample_type_id is inherited from the test definition.
+                const now = new Date().toISOString();
+                for (const testId of allTests) {
+                    const parsedTestId = parseInt(testId);
+                    // Fetch the test to get its sample_type_id
+                    const testRecord = await test.findByPk(parsedTestId, {
+                        attributes: ['id', 'sample_type_id'],
+                        transaction
+                    });
+
+                    // Generate a unique, barcode-scannable sample ID
+                    // Format: SMP-{ReportID}-{TestID}-{Random3Digits}
+                    const randomSuffix = Math.floor(Math.random() * 900 + 100); // 100-999
+                    const sampleId = `SMP-${newMedicalReport.id}-${parsedTestId}-${randomSuffix}`;
+
+                    await lab_samples.create({
+                        sample_id: sampleId,
+                        medical_report_id: newMedicalReport.id,
+                        test_id: parsedTestId,
+                        sample_type_id: testRecord?.sample_type_id || null,
+                        status: 'Pending Collection',
+                        status_history: {
+                            pending_collection_at: now,
+                            collected_at: null,
+                            dispatched_at: null,
+                            in_process_at: null,
+                            completed_at: null,
+                            rejected_at: null,
+                        }
+                    }, { transaction });
+                }
+                console.log(`[INVOICE] Auto-created ${allTests.length} tracked sample(s) for report ${newMedicalReport.id}`);
             } catch (medicalReportError) {
                 console.error('Error creating medical report:', medicalReportError);
                 // If there's an error creating the medical report, rollback the transaction

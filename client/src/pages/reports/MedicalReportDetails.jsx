@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Container, Row, Col, Card, Badge, Spinner, Table, Button } from "react-bootstrap";
 import { useToast } from "../../components/ui/ToastContext";
-import { Activity, FlaskConical, FileText, User, Calendar, Receipt, Search } from "lucide-react";
+import { Activity, FlaskConical, FileText, User, Calendar, Receipt, Search, Plus, Printer } from "lucide-react";
 import axios from "axios";
 import { formatDateTime } from "../../utils/dateFormatter";
 import SampleQuickInfoModal from "../../components/samples/SampleQuickInfoModal";
+import AddSampleModal from "../../components/samples/AddSampleModal";
+import SampleLabelModal from "../../components/samples/SampleLabelModal";
 
 const MedicalReportDetails = () => {
   const { id } = useParams();
@@ -15,8 +17,18 @@ const MedicalReportDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [samples, setSamples] = useState([]);
+
+  // SampleQuickInfoModal state
   const [showScanModal, setShowScanModal] = useState(false);
   const [lookupSampleId, setLookupSampleId] = useState("");
+
+  // AddSampleModal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addSampleTestId, setAddSampleTestId] = useState("");
+
+  // SampleLabelModal state
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [labelSampleData, setLabelSampleData] = useState(null);
 
   useEffect(() => {
     const fetchReportDetails = async () => {
@@ -46,6 +58,38 @@ const MedicalReportDetails = () => {
 
     fetchReportDetails();
   }, [id]);
+
+  /**
+   * Re-fetches the samples list after a new sample is added.
+   */
+  const handleSampleAdded = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const samplesResponse = await axios.get(`${apiUrl}/tracked-samples?report_id=${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSamples(samplesResponse.data);
+      toast.success("Sample added successfully.");
+    } catch (err) {
+      console.error("Error refreshing samples:", err);
+    }
+  };
+
+  /**
+   * Opens the label printing modal with the selected sample's data.
+   */
+  const handlePrintLabel = (sample) => {
+    setLabelSampleData({
+      sample_id: sample.sample_id || sample.id,
+      test_name: sample.test_name,
+      sample_type: sample.sample_type,
+      patient_name: report?.patient?.name || report?.patient_name || "Unknown",
+      report_id: report?.id,
+      created_at: sample.created_at,
+    });
+    setShowLabelModal(true);
+  };
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -78,11 +122,29 @@ const MedicalReportDetails = () => {
 
   return (
     <>
+    {/* Sample Quick Info Lookup Modal */}
     <SampleQuickInfoModal 
       show={showScanModal} 
       onHide={() => setShowScanModal(false)} 
       initialBarcode={lookupSampleId} 
     />
+
+    {/* Add Sample Modal */}
+    <AddSampleModal
+      show={showAddModal}
+      onHide={() => setShowAddModal(false)}
+      onAdd={handleSampleAdded}
+      initialReportId={report?.id?.toString() || ""}
+      initialTestId={addSampleTestId}
+    />
+
+    {/* Label Printing Modal */}
+    <SampleLabelModal
+      show={showLabelModal}
+      onHide={() => setShowLabelModal(false)}
+      sampleData={labelSampleData}
+    />
+
     <Container fluid className="py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -184,6 +246,18 @@ const MedicalReportDetails = () => {
               <h5 className="mb-0 text-primary d-flex align-items-center">
                 <Activity size={20} className="me-2" /> Ordered Tests & Samples
               </h5>
+              {/* Global "Add Sample" button for the report */}
+              <Button
+                variant="outline-primary"
+                size="sm"
+                className="d-flex align-items-center"
+                onClick={() => {
+                  setAddSampleTestId("");
+                  setShowAddModal(true);
+                }}
+              >
+                <Plus size={16} className="me-1" /> Add Sample
+              </Button>
             </Card.Header>
             <Card.Body className="p-0">
               <Table responsive hover className="mb-0">
@@ -193,12 +267,13 @@ const MedicalReportDetails = () => {
                     <th className="border-0 py-3 text-secondary font-weight-normal">Samples Tracked</th>
                     <th className="border-0 py-3 text-secondary font-weight-normal">Sample Types</th>
                     <th className="border-0 py-3 text-secondary font-weight-normal">Current Status</th>
+                    <th className="border-0 py-3 text-secondary font-weight-normal text-end pe-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(!report.tests || report.tests.length === 0) ? (
                     <tr>
-                      <td colSpan="4" className="text-center p-4 text-muted">
+                      <td colSpan="5" className="text-center p-4 text-muted">
                         No tests ordered for this report.
                       </td>
                     </tr>
@@ -233,20 +308,9 @@ const MedicalReportDetails = () => {
                             {testSamples.length > 0 ? (
                               <div className="d-flex flex-column gap-1">
                                 {testSamples.map(sample => (
-                                  <div key={sample.id} className="d-flex align-items-center">
-                                    <span className="small text-muted me-2 d-flex align-items-center">
+                                  <div key={sample.id} className="d-flex align-items-center gap-2">
+                                    <span className="small text-muted">
                                       #{sample.id}
-                                      <Button
-                                        variant="link"
-                                        className="p-0 ms-1 text-primary"
-                                        title="Lookup Sample"
-                                        onClick={() => {
-                                          setLookupSampleId(sample.id);
-                                          setShowScanModal(true);
-                                        }}
-                                      >
-                                        <Search size={14} />
-                                      </Button>
                                     </span>
                                     <Badge bg={getStatusBadge(sample.status)} className="rounded-pill px-2">
                                       {sample.status}
@@ -257,6 +321,49 @@ const MedicalReportDetails = () => {
                             ) : (
                               <span className="text-muted small">No samples</span>
                             )}
+                          </td>
+                          <td className="py-3 align-middle text-end pe-4">
+                            <div className="d-flex justify-content-end gap-1">
+                              {/* Print Label for each sample */}
+                              {testSamples.map(sample => (
+                                <Button
+                                  key={`print-${sample.id}`}
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  title={`Print label for Sample #${sample.id}`}
+                                  onClick={() => handlePrintLabel(sample)}
+                                >
+                                  <Printer size={14} />
+                                </Button>
+                              ))}
+                              {/* Lookup / Quick Info */}
+                              {testSamples.map(sample => (
+                                <Button
+                                  key={`lookup-${sample.id}`}
+                                  variant="link"
+                                  className="p-0 ms-1 text-primary"
+                                  title="Lookup Sample"
+                                  onClick={() => {
+                                    setLookupSampleId(sample.sample_id || sample.id);
+                                    setShowScanModal(true);
+                                  }}
+                                >
+                                  <Search size={14} />
+                                </Button>
+                              ))}
+                              {/* Add a sample for this specific test */}
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                title="Add sample for this test"
+                                onClick={() => {
+                                  setAddSampleTestId(test.id.toString());
+                                  setShowAddModal(true);
+                                }}
+                              >
+                                <Plus size={14} />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );

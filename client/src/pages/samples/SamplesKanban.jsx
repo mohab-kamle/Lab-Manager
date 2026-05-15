@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Badge, Button, Dropdown, Spinner } from "react-bootstrap";
 import axios from "axios";
 import { useToast } from "../../components/ui/ToastContext";
-import { Plus, Trash2, MoreVertical, Search, Filter } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Search, Filter, Printer } from "lucide-react";
 import AddSampleModal from "../../components/samples/AddSampleModal";
+import SampleLabelModal from "../../components/samples/SampleLabelModal";
 import PortalDropdownMenu from "../../components/samples/PortalDropdownMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -34,6 +35,10 @@ const SamplesKanban = () => {
   
   // Drag and Drop state
   const [draggedSampleId, setDraggedSampleId] = useState(null);
+
+  // Label printing state
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [labelSampleData, setLabelSampleData] = useState(null);
 
   const fetchSamples = async () => {
     setLoading(true);
@@ -250,8 +255,8 @@ const SamplesKanban = () => {
                   >
                     <Card.Body className="p-3">
                       <div className="d-flex justify-content-between align-items-start mb-2">
-                        <Badge bg="secondary" className="bg-opacity-10 text-theme border border-secondary border-opacity-25">
-                          #{sample.id}
+                        <Badge bg="primary" className="bg-opacity-10 text-primary border border-primary border-opacity-25">
+                          {sample.sample_id || `#${sample.id}`}
                         </Badge>
                         <Dropdown onClick={(e) => e.stopPropagation()}>
                           <Dropdown.Toggle as="div" id={`kanban-dd-${sample.id}`} className="cursor-pointer text-muted px-1">
@@ -269,6 +274,19 @@ const SamplesKanban = () => {
                               </Dropdown.Item>
                             ))}
                             <Dropdown.Divider />
+                            <Dropdown.Item onClick={() => {
+                              setLabelSampleData({
+                                sample_id: sample.sample_id || sample.id,
+                                test_name: sample.test_name,
+                                sample_type: sample.sample_type,
+                                patient_name: "Patient", // Kanban doesn't have patient name in its data
+                                report_id: sample.medical_report_id,
+                                created_at: sample.created_at,
+                              });
+                              setShowLabelModal(true);
+                            }}>
+                              <Printer size={16} className="me-2" /> Print Label
+                            </Dropdown.Item>
                             <Dropdown.Item className="text-danger" onClick={(e) => handleDeleteSample(e, sample.id)}>
                               <Trash2 size={16} className="me-2" /> Delete Sample
                             </Dropdown.Item>
@@ -302,6 +320,12 @@ const SamplesKanban = () => {
         show={showAddModal} 
         onHide={() => setShowAddModal(false)} 
         onAdd={handleAddSample}
+      />
+
+      <SampleLabelModal
+        show={showLabelModal}
+        onHide={() => setShowLabelModal(false)}
+        sampleData={labelSampleData}
       />
     </Container>
   );

@@ -627,6 +627,38 @@ router.post(
       // Associate tests if provided
       if (test_ids && test_ids.length > 0) {
         await report.setTests(test_ids);
+
+        // ── Auto-create tracked samples for each test ──────────────
+        // Each test gets a lab_samples record with a unique barcode-friendly ID.
+        const now = new Date().toISOString();
+        for (const testId of test_ids) {
+          const parsedTestId = parseInt(testId);
+          // Fetch the test to get its sample_type_id
+          const testRecord = await db.test.findByPk(parsedTestId, {
+            attributes: ['id', 'sample_type_id'],
+          });
+
+          // Generate a unique, barcode-scannable sample ID
+          const randomSuffix = Math.floor(Math.random() * 900 + 100); // 100-999
+          const sampleId = `SMP-${report.id}-${parsedTestId}-${randomSuffix}`;
+
+          await db.lab_samples.create({
+            sample_id: sampleId,
+            medical_report_id: report.id,
+            test_id: parsedTestId,
+            sample_type_id: testRecord?.sample_type_id || null,
+            status: 'Pending Collection',
+            status_history: {
+              pending_collection_at: now,
+              collected_at: null,
+              dispatched_at: null,
+              in_process_at: null,
+              completed_at: null,
+              rejected_at: null,
+            }
+          });
+        }
+        console.log(`[MEDICAL_REPORT] Auto-created ${test_ids.length} tracked sample(s) for report ${report.id}`);
       }
       // Fetch the created report with associations
       const createdReport = await db.medical_report.findByPk(report.id, {

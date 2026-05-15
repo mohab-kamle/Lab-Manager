@@ -151,6 +151,15 @@ router.post(
       const now = new Date().toISOString();
 
       for (const testItem of testsToProcess) {
+        // Prevent duplicate: skip if a sample already exists for this test in this report
+        const existingSample = await lab_samples.findOne({
+          where: { medical_report_id, test_id: testItem.id }
+        });
+        if (existingSample) {
+          // Skip silently or inform the caller — we skip to allow partial creation
+          continue;
+        }
+
         const generatedSampleId = `SMP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         
         // Use provided sample_type_id or fall back to the one defined in the test
