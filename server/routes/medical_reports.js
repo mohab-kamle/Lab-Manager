@@ -1975,8 +1975,8 @@ router.post(
         where: { id: test_id }
       });
 
-      if (!test || !test.structure_config) {
-        return res.status(400).json({ error: "Test not found or has no structure config" });
+      if (!test) {
+        return res.status(404).json({ error: "Test not found" });
       }
 
       // Age calculation is simplified to years for now
@@ -2073,6 +2073,30 @@ router.post(
           }));
 
           await db.medical_report_results.bulkCreate(preparedResults, { transaction: t });
+
+          // Update main medical_report_has_test table for backward compatibility and status tracking
+          let mainStatus = "done";
+          let mainResult = null;
+
+          // If there's a result with key 'result', it's likely a simple test save
+          if (results.result !== undefined) {
+            mainResult = String(results.result ?? '').trim();
+            // If we have a clinical flag for it, use it, otherwise 'done'
+            const resultEntry = resultsToSave.find(r => r.parameter_key === 'result');
+            mainStatus = resultEntry ? resultEntry.clinical_flag : (mainResult !== "" ? "done" : "pending");
+          }
+
+          await db.medical_report_has_test.update(
+            {
+              result: mainResult,
+              status: mainStatus,
+              updatedAt: new Date()
+            },
+            {
+              where: { medical_report_id: report.id, test_id: test.id },
+              transaction: t
+            }
+          );
 
           // Stamp received_at now that results have been entered
           if (preparedResults.length > 0) {
