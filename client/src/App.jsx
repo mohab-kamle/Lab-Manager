@@ -19,6 +19,7 @@ const PaymentCallback = lazy(() => import('./pages/payment/PaymentCallback'));
 import OTPVerify from './pages/auth/OTPVerify';
 const KnowUs = lazy(() => import('./pages/info/KnowUs'));
 const ToastTestPage = lazy(() => import('./pages/test/ToastTestPage'));
+const MobileScanner = lazy(() => import('./pages/scanner/MobileScanner'));
 
 import { useAuth } from './context/AuthContext';
 
@@ -62,6 +63,7 @@ function App() {
               <Route path="/payment-callback" element={<PageTransition><PaymentCallback /></PageTransition>} />
               <Route path="/know-us" element={<PageTransition><KnowUs /></PageTransition>} />
               <Route path="/toast-test" element={<PageTransition><ToastTestPage /></PageTransition>} />
+              <Route path="/mobile-scanner/:sessionId" element={<PageTransition><MobileScanner /></PageTransition>} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           ) : (
@@ -70,6 +72,7 @@ function App() {
               <Route path="/" element={<Navigate to={user ? `/${user.role}/dashboard` : "/login"} replace />} />
               <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <PageTransition><UnifiedLogin /></PageTransition>} />
               <Route path="/otp-verify" element={<PageTransition><OTPVerify /></PageTransition>} />
+              <Route path="/mobile-scanner/:sessionId" element={<PageTransition><MobileScanner /></PageTransition>} />
               <Route path="/*" element={<LabRoutes />} />
 
             </Routes>

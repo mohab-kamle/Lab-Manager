@@ -35,7 +35,7 @@ import InvoicePDF from "../../components/pdf/InvoicePDF";
 import Select from "react-select";
 import "../../styles/select.css";
 import { useToast } from "../../components/ui/ToastContext";
-import { formatDateTime } from "../../utils/dateFormatter";
+import { formatDateTime, calculateAge } from "../../utils/dateFormatter";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import PhoneInput from "../../components/ui/PhoneInput";
 import RefundModal from "../../components/invoices/RefundModal";
@@ -1377,7 +1377,7 @@ const Invoices = () => {
   const formatCellData = (value, header, rowData) => {
     if (
       (value === null || value === undefined) &&
-      !["amount_due", "credit"].includes(header)
+      !["amount_due", "credit", "age"].includes(header)
     )
       return "-";
 
@@ -1596,13 +1596,19 @@ const Invoices = () => {
         return <span className="text-muted">-</span>;
 
       case "age":
+        if (!rowData.date) return <span className="text-muted">-</span>;
         const invoiceDate = new Date(rowData.date);
+        if (isNaN(invoiceDate.getTime())) return <span className="text-muted">-</span>;
+        
         const now = new Date();
         const diffInTime = now.getTime() - invoiceDate.getTime();
         const diffInDays = Math.floor(diffInTime / (1000 * 3600 * 24));
+        
+        if (diffInDays < 0) return <Badge bg="info">Today</Badge>; // Handle future dates gracefully
+
         return (
           <Badge bg={diffInDays === 0 ? "info" : "secondary"}>
-            {diffInDays === 0 ? "Today" : `${diffInDays} days`}
+            {diffInDays === 0 ? "Today" : `${diffInDays} day${diffInDays === 1 ? "" : "s"}`}
           </Badge>
         );
 
@@ -2168,12 +2174,13 @@ const Invoices = () => {
                                                   patientForm.birth_month &&
                                                   patientForm.birth_year
                                                 ) {
-                                                  newForm.birth_date =
-                                                    updateBirthDateFromComponents(
+                                                  const bDate = updateBirthDateFromComponents(
                                                       day,
                                                       patientForm.birth_month,
                                                       patientForm.birth_year,
                                                     );
+                                                  newForm.birth_date = bDate;
+                                                  newForm.age = calculateAge(bDate).toString();
                                                 }
                                                 setPatientForm(newForm);
                                               }
@@ -2204,12 +2211,13 @@ const Invoices = () => {
                                                   month &&
                                                   patientForm.birth_year
                                                 ) {
-                                                  newForm.birth_date =
-                                                    updateBirthDateFromComponents(
+                                                  const bDate = updateBirthDateFromComponents(
                                                       patientForm.birth_day,
                                                       month,
                                                       patientForm.birth_year,
                                                     );
+                                                  newForm.birth_date = bDate;
+                                                  newForm.age = calculateAge(bDate).toString();
                                                 }
                                                 setPatientForm(newForm);
                                               }
@@ -2239,12 +2247,13 @@ const Invoices = () => {
                                                   patientForm.birth_month &&
                                                   year
                                                 ) {
-                                                  newForm.birth_date =
-                                                    updateBirthDateFromComponents(
+                                                  const bDate = updateBirthDateFromComponents(
                                                       patientForm.birth_day,
                                                       patientForm.birth_month,
                                                       year,
                                                     );
+                                                  newForm.birth_date = bDate;
+                                                  newForm.age = calculateAge(bDate).toString();
                                                 }
                                                 setPatientForm(newForm);
                                               }

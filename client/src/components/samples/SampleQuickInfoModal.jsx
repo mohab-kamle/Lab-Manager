@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Row, Col, Badge, Spinner, Alert, Card, Button, Form, InputGroup } from 'react-bootstrap';
-import { User, FlaskConical, MapPin, Building, Activity, FileText, Calendar, Beaker, Link as LinkIcon, ScanBarcode, Search } from 'lucide-react';
+import { User, FlaskConical, MapPin, Building, Activity, FileText, Calendar, Beaker, Link as LinkIcon, ScanBarcode, Search, Smartphone } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../../utils/dateFormatter';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../ui/ToastContext';
+import MobileScannerBridge from '../scanner/MobileScannerBridge';
 
 const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
   const [barcodeData, setBarcodeData] = useState('');
@@ -13,9 +15,12 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isScanning, setIsScanning] = useState(true);
+  const [useMobileScanner, setUseMobileScanner] = useState(false);
+  const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
   const inputRef = useRef(null);
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     if (show) {
@@ -38,12 +43,13 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
       setSampleData(null);
       setError(null);
       setIsScanning(true);
+      setUseMobileScanner(false);
       return;
     }
 
     let timeout;
     const handleKeyDown = (e) => {
-      if (!isScanning) return;
+      if (!isScanning || useMobileScanner) return;
       
       // If user is typing in the manual input, let them
       if (document.activeElement === inputRef.current) return;
@@ -71,19 +77,24 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
       window.removeEventListener('keydown', handleKeyDown);
       clearTimeout(timeout);
     };
-  }, [show, barcodeData, isScanning]);
+  }, [show, barcodeData, isScanning, useMobileScanner]);
 
   const fetchSampleData = async (barcode) => {
     if (!barcode || !barcode.trim()) return;
     
     setLoading(true);
     setError(null);
-    setIsScanning(false); // Stop listening to barcode temporarily if needed, though usually we can keep listening
+    setIsScanning(false);
     try {
-      const response = await axios.get(`/api/tracked-samples/lookup/${barcode.trim()}`);
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      const response = await axios.get(`${apiUrl}/tracked-samples/lookup/${barcode.trim()}`, { headers });
       setSampleData(response.data);
+      if (useMobileScanner) setUseMobileScanner(false);
     } catch (err) {
-      setError(err.response?.data?.message || 'Sample not found or an error occurred.');
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Sample not found or an error occurred.';
+      setError(errorMsg);
+      toast.error(errorMsg);
       setSampleData(null);
     } finally {
       setLoading(false);
@@ -130,29 +141,51 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
         </Modal.Title>
       </Modal.Header>
       <Modal.Body className="bg-body-tertiary">
-        <div className="mb-4">
-          <Form onSubmit={handleManualSubmit}>
-            <InputGroup>
-              <InputGroup.Text className="bg-body">
-                <ScanBarcode size={18} className="text-primary" />
-              </InputGroup.Text>
-              <Form.Control
-                ref={inputRef}
-                type="text"
-                placeholder="Scan barcode or type manually..."
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-                autoFocus
-              />
-              <Button type="submit" variant="primary" disabled={loading || !manualInput.trim()}>
-                <Search size={18} className="me-1" /> Search
-              </Button>
-            </InputGroup>
-            <Form.Text className="text-muted small ms-1">
-              Ensure scanner is active, or type ID and press Enter.
-            </Form.Text>
-          </Form>
-        </div>
+        {!useMobileScanner ? (
+          <div className="mb-4">
+            <Form onSubmit={handleManualSubmit}>
+              <Form.Label className="small fw-bold text-muted d-flex justify-content-between">
+                SCANNER INPUT
+                <Button 
+                  variant="link" 
+                  className="p-0 text-decoration-none small d-flex align-items-center"
+                  onClick={() => setUseMobileScanner(true)}
+                >
+                  <Smartphone size={14} className="me-1" /> Use Phone as Scanner
+                </Button>
+              </Form.Label>
+              <InputGroup>
+                <InputGroup.Text className="bg-body">
+                  <ScanBarcode size={18} className="text-primary" />
+                </InputGroup.Text>
+                <Form.Control
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Scan barcode or type manually..."
+                  value={manualInput}
+                  onChange={(e) => setManualInput(e.target.value)}
+                  autoFocus
+                />
+                <Button type="submit" variant="primary" disabled={loading || !manualInput.trim()}>
+                  <Search size={18} className="me-1" /> Search
+                </Button>
+              </InputGroup>
+              <Form.Text className="text-muted small ms-1">
+                Ensure physical scanner is active, or type ID and press Enter.
+              </Form.Text>
+            </Form>
+          </div>
+        ) : (
+          <div className="mb-4">
+            <MobileScannerBridge 
+              onScan={(data) => {
+                setManualInput(data);
+                fetchSampleData(data);
+              }}
+              onClose={() => setUseMobileScanner(false)}
+            />
+          </div>
+        )}
 
         {loading && (
           <div className="d-flex flex-column justify-content-center align-items-center py-5">

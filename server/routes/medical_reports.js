@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
 const db = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
@@ -627,6 +628,44 @@ router.post(
       // Associate tests if provided
       if (test_ids && test_ids.length > 0) {
         await report.setTests(test_ids);
+
+        // ── Auto-create tracked samples for each test ──────────────
+        // Each test gets a lab_samples record with a unique barcode-friendly ID.
+        const now = new Date().toISOString();
+        for (const testId of test_ids) {
+          const parsedTestId = parseInt(testId);
+          // Fetch the test to get its sample_type_id, scoped to this lab
+          const testRecord = await db.test.findOne({
+            where: { id: parsedTestId, lab_id },
+            attributes: ['id', 'sample_type_id'],
+          });
+
+          // Skip sample creation for tests that don't belong to this lab
+          if (!testRecord) {
+            console.warn(`[MEDICAL_REPORT] Skipping sample creation for test ${parsedTestId}: not found or lab mismatch.`);
+            continue;
+          }
+
+          // Generate a unique, barcode-scannable sample ID matching tracked_samples pattern
+          const sampleId = `SMP-${crypto.randomUUID()}`;
+
+          await db.lab_samples.create({
+            sample_id: sampleId,
+            medical_report_id: report.id,
+            test_id: parsedTestId,
+            sample_type_id: testRecord?.sample_type_id || null,
+            status: 'Pending Collection',
+            status_history: {
+              pending_collection_at: now,
+              collected_at: null,
+              dispatched_at: null,
+              in_process_at: null,
+              completed_at: null,
+              rejected_at: null,
+            }
+          });
+        }
+        console.log(`[MEDICAL_REPORT] Auto-created ${test_ids.length} tracked sample(s) for report ${report.id}`);
       }
       // Fetch the created report with associations
       const createdReport = await db.medical_report.findByPk(report.id, {

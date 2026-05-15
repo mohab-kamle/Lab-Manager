@@ -111,10 +111,15 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // In development, allow dynamic localhost subdomains (e.g. test.localhost:5173)
-    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)*localhost(:[0-9]+)?$/.test(origin)) {
-      console.log('CORS: Allowing localhost subdomain:', origin);
-      return callback(null, true);
+    // In development, allow dynamic localhost subdomains and private IP addresses
+    if (process.env.NODE_ENV !== 'production') {
+      const isLocalhost = /^http:\/\/([a-z0-9-]+\.)*localhost(:[0-9]+)?$/.test(origin);
+      const isPrivateIP = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)[0-9.]+(:[0-9]+)?$/.test(origin);
+      
+      if (isLocalhost || isPrivateIP) {
+        console.log('CORS: Allowing local/private origin:', origin);
+        return callback(null, true);
+      }
     }
 
     if (allowedOrigins.indexOf(origin) !== -1) {
@@ -349,6 +354,7 @@ app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
 app.use("/whatsapp", require("./routes/whatsapp.routes"));
 app.use("/auth", require("./routes/auth"));
+app.use("/tracked-samples", require("./routes/tracked_samples"));
 
 // Global error handler
 app.use((error, req, res, next) => {
@@ -654,6 +660,40 @@ async function startServer() {
         // Small delay to ensure the client has fully joined the room before we emit events
         setTimeout(() => checkExpiringBatches(io), 2000);
       }
+    });
+
+    // Real-time mobile scanner bridge
+    socket.on("join-scanner", (payload) => {
+      // Validate payload is an object and sessionId is a non-empty string or number
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+      
+      const { sessionId } = payload;
+      if (!sessionId || (typeof sessionId !== 'string' && typeof sessionId !== 'number')) return;
+
+      socket.join(`scanner_${sessionId}`);
+      // Notify others in the room that someone joined
+      socket.to(`scanner_${sessionId}`).emit("scanner-joined");
+      console.log(`📡 Socket ${socket.id} joined scanner room: ${sessionId}`);
+    });
+
+    socket.on("scan-data", (payload) => {
+      // Validate event payload (not null/array/function)
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload) || typeof payload === 'function') {
+        socket.emit("scan-error", { message: "Invalid payload format" });
+        return;
+      }
+
+      const { sessionId, data } = payload;
+      
+      // Verify sessionId and data types
+      if (!sessionId || (typeof sessionId !== 'string' && typeof sessionId !== 'number') || !data) {
+        socket.emit("scan-error", { message: "Invalid session ID or scan data" });
+        return;
+      }
+
+      // Relay scan data to everyone in the room except the sender
+      socket.to(`scanner_${sessionId}`).emit("scan-result", data);
+      console.log(`📦 Scan relayed for session ${sessionId}: ${data}`);
     });
 
     socket.on("disconnect", () => {
