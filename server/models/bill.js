@@ -108,6 +108,21 @@ module.exports = function (sequelize, DataTypes) {
         onUpdate: 'CASCADE',
         onDelete: 'SET NULL',
       },
+      change_amount: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: 'Amount returned to patient in case of overpayment'
+      },
+      integrity_hash: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
+      refunded_amount: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: 0.0,
+      },
     },
     {
       sequelize,
