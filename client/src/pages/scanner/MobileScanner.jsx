@@ -14,6 +14,9 @@ const MobileScanner = () => {
   const socketRef = useRef(null);
   const scannerRef = useRef(null);
   const lastScanResetTimerRef = useRef(null);
+  // Ref to track last scanned value for deduplication WITHOUT triggering effect re-runs.
+  // Using state for this caused the socket + scanner to be destroyed on every scan.
+  const lastScanValueRef = useRef(null);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   useEffect(() => {
@@ -59,21 +62,27 @@ const MobileScanner = () => {
     );
 
     const onScanSuccess = (decodedText) => {
-      if (decodedText !== lastScan) {
-        setLastScan(decodedText);
+      // Use ref for deduplication to avoid stale closures and effect re-runs
+      if (decodedText !== lastScanValueRef.current) {
+        lastScanValueRef.current = decodedText;
+        setLastScan(decodedText); // Update state for UI display only
+
         // Haptic feedback
         if (window.navigator.vibrate) {
           window.navigator.vibrate(100);
         }
         
-        // Relay to desktop
-        socketRef.current.emit('scan-data', { sessionId, data: decodedText });
+        // Relay to desktop via the stable socket connection
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('scan-data', { sessionId, data: decodedText });
+        }
         
         // Reset last scan after a short delay to allow re-scanning same code
         if (lastScanResetTimerRef.current) {
           clearTimeout(lastScanResetTimerRef.current);
         }
         lastScanResetTimerRef.current = setTimeout(() => {
+          lastScanValueRef.current = null;
           setLastScan(null);
           lastScanResetTimerRef.current = null;
         }, 2000);
@@ -106,7 +115,8 @@ const MobileScanner = () => {
         clearTimeout(lastScanResetTimerRef.current);
       }
     };
-  }, [sessionId, apiUrl, lastScan]);
+  // IMPORTANT: Do NOT add `lastScan` here — it would destroy the socket & scanner on every scan
+  }, [sessionId, apiUrl]);
 
   const handleManualSend = (e) => {
     e.preventDefault();
