@@ -5,6 +5,7 @@ import { useToast } from '../../components/ui/ToastContext';
 import DynamicTable from '../../components/ui/DynamicTable';
 import { formatDate } from '../../utils/dateFormatter';
 import { Plus, Trash, Copy, AlertTriangle } from 'lucide-react';
+import api from '../../utils/api';
 
 const ManagerKeyManagement = () => {
   const { user } = useAuth();
@@ -19,35 +20,10 @@ const ManagerKeyManagement = () => {
   const fetchKeys = async () => {
     setLoading(true);
     try {
-      /* 
-      TODO: IMPLEMENT BACKEND API CALL
-      const response = await axios.get('/api/admin/keys', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await api.get('/admin/keys');
       setKeys(response.data);
-      */
-      
-      // Mock data for now
-      const mockKeys = [
-        {
-          id: 1,
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          key_name: `${user?.name || 'Admin'}_key1`,
-          first_four: 'ABCD',
-          expires_at: new Date(Date.now() + 5 * 30 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'Active'
-        },
-        {
-          id: 2,
-          created_at: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(),
-          key_name: `${user?.name || 'Admin'}_oldkey`,
-          first_four: 'WXYZ',
-          expires_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'Expired'
-        }
-      ];
-      setKeys(mockKeys);
     } catch (error) {
+      console.error('Error fetching keys:', error);
       toast.error('Failed to fetch keys');
     } finally {
       setLoading(false);
@@ -66,61 +42,52 @@ const ManagerKeyManagement = () => {
         ? `${adminPrefix}_${keyName.trim()}` 
         : `${adminPrefix}_key${keys.length + 1}`;
       
-      
-      /* 
-      TODO: IMPLEMENT BACKEND API CALL
-      const response = await axios.post('/api/admin/keys', { 
-        name: finalName 
-      }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      const response = await api.post('/admin/keys', { 
+        key_name: finalName 
       });
-      const fullKey = response.data.key;
-      */
       
-      const fullKey = `KEY-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const { plain_text_key, key_name, expires_at } = response.data;
       
       setGeneratedKey({
-        fullKey,
-        name: finalName,
-        expiresAt: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000)
+        fullKey: plain_text_key,
+        name: key_name,
+        expiresAt: new Date(expires_at)
       });
       
-      // Refresh list after generation (in reality, the full key won't be in the list)
+      // Refresh list after generation
       fetchKeys();
+      toast.success('Key generated successfully');
     } catch (error) {
+      console.error('Error generating key:', error);
       toast.error('Failed to generate key');
     }
   };
 
   const handleDeleteKey = async (id) => {
     const isConfirmed = await showConfirm({
-      title: 'Delete Authorization Key',
+      title: 'Revoke Authorization Key',
       message: (
         <div>
           <p className="text-danger">
             <AlertTriangle className="me-2" />
             Warning: This action cannot be undone. Any system or person using this key will immediately lose authorization.
           </p>
-          <p>Please type <strong>confirm delete</strong> to proceed:</p>
+          <p>Please type <strong>confirm revoke</strong> to proceed:</p>
         </div>
       ),
-      confirmText: 'Delete Key',
-      requireMatch: 'confirm delete',
+      confirmText: 'Revoke Key',
+      requireMatch: 'confirm revoke',
       type: 'danger'
     });
-
+ 
     if (isConfirmed) {
       try {
-        /* 
-        TODO: IMPLEMENT BACKEND API CALL
-        await axios.delete(`/api/admin/keys/${id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        });
-        */
+        await api.delete(`/admin/keys/${id}`);
         setKeys(keys.filter(k => k.id !== id));
-        toast.success('Key deleted successfully');
+        toast.success('Key revoked successfully');
       } catch (error) {
-        toast.error('Failed to delete key');
+        console.error('Error revoking key:', error);
+        toast.error('Failed to revoke key');
       }
     }
   };
@@ -133,6 +100,10 @@ const ManagerKeyManagement = () => {
   const formatCellData = (value, column, row) => {
     if (column === 'status') {
       const isExpired = new Date(row.expires_at) < new Date();
+      const isActive = row.is_active;
+      
+      if (!isActive) return <Badge bg="secondary">Revoked</Badge>;
+      
       return (
         <Badge bg={isExpired ? 'danger' : 'success'}>
           {isExpired ? 'Expired' : 'Active'}

@@ -956,16 +956,16 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
     const { id } = req.params;
     const {
         date,
-        paid = 0,
-        due = 0,
+        paid,
+        due,
         original_paid,
         change_amount,
         give_change,
-        subtotal = 0,
-        discount = 0,
-        tax = 0,
-        tax_rate = 0,
-        total = 0,
+        subtotal,
+        discount,
+        tax,
+        tax_rate,
+        total,
         status_id,
         referred_doctor_id,
         tests,
@@ -973,22 +973,6 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         payments
     } = req.body;
 
-    let finalTax = parseFloat(tax || 0);
-    let finalTaxRate = parseFloat(tax_rate || 0);
-    const finalSubtotal = parseFloat(subtotal || 0);
-
-    if (finalTaxRate > 0 && finalTax === 0) {
-        finalTax = finalSubtotal * finalTaxRate;
-    } else if (finalTax > 0 && finalTaxRate === 0 && finalSubtotal > 0) {
-        finalTaxRate = finalTax / finalSubtotal;
-    }
-
-    // Round finalTax to 2 decimal places and finalTaxRate to 4 decimal places
-    finalTax = Math.round(finalTax * 100) / 100;
-    finalTaxRate = Math.round(finalTaxRate * 10000) / 10000;
-
-    // Re-calculate total to ensure consistency
-    const finalTotal = finalSubtotal + finalTax - parseFloat(discount || 0);
     const lab_id = req.tenant.lab_id;
 
     const transaction = await sequelize.transaction();
@@ -1003,6 +987,26 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             transaction
         });
         if (!existingBill) return res.status(404).json({ error: "Bill not found or you don't have permission to edit it." });
+
+        const finalPaid = paid !== undefined ? parseFloat(paid || 0) : parseFloat(existingBill.paid || 0);
+        const finalDue = due !== undefined ? parseFloat(due || 0) : parseFloat(existingBill.due || 0);
+        const finalSubtotal = subtotal !== undefined ? parseFloat(subtotal || 0) : parseFloat(existingBill.subtotal || 0);
+        const finalDiscount = discount !== undefined ? parseFloat(discount || 0) : parseFloat(existingBill.discount || 0);
+        let finalTaxRate = tax_rate !== undefined ? parseFloat(tax_rate || 0) : parseFloat(existingBill.tax_rate || 0);
+        let finalTax = tax !== undefined ? parseFloat(tax || 0) : parseFloat(existingBill.tax || 0);
+
+        if (tax_rate !== undefined && finalTaxRate > 0 && tax === undefined) {
+            finalTax = finalSubtotal * finalTaxRate;
+        } else if (tax !== undefined && finalTax > 0 && tax_rate === undefined && finalSubtotal > 0) {
+            finalTaxRate = finalTax / finalSubtotal;
+        }
+
+        // Round finalTax to 2 decimal places and finalTaxRate to 4 decimal places
+        finalTax = Math.round(finalTax * 100) / 100;
+        finalTaxRate = Math.round(finalTaxRate * 10000) / 10000;
+
+        // Re-calculate total to ensure consistency
+        const finalTotal = total !== undefined ? parseFloat(total || 0) : finalSubtotal + finalTax - finalDiscount;
 
         const oldPaymentsMap = {};
         existingBill.bill_has_payment_methods.forEach(pm => {
@@ -1055,12 +1059,13 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
 
         await existingBill.update({
             date: date || existingBill.date,
-            paid: paid !== undefined ? paid : existingBill.paid,
-            due: due !== undefined ? due : existingBill.due,
-            subtotal: subtotal !== undefined ? subtotal : existingBill.subtotal,
-            discount: discount !== undefined ? discount : existingBill.discount,
-            tax: tax !== undefined ? tax : existingBill.tax,
-            total: total !== undefined ? total : existingBill.total,
+            paid: finalPaid,
+            due: finalDue,
+            subtotal: finalSubtotal,
+            discount: finalDiscount,
+            tax: finalTax,
+            tax_rate: finalTaxRate,
+            total: finalTotal,
             status_id: status_id || existingBill.status_id,
             referred_doctor_id: (referred_doctor_id !== undefined && referred_doctor_id !== '') ? referred_doctor_id : existingBill.referred_doctor_id,
             change_amount: (give_change && change_amount) ? change_amount : existingBill.change_amount
@@ -1075,8 +1080,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
 
             // Remove old invoice amounts and add new ones
             const newTotal = currentTotal - oldTotal + parseFloat(finalTotal);
-            const newPaid = currentPaid - oldPaid + parseFloat(paid);
-            const newDue = currentDue - oldDue + parseFloat(due);
+            const newPaid = currentPaid - oldPaid + parseFloat(finalPaid);
+            const newDue = currentDue - oldDue + parseFloat(finalDue);
 
             await currentPatient.update({
                 total: newTotal,
@@ -1086,7 +1091,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
 
             console.log(`Updated patient ${patientId} financials for invoice ${id}:`, {
                 oldInvoice: { total: oldTotal, paid: oldPaid, due: oldDue },
-                newInvoice: { total, paid, due },
+                newInvoice: { total: finalTotal, paid: finalPaid, due: finalDue },
                 oldPatient: { total: currentTotal, paid: currentPaid, due: currentDue },
                 newPatient: { total: newTotal, paid: newPaid, newDue: newDue }
             });
@@ -1252,6 +1257,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                         bill_id: id,
                         patient_id: patientId,
                         processed_by_id: req.user.id,
+                        processed_by_type: req.user.role === 'admin' ? 'admin' : 'receptionist',
                         amount: paidAmount - oldAmount,
                         process_type: 'Payment',
                         payment_method_id: pmId,
