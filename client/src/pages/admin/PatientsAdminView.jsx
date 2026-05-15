@@ -14,7 +14,7 @@ import { exportToExcel, importFromExcel, validateExcelFile } from '../../utils/e
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
 import PhoneInput from "../../components/ui/PhoneInput";
-import { formatDate } from "../../utils/dateFormatter";
+import { formatDate, calculateAge } from "../../utils/dateFormatter";
 
 
 
@@ -1037,9 +1037,11 @@ const PatientsAdminView = () => {
                                 const day = e.target.value;
                                 // Strictly allow only digits and validate range (1-31)
                                 if (day === "" || (/^\d+$/.test(day) && Number(day) <= 31 && day.length <= 2)) {
-                                  const newPatient = { ...patient, birth_day: day };
+                                  let newPatient = { ...patient, birth_day: day };
                                   if (day && patient.birth_month && patient.birth_year) {
-                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year));
+                                    const bDate = updateBirthDateFromComponents(day, patient.birth_month, patient.birth_year);
+                                    newPatient.birth_date = new Date(bDate);
+                                    newPatient.age = calculateAge(bDate).toString();
                                   }
                                   setPatient(newPatient);
                                   if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
@@ -1057,9 +1059,11 @@ const PatientsAdminView = () => {
                                 const month = e.target.value;
                                 // Strictly allow only digits and validate range (1-12)
                                 if (month === "" || (/^\d+$/.test(month) && Number(month) <= 12 && month.length <= 2)) {
-                                  const newPatient = { ...patient, birth_month: month };
+                                  let newPatient = { ...patient, birth_month: month };
                                   if (patient.birth_day && month && patient.birth_year) {
-                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year));
+                                    const bDate = updateBirthDateFromComponents(patient.birth_day, month, patient.birth_year);
+                                    newPatient.birth_date = new Date(bDate);
+                                    newPatient.age = calculateAge(bDate).toString();
                                   }
                                   setPatient(newPatient);
                                   if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });
@@ -1077,9 +1081,11 @@ const PatientsAdminView = () => {
                                 const year = e.target.value;
                                 // Strictly allow only digits and max 4 digits
                                 if (year === "" || (/^\d+$/.test(year) && year.length <= 4)) {
-                                  const newPatient = { ...patient, birth_year: year };
+                                  let newPatient = { ...patient, birth_year: year };
                                   if (patient.birth_day && patient.birth_month && year) {
-                                    newPatient.birth_date = new Date(updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year));
+                                    const bDate = updateBirthDateFromComponents(patient.birth_day, patient.birth_month, year);
+                                    newPatient.birth_date = new Date(bDate);
+                                    newPatient.age = calculateAge(bDate).toString();
                                   }
                                   setPatient(newPatient);
                                   if (formErrors.birth_date) setFormErrors({ ...formErrors, birth_date: null });

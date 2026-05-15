@@ -111,10 +111,15 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // In development, allow dynamic localhost subdomains (e.g. test.localhost:5173)
-    if (process.env.NODE_ENV !== 'production' && /^http:\/\/([a-z0-9-]+\.)*localhost(:[0-9]+)?$/.test(origin)) {
-      console.log('CORS: Allowing localhost subdomain:', origin);
-      return callback(null, true);
+    // In development, allow dynamic localhost subdomains and private IP addresses
+    if (process.env.NODE_ENV !== 'production') {
+      const isLocalhost = /^http:\/\/([a-z0-9-]+\.)*localhost(:[0-9]+)?$/.test(origin);
+      const isPrivateIP = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)[0-9.]+(:[0-9]+)?$/.test(origin);
+      
+      if (isLocalhost || isPrivateIP) {
+        console.log('CORS: Allowing local/private origin:', origin);
+        return callback(null, true);
+      }
     }
 
     if (allowedOrigins.indexOf(origin) !== -1) {
@@ -655,6 +660,20 @@ async function startServer() {
         // Small delay to ensure the client has fully joined the room before we emit events
         setTimeout(() => checkExpiringBatches(io), 2000);
       }
+    });
+
+    // Real-time mobile scanner bridge
+    socket.on("join-scanner", (sessionId) => {
+      socket.join(`scanner_${sessionId}`);
+      // Notify others in the room that someone joined
+      socket.to(`scanner_${sessionId}`).emit("scanner-joined");
+      console.log(`📡 Socket ${socket.id} joined scanner room: ${sessionId}`);
+    });
+
+    socket.on("scan-data", ({ sessionId, data }) => {
+      // Relay scan data to everyone in the room except the sender (optional, can be to everyone)
+      socket.to(`scanner_${sessionId}`).emit("scan-result", data);
+      console.log(`📦 Scan relayed for session ${sessionId}: ${data}`);
     });
 
     socket.on("disconnect", () => {

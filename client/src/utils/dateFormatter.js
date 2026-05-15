@@ -67,4 +67,27 @@ export const formatDateForInput = (date) => {
     console.error("Error formatting date for input:", error);
     return "";
   }
+};
+
+/**
+ * Calculates age based on birth date
+ * @param {string|Date} birthDate - The birth date to calculate from
+ * @returns {number|string} Age in years or empty string if invalid
+ */
+export const calculateAge = (birthDate) => {
+  if (!birthDate) return "";
+  try {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) return "";
+
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age >= 0 ? age : 0;
+  } catch (error) {
+    return "";
+  }
 }; 
