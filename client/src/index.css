@@ -181,3 +181,22 @@
   color: white !important;
   opacity: 1 !important;
 }
+
+/* Sample Tracking Kanban Helpers */
+.extra-small {
+  font-size: 0.7rem;
+}
+
+.min-width-0 {
+  min-width: 0;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.sample-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+

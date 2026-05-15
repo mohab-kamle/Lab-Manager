@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { Container, Row, Col, Card, Badge, Spinner, Table, Button } from "react-bootstrap";
 import { useToast } from "../../components/ui/ToastContext";
 import { Activity, FlaskConical, FileText, User, Calendar, Receipt, Search, Plus, Printer } from "lucide-react";
@@ -12,6 +13,8 @@ import SampleLabelModal from "../../components/samples/SampleLabelModal";
 const MedicalReportDetails = () => {
   const { id } = useParams();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const role = user?.role || "admin";
   
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -115,7 +118,7 @@ const MedicalReportDetails = () => {
     return (
       <Container className="mt-5 text-center">
         <h4 className="text-danger">{error || "Report not found."}</h4>
-        <Link to="/admin/medical-reports" className="btn btn-primary mt-3">Back to Reports</Link>
+        <Link to={`/${role}/medical-reports`} className="btn btn-primary mt-3">Back to Reports</Link>
       </Container>
     );
   }
@@ -154,7 +157,7 @@ const MedicalReportDetails = () => {
           </h2>
           <p className="text-muted mb-0">Detailed view of the medical report and its associated samples.</p>
         </div>
-        <Link to={`/admin/samples-kanban?report_id=${report.id}`} className="btn btn-outline-primary">
+        <Link to={`/${role}/samples-kanban?report_id=${report.id}`} className="btn btn-outline-primary">
           <Activity size={18} className="me-2" />
           View in Kanban
         </Link>
@@ -171,7 +174,7 @@ const MedicalReportDetails = () => {
                 <>
                   <h5 className="mb-1">{report.patient.name}</h5>
                   <div className="mb-2 text-muted small">
-                    <Link to={`/admin/patients/${report.patient.id}`} className="text-decoration-none">
+                    <Link to={`/${role}/patients/${report.patient.id}`} className="text-decoration-none">
                       ID: #{report.patient.id}
                     </Link>
                     <span className="mx-2">•</span>
@@ -279,7 +282,8 @@ const MedicalReportDetails = () => {
                     </tr>
                   ) : (
                     report.tests.map((test) => {
-                      const testSamples = samples.filter(s => s.test_id.toString() === test.id.toString());
+                      // Guard: skip samples with null test_id to prevent crash
+                      const testSamples = samples.filter(s => s.test_id != null && s.test_id.toString() === test.id.toString());
                       
                       return (
                         <tr key={test.id}>

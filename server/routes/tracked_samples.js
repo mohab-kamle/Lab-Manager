@@ -57,7 +57,7 @@ router.get(
         {
           model: sample_type,
           as: "sample_type",
-          attributes: ["type"],
+          attributes: ["type", "tube_color", "container_type"],
         },
         {
           model: medical_report,
@@ -68,6 +68,7 @@ router.get(
           include: [
             { model: branch, as: "branch", attributes: ["name"] },
             { model: lab, as: "lab", attributes: ["name"] },
+            { model: patient, as: "patient", attributes: ["name"] },
           ],
         },
       ];
@@ -97,13 +98,19 @@ router.get(
           test_name: sample.test?.name ?? null,
           sample_type_id: sample.sample_type_id,
           sample_type: sample.sample_type?.type ?? null,
+          tube_color: sample.sample_type?.tube_color ?? null,
+          container_type: sample.sample_type?.container_type ?? null,
+          patient_name: sample.medical_report?.patient?.name ?? "Unknown Patient",
           branch_name: branchName,
           status: sample.status || "Pending Collection",
           status_history: sample.status_history || blankHistory(sample.createdAt),
           created_at: sample.createdAt,
         };
       });
-      res.json(formattedSamples);
+      // Filter out orphan samples that have no associated test
+      // These are corrupt records that can't be meaningfully displayed
+      const validSamples = formattedSamples.filter(s => s.test_id != null && s.test_name != null);
+      res.json(validSamples);
 
     } catch (error) {
       console.error("Error fetching tracked samples:", error);

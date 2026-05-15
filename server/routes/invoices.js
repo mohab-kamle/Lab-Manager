@@ -376,8 +376,8 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             allTests.push(...packageTests.map(pt => pt.test_id.toString()));
         }
 
-        // Remove duplicates
-        allTests = [...new Set(allTests)];
+        // Remove duplicates - ensure all are strings for proper comparison
+        allTests = [...new Set(allTests.map(id => id.toString()))];
 
         // Only create medical report if there are tests
         console.log('Creating medical report with:', { allTests });
