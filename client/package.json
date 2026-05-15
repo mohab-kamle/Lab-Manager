@@ -11,6 +11,9 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@lottiefiles/dotlottie-react": "^0.17.8",
     "@react-pdf/renderer": "^4.3.0",

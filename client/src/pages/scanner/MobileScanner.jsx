@@ -24,7 +24,7 @@ const MobileScanner = () => {
 
     socketRef.current.on('connect', () => {
       setConnected(true);
-      socketRef.current.emit('join-scanner', sessionId);
+      socketRef.current.emit('join-scanner', { sessionId });
     });
 
     socketRef.current.on('disconnect', () => {

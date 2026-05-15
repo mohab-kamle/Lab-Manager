@@ -633,14 +633,21 @@ router.post(
         const now = new Date().toISOString();
         for (const testId of test_ids) {
           const parsedTestId = parseInt(testId);
-          // Fetch the test to get its sample_type_id
-          const testRecord = await db.test.findByPk(parsedTestId, {
+          // Fetch the test to get its sample_type_id, scoped to this lab
+          const testRecord = await db.test.findOne({
+            where: { id: parsedTestId, lab_id },
             attributes: ['id', 'sample_type_id'],
           });
 
-          // Generate a unique, barcode-scannable sample ID
-          const randomSuffix = Math.floor(Math.random() * 900 + 100); // 100-999
-          const sampleId = `SMP-${report.id}-${parsedTestId}-${randomSuffix}`;
+          // Skip sample creation for tests that don't belong to this lab
+          if (!testRecord) {
+            console.warn(`[MEDICAL_REPORT] Skipping sample creation for test ${parsedTestId}: not found or lab mismatch.`);
+            continue;
+          }
+
+          // Generate a unique, barcode-scannable sample ID matching tracked_samples pattern
+          const randomSuffix = Math.floor(Math.random() * 1000);
+          const sampleId = `SMP-${Date.now()}-${randomSuffix}`;
 
           await db.lab_samples.create({
             sample_id: sampleId,
