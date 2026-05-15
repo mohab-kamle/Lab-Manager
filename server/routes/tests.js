@@ -725,15 +725,16 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
         if (sampleTypeName) {
           const trimmedSTName = sampleTypeName.toString().trim();
           const [st] = await db.sample_type.findOrCreate({
-            where: { type: trimmedSTName },
+            where: { 
+              name: trimmedSTName,
+              lab_id: req.tenant.lab_id
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            },
             transaction: rowTransaction
           });
-          
-          if (st) {
-            sampleTypeId = st.id;
-          } else if (!isNaN(sampleTypeName)) {
-            sampleTypeId = parseInt(sampleTypeName);
-          }
+          sampleTypeId = st.id;
         }
 
         // Look up Contract ID
@@ -787,24 +788,41 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           await existingTest.update(testData, { transaction: rowTransaction });
           updated++;
         } else {
-          await db.test.create(testData, { transaction: rowTransaction });
+await db.test.create({
+            ...testData,
+            structure_config: [] 
+          }, { transaction: rowTransaction });
           imported++;
         }
         await rowTransaction.commit();
       } catch (rowError) {
         await rowTransaction.rollback();
         console.error(`Row Import Error (${row.Name || 'Unknown'}):`, rowError);
+        
         errors.push({ 
-          name: row.Name || 'Unknown', 
+          name: row.Name || `Row ${i + 2}`, 
           error: rowError.name === 'SequelizeUniqueConstraintError' 
             ? 'Duplicate name or shortcut in this lab' 
             : rowError.message 
         });
       }
     }
+      }
+    }
 
     await transaction.commit();
-    res.json({ imported, updated, errors });
+    
+    res.json({ 
+      success: true,
+      summary: {
+        imported,
+        updated,
+        errors: errors.length,
+        total: data.length
+      },
+      errorDetails: errors,
+      message: `Import completed: ${imported} imported, ${updated} updated${errors.length > 0 ? `, ${errors.length} errors` : ''}.`
+    });
   } catch (error) {
     if (transaction) await transaction.rollback();
     console.error('Error importing tests:', error);

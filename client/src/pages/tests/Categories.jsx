@@ -33,7 +33,6 @@ const Categories = () => {
   const [importFile, setImportFile] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
 
-
   const apiUrl = import.meta.env.VITE_API_URL;
 
   // Extracted fetch logic for reuse
@@ -180,7 +179,11 @@ const Categories = () => {
       setShowModal(false);
       setEditingCategory(null);
       setFormData({ name: "" });
-
+      toast.success(
+        editingCategory
+          ? "Category updated successfully"
+          : "Category added successfully",
+      );
       // Refresh using extracted function
       await fetchCategories();
     } catch (error) {

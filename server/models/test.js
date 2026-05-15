@@ -115,6 +115,7 @@ module.exports = function (sequelize, DataTypes) {
         fields: [
           { name: "lab_id" },
           { name: "name" },
+          { name: "lab_id" },
         ]
       },
       {
@@ -124,6 +125,7 @@ module.exports = function (sequelize, DataTypes) {
         fields: [
           { name: "lab_id" },
           { name: "shortcut" },
+          { name: "lab_id" },
         ]
       },
       {

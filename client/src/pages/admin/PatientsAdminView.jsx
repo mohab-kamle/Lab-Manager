@@ -450,10 +450,11 @@ const PatientsAdminView = () => {
       const token = localStorage.getItem("token");
       setLoading(true);
 
-      const updateData = {};
-      if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
-      if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
+    const updateData = {};
+    if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
+    if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
 
+    try {
       await axios.put(`${apiUrl}/patient/bulk`, {
         patientIds: selectedPatients,
         updateData

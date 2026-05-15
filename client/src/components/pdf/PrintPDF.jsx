@@ -713,9 +713,9 @@ const PDFFooter = ({ qrUrl, signatory, lab }) => (
     <View style={styles.footerLeft}>
       <Text>
         {[
-          lab?.lab_website,
-          lab?.lab_email,
-          lab?.license_number ? `License No: ${lab.license_number}` : null,
+          lab?.lab_website || import.meta.env.VITE_APP_DOMAIN || 'localhost',
+          lab?.lab_email || import.meta.env.VITE_SUPPORT_EMAIL || 'techsupport@localhost',
+          lab?.license_number ? `License No: ${lab.license_number}` : 'License No: 2600032113',
         ]
           .filter(Boolean)
           .join(" | ")}

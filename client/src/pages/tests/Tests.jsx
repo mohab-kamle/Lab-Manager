@@ -803,13 +803,13 @@ const Tests = () => {
   };
 
   // XLSX Import Handler (now connected to backend)
-  const handleImportXLSX = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleImportXLSX = async () => {
+    if (!importFile) return;
     
+    setImportLoading(true);
     const formData = new FormData();
-    formData.append('file', file);
-    setIsImporting(true);
+    formData.append('file', importFile);
+    const loadingToast = toast.loading("Importing tests...");
     
     try {
       const token = localStorage.getItem('token');
@@ -820,24 +820,26 @@ const Tests = () => {
         }
       });
       
-      const { imported, updated, errors } = response.data;
+      const { summary, errorDetails, message } = response.data;
       
-      if (errors && errors.length > 0) {
-        toast.warning(`Import complete with ${errors.length} errors. Success: ${imported}, Updated: ${updated}`);
-        console.table(errors);
+      toast.dismiss(loadingToast);
+      
+      if (summary.errors > 0) {
+        toast.warning(message);
+        console.log('Import errors:', errorDetails);
       } else {
-        toast.success(`Successfully imported: ${imported}, Updated: ${updated}`);
+        toast.success(message);
       }
       
+      setShowImportModal(false);
+      setImportFile(null);
       await fetchTestsAndRelated();
     } catch (error) {
-      console.error('Import error:', error);
-      const errorMsg = error.response?.data?.error || error.response?.data?.details || 'Failed to import tests';
-      toast.error(errorMsg);
+      console.error("Import error:", error);
+      toast.dismiss(loadingToast);
+      toast.error(error.response?.data?.error || 'Failed to import tests');
     } finally {
-      setIsImporting(false);
-      // Reset the file input so the same file can be selected again
-      e.target.value = '';
+      setImportLoading(false);
     }
   };
 

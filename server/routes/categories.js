@@ -51,7 +51,6 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
-
     // Check for duplicates in lab space or global space
     const existing = await categories_test_and_culture.findOne({
       where: {

@@ -579,7 +579,7 @@ const Invoices = () => {
       });
 
       // Add new disease to the list
-      const diseasesRes = await axios.get(`${apiUrl}/diseases`, {
+      const diseasesRes = await axios.get(`${apiUrl}/patient/diseases`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const updatedDiseases = diseasesRes.data || [];
@@ -1905,7 +1905,7 @@ const Invoices = () => {
                 </button>
               </Modal.Header>
               <Modal.Body>
-                {showFormErrorAlert && (
+                {showFormErrorAlert && Object.keys(formErrors).length > 0 && (
                   <Alert
                     variant="danger"
                     onClose={() => setShowFormErrorAlert(false)}
@@ -3935,6 +3935,34 @@ const Invoices = () => {
                   }}
                 >
                   Close
+                </Button>
+              </Modal.Footer>
+            </Modal>
+
+            {/* Delete Status Confirmation Modal */}
+            <Modal
+              show={showStatusDeleteModal}
+              onHide={() => setShowStatusDeleteModal(false)}
+            >
+              <Modal.Header>
+                <Modal.Title>Confirm Delete</Modal.Title>
+                <button
+                  className="modal-close-btn"
+                  onClick={() => setShowStatusDeleteModal(false)}
+                >
+                  <CircleX size={24} />
+                </button>
+              </Modal.Header>
+              <Modal.Body>
+                Are you sure you want to delete this status? This action cannot
+                be undone.
+              </Modal.Body>
+              <Modal.Footer>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowStatusDeleteModal(false)}
+                >
+                  Cancel
                 </Button>
               </Modal.Footer>
             </Modal>

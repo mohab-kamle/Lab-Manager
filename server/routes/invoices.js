@@ -215,9 +215,9 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         }
 
         // Validate receptionist exists
-        const receptionistExists = await employee.findOne({ 
-            where: { 
-                id: receptionist_id, 
+        await employee.findOne({
+            where: {
+                id: receptionist_id,
                 lab_id: patientExists.lab_id,
                 role: 'receptionist' // optional: if you want to enforce the role
             },
