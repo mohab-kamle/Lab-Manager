@@ -664,15 +664,35 @@ async function startServer() {
     });
 
     // Real-time mobile scanner bridge
-    socket.on("join-scanner", (sessionId) => {
+    socket.on("join-scanner", (payload) => {
+      // Validate payload is an object and sessionId is a non-empty string or number
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+      
+      const { sessionId } = payload;
+      if (!sessionId || (typeof sessionId !== 'string' && typeof sessionId !== 'number')) return;
+
       socket.join(`scanner_${sessionId}`);
       // Notify others in the room that someone joined
       socket.to(`scanner_${sessionId}`).emit("scanner-joined");
       console.log(`📡 Socket ${socket.id} joined scanner room: ${sessionId}`);
     });
 
-    socket.on("scan-data", ({ sessionId, data }) => {
-      // Relay scan data to everyone in the room except the sender (optional, can be to everyone)
+    socket.on("scan-data", (payload) => {
+      // Validate event payload (not null/array/function)
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload) || typeof payload === 'function') {
+        socket.emit("scan-error", { message: "Invalid payload format" });
+        return;
+      }
+
+      const { sessionId, data } = payload;
+      
+      // Verify sessionId and data types
+      if (!sessionId || (typeof sessionId !== 'string' && typeof sessionId !== 'number') || !data) {
+        socket.emit("scan-error", { message: "Invalid session ID or scan data" });
+        return;
+      }
+
+      // Relay scan data to everyone in the room except the sender
       socket.to(`scanner_${sessionId}`).emit("scan-result", data);
       console.log(`📦 Scan relayed for session ${sessionId}: ${data}`);
     });

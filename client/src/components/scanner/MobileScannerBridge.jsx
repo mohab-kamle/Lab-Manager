@@ -10,11 +10,17 @@ const MobileScannerBridge = ({ onScan, onClose }) => {
   const [connected, setConnected] = useState(false);
   const [phoneJoined, setPhoneJoined] = useState(false);
   const socketRef = useRef(null);
+  const onScanRef = useRef(onScan);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+  // Keep ref in sync with latest onScan callback
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
   
   // Construct the mobile scanner URL
   // Use the current domain or fallback to window.location.origin
-  const scannerUrl = `${window.location.origin}/mobile-scanner/${sessionId}`;
+  const scannerUrl = \`\${window.location.origin}/mobile-scanner/\${sessionId}\`;
 
   useEffect(() => {
     // Initialize Socket
@@ -25,7 +31,7 @@ const MobileScannerBridge = ({ onScan, onClose }) => {
 
     socketRef.current.on('connect', () => {
       setConnected(true);
-      socketRef.current.emit('join-scanner', sessionId);
+      socketRef.current.emit('join-scanner', { sessionId });
     });
 
     socketRef.current.on('disconnect', () => {
@@ -33,8 +39,8 @@ const MobileScannerBridge = ({ onScan, onClose }) => {
     });
 
     socketRef.current.on('scan-result', (data) => {
-      if (onScan) {
-        onScan(data);
+      if (onScanRef.current) {
+        onScanRef.current(data);
       }
     });
 
@@ -48,7 +54,7 @@ const MobileScannerBridge = ({ onScan, onClose }) => {
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
     };
-  }, [sessionId, apiUrl, onScan]);
+  }, [sessionId, apiUrl]);
 
   return (
     <Card className="border-primary shadow-sm mobile-scanner-bridge">
