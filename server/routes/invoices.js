@@ -90,7 +90,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
             order: [['id', 'DESC']]
         });
 
-        console.log(\`Found \${bills.length} invoices\`);
+        console.log(`Found ${bills.length} invoices`);
 
         // Transform the results to match the expected frontend format
         const formattedBills = bills.map(b => {
@@ -142,7 +142,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
             };
         });
 
-        console.log(\`Successfully processed \${formattedBills.length} invoices\`);
+        console.log(`Successfully processed ${formattedBills.length} invoices`);
         res.json(formattedBills);
     } catch (error) {
         console.error('Error in GET /invoices:', error);
@@ -298,7 +298,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                             invoice_due: due
                         });
                     }
-                    console.log(\`[INVOICE] Bypassing due limit for patient \${patient_id}. New Due: \${newDue}, Limit: \${limit}\`);
+                    console.log(`[INVOICE] Bypassing due limit for patient ${patient_id}. New Due: ${newDue}, Limit: ${limit}`);
                 }
             }
 
@@ -309,7 +309,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 due: newDue
             }, { transaction });
 
-            console.log(\`Updated patient \${patient_id} financials:\`, {
+            console.log(`Updated patient ${patient_id} financials:`, {
                 old: { total: currentTotal, paid: currentPaid, due: currentDue },
                 new: { total: newTotal, paid: newPaid, due: newDue },
                 invoice: { total, paid, due }
@@ -333,7 +333,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                     patient_count: currentDocPatientCount + 1
                 }, { transaction });
 
-                console.log(\`Updated doctor \${referred_doctor_id} financials: gained \${commissionValue} from invoice subtotal \${subtotal}\`);
+                console.log(`Updated doctor ${referred_doctor_id} financials: gained ${commissionValue} from invoice subtotal ${subtotal}`);
             }
         }
 
@@ -476,12 +476,12 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
 
                     // Skip sample creation for tests that don't belong to this lab
                     if (!testRecord) {
-                        console.warn(\`[INVOICE] Skipping sample creation for test \${parsedTestId}: not found or lab mismatch.\`);
+                        console.warn(`[INVOICE] Skipping sample creation for test ${parsedTestId}: not found or lab mismatch.`);
                         continue;
                     }
 
                     // Generate a standardized UUID-based sample ID
-                    const sampleId = \`SMP-\${crypto.randomUUID()}\`;
+                    const sampleId = `SMP-${crypto.randomUUID()}`;
 
                     await lab_samples.create({
                         sample_id: sampleId,
@@ -499,7 +499,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                         }
                     }, { transaction });
                 }
-                console.log(\`[INVOICE] Auto-created \${allTests.length} tracked sample(s) for report \${newMedicalReport.id}\`);
+                console.log(`[INVOICE] Auto-created ${allTests.length} tracked sample(s) for report ${newMedicalReport.id}`);
             } catch (medicalReportError) {
                 console.error('Error creating medical report:', medicalReportError);
                 // If there's an error creating the medical report, rollback the transaction
@@ -784,7 +784,7 @@ router.get("/:id/samples-collection", authenticateUser, authorizeRoles("admin", 
                 // HL7 compliant barcode: [InvoiceID]-[PatientID]-[Seq]-[Standard_Code]
                 // Improved uniqueness by including invoice.id
                 // Capped at 18 characters (might need trimming if too long)
-                const rawBarcode = \`\${invoice.id}-\${invoice.patient.id}-\${seq++}-\${st.standard_code || '000'}\`;
+                const rawBarcode = `${invoice.id}-${invoice.patient.id}-${seq++}-${st.standard_code || '000'}`;
                 const barcode = rawBarcode.length > 18 ? rawBarcode.substring(0, 18) : rawBarcode;
 
                 groupedSamples[stId] = {
@@ -945,7 +945,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                 due: newDue
             }, { transaction });
 
-            console.log(\`Updated patient \${patientId} financials for invoice \${id}:\`, {
+            console.log(`Updated patient ${patientId} financials for invoice ${id}:`, {
                 oldInvoice: { total: oldTotal, paid: oldPaid, due: oldDue },
                 newInvoice: { total, paid, due },
                 oldPatient: { total: currentTotal, paid: currentPaid, due: currentDue },
@@ -1417,7 +1417,7 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
                 due: newDue
             }, { transaction });
 
-            console.log(\`Updated patient \${patientId} financials after deleting invoice \${id}:\`, {
+            console.log(`Updated patient ${patientId} financials after deleting invoice ${id}:`, {
                 deletedInvoice: { total: billTotal, paid: billPaid, due: billDue },
                 oldPatient: { total: currentTotal, paid: currentPaid, due: currentDue },
                 newPatient: { total: newTotal, paid: newPaid, due: newDue }

@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
 const db = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
@@ -646,8 +647,7 @@ router.post(
           }
 
           // Generate a unique, barcode-scannable sample ID matching tracked_samples pattern
-          const randomSuffix = Math.floor(Math.random() * 1000);
-          const sampleId = `SMP-${Date.now()}-${randomSuffix}`;
+          const sampleId = `SMP-${crypto.randomUUID()}`;
 
           await db.lab_samples.create({
             sample_id: sampleId,

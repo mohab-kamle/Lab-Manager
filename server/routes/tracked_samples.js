@@ -91,7 +91,7 @@ router.get(
           sample_id: sample.sample_id,
           medical_report_id: sample.medical_report_id,
           invoice_id: sample.medical_report?.bill_id
-            ? \`INV-\${sample.medical_report.bill_id}\`
+            ? `INV-${sample.medical_report.bill_id}`
             : null,
           test_id: sample.test_id,
           test_name: sample.test?.name ?? null,
@@ -164,7 +164,7 @@ router.post(
 
       for (const testItem of testsToProcess) {
         try {
-          const generatedSampleId = \`SMP-\${crypto.randomUUID()}\`;
+          const generatedSampleId = `SMP-${crypto.randomUUID()}`;
           
           // Use provided sample_type_id or fall back to the one defined in the test
           const effectiveSampleTypeId = sample_type_id || testItem.sample_type_id;
@@ -204,7 +204,7 @@ router.post(
         sample_id:        sample.sample_id,
         medical_report_id: sample.medical_report_id,
         invoice_id: sample.medical_report?.bill_id
-          ? \`INV-\${sample.medical_report.bill_id}\`
+          ? `INV-${sample.medical_report.bill_id}`
           : null,
         test_id:          sample.test_id,
         test_name:        sample.test?.name ?? null,
@@ -247,7 +247,7 @@ router.put(
 
       if (!status || !VALID_STATUSES.includes(status)) {
         return res.status(400).json({
-          error: \`status must be one of: \${VALID_STATUSES.join(", ")}\`,
+          error: `status must be one of: ${VALID_STATUSES.join(", ")}`,
         });
       }
 
