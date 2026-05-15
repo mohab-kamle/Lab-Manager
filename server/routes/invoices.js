@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, sample_type, financial_transaction, lab, manager_key, lab_samples, lab_sample_type_settings } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, sample_type, financial_transaction, lab, manager_key, lab_samples, lab_sample_type_settings, lab_activity_log } = require("../models");
 const { Op } = require("sequelize");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
@@ -508,6 +508,30 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             }
         }
 
+        // --- Activity Logging ---
+        await lab_activity_log.create({
+            lab_id: lab_id,
+            user_id: user ? user.id : null,
+            user_role: user ? user.role : null,
+            action: 'CREATED_INVOICE',
+            entity_type: 'Bill',
+            entity_id: newBill.id,
+            details: {
+                total: finalTotal,
+                subtotal: finalSubtotal,
+                discount: discount,
+                tax: finalTax,
+                paid: paid,
+                due: due,
+                patient_id: patient_id,
+                status_id: status_id,
+                tests_added: uniqueTestIds,
+                packages_added: uniquePackageIds
+            },
+            ip_address: req.ip,
+            user_agent: req.get('User-Agent')
+        }, { transaction });
+
         // Commit the transaction first
         await transaction.commit();
         console.log('Transaction committed successfully');
@@ -807,6 +831,121 @@ router.get("/:id/samples-collection", authenticateUser, authorizeRoles("admin", 
     } catch (error) {
         console.error('Error in samples-collection:', error);
         res.status(500).json({ error: "Failed to fetch collection data" });
+    }
+});
+
+/**
+ * GET /invoices/:id/history - Get the chronological audit trail of an invoice.
+ */
+router.get("/:id/history", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
+    const { id } = req.params;
+    const lab_id = req.tenant.lab_id;
+
+    try {
+        const billData = await bill.findOne({
+            where: { id, lab_id },
+            include: [
+                {
+                    model: receptionist,
+                    as: "receptionist",
+                    include: [{ model: employee, as: "id_employee", attributes: ['name'] }]
+                },
+                {
+                    model: status,
+                    as: "status",
+                    attributes: ['state']
+                }
+            ]
+        });
+
+        if (!billData) {
+            return res.status(404).json({ error: "Invoice not found" });
+        }
+
+        const transactions = await financial_transaction.findAll({
+            where: { bill_id: id, lab_id },
+            include: [
+                {
+                    model: payment_method,
+                    as: "payment_method",
+                    attributes: ['name']
+                },
+                {
+                    model: manager_key,
+                    as: "manager_key",
+                    attributes: ['key_name']
+                }
+            ],
+            order: [['createdAt', 'ASC']]
+        });
+
+        const activities = await lab_activity_log.findAll({
+            where: { entity_type: 'Bill', entity_id: id, lab_id }
+        });
+
+        const timeline = [];
+
+        activities.forEach(activity => {
+            if (activity.action !== 'CREATED_INVOICE') {
+                timeline.push({
+                    type: "activity",
+                    date: activity.created_at,
+                    action: activity.action,
+                    details: activity.details,
+                    summary: `System logged: ${activity.action.replace(/_/g, ' ')}`
+                });
+            }
+        });
+
+        // 1. Created Event
+        timeline.push({
+            type: "created",
+            date: billData.createdAt || billData.date,
+            user: billData.receptionist?.id_employee?.name || "System",
+            summary: "Invoice opened"
+        });
+
+        // 2. Transaction Events (Payments & Refunds)
+        transactions.forEach(txn => {
+            if (txn.process_type === 'Payment') {
+                timeline.push({
+                    type: "payment",
+                    date: txn.createdAt,
+                    amount: parseFloat(txn.amount),
+                    method: txn.payment_method ? txn.payment_method.name : (txn.from || "Unknown"),
+                    summary: "Partial payment applied"
+                });
+            } else if (txn.process_type === 'Refund') {
+                timeline.push({
+                    type: "refund",
+                    date: txn.createdAt,
+                    amount: parseFloat(txn.amount),
+                    items: txn.refund_items || [],
+                    authorized_by: txn.manager_key ? txn.manager_key.key_name : "System/Receptionist",
+                    summary: "Partial refund processed"
+                });
+            }
+        });
+
+        // 3. Status Change Event (If Fully Paid)
+        if (billData.status && billData.status.state === 'Fully Paid') {
+            const lastTxnDate = transactions.length > 0 ? transactions[transactions.length - 1].createdAt : billData.updatedAt;
+            timeline.push({
+                type: "status_change",
+                date: lastTxnDate,
+                from: "Partial",
+                to: "Fully Paid",
+                summary: "Invoice completed"
+            });
+        }
+
+        // Sort chronologically by date ascending
+        timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        res.json(timeline);
+    } catch (error) {
+        console.error('Error fetching invoice history:', error);
+        res.status(500).json({ error: "Failed to fetch invoice history" });
     }
 });
 
@@ -1123,6 +1262,39 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
             }
         }
 
+        // --- Activity Logging ---
+        const diff = {};
+        if (oldTotal !== parseFloat(total || existingBill.total)) diff.total = { old: oldTotal, new: parseFloat(total || existingBill.total) };
+        if (oldPaid !== parseFloat(paid || existingBill.paid)) diff.paid = { old: oldPaid, new: parseFloat(paid || existingBill.paid) };
+        if (oldDue !== parseFloat(due || existingBill.due)) diff.due = { old: oldDue, new: parseFloat(due || existingBill.due) };
+        if (existingBill.status_id !== (status_id || existingBill.status_id)) diff.status_id = { old: existingBill.status_id, new: status_id || existingBill.status_id };
+
+        await lab_activity_log.create({
+            lab_id: lab_id,
+            user_id: req.user ? req.user.id : null,
+            user_role: req.user ? req.user.role : null,
+            action: 'UPDATED_INVOICE',
+            entity_type: 'Bill',
+            entity_id: existingBill.id,
+            details: {
+                previous_state: {
+                    total: oldTotal,
+                    paid: oldPaid,
+                    due: oldDue,
+                    status_id: existingBill.status_id
+                },
+                new_state: {
+                    total: existingBill.total,
+                    paid: existingBill.paid,
+                    due: existingBill.due,
+                    status_id: existingBill.status_id
+                },
+                diff: diff
+            },
+            ip_address: req.ip,
+            user_agent: req.get('User-Agent')
+        }, { transaction });
+
         await transaction.commit();
 
         // Fetch the updated bill with all associations
@@ -1345,6 +1517,23 @@ router.patch("/:id/add-test", authenticateUser, authorizeRoles("admin", "recepti
 
         await existingBill.update({ integrity_hash: newIntegrityHash }, { transaction });
 
+        // --- Activity Logging ---
+        await lab_activity_log.create({
+            lab_id: lab_id,
+            user_id: req.user ? req.user.id : null,
+            user_role: req.user ? req.user.role : null,
+            action: 'ADDED_TESTS_TO_INVOICE',
+            entity_type: 'Bill',
+            entity_id: existingBill.id,
+            details: {
+                tests_added: newTests,
+                previous_state: { total: parseFloat(existingBill.total) - additionalSubtotal, due: parseFloat(existingBill.due) - additionalSubtotal },
+                new_state: { total: newTotal, due: newInvoiceDue }
+            },
+            ip_address: req.ip,
+            user_agent: req.get('User-Agent')
+        }, { transaction });
+
         await transaction.commit();
 
         res.json({
@@ -1437,6 +1626,26 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
                 }, { transaction });
             }
         }
+
+        // --- Activity Logging ---
+        await lab_activity_log.create({
+            lab_id: lab_id,
+            user_id: req.user ? req.user.id : null,
+            user_role: req.user ? req.user.role : null,
+            action: 'DELETED_INVOICE',
+            entity_type: 'Bill',
+            entity_id: id,
+            details: {
+                deleted_state: {
+                    total: billTotal,
+                    paid: billPaid,
+                    due: billDue,
+                    patient_id: patientId
+                }
+            },
+            ip_address: req.ip,
+            user_agent: req.get('User-Agent')
+        }, { transaction });
 
         // Commit the transaction
         await transaction.commit();
