@@ -65,6 +65,8 @@ var _outsourced_lab = require("./outsourced_lab");
 var _reconciliation = require("./reconciliation");
 var _reconciliation_item = require("./reconciliation_item");
 var _otp_verification = require("./otp_verification");
+var _financial_transaction = require("./financial_transaction");
+var _manager_key = require("./manager_key");
 
 /**
  * Instantiate all Sequelize model factories, wire their associations, and expose the created models.
@@ -132,6 +134,8 @@ function initModels(sequelize) {
   var reconciliation = _reconciliation(sequelize, DataTypes);
   var reconciliation_item = _reconciliation_item(sequelize, DataTypes);
   var otp_verification = _otp_verification(sequelize, DataTypes);
+  var financial_transaction = _financial_transaction(sequelize, DataTypes);
+  var manager_key = _manager_key(sequelize, DataTypes);
 
   // ── Inventory associations ──────────────────────────────────────────────
   // inventory_item ↔ inventory_batch (one item has many batches)
@@ -666,6 +670,34 @@ function initModels(sequelize) {
   reconciliation_item.belongsTo(bill, { as: "bill", foreignKey: "bill_id"});
   bill.hasMany(reconciliation_item, { as: "reconciliation_items", foreignKey: "bill_id"});
 
+  // Financial Transaction associations
+  financial_transaction.belongsTo(employee, { as: "processed_by", foreignKey: "processed_by_id" });
+  employee.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "processed_by_id" });
+
+  financial_transaction.belongsTo(patient, { as: "patient", foreignKey: "patient_id" });
+  patient.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "patient_id" });
+
+  financial_transaction.belongsTo(bill, { as: "bill", foreignKey: "bill_id" });
+  bill.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "bill_id" });
+
+  financial_transaction.belongsTo(payment_method, { as: "payment_method", foreignKey: "payment_method_id" });
+  payment_method.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "payment_method_id" });
+
+  financial_transaction.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "lab_id" });
+
+  financial_transaction.belongsTo(branch, { as: "branch", foreignKey: "branch_id" });
+  branch.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "branch_id" });
+
+  financial_transaction.belongsTo(manager_key, { as: "manager_key", foreignKey: "manager_key_id" });
+  manager_key.hasMany(financial_transaction, { as: "financial_transactions", foreignKey: "manager_key_id" });
+
+  // Manager Key associations
+  manager_key.belongsTo(employee, { as: "admin", foreignKey: "admin_id" });
+  employee.hasMany(manager_key, { as: "manager_keys", foreignKey: "admin_id" });
+
+  manager_key.belongsTo(lab, { as: "lab", foreignKey: "lab_id" });
+  lab.hasMany(manager_key, { as: "manager_keys", foreignKey: "lab_id" });
 
   return {
     admin,
@@ -722,7 +754,9 @@ function initModels(sequelize) {
     outsourced_lab,
     reconciliation,
     reconciliation_item,
-    otp_verification
+    otp_verification,
+    financial_transaction,
+    manager_key
   };
 }
 
