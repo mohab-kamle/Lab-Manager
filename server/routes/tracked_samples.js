@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const crypto = require("crypto");
 const {
   lab_samples,
   medical_report,
@@ -9,9 +10,12 @@ const {
   branch,
   test,
   sample_type,
+  sequelize
 } = require("../models");
+const { Sequelize } = require("sequelize");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+
 // Valid status values and their history-key mapping
 const STATUS_KEY_MAP = {
   "Pending Collection": "pending_collection_at",
@@ -22,6 +26,7 @@ const STATUS_KEY_MAP = {
   "Rejected":           "rejected_at",
 };
 const VALID_STATUSES = Object.keys(STATUS_KEY_MAP);
+
 // Helper to build a blank status_history object
 const blankHistory = (createdAt) => ({
   pending_collection_at: createdAt || new Date().toISOString(),
@@ -31,6 +36,7 @@ const blankHistory = (createdAt) => ({
   completed_at:   null,
   rejected_at:    null,
 });
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Get Tracked Samples (tenant-scoped)
 //    All authenticated lab staff can list; tenant isolation enforced via lab_id.
@@ -85,7 +91,7 @@ router.get(
           sample_id: sample.sample_id,
           medical_report_id: sample.medical_report_id,
           invoice_id: sample.medical_report?.bill_id
-            ? `INV-${sample.medical_report.bill_id}`
+            ? \`INV-\${sample.medical_report.bill_id}\`
             : null,
           test_id: sample.test_id,
           test_name: sample.test?.name ?? null,
@@ -115,10 +121,12 @@ router.post(
   authenticateUser,
   authorizeRoles("admin", "receptionist", "chemist", "employee"),
   async (req, res) => {
+    const t = await sequelize.transaction();
     try {
       const { medical_report_id, test_id, sample_type_id } = req.body;
 
       if (!medical_report_id) {
+        await t.rollback();
         return res.status(400).json({ error: "medical_report_id is required" });
       }
 
@@ -129,21 +137,25 @@ router.post(
           ? { id: medical_report_id, lab_id: req.user.lab_id }
           : { id: medical_report_id },
         include: [{ model: test, as: "tests", attributes: ["id", "sample_type_id"] }],
+        transaction: t
       });
 
       if (!report) {
+        await t.rollback();
         return res.status(404).json({ error: "Medical report not found" });
       }
 
       // Determine which tests to create samples for
       if (!test_id) {
+        await t.rollback();
         return res.status(400).json({ error: "test_id is required" });
       }
 
       const testIds = (Array.isArray(test_id) ? test_id : [test_id]).map(id => Number(id));
-      const testsToProcess = report.tests.filter(t => testIds.includes(t.id));
+      const testsToProcess = report.tests.filter(tItem => testIds.includes(tItem.id));
 
       if (testsToProcess.length === 0) {
+        await t.rollback();
         return res.status(400).json({ error: "The selected test was not found in this report" });
       }
 
@@ -151,30 +163,31 @@ router.post(
       const now = new Date().toISOString();
 
       for (const testItem of testsToProcess) {
-        // Prevent duplicate: skip if a sample already exists for this test in this report
-        const existingSample = await lab_samples.findOne({
-          where: { medical_report_id, test_id: testItem.id }
-        });
-        if (existingSample) {
-          // Skip silently or inform the caller — we skip to allow partial creation
-          continue;
+        try {
+          const generatedSampleId = \`SMP-\${crypto.randomUUID()}\`;
+          
+          // Use provided sample_type_id or fall back to the one defined in the test
+          const effectiveSampleTypeId = sample_type_id || testItem.sample_type_id;
+
+          const newSample = await lab_samples.create({
+            sample_id: generatedSampleId,
+            medical_report_id,
+            test_id: testItem.id,
+            sample_type_id: effectiveSampleTypeId,
+            status: "Pending Collection",
+            status_history: blankHistory(now),
+          }, { transaction: t });
+          createdSamples.push(newSample);
+        } catch (error) {
+          if (error instanceof Sequelize.UniqueConstraintError) {
+            // Silently skip duplicates if they were somehow attempted
+            continue;
+          }
+          throw error;
         }
-
-        const generatedSampleId = `SMP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        
-        // Use provided sample_type_id or fall back to the one defined in the test
-        const effectiveSampleTypeId = sample_type_id || testItem.sample_type_id;
-
-        const newSample = await lab_samples.create({
-          sample_id: generatedSampleId,
-          medical_report_id,
-          test_id: testItem.id,
-          sample_type_id: effectiveSampleTypeId,
-          status: "Pending Collection",
-          status_history: blankHistory(now),
-        });
-        createdSamples.push(newSample);
       }
+
+      await t.commit();
 
       // Fetch the created samples with relations for the response
       const results = await lab_samples.findAll({
@@ -191,7 +204,7 @@ router.post(
         sample_id:        sample.sample_id,
         medical_report_id: sample.medical_report_id,
         invoice_id: sample.medical_report?.bill_id
-          ? `INV-${sample.medical_report.bill_id}`
+          ? \`INV-\${sample.medical_report.bill_id}\`
           : null,
         test_id:          sample.test_id,
         test_name:        sample.test?.name ?? null,
@@ -204,6 +217,7 @@ router.post(
 
       res.status(201).json(formattedResults.length === 1 ? formattedResults[0] : formattedResults);
     } catch (error) {
+      if (!t.finished) await t.rollback();
       console.error("Error creating tracked sample:", error);
       res.status(500).json({ error: "Failed to create sample" });
     }
@@ -233,10 +247,24 @@ router.put(
 
       if (!status || !VALID_STATUSES.includes(status)) {
         return res.status(400).json({
-          error: `status must be one of: ${VALID_STATUSES.join(", ")}`,
+          error: \`status must be one of: \${VALID_STATUSES.join(", ")}\`,
         });
       }
-      const sample = await lab_samples.findByPk(id);
+
+      // 🔒 Tenant Isolation: Fetch sample including medical_report to verify lab_id
+      const sample = await lab_samples.findOne({
+        where: { id },
+        include: [
+          {
+            model: medical_report,
+            as: "medical_report",
+            attributes: ["lab_id"],
+            where: req.user.lab_id ? { lab_id: req.user.lab_id } : undefined,
+            required: !!req.user.lab_id,
+          },
+        ],
+      });
+
       if (!sample) {
         return res.status(404).json({ error: "Sample not found" });
       }
@@ -275,7 +303,7 @@ router.put(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. Delete Tracked Sample
+// 4. Delete Tracked Sample (Tenant-scoped)
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete(
   "/:id",
@@ -284,10 +312,26 @@ router.delete(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const deletedCount = await lab_samples.destroy({ where: { id } });
-      if (deletedCount === 0) {
+
+      // 🔒 Tenant Isolation: Verify sample belongs to the user's lab before deleting
+      const sample = await lab_samples.findOne({
+        where: { id },
+        include: [
+          {
+            model: medical_report,
+            as: "medical_report",
+            attributes: ["lab_id"],
+            where: req.user.lab_id ? { lab_id: req.user.lab_id } : undefined,
+            required: !!req.user.lab_id,
+          },
+        ],
+      });
+
+      if (!sample) {
         return res.status(404).json({ error: "Sample not found" });
       }
+
+      await sample.destroy();
       res.json({ message: "Sample deleted successfully" });
     } catch (error) {
       console.error("Error deleting tracked sample:", error);
@@ -298,111 +342,122 @@ router.delete(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. Sample Quick Info Lookup (barcode scan entry point)
+//    Enforces role restriction and tenant isolation.
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/lookup/:sample_id", authenticateUser, async (req, res) => {
-  try {
-    const { sample_id } = req.params;
-    const sample = await lab_samples.findOne({
-      where: { sample_id },
-      include: [
-        {
-          model: test,
-          as: "test",
-          attributes: ["name", "lab_to_lab_status", "lab_name"],
-        },
-        {
-          model: sample_type,
-          as: "sample_type",
-          attributes: ["type"],
-        },
-        {
-          model: medical_report,
-          as: "medical_report",
-          attributes: ["id", "patient_id", "lab_id", "branch_id"],
-          include: [
-            {
-              model: patient,
-              as: "patient",
-              attributes: ["id", "name", "birth_date", "gender"],
-              include: [
-                {
-                  model: phone_number,
-                  as: "phones",
-                  attributes: ["phone"],
-                },
-              ],
-            },
-            {
-              model: branch,
-              as: "branch",
-              attributes: ["id", "name"],
-            },
-            {
-              model: lab,
-              as: "lab",
-              attributes: ["id", "name"],
-            },
-          ],
-        },
-      ],
-    });
-    if (!sample) {
-      return res.status(404).json({ error: "Sample not found" });
-    }
+router.get(
+  "/lookup/:sample_id", 
+  authenticateUser, 
+  authorizeRoles("admin", "receptionist", "chemist", "employee"),
+  async (req, res) => {
+    try {
+      const { sample_id } = req.params;
+      const sample = await lab_samples.findOne({
+        where: { sample_id },
+        include: [
+          {
+            model: test,
+            as: "test",
+            attributes: ["name", "lab_to_lab_status", "lab_name"],
+          },
+          {
+            model: sample_type,
+            as: "sample_type",
+            attributes: ["type"],
+          },
+          {
+            model: medical_report,
+            as: "medical_report",
+            attributes: ["id", "patient_id", "lab_id", "branch_id"],
+            // 🔒 Tenant Isolation: Filter by user's lab_id
+            where: req.user.lab_id ? { lab_id: req.user.lab_id } : undefined,
+            required: !!req.user.lab_id,
+            include: [
+              {
+                model: patient,
+                as: "patient",
+                attributes: ["id", "name", "birth_date", "gender"],
+                include: [
+                  {
+                    model: phone_number,
+                    as: "phones",
+                    attributes: ["phone"],
+                  },
+                ],
+              },
+              {
+                model: branch,
+                as: "branch",
+                attributes: ["id", "name"],
+              },
+              {
+                model: lab,
+                as: "lab",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+        ],
+      });
 
-    let age = null;
-    const birthDateRaw = sample.medical_report?.patient?.birth_date;
-    if (birthDateRaw) {
-      const birthDate = new Date(birthDateRaw);
-      const today = new Date();
-      age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-      ) {
-        age--;
+      if (!sample) {
+        return res.status(404).json({ error: "Sample not found" });
       }
+
+      let age = null;
+      const birthDateRaw = sample.medical_report?.patient?.birth_date;
+      if (birthDateRaw) {
+        const birthDate = new Date(birthDateRaw);
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && today.getDate() < birthDate.getDate())
+        ) {
+          age--;
+        }
+      }
+
+      const primaryPhone =
+        sample.medical_report?.patient?.phones?.[0]?.phone ?? null;
+
+      const branchName =
+        sample.medical_report?.branch?.name ??
+        sample.medical_report?.lab?.name ??
+        null;
+
+      res.json({
+        sample: {
+          id:             sample.sample_id,
+          type:           sample.sample_type?.type ?? null,
+          status:         sample.status,
+          status_history: sample.status_history,
+        },
+        patient: {
+          id:    sample.medical_report?.patient?.id   ?? null,
+          name:  sample.medical_report?.patient?.name ?? null,
+          phone: primaryPhone,
+          age,
+          sex:   sample.medical_report?.patient?.gender ?? null,
+        },
+        branch: {
+          name: branchName,
+        },
+        test: {
+          name:              sample.test?.name ?? null,
+          lab_to_lab_status:
+            sample.test?.lab_to_lab_status === "OUT" ? "Outsourced" : "In-House",
+          lab_name: sample.test?.lab_name ?? null,
+        },
+        report: {
+          id: sample.medical_report?.id ?? null,
+        },
+      });
+    } catch (error) {
+      console.error("Error looking up sample:", error);
+      res.status(500).json({ error: "Failed to look up sample" });
     }
-
-    const primaryPhone =
-      sample.medical_report?.patient?.phones?.[0]?.phone ?? null;
-
-    const branchName =
-      sample.medical_report?.branch?.name ??
-      sample.medical_report?.lab?.name ??
-      null;
-
-    res.json({
-      sample: {
-        id:             sample.sample_id,
-        type:           sample.sample_type?.type ?? null,
-        status:         sample.status,
-        status_history: sample.status_history,
-      },
-      patient: {
-        id:    sample.medical_report?.patient?.id   ?? null,
-        name:  sample.medical_report?.patient?.name ?? null,
-        phone: primaryPhone,
-        age,
-        sex:   sample.medical_report?.patient?.gender ?? null,
-      },
-      branch: {
-        name: branchName,
-      },
-      test: {
-        name:              sample.test?.name ?? null,
-        lab_to_lab_status:
-          sample.test?.lab_to_lab_status === "OUT" ? "Outsourced" : "In-House",
-        lab_name: sample.test?.lab_name ?? null,
-      },
-      report: {
-        id: sample.medical_report?.id ?? null,
-      },
-    });
-  } catch (error) {
-    console.error("Error looking up sample:", error);
-    res.status(500).json({ error: "Failed to look up sample" });
   }
-});
+);
+
 module.exports = router;
