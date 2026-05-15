@@ -79,7 +79,11 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
     setError(null);
     setIsScanning(false); // Stop listening to barcode temporarily if needed, though usually we can keep listening
     try {
-      const response = await axios.get(`/api/tracked-samples/lookup/${barcode.trim()}`);
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await axios.get(`${apiUrl}/tracked-samples/lookup/${barcode.trim()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSampleData(response.data);
     } catch (err) {
       setError(err.response?.data?.message || 'Sample not found or an error occurred.');
@@ -208,7 +212,7 @@ const SampleQuickInfoModal = ({ show, onHide, initialBarcode }) => {
                     </h6>
                   </Card.Header>
                   <Card.Body>
-                    <p className="mb-1"><strong>Branch:</strong> {sampleData.lab?.branch_name}</p>
+                    <p className="mb-1"><strong>Branch:</strong> {sampleData.branch?.name}</p>
                     {sampleData.test?.lab_to_lab_status === 'OUT' && (
                       <div className="mt-2 p-2 bg-light border rounded text-danger">
                         <strong>Outsourced To:</strong> {sampleData.test?.lab_name}

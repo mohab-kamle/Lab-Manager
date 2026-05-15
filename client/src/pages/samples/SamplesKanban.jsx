@@ -274,6 +274,10 @@ const SamplesKanban = () => {
                           <span className="fw-semibold">#{sample.medical_report_id}</span>
                         </div>
                         <div className="d-flex justify-content-between">
+                          <span>Branch:</span>
+                          <span className="fw-semibold">{sample.branch_name}</span>
+                        </div>
+                        <div className="d-flex justify-content-between">
                           <span>Invoice:</span>
                           <span className="fw-semibold">{sample.invoice_id}</span>
                         </div>

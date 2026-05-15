@@ -16,8 +16,21 @@ module.exports = function (sequelize, DataTypes) {
             type: DataTypes.INTEGER,
             allowNull: true
         },
+        test_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
+        sample_type_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
         status: {
             type: DataTypes.STRING(50),
+            allowNull: false,
+            defaultValue: 'Pending Collection'
+        },
+        status_history: {
+            type: DataTypes.JSON,
             allowNull: true
         }
     }, {
