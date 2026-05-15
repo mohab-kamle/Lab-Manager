@@ -1,7 +1,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { bill, reconciliation, reconciliation_item, payment_method, lab } = require("../models");
+const { bill, reconciliation, reconciliation_item, payment_method, lab, financial_transaction } = require("../models");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
@@ -127,6 +127,20 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
         await patientRecord.update({
             paid: parseFloat(patientRecord.paid) + paymentAmount,
             due: parseFloat(patientRecord.due) - paymentAmount
+        }, { transaction });
+
+        // 7. Create Financial Transaction Record
+        await financial_transaction.create({
+            lab_id: req.tenant.lab_id,
+            patient_id,
+            processed_by_id: req.user.id,
+            processed_by_type: req.user.role,
+            amount: paymentAmount,
+            process_type: 'Due',
+            payment_method_id,
+            from: 'Patient',
+            to: 'Lab',
+            refund_items: targetBills.map(b => ({ type: 'reconciliation', id: b.id }))
         }, { transaction });
 
         await transaction.commit();
