@@ -81,26 +81,30 @@ const ChangePassword = () => {
         return;
       }
 
-      // 🛑 API INTEGRATION POINT: RESET PASSWORD (Forgot Password)
-      // This endpoint should NOT require authentication (no Bearer token).
-      // It should accept the new password along with a reset token or verified
-      // email/OTP reference so the backend can authorize the password change.
-      //
-      // Example implementation:
-      // try {
-      //   setLoading(true);
-      //   const resetToken = localStorage.getItem("reset_token"); // saved after OTP verification
-      //   await axios.put(`${apiUrl}/auth/reset-password`, {
-      //     newPassword: newPassword.trim(),
-      //     resetToken,
-      //   });
-      //   toast.success("Password reset successfully!");
-      //   setTimeout(() => navigate('/login'), 1500);
-      // } catch (err) {
-      //   toast.error(err.response?.data?.error || "Failed to reset password. Please try again.");
-      // } finally {
-      //   setLoading(false);
-      // }
+      try {
+        setLoading(true);
+        const resetToken = locat.state?.resetToken;
+        if (!resetToken) {
+          toast.error("Reset token missing. Please start the process again.");
+          navigate('/otp-verify');
+          return;
+        }
+
+        const response = await axios.post(`${apiUrl}/emp/resetPassword`, {
+          newPassword: newPassword.trim(),
+          resetToken,
+        });
+
+        if (response.data.success) {
+          toast.success("Password reset successfully!");
+          setTimeout(() => navigate('/login'), 1500);
+        }
+      } catch (err) {
+        console.error("Reset password error:", err);
+        toast.error(err.response?.data?.error || "Failed to reset password. Please try again.");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
     else {
