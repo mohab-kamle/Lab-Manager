@@ -1,19 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { Container, Button, Modal, Form, Alert, Row, Col } from "react-bootstrap";
+import {
+  Container,
+  Button,
+  Modal,
+  Form,
+  Alert,
+  Row,
+  Col,
+} from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
 import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
-import { Pencil, Trash2, Plus, CircleX } from "lucide-react";
+import { Pencil, Trash2, Plus, CircleX, Search } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
+import { formatDate } from "../../utils/dateFormatter";
 
 const PackagesAndOffers = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const [items, setItems] = useState([]);
   const [tests, setTests] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
@@ -21,40 +30,41 @@ const PackagesAndOffers = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({
+    field: null,
+    direction: "asc",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [item, setItem] = useState({
     name: "",
     shortcut: "",
     price: "",
-    start_date: "",
+    start_date: new Date(),
     end_date: "",
     type: "package",
     tests: [],
     item_id: "",
-    item_type: ""
+    item_type: "",
   });
   const [formErrors, setFormErrors] = useState({});
   const [lastAttemptedItem, setLastAttemptedItem] = useState(null);
   const [showRetryButton, setShowRetryButton] = useState(false);
   const [typeFilter, setTypeFilter] = useState("");
   const apiUrl = import.meta.env.VITE_API_URL;
-
+  const [testSearch, setTestSearch] = useState("");
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
         const [itemsRes, testsRes] = await Promise.all([
           axios.get(`${apiUrl}/packages-and-offers`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${token}` },
           }),
           axios.get(`${apiUrl}/tests`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         setItems(itemsRes.data);
@@ -62,13 +72,13 @@ const PackagesAndOffers = () => {
 
         // Set up table headers based on item type
         const headers = [
-          { field: 'name', label: 'Name', sortable: true },
-          { field: 'shortcut', label: 'Shortcut', sortable: true },
-          { field: 'price', label: 'Price', sortable: true },
-          { field: 'start_date', label: 'Start Date', sortable: true },
-          { field: 'end_date', label: 'End Date', sortable: true },
-          { field: 'type', label: 'Type', sortable: true },
-          { field: 'tests', label: 'Tests' }
+          { field: "name", label: "Name", sortable: true },
+          { field: "shortcut", label: "Shortcut", sortable: true },
+          { field: "price", label: "Price", sortable: true },
+          { field: "start_date", label: "Start Date", sortable: true },
+          { field: "end_date", label: "End Date", sortable: true },
+          { field: "type", label: "Type", sortable: true },
+          { field: "tests", label: "Tests" },
         ];
 
         setTableHeaders(headers);
@@ -84,23 +94,30 @@ const PackagesAndOffers = () => {
   }, []);
 
   const handleAddItem = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    setLastAttemptedItem(item);
     try {
       const cleanedItem = {
         ...item,
         price: parseFloat(item.price),
-        start_date: item.start_date || null,
+        start_date: item.start_date || new Date(),
         end_date: item.end_date || null,
-        tests: item.tests.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0),
+        tests: item.tests
+          .map((id) => parseInt(id))
+          .filter((id) => !isNaN(id) && id > 0),
         item_id: item.item_id || null,
-        item_type: item.item_type || 'test' // Always test now
+        item_type: item.item_type || "test", // Always test now
       };
 
       // Validate dates
-      if (cleanedItem.start_date && cleanedItem.end_date && new Date(cleanedItem.start_date) > new Date(cleanedItem.end_date)) {
-        setFormErrors(prev => ({
+      if (
+        cleanedItem.start_date &&
+        cleanedItem.end_date &&
+        new Date(cleanedItem.start_date) >= new Date(cleanedItem.end_date)
+      ) {
+        setFormErrors((prev) => ({
           ...prev,
-          dates: "End date must be after start date"
+          end_date: "End date must be strictly after start date",
         }));
         return;
       }
@@ -109,24 +126,24 @@ const PackagesAndOffers = () => {
       const validationErrors = validateForm(cleanedItem);
       if (Object.keys(validationErrors).length > 0) {
         setFormErrors(validationErrors);
-        console.log('Validation errors:', validationErrors);
+        console.log("Validation errors:", validationErrors);
         return;
       }
 
       // Remove unnecessary fields based on type
       const dataToSend = {
         ...cleanedItem,
-        manager_id: user.id
+        manager_id: user.id,
       };
 
-      if (dataToSend.type === 'package') {
+      if (dataToSend.type === "package") {
         delete dataToSend.item_id;
         delete dataToSend.item_type;
       } else {
         delete dataToSend.tests;
       }
 
-      console.log('Sending data to server:', dataToSend);
+      console.log("Sending data to server:", dataToSend);
 
       const token = localStorage.getItem("token");
       setLoading(true);
@@ -136,29 +153,43 @@ const PackagesAndOffers = () => {
       let response;
       if (editingItem) {
         // Update existing item
-        response = await axios.put(`${apiUrl}/packages-and-offers/${editingItem.id}`, dataToSend, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        response = await axios.put(
+          `${apiUrl}/packages-and-offers/${editingItem.id}`,
+          dataToSend,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         // Update the items state by replacing the old item with the updated one
-        setItems(prevItems => prevItems.map(item => 
-          item.id === editingItem.id ? response.data : item
-        ));
+        setItems((prevItems) =>
+          prevItems.map((item) =>
+            item.id === editingItem.id ? response.data : item,
+          ),
+        );
       } else {
         // Create new item
-        response = await axios.post(`${apiUrl}/packages-and-offers`, dataToSend, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        response = await axios.post(
+          `${apiUrl}/packages-and-offers`,
+          dataToSend,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         // Add the new item to the items state
-        setItems(prevItems => [...prevItems, response.data]);
+        setItems((prevItems) => [...prevItems, response.data]);
       }
 
-      console.log('Server response:', response.data);
-      toast.success(editingItem ? "Package/Offer updated successfully!" : "Package/Offer added successfully!");
+      console.log("Server response:", response.data);
+      toast.success(
+        editingItem
+          ? "Package/Offer updated successfully!"
+          : "Package/Offer added successfully!",
+      );
       setShowAddModal(false);
       handleResetForm();
     } catch (error) {
-      console.error('Error saving item:', error);
-      setError(error.response?.data?.error || 'Failed to save item');
+      console.error("Error saving item:", error);
+      setError(error.response?.data?.error || "Failed to save item");
       setShowRetryButton(true);
     } finally {
       setLoading(false);
@@ -167,7 +198,6 @@ const PackagesAndOffers = () => {
 
   const handleRetry = () => {
     if (lastAttemptedItem) {
-      setItem(lastAttemptedItem);
       handleAddItem();
     }
   };
@@ -183,10 +213,8 @@ const PackagesAndOffers = () => {
       });
 
       // Update the items state by removing the deleted item
-      setItems(prevItems => prevItems.filter(item => item.id !== id));
+      setItems((prevItems) => prevItems.filter((item) => item.id !== id));
       toast.success("Package/Offer deleted successfully!");
-      setShowDeleteModal(false);
-      setItemToDelete(null);
     } catch (error) {
       console.error("Error deleting item:", error);
       setError("Failed to delete item. Please try again.");
@@ -195,46 +223,50 @@ const PackagesAndOffers = () => {
     }
   };
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.shortcut?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = !typeFilter || typeFilter === 'all' || item.type === typeFilter;
+  const filteredItems = items.filter((item) => {
+    const name = item.name || "";
+    const shortcut = item.shortcut || "";
+    const search = searchQuery.toLowerCase();
+
+    const matchesSearch =
+      name.toLowerCase().includes(search) ||
+      shortcut.toLowerCase().includes(search);
+    const matchesType =
+      !typeFilter || typeFilter === "all" || item.type === typeFilter;
     return matchesSearch && matchesType;
   });
 
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (!sortConfig.field) return 0;
-    
+
     const aValue = a[sortConfig.field];
     const bValue = b[sortConfig.field];
-    
+
     // Handle different data types
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortConfig.direction === "asc" 
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      return sortConfig.direction === "asc"
         ? aValue.localeCompare(bValue)
         : bValue.localeCompare(aValue);
     }
-    
-    if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return sortConfig.direction === "asc" 
-        ? aValue - bValue
-        : bValue - aValue;
+
+    if (typeof aValue === "number" && typeof bValue === "number") {
+      return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
     }
-    
+
     // Handle dates
     if (aValue instanceof Date && bValue instanceof Date) {
       return sortConfig.direction === "asc"
         ? aValue.getTime() - bValue.getTime()
         : bValue.getTime() - aValue.getTime();
     }
-    
+
     return 0;
   });
 
   const pageCount = Math.ceil(sortedItems.length / itemsPerPage);
   const currentItems = sortedItems.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const ActionComponent = ({ rowData }) => (
@@ -246,8 +278,8 @@ const PackagesAndOffers = () => {
           setEditingItem(rowData);
           setItem({
             ...rowData,
-            start_date: new Date(rowData.start_date),
-            end_date: new Date(rowData.end_date)
+            start_date: rowData.start_date ? new Date(rowData.start_date) : new Date(),
+            end_date: rowData.end_date ? new Date(rowData.end_date) : null,
           });
           setShowAddModal(true);
         }}
@@ -258,8 +290,7 @@ const PackagesAndOffers = () => {
         variant="outline-danger"
         size="sm"
         onClick={() => {
-          setItemToDelete(rowData);
-          setShowDeleteModal(true);
+          confirm.delete(rowData.name, () => handleDelete(rowData.id));
         }}
       >
         <Trash2 size={16} />
@@ -269,77 +300,106 @@ const PackagesAndOffers = () => {
 
   const validateForm = (item) => {
     const errors = {};
-    
-    if (!item.name) errors.name = 'Name is required';
-    if (!item.shortcut) errors.shortcut = 'Shortcut is required';
-    if (!item.price || isNaN(item.price) || item.price <= 0) errors.price = 'Valid price is required';
-    if (!item.start_date) errors.start_date = 'Start date is required';
-    if (!item.end_date) errors.end_date = 'End date is required';
-    if (!item.type) errors.type = 'Type is required';
 
-    if (item.type === 'package') {
+    if (!item.name) errors.name = "Name is required";
+    if (!item.shortcut) errors.shortcut = "Shortcut is required";
+    if (!item.price || isNaN(item.price) || item.price <= 0)
+      errors.price = "Valid price is required";
+    if (!item.start_date) errors.start_date = "Start date is required";
+    if (!item.type) errors.type = "Type is required";
+
+    if (item.type === "package") {
       if (!item.tests || item.tests.length === 0) {
-        errors.tests = 'At least one test is required for packages';
+        errors.tests = "At least one test is required for packages";
       }
-    } else if (item.type === 'offer') {
-      if (!item.item_id) errors.item_id = 'Item ID is required';
-      if (!item.item_type) errors.item_type = 'Item type is required';
+    } else if (item.type === "offer") {
+      if (!item.item_id) errors.item_id = "Item ID is required";
+      if (!item.item_type) errors.item_type = "Item type is required";
     }
 
     return errors;
   };
 
   const formatCellData = (value, field) => {
-    if (value === null || value === undefined) return '-';
-    
+    if (value === null || value === undefined) return "-";
+
     switch (field) {
-      case 'start_date':
-      case 'end_date':
-        return value ? new Date(value).toLocaleDateString() : '-';
-      case 'tests':
-        if (!Array.isArray(value) || value.length === 0) return '-';
+      case "start_date":
+      case "end_date":
+        return formatDate(value);
+      case "tests":
+        if (!Array.isArray(value) || value.length === 0) return "-";
         return (
-          <table style={{ borderCollapse: 'collapse', width: '100%', border: '1px solid #ddd', fontSize: '0.9rem' }}>
+          <table
+            style={{
+              borderCollapse: "collapse",
+              width: "100%",
+              border: "1px solid #ddd",
+              fontSize: "0.9rem",
+            }}
+          >
             <thead>
               <tr>
-                <th style={{ border: '1px solid #ddd', padding: '4px', background: '#f5f5f5', textAlign: 'left' }}>Name</th>
-                <th style={{ border: '1px solid #ddd', padding: '4px', background: '#f5f5f5', textAlign: 'left' }}>Price</th>
+                <th
+                  style={{
+                    border: "1px solid #ddd",
+                    padding: "4px",
+                    background: "#f5f5f5",
+                    textAlign: "left",
+                  }}
+                >
+                  Name
+                </th>
+                <th
+                  style={{
+                    border: "1px solid #ddd",
+                    padding: "4px",
+                    background: "#f5f5f5",
+                    textAlign: "left",
+                  }}
+                >
+                  Price
+                </th>
               </tr>
             </thead>
             <tbody>
               {value.map((test, index) => (
                 <tr key={index}>
-                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>{test.name || '-'}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '4px' }}>${Number(test.price || 0).toFixed(2)}</td>
+                  <td style={{ border: "1px solid #ddd", padding: "4px" }}>
+                    {test.name || "-"}
+                  </td>
+                  <td style={{ border: "1px solid #ddd", padding: "4px" }}>
+                    ${Number(test.price || 0).toFixed(2)}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         );
 
-      case 'price':
+      case "price":
         return `$${Number(value || 0).toFixed(2)}`;
-      case 'type':
-        return value ? value.charAt(0).toUpperCase() + value.slice(1) : '-';
+      case "type":
+        return value ? value.charAt(0).toUpperCase() + value.slice(1) : "-";
       default:
-        return String(value || '-');
+        return String(value || "-");
     }
   };
-
 
   const handleResetForm = () => {
     setItem({
       name: "",
       shortcut: "",
       price: "",
-      start_date: "",
+      start_date: new Date(),
       end_date: "",
       type: "package",
       tests: [],
       item_id: "",
-      item_type: ""
+      item_type: "",
     });
     setFormErrors({});
+    setTestSearch("");
   };
 
   return (
@@ -352,21 +412,11 @@ const PackagesAndOffers = () => {
         <>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h2>Packages & Offers</h2>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={() => {
                 setEditingItem(null);
-                setItem({
-                  name: "",
-                  shortcut: "",
-                  price: "",
-                  start_date: "",
-                  end_date: "",
-                  type: "package",
-                  tests: [],
-                  item_id: "",
-                  item_type: ""
-                });
+                handleResetForm();
                 setShowAddModal(true);
               }}
             >
@@ -381,7 +431,9 @@ const PackagesAndOffers = () => {
             itemsPerPage={itemsPerPage}
             setItemsPerPage={setItemsPerPage}
             setCurrentPage={setCurrentPage}
-            sortableFields={tableHeaders.filter(h => h.sortable).map(h => h.field)}
+            sortableFields={tableHeaders
+              .filter((h) => h.sortable)
+              .map((h) => h.field)}
             sortConfig={sortConfig}
             setSortConfig={setSortConfig}
             typeFilter={typeFilter}
@@ -390,7 +442,7 @@ const PackagesAndOffers = () => {
           />
           <DynamicTable
             data={currentItems}
-            columns={tableHeaders.map(header => header.field)}
+            columns={tableHeaders.map((header) => header.field)}
             formatCellData={formatCellData}
             ActionComponent={ActionComponent}
           />
@@ -401,24 +453,34 @@ const PackagesAndOffers = () => {
           />
 
           {/* Add/Edit Modal */}
-          <Modal show={showAddModal} onHide={() => {
-            setShowAddModal(false);
-            setError(null);
-            setShowRetryButton(false);
-            setLastAttemptedItem(null);
-            setFormErrors({});
-          }} size="lg">
+          <Modal
+            show={showAddModal}
+            onHide={() => {
+              setShowAddModal(false);
+              setError(null);
+              setShowRetryButton(false);
+              setLastAttemptedItem(null);
+              setFormErrors({});
+              setTestSearch("");
+            }}
+            size="lg"
+          >
             <Modal.Header>
               <Modal.Title>
-                {editingItem ? "Edit" : "Add"} {item.type === "package" ? "Package" : "Offer"}
+                {editingItem ? "Edit" : "Add"}{" "}
+                {item.type === "package" ? "Package" : "Offer"}
               </Modal.Title>
-              <button className="modal-close-btn" onClick={() => {
-                setShowAddModal(false);
-                setError(null);
-                setShowRetryButton(false);
-                setLastAttemptedItem(null);
-                setFormErrors({});
-              }}>
+              <button
+                className="modal-close-btn"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setError(null);
+                  setShowRetryButton(false);
+                  setLastAttemptedItem(null);
+                  setFormErrors({});
+                  setTestSearch("");
+                }}
+              >
                 <CircleX size={24} />
               </button>
             </Modal.Header>
@@ -427,7 +489,12 @@ const PackagesAndOffers = () => {
                 <Alert variant="danger" className="mb-3">
                   {error}
                   {showRetryButton && (
-                    <Button variant="outline-danger" size="sm" className="ms-2" onClick={handleRetry}>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      className="ms-2"
+                      onClick={handleRetry}
+                    >
                       Try Again
                     </Button>
                   )}
@@ -441,12 +508,12 @@ const PackagesAndOffers = () => {
                       <Form.Select
                         value={item.type}
                         onChange={(e) => {
-                          setItem({ 
-                            ...item, 
+                          setItem({
+                            ...item,
                             type: e.target.value,
                             tests: [],
                             item_id: "",
-                            item_type: ""
+                            item_type: "",
                           });
                           setFormErrors({});
                         }}
@@ -465,7 +532,8 @@ const PackagesAndOffers = () => {
                         value={item.name}
                         onChange={(e) => {
                           setItem({ ...item, name: e.target.value });
-                          if (formErrors.name) setFormErrors({ ...formErrors, name: null });
+                          if (formErrors.name)
+                            setFormErrors({ ...formErrors, name: null });
                         }}
                         isInvalid={!!formErrors.name}
                       />
@@ -484,7 +552,8 @@ const PackagesAndOffers = () => {
                     value={item.shortcut}
                     onChange={(e) => {
                       setItem({ ...item, shortcut: e.target.value });
-                      if (formErrors.shortcut) setFormErrors({ ...formErrors, shortcut: null });
+                      if (formErrors.shortcut)
+                        setFormErrors({ ...formErrors, shortcut: null });
                     }}
                     isInvalid={!!formErrors.shortcut}
                   />
@@ -498,16 +567,31 @@ const PackagesAndOffers = () => {
                     <Form.Group className="mb-3">
                       <Form.Label>Price *</Form.Label>
                       <Form.Control
-                        type="number"
-                        placeholder="Enter price"
+                        type="text"
+                        placeholder="0"
                         value={item.price}
                         onChange={(e) => {
-                          setItem({ ...item, price: e.target.value });
-                          if (formErrors.price) setFormErrors({ ...formErrors, price: null });
+                          let value = e.target.value;
+                          
+                          // Remove anything that is not a number or a dot
+                          value = value.replace(/[^0-9.]/g, "");
+                          
+                          // Prevent leading dot
+                          if (value.startsWith(".")) {
+                            value = value.substring(1);
+                          }
+                          
+                          // Prevent multiple dots
+                          const parts = value.split(".");
+                          if (parts.length > 2) {
+                            value = parts[0] + "." + parts.slice(1).join("");
+                          }
+                          
+                          setItem({ ...item, price: value });
+                          if (formErrors.price)
+                            setFormErrors({ ...formErrors, price: null });
                         }}
                         isInvalid={!!formErrors.price}
-                        min="0"
-                        step="0.01"
                       />
                       <Form.Control.Feedback type="invalid">
                         {formErrors.price}
@@ -519,25 +603,91 @@ const PackagesAndOffers = () => {
                       <Col md={12}>
                         <Form.Group className="mb-3">
                           <Form.Label>Tests</Form.Label>
-                          <Form.Select
-                            multiple
-                            value={item.tests}
-                            onChange={(e) => {
-                              const selected = Array.from(e.target.selectedOptions, option => option.value);
-                              setItem({ ...item, tests: selected });
-                              if (formErrors.tests) setFormErrors({ ...formErrors, tests: null });
+
+                          {/* Search Input Field */}
+                          <Form.Control
+                            type="text"
+                            placeholder="Search for a test..."
+                            value={testSearch}
+                            onChange={(e) => setTestSearch(e.target.value)}
+                            className="mb-2"
+                          />
+
+                          {/* Scrollable container styled like a standard form input box */}
+                          <div
+                            className={`form-control ${!!formErrors.tests ? "is-invalid" : ""}`}
+                            style={{
+                              height: "150px",
+                              overflowY: "auto",
+                              padding: "0.5rem 0.75rem",
                             }}
-                            isInvalid={!!formErrors.tests}
                           >
-                            {tests.map(test => (
-                              <option key={`test-${test.id}`} value={test.id}>
-                                {test.name} (${test.price})
-                              </option>
-                            ))}
-                          </Form.Select>
-                          <Form.Control.Feedback type="invalid">
-                            {formErrors.tests}
-                          </Form.Control.Feedback>
+                            {/* Filter tests based on search input, then map them */}
+                            {tests
+                              .filter((test) =>
+                                test.name
+                                  .toLowerCase()
+                                  .includes(testSearch.toLowerCase()),
+                              )
+                              .map((test) => {
+                                const selectedTests = item.tests || [];
+                                const testIdStr = String(test.id);
+                                const isChecked = selectedTests.some(
+                                  (id) => String(id) === testIdStr,
+                                );
+
+                                return (
+                                  <Form.Check
+                                    key={`test-checkbox-${test.id}`}
+                                    type="checkbox"
+                                    id={`test-checkbox-${test.id}`}
+                                    label={`${test.name} ($${test.price})`}
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      let newTests = [...selectedTests];
+
+                                      if (e.target.checked) {
+                                        newTests.push(testIdStr);
+                                      } else {
+                                        newTests = newTests.filter(
+                                          (id) => String(id) !== testIdStr,
+                                        );
+                                      }
+
+                                      setItem({ ...item, tests: newTests });
+
+                                      if (formErrors.tests) {
+                                        setFormErrors({
+                                          ...formErrors,
+                                          tests: null,
+                                        });
+                                      }
+                                    }}
+                                  />
+                                );
+                              })}
+
+                            {/* Show a message if the search yields no results */}
+                            {tests.filter((test) =>
+                              test.name
+                                .toLowerCase()
+                                .includes(testSearch.toLowerCase()),
+                            ).length === 0 && (
+                              <div className="text-muted small">
+                                No tests match your search.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Display validation errors */}
+                          {!!formErrors.tests && (
+                            <Form.Control.Feedback
+                              type="invalid"
+                              className="d-block"
+                            >
+                              {formErrors.tests}
+                            </Form.Control.Feedback>
+                          )}
                         </Form.Group>
                       </Col>
                     </>
@@ -546,25 +696,92 @@ const PackagesAndOffers = () => {
                       <Col md={12}>
                         <Form.Group className="mb-3">
                           <Form.Label>Select Test *</Form.Label>
-                          <Form.Select
-                            value={item.item_id ? `test-${item.item_id}` : ""}
-                            onChange={(e) => {
-                              const [type, id] = e.target.value.split("-");
-                              setItem({ ...item, item_type: 'test', item_id: id });
-                              if (formErrors.item_id) setFormErrors({ ...formErrors, item_id: null });
+                          
+                          {/* Search Input Field */}
+                          <Form.Control
+                            type="text"
+                            placeholder="Search for a test..."
+                            value={testSearch}
+                            onChange={(e) => setTestSearch(e.target.value)}
+                            className="mb-2"
+                          />
+
+                          {/* Scrollable container for single test selection */}
+                          <div
+                            className={`form-control ${!!formErrors.item_id ? "is-invalid" : ""}`}
+                            style={{
+                              height: "200px",
+                              overflowY: "auto",
+                              padding: "0.5rem",
+                              background: 'var(--bg-inset, #f8f9fa)'
                             }}
-                            isInvalid={!!formErrors.item_id}
                           >
-                            <option value="">Select a Test</option>
-                            {tests.map(test => (
-                              <option key={`test-${test.id}`} value={`test-${test.id}`}>
-                                {test.name} (Original Price: ${test.price})
-                              </option>
-                            ))}
-                          </Form.Select>
-                          <Form.Control.Feedback type="invalid">
-                            {formErrors.item_id}
-                          </Form.Control.Feedback>
+                            {tests
+                              .filter((test) =>
+                                test.name
+                                  .toLowerCase()
+                                  .includes(testSearch.toLowerCase()),
+                              )
+                              .map((test) => {
+                                const isSelected = String(item.item_id) === String(test.id);
+                                return (
+                                  <div
+                                    key={`offer-test-${test.id}`}
+                                    className={`p-2 mb-1 rounded d-flex justify-content-between align-items-center cursor-pointer transition-all ${
+                                      isSelected 
+                                        ? "bg-primary text-white shadow-sm" 
+                                        : "bg-white border hover-bg-light shadow-sm-hover"
+                                    }`}
+                                    onClick={() => {
+                                      setItem({
+                                        ...item,
+                                        item_type: "test",
+                                        item_id: String(test.id),
+                                      });
+                                      if (formErrors.item_id)
+                                        setFormErrors({ ...formErrors, item_id: null });
+                                    }}
+                                    style={{ cursor: 'pointer', border: isSelected ? '1px solid transparent' : '1px solid #dee2e6' }}
+                                  >
+                                    <div className="d-flex align-items-center">
+                                      <Form.Check
+                                        type="radio"
+                                        readOnly
+                                        checked={isSelected}
+                                        className="me-2 pointer-events-none"
+                                        style={{ pointerEvents: 'none' }}
+                                      />
+                                      <span className="fw-medium">{test.name}</span>
+                                    </div>
+                                    <span className={isSelected ? "text-white-50 small" : "text-muted small"}>
+                                      ${test.price}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+
+                            {/* No results message */}
+                            {tests.filter((test) =>
+                              test.name
+                                .toLowerCase()
+                                .includes(testSearch.toLowerCase()),
+                            ).length === 0 && (
+                              <div className="text-center py-4 text-muted small">
+                                <Search size={20} className="mb-2 opacity-50" /><br/>
+                                No tests match your search.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Display validation errors */}
+                          {!!formErrors.item_id && (
+                            <Form.Control.Feedback
+                              type="invalid"
+                              className="d-block"
+                            >
+                              {formErrors.item_id}
+                            </Form.Control.Feedback>
+                          )}
                         </Form.Group>
                       </Col>
                     </>
@@ -578,11 +795,18 @@ const PackagesAndOffers = () => {
                       <DatePicker
                         selected={item.start_date}
                         onChange={(date) => {
-                          setItem({ ...item, start_date: date });
-                          if (formErrors.start_date) setFormErrors({ ...formErrors, start_date: null });
+                          const newStartDate = date || new Date();
+                          let updates = { start_date: newStartDate };
+                          if (item.end_date && newStartDate >= item.end_date) {
+                            updates.end_date = null;
+                          }
+                          setItem({ ...item, ...updates });
+                          if (formErrors.start_date)
+                            setFormErrors({ ...formErrors, start_date: null });
                         }}
-                        className={`form-control ${formErrors.start_date ? 'is-invalid' : ''}`}
-                        dateFormat="yyyy-MM-dd"
+                        className={`form-control ${formErrors.start_date ? "is-invalid" : ""}`}
+                        dateFormat="dd/MM/yyyy"
+                        isClearable
                       />
                       {formErrors.start_date && (
                         <div className="invalid-feedback d-block">
@@ -593,15 +817,25 @@ const PackagesAndOffers = () => {
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>End Date *</Form.Label>
+                      <Form.Label>End Date (Optional)</Form.Label>
                       <DatePicker
                         selected={item.end_date}
                         onChange={(date) => {
                           setItem({ ...item, end_date: date });
-                          if (formErrors.end_date) setFormErrors({ ...formErrors, end_date: null });
+                          if (formErrors.end_date)
+                            setFormErrors({ ...formErrors, end_date: null });
                         }}
-                        className={`form-control ${formErrors.end_date ? 'is-invalid' : ''}`}
-                        dateFormat="yyyy-MM-dd"
+                        className={`form-control ${formErrors.end_date ? "is-invalid" : ""}`}
+                        dateFormat="dd/MM/yyyy"
+                        isClearable
+                        placeholderText="Ongoing"
+                        minDate={
+                          item.start_date
+                            ? new Date(
+                                new Date(item.start_date).getTime() + 86400000
+                              )
+                            : null
+                        }
                       />
                       {formErrors.end_date && (
                         <div className="invalid-feedback d-block">
@@ -614,49 +848,26 @@ const PackagesAndOffers = () => {
               </Form>
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onClick={() => {
-                setShowAddModal(false);
-                setError(null);
-                setShowRetryButton(false);
-                setLastAttemptedItem(null);
-                setFormErrors({});
-              }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setError(null);
+                  setShowRetryButton(false);
+                  setLastAttemptedItem(null);
+                  setFormErrors({});
+                  setTestSearch("");
+                }}
+              >
                 Cancel
               </Button>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 type="submit"
                 form="package-form"
                 disabled={loading}
               >
-                {loading ? "Saving..." : (editingItem ? "Update" : "Add")}
-              </Button>
-            </Modal.Footer>
-          </Modal>
-
-          {/* Delete Confirmation Modal */}
-          <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-            <Modal.Header>
-              <Modal.Title>Confirm Delete</Modal.Title>
-              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
-                <CircleX size={24} />
-              </button>
-            </Modal.Header>
-            <Modal.Body>
-              <Alert variant="warning">
-                Are you sure you want to delete this {itemToDelete?.type === "package" ? "package" : "offer"}?
-                This action cannot be undone.
-              </Alert>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </Button>
-              <Button 
-                variant="danger" 
-                onClick={() => handleDelete(itemToDelete?.id)}
-              >
-                Delete
+                {loading ? "Saving..." : editingItem ? "Update" : "Add"}
               </Button>
             </Modal.Footer>
           </Modal>

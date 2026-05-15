@@ -10,6 +10,7 @@ import {
 import PhoneInput from '../../components/ui/PhoneInput';
 import styles from '../../styles/LabManagement.module.css';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 
 const LabManagement = () => {
   const { toast } = useToast();
@@ -536,7 +537,7 @@ const LabManagement = () => {
               <p><strong>Status:</strong> {subscriptionStatus.status || subscriptionStatus.trial_status}</p>
               <p><strong>Duration:</strong> {subscriptionStatus.subscriptionDuration || subscriptionStatus.trialDuration}</p>
               {subscriptionStatus.subscriptionEndDate && (
-                <p><strong>End Date:</strong> {new Date(subscriptionStatus.subscriptionEndDate).toLocaleDateString('en-GB')}</p>
+                <p><strong>End Date:</strong> {formatDate(subscriptionStatus.subscriptionEndDate)}</p>
               )}
               {isTrialExpired() && (
                 <p className={styles.trialWarning}>⚠️ Trial expired. Please upgrade to continue.</p>
@@ -1087,7 +1088,7 @@ const LabManagement = () => {
                         )}
                         {activityLog.data.map((log) => (
                           <tr key={log.id}>
-                            <td>{new Date(log.created_at).toLocaleString()}</td>
+                            <td>{formatDateTime(log.created_at)}</td>
                             <td>{log.user_id}</td>
                             <td>{log.user_role}</td>
                             <td>{log.action}</td>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLab } from '../context/LabContext';
 import { useToast } from '../ui/ToastContext';
+import { formatDate } from '../../utils/dateFormatter';
 
 const TrialStatus = () => {
   const { toast } = useToast();
@@ -35,7 +36,7 @@ const TrialStatus = () => {
           <br />
           <small>
             {subscriptionStatus.subscription?.duration} plan - 
-            Expires: {new Date(subscriptionStatus.subscription?.end_date).toLocaleDateString()}
+            Expires: {formatDate(subscriptionStatus.subscription?.end_date)}
           </small>
         </div>
       </div>

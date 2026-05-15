@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Form, Button, Table, Badge, Spinner, Alert } from 'react-bootstrap';
 import api from '../../utils/api';
 import { format } from 'date-fns';
+import { formatDateTime } from '../../utils/dateFormatter';
 
 const TurnaroundTime = () => {
   const [loading, setLoading] = useState(false);
@@ -164,7 +165,7 @@ const TurnaroundTime = () => {
                         <td>#{report.id}</td>
                         <td>{report.patient?.name || 'Unknown'}</td>
                         <td>{report.patient?.phones?.[0]?.phone_number || 'N/A'}</td>
-                        <td>{format(regDate, 'PP pp')}</td>
+                        <td>{formatDateTime(report.registered_at)}</td>
 
                         <td>{statusBadge}</td>
                         <td className="text-danger fw-bold">{delayHours} hours</td>

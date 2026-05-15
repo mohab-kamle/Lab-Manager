@@ -51,11 +51,14 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
       return res.status(400).json({ error: "Please provide an array of global_test_ids to import." });
     }
 
+    // Deduplicate IDs from request
+    const uniqueIds = [...new Set(global_test_ids)];
+
     // Fetch the requested global tests
     const globalTests = await db.global_test_catalog.findAll({
       where: {
         id: {
-          [Op.in]: global_test_ids
+          [Op.in]: uniqueIds
         }
       },
       transaction
@@ -67,41 +70,79 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
     }
 
     // Cache categories to map global_category to local category_id
-    const localCategories = await db.categories_test_and_culture.findAll({ transaction });
-    let fallbackCategory = localCategories.length > 0 ? localCategories[0].id : null;
+    const localCategories = await db.categories_test_and_culture.findAll({ 
+      where: {
+        [Op.or]: [{ lab_id: null }, { lab_id: req.tenant.lab_id }]
+      },
+      transaction 
+    });
+    
+    // Better fallback: Prefer a tenant-specific category over a global one
+    let fallbackCategory = localCategories.find(c => c.lab_id === req.tenant.lab_id)?.id || 
+                           (localCategories.length > 0 ? localCategories[0].id : null);
 
     if (!fallbackCategory) {
       // If the user's DB has no categories, create a default one to safely proceed with the import
-      const defaultCat = await db.categories_test_and_culture.create({ name: 'General Tests' }, { transaction });
+      const defaultCat = await db.categories_test_and_culture.create({ 
+        name: 'General Tests',
+        lab_id: req.tenant.lab_id 
+
+      }, { transaction });
       fallbackCategory = defaultCat.id;
       localCategories.push(defaultCat);
     }
 
     const importedTests = [];
+    const skippedTests = [];
     let idCounter = 1;
 
     for (const globalTest of globalTests) {
-      // Avoid inserting if test with the exact name already exists locally to prevent unique contraint errors
+      // Avoid inserting if test with the exact name OR shortcut already exists locally for THIS lab
+      const testShortcut = globalTest.patient_friendly_name || globalTest.name;
       const existingTest = await db.test.findOne({
-        where: { name: globalTest.name },
+        where: { 
+          lab_id: req.tenant.lab_id,
+          [Op.or]: [
+            { name: globalTest.name },
+            { shortcut: testShortcut }
+          ]
+        },
         transaction
       });
 
       if (existingTest) {
+        console.log(`[IMPORT] Skipping test "${globalTest.name}" because it already exists (ID: ${existingTest.id}, Name: ${existingTest.name}, Shortcut: ${existingTest.shortcut})`);
+        skippedTests.push({
+            id: globalTest.id,
+            name: globalTest.name,
+            reason: `Test with name "${globalTest.name}" or shortcut already exists.`
+        });
         continue; // Skip if already exists
       }
 
       // Map global_category
       let categoryId = fallbackCategory;
       if (globalTest.global_category) {
-        const matchingCat = localCategories.find(c => c.name.toLowerCase() === globalTest.global_category.toLowerCase());
-        if (matchingCat) {
-          categoryId = matchingCat.id;
+        // Find matching categories, preferring tenant-specific ones
+        const matchingCats = localCategories.filter(c => c.name.toLowerCase() === globalTest.global_category.toLowerCase());
+        const tenantCat = matchingCats.find(c => c.lab_id === req.tenant.lab_id);
+        
+        if (tenantCat) {
+          categoryId = tenantCat.id;
+        } else if (matchingCats.length > 0) {
+          categoryId = matchingCats[0].id;
         } else {
           // Dynamic category creation: If this specific category doesn't exist locally, create it exactly as named!
-          const newCat = await db.categories_test_and_culture.create({ 
-            name: globalTest.global_category 
-          }, { transaction });
+          const [newCat] = await db.categories_test_and_culture.findOrCreate({ 
+            where: { 
+              name: globalTest.global_category,
+              lab_id: req.tenant.lab_id
+            },
+            defaults: {
+              lab_id: req.tenant.lab_id
+            },
+            transaction
+          });
           localCategories.push(newCat);
           categoryId = newCat.id;
         }
@@ -184,6 +225,7 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
         cost: 0.00,
         lab_to_lab_status: 'IN', // Default
         category_id: categoryId,
+        sample_type_id: globalTest.default_sample_type_id,
         global_test_id: globalTest.id,
         structure_config: structureConfig,
         type: globalTest.type || 'single'
@@ -195,9 +237,10 @@ router.post("/import-bulk", authenticateUser, authorizeRoles("admin"), require("
     await transaction.commit();
 
     res.status(201).json({
-      message: `Successfully imported ${importedTests.length} tests (skipped ${globalTests.length - importedTests.length} duplicates).`,
+      message: `Successfully imported ${importedTests.length} tests (skipped ${skippedTests.length} duplicates).`,
       importedCount: importedTests.length,
-      skippedCount: globalTests.length - importedTests.length,
+      skippedCount: skippedTests.length,
+      skippedDetails: skippedTests,
       tests: importedTests
     });
 

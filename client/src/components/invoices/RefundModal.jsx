@@ -99,9 +99,11 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
   const totalRefundDue = Math.max(0, totalRefundableAmount - debtToSubtract);
   const creditToAdd = Math.max(0, totalRefundDue - amountLabPays);
 
+  const hasSelectedItems = selectedItems.tests.length > 0 || selectedItems.packages.length > 0;
+
   const handleRefund = async () => {
-    if (totalRefundDue <= 0) {
-      toast.error('Please select items or use invoice credit to refund');
+    if (!hasSelectedItems) {
+      toast.error('Please select items to refund');
       return;
     }
 

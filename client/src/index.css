@@ -141,10 +141,13 @@
   justify-content: center !important;
   padding: 1rem !important;
   border-radius: 12px !important;
-  height: 110px !important; /* Slightly smaller height */
+  min-height: 125px !important; 
+  height: auto !important;
   min-width: 140px !important;
   gap: 0.25rem;
   text-align: center;
+  white-space: normal !important;
+  word-wrap: break-word !important;
 }
 
 .btn-dashboard-action svg,
