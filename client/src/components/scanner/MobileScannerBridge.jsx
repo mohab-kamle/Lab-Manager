@@ -26,7 +26,7 @@ const MobileScannerBridge = ({ onScan, onClose }) => {
 
   // Construct the mobile scanner URL
   // Use the current domain or fallback to window.location.origin
-  const scannerUrl = `\${window.location.origin}/mobile-scanner/\${sessionId}\\`;
+  const scannerUrl = `${window.location.origin}/mobile-scanner/${sessionId}`;
 
   useEffect(() => {
     // Initialize Socket

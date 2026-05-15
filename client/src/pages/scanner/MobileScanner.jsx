@@ -13,6 +13,7 @@ const MobileScanner = () => {
   const [torchOn, setTorchOn] = useState(false);
   const socketRef = useRef(null);
   const scannerRef = useRef(null);
+  const lastScanResetTimerRef = useRef(null);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   useEffect(() => {
@@ -69,7 +70,13 @@ const MobileScanner = () => {
         socketRef.current.emit('scan-data', { sessionId, data: decodedText });
         
         // Reset last scan after a short delay to allow re-scanning same code
-        setTimeout(() => setLastScan(null), 2000);
+        if (lastScanResetTimerRef.current) {
+          clearTimeout(lastScanResetTimerRef.current);
+        }
+        lastScanResetTimerRef.current = setTimeout(() => {
+          setLastScan(null);
+          lastScanResetTimerRef.current = null;
+        }, 2000);
       }
     };
 
@@ -95,6 +102,9 @@ const MobileScanner = () => {
       if (scannerRef.current) {
         scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
       }
+      if (lastScanResetTimerRef.current) {
+        clearTimeout(lastScanResetTimerRef.current);
+      }
     };
   }, [sessionId, apiUrl, lastScan]);
 
@@ -105,7 +115,14 @@ const MobileScanner = () => {
       socketRef.current.emit('scan-data', { sessionId, data });
       setLastScan(data);
       e.target.reset();
-      setTimeout(() => setLastScan(null), 2000);
+      
+      if (lastScanResetTimerRef.current) {
+        clearTimeout(lastScanResetTimerRef.current);
+      }
+      lastScanResetTimerRef.current = setTimeout(() => {
+        setLastScan(null);
+        lastScanResetTimerRef.current = null;
+      }, 2000);
     }
   };
 
