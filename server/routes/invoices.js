@@ -1051,6 +1051,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         const oldPaid = parseFloat(existingBill.paid || 0);
         const oldDue = parseFloat(existingBill.due || 0);
         const oldDocId = existingBill.referred_doctor_id;
+        const oldStatusId = existingBill.status_id;
         const patientId = existingBill.patient_id;
 
         await existingBill.update({
@@ -1252,6 +1253,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                         bill_id: id,
                         patient_id: patientId,
                         processed_by_id: req.user.id,
+                        processed_by_type: req.user.role === 'admin' ? 'admin' : 'receptionist',
                         amount: paidAmount - oldAmount,
                         process_type: 'Payment',
                         payment_method_id: pmId,
@@ -1267,7 +1269,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         if (oldTotal !== parseFloat(total || existingBill.total)) diff.total = { old: oldTotal, new: parseFloat(total || existingBill.total) };
         if (oldPaid !== parseFloat(paid || existingBill.paid)) diff.paid = { old: oldPaid, new: parseFloat(paid || existingBill.paid) };
         if (oldDue !== parseFloat(due || existingBill.due)) diff.due = { old: oldDue, new: parseFloat(due || existingBill.due) };
-        if (existingBill.status_id !== (status_id || existingBill.status_id)) diff.status_id = { old: existingBill.status_id, new: status_id || existingBill.status_id };
+        if (oldStatusId !== (status_id || oldStatusId)) diff.status_id = { old: oldStatusId, new: status_id || oldStatusId };
 
         await lab_activity_log.create({
             lab_id: lab_id,
@@ -1281,7 +1283,7 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
                     total: oldTotal,
                     paid: oldPaid,
                     due: oldDue,
-                    status_id: existingBill.status_id
+                    status_id: oldStatusId
                 },
                 new_state: {
                     total: existingBill.total,

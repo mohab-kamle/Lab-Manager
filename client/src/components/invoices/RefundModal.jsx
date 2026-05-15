@@ -6,7 +6,7 @@ import { RefreshCcw, AlertTriangle, ShieldCheck, History, CheckCircle, KeyRound,
 import axios from 'axios';
 import { useLab } from '../../context/LabContext';
 
-const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
+const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods = [] }) => {
   const { toast, showConfirm } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState({ tests: [], packages: [] });
@@ -16,6 +16,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
   const [ignoreDue, setIgnoreDue] = useState(false);
   const [patientData, setPatientData] = useState(null);
   const [fetchingPatient, setFetchingPatient] = useState(false);
+  const [paymentMethodId, setPaymentMethodId] = useState('');
 
   const { getSetting } = useLab();
   const patientDueLimit = parseFloat(getSetting('patient_due_limit', 0));
@@ -37,6 +38,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
       setIsSure(false);
       setAuthKey('');
       setIgnoreDue(false);
+      setPaymentMethodId('');
       
       if (invoice?.patient_id) {
         fetchPatientData();
@@ -158,16 +160,13 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
           amountLabPays: parseFloat(amountLabPays) || 0,
           creditAdded: creditToAdd,
           ignoreDue: ignoreDue,
-          // Auth key is collected from the modal state (not the confirm popup)
-          authKey: isOlderThan24Hours ? authKey : null
+          authKey: isOlderThan24Hours ? authKey : null,
+          payment_method_id: paymentMethodId || null
         };
 
-        /* 
-        TODO: IMPLEMENT BACKEND API CALL
         await axios.post(`${import.meta.env.VITE_API_URL}/invoices/${invoice.id}/refund`, payload, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-        */
         
         toast.success('Refund processed successfully');
         onRefundProcessed && onRefundProcessed();
@@ -348,6 +347,22 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
                       Remaining <strong>EGP {creditToAdd.toFixed(2)}</strong> will be added to patient credit.
                     </Form.Text>
                   </Form.Group>
+
+                  {parseFloat(amountLabPays) > 0 && (
+                    <Form.Group className="mb-4">
+                      <Form.Label className="small fw-bold text-theme">Payout Method</Form.Label>
+                      <Form.Select 
+                        value={paymentMethodId}
+                        onChange={(e) => setPaymentMethodId(e.target.value)}
+                        className="shadow-sm"
+                      >
+                        <option value="">Select Method (Default: Cash)</option>
+                        {paymentMethods.map(m => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  )}
 
                   {isOlderThan24Hours && (
                     <Form.Group className="mb-3">

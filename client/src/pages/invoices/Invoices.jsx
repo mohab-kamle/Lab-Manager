@@ -4323,6 +4323,7 @@ const Invoices = () => {
         }}
         invoice={selectedInvoiceForRefund}
         onRefundProcessed={fetchData}
+        paymentMethods={paymentMethods}
       />
 
       {/* Invoice History Drawer */}
