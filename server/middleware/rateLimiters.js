@@ -31,6 +31,24 @@ const registrationLimiter = rateLimit({
   message: { error: "Too many registration attempts, please try again later." }
 });
 
+// Prevent email spam (Max 3 requests per 15 mins per IP)
+const forgotPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 3, 
+    message: { error: 'Too many password reset requests from this IP. Please try again after 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Prevent Token brute-forcing (Max 5 attempts per 15 mins per IP)
+const resetPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { error: 'Too many password reset attempts from this IP. Please try again after 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // OTP Send limiter: 5 requests per 15 minutes
 const otpSendLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -54,5 +72,7 @@ module.exports = {
   loginLimiter,
   registrationLimiter,
   otpSendLimiter,
-  otpVerifyLimiter
+  otpVerifyLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
 };

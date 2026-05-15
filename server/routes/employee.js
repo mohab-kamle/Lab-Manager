@@ -3,15 +3,18 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
-const { loginLimiter } = require('../middleware/rateLimiters');
+const { loginLimiter, forgotPasswordLimiter, otpVerifyLimiter, resetPasswordLimiter } = require('../middleware/rateLimiters');
+const otpGenerator = require('otp-generator');
+const cacheService = require('../services/cacheService');
 
-const { employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor, phone_number } = require('../models'); 
+const { lab, employee, admin, sequelize, branch_has_employee, branch, chemist, receptionist, doctor, phone_number } = require('../models');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
-const { sign } = require('jsonwebtoken');
+const { sign, verify } = require('jsonwebtoken');
 const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext } = require('../middleware/tenantContext');
 const { validatePassword } = require('../utils/passwordValidator');
+const emailService = require('../services/email/email.service');
 
 // Helper function to normalize phone number to E.164 format
 const normalizePhone = (phoneStr) => {
@@ -178,6 +181,195 @@ router.put("/skip-password-change", authenticateUser, authorizeRoles("admin"), t
     }
 });
 
+// Send OTP via Email Address
+router.post('/forgotPassword', forgotPasswordLimiter, async (req, res) => {
+    try {
+        const { username } = req.body;
+
+        // 1. Basic validation
+        if (!username) {
+            return res.status(400).json({ error: 'username is required' });
+        }
+
+        // 2. Find the employee
+        const user = await employee.findOne({ where: { username: username } });
+        if (!user || !user.email) {
+            return res.status(404).json(`No user with this username was found or email is missing`);
+        }
+        const email = user.email;
+
+        // 3. Get lab info for the email template
+        const userLab = await lab.findOne({ where: { id: user.lab_id } });
+
+        // 4. Generate the 6-digit OTP
+        const otp = otpGenerator.generate(6, {
+            digits: true,
+            lowerCaseAlphabets: false, // Changed from 'alphabets'
+            upperCaseAlphabets: false, // Changed from 'upperCase'
+            specialChars: false
+        });
+
+        const redisKey = cacheService.generateKey('otp', username);
+        const attemptsKey = cacheService.generateKey('otp_attempts', username);
+
+        // 5. Attempt to save to Redis FIRST
+        const cacheSuccess = await cacheService.set(redisKey, otp, 600);
+
+        // 6. If it returns false, Redis is disconnected. Abort immediately.
+        if (!cacheSuccess) {
+            return res.status(503).json({ error: 'Authentication service temporarily unavailable. Please try again later.' });
+        }
+
+        // 7. Clear old attempts only if we know Redis is working
+        await cacheService.del(attemptsKey);
+
+        // 8. Send the email ONLY because we successfully saved the OTP
+        await emailService.sendOTPEmail(email, otp);
+
+        res.status(200).json(`An OTP that is valid for 10 mins has been sent to this email successfully!`);
+
+    } catch (e) {
+
+        res.status(500).json({ error: 'Internal Server error', details: e.message });
+
+    }
+});
+
+// Verify incoming OTP
+router.post('/verifyOtp', otpVerifyLimiter, async (req, res) => {
+    try {
+        const { username, otp } = req.body;
+        if (!username || !otp) {
+            return res.status(400).json({ error: 'Username and OTP are required' });
+        }
+
+        // 1. Verify Redis is actually online before attempting to read from it[cite: 6]
+        if (cacheService.isConnected === false) {
+            return res.status(503).json({ error: 'Authentication service temporarily unavailable. Please try again later.' });
+        }
+
+        // 2. Generate the exact same key to look it up
+        const redisKey = cacheService.generateKey('otp', username);
+        const attemptsKey = cacheService.generateKey('otp_attempts', username);
+
+        // 3. Use cacheService to fetch OTP
+        const storedOtp = await cacheService.get(redisKey);
+        if (!storedOtp) {
+            return res.status(400).json({ error: 'OTP has expired or is invalid' });
+        }
+
+        // 4. Get the number of attempts
+        let attempts = await cacheService.get(attemptsKey) || 0;
+        attempts = parseInt(attempts);
+
+        // 5. Check if attempts are too high
+        if (attempts >= 4) {
+            await cacheService.del(redisKey);
+            await cacheService.del(attemptsKey);
+            return res.status(429).json({ error: 'Maximum attempts reached. Please request a new OTP.' });
+        }
+
+        // 6. Check if the submitted OTP matches the stored OTP
+        if (storedOtp.toString() !== otp.toString()) {
+            await cacheService.set(attemptsKey, attempts + 1, 600);
+            return res.status(400).json({ error: `Incorrect OTP. You have ${4 - attempts} attempts left.` });
+        }
+
+        // 7. Success! Delete the OTP and attempts from the cache
+        await cacheService.del(redisKey);
+        await cacheService.del(attemptsKey);
+
+        // 8. Generate the JWT
+        const resetToken = sign(
+            {
+                username: username,
+                purpose: "password_reset" // Important to differentiate from a regular login token
+            },
+            SECRET_KEY,
+            { expiresIn: '15m' } // Token expires in 15 minutes
+        );
+
+        // 9. Return the token to the frontend
+        res.json({
+            success: true,
+            message: 'OTP verified successfully.',
+            resetToken: resetToken
+        });
+    } catch (e) {
+        console.error('Verify OTP error:', e);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Reset password (Public endpoint, no 'authenticateUser' middleware)
+router.post("/resetPassword", resetPasswordLimiter, async (req, res) => {
+    try {
+        const { resetToken, newPassword } = req.body;
+
+        // 1. Basic payload validation
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({ error: "Token and new password are required" });
+        }
+
+        // 2. Verify the JWT token
+        let decodedToken;
+        try {
+            decodedToken = verify(resetToken, SECRET_KEY);
+        } catch (err) {
+            // Catches both expired tokens and tampered tokens
+            return res.status(401).json({ error: "Invalid or expired reset token. Please request a new OTP." });
+        }
+
+        // 3. Ensure this token was specifically made for resetting passwords
+        if (decodedToken.purpose !== "password_reset") {
+            return res.status(401).json({ error: "Invalid token type." });
+        }
+
+        // 4. Find employee by the email extracted from the token payload
+        const emp = await employee.findOne({ where: { username: decodedToken.username } });
+        if (!emp) {
+            return res.status(404).json({ error: "Employee not found" });
+        }
+
+        // 5. Check if the new password is the same as the old password
+        const passwordMatch = await bcrypt.compare(newPassword, emp.password);
+        if (passwordMatch) {
+            return res.status(401).json({ error: "New password cannot be the same as old password." });
+        }
+
+        // 6. Validate new password strength (using your existing utility)
+        const passwordValidation = validatePassword(newPassword);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({ error: passwordValidation.error });
+        }
+
+        // 7. Hash new password
+        const saltRounds = 10;
+        const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // 8. Update employee
+        await emp.update({ password: hashedNewPassword });
+
+        // // Optional: Change login Status for admins (ported from your changePassword code)
+        // if (emp.role === 'admin') {
+        //     const adminObj = await admin.findByPk(emp.id);
+        //     if (adminObj && adminObj.isFirstTimeLogin) {
+        //         await adminObj.update({ isFirstTimeLogin: false });
+        //     }
+        // }
+
+        // 9. Return success response format expected by Ziad[cite: 1]
+        res.json({
+            success: true,
+            message: "Password has been reset successfully."
+        });
+
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
 // Get all employees (admin only)
 router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
@@ -232,7 +424,7 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
 router.get("/:id", authenticateUser, tenantContext, async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         // Allow if admin OR if fetching self
         if (req.user.role !== 'admin' && parseInt(id) !== req.user.id) {
             return res.status(403).json({ error: "Access denied." });
@@ -525,8 +717,8 @@ router.put("/:id", authenticateUser, tenantContext, async (req, res) => {
                     break;
                 case 'doctor':
                     // Find and delete doctor record by matching employee data
-                    await doctor.destroy({ 
-                        where: { 
+                    await doctor.destroy({
+                        where: {
                             name: emp.name,
                             national_id: emp.national_id
                         }
@@ -613,11 +805,11 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
         } else if (emp.role === 'receptionist') {
             await receptionist.destroy({ where: { id: emp.id } });
         } else if (emp.role === 'doctor') {
-            await doctor.destroy({ 
-                where: { 
+            await doctor.destroy({
+                where: {
                     name: emp.name,
                     lab_id: emp.lab_id
-                } 
+                }
             });
         }
 
@@ -722,6 +914,5 @@ router.get("/roles/:role/permissions", authenticateUser, authorizeRoles("admin")
         res.status(500).json({ error: "Internal server error" });
     }
 });
-
 
 module.exports = router;

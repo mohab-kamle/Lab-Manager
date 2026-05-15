@@ -293,6 +293,9 @@ importers:
       openai:
         specifier: ^6.34.0
         version: 6.34.0(ws@8.20.0)
+      otp-generator:
+        specifier: ^4.0.1
+        version: 4.0.1
       pino:
         specifier: ^10.3.1
         version: 10.3.1
@@ -4751,6 +4754,10 @@ packages:
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
+
+  otp-generator@4.0.1:
+    resolution: {integrity: sha512-2TJ52vUftA0+J3eque4wwVtpaL4/NdIXDL0gFWFJFVUAZwAN7+9tltMhL7GCNYaHJtuONoier8Hayyj4HLbSag==}
+    engines: {node: '>=14.10.0'}
 
   oust@2.0.4:
     resolution: {integrity: sha512-hGFMHndpX0TDdc9bck8bAet7kmVD+lmJnABWYV4RNjjQ+XO2mEhwSK5o15NxAZ9C8qc7rdvqGdnA/0wRP8Ugtg==}
@@ -11860,6 +11867,8 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
       word-wrap: 1.2.5
+
+  otp-generator@4.0.1: {}
 
   oust@2.0.4:
     dependencies:
