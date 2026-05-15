@@ -4,22 +4,20 @@ import { Container, Form, Button, Alert, Card, Row, Col } from "react-bootstrap"
 import { Shield, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import axios from "axios";
+import api from "../../utils/api";
 import { useLab } from "../../context/LabContext";
 import { useToast } from "../../components/ui/ToastContext";
 
 /**
  * ChangePassword
- * Integrates with the backend via PUT `/emp/changePassword/:id` using axios,
+ * Integrates with the backend via `/emp/changePassword` using the shared api instance,
  * includes strong client-side validations, and redirects admin after success.
- * A shared axios instance exists in `src/utils/api.js` for unified configuration.
  */
 const ChangePassword = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { labInfo, fetchLabInfo } = useLab();
   const { toast } = useToast();
-  const apiUrl = import.meta.env.VITE_API_URL;
   const locat = useLocation();
   const type = locat.state?.type || 'Change';
 
@@ -90,8 +88,8 @@ const ChangePassword = () => {
           return;
         }
 
-        const response = await axios.post(`${apiUrl}/emp/resetPassword`, {
-          newPassword: newPassword.trim(),
+        const response = await api.post(`/emp/resetPassword`, {
+          newPassword,
           resetToken,
         });
 
@@ -116,16 +114,9 @@ const ChangePassword = () => {
 
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
-        const id = user?.id;
-        if (!token || !id) {
-          throw new Error("Not authenticated");
-        }
-
-        await axios.put(
-          `${apiUrl}/emp/changePassword`,
-          { oldPassword, newPassword },
-          { headers: { Authorization: `Bearer ${token}` } }
+        await api.put(
+          `/emp/changePassword`,
+          { oldPassword, newPassword }
         );
 
         toast.success("Password updated successfully");
@@ -136,9 +127,7 @@ const ChangePassword = () => {
         let lab = labInfo || user?.lab || null;
         if (!lab && user?.lab_id) {
           try {
-            const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
+            const labResponse = await api.get(`/labs/by-id/${user.lab_id}`);
             lab = labResponse.data;
             await fetchLabInfo();
           } catch (e) {
@@ -147,7 +136,6 @@ const ChangePassword = () => {
         }
 
         if (lab) {
-          const prefix = lab.name || lab.subdomain;
           navigate(`/admin/dashboard`);
         } else {
           throw new Error("No lab information available");
@@ -376,24 +364,14 @@ const ChangePassword = () => {
                         variant="link"
                         onClick={async () => {
                           try {
-                            const token = localStorage.getItem("token");
-                            const id = user?.id;
-                            if (!token || !id) throw new Error("Not authenticated");
-
                             setLoading(true);
-                            await axios.put(
-                              `${apiUrl}/emp/skip-password-change`,
-                              {},
-                              { headers: { Authorization: `Bearer ${token}` } }
-                            );
+                            await api.put(`/emp/skip-password-change`, {});
 
                             // Redirect logic similar to success
                             let lab = labInfo || user?.lab || null;
                             if (!lab && user?.lab_id) {
                               try {
-                                const labResponse = await axios.get(`${apiUrl}/labs/by-id/${user.lab_id}`, {
-                                  headers: { Authorization: `Bearer ${token}` },
-                                });
+                                const labResponse = await api.get(`/labs/by-id/${user.lab_id}`);
                                 lab = labResponse.data;
                                 await fetchLabInfo();
                               } catch (e) {
