@@ -353,6 +353,7 @@ app.use("/payments", require("./routes/paymentsGateway"));
 app.use("/subscription-scheduler", require("./routes/subscriptionScheduler"));
 app.use("/analytics", require("./routes/analytics"));
 app.use("/whatsapp", require("./routes/whatsapp.routes"));
+app.use("/reconciliation", require("./routes/reconciliation"));
 app.use("/auth", require("./routes/auth"));
 app.use("/tracked-samples", require("./routes/tracked_samples"));
 
