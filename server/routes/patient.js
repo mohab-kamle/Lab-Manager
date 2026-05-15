@@ -312,14 +312,29 @@ router.get("/transactions", authenticateUser, authorizeRoles("patient"),tenantCo
         // 3. Map to a flat, UI-friendly JSON format for the frontend
         const formattedResponse = transactions.map(txn => {
             
-            // Build a quick summary string (e.g., "CBC, Liver Profile")
             let summaryItems = [];
-            if (txn.bill) {
-                if (txn.bill.test_id_tests) {
-                    summaryItems.push(...txn.bill.test_id_tests.map(t => t.name));
+            
+            if (txn.process_type === 'Refund') {
+                if (txn.refund_items && Array.isArray(txn.refund_items)) {
+                    summaryItems.push(...txn.refund_items.map(item => `Refunded ${item.type} #${item.id}`));
+                } else {
+                    summaryItems.push('Refund');
                 }
-                if (txn.bill.package_id_packages_and_offers) {
-                    summaryItems.push(...txn.bill.package_id_packages_and_offers.map(p => p.name));
+            } else if (txn.process_type === 'Due') {
+                if (txn.refund_items && Array.isArray(txn.refund_items)) {
+                    summaryItems.push(`Paid towards Due (Bills: ${txn.refund_items.map(i => i.id).join(', ')})`);
+                } else {
+                    summaryItems.push('Paid towards due balance');
+                }
+            } else {
+                // Default to Payment logic
+                if (txn.bill) {
+                    if (txn.bill.test_id_tests) {
+                        summaryItems.push(...txn.bill.test_id_tests.map(t => t.name));
+                    }
+                    if (txn.bill.package_id_packages_and_offers) {
+                        summaryItems.push(...txn.bill.package_id_packages_and_offers.map(p => p.name));
+                    }
                 }
             }
             
