@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { medical_report, patient, admin, chemist, phone_number, diseases, patient_has_diseases, contract, lab_contracts_doctor, bill, financial_transaction, payment_method, packages_and_offers, employee, branch, test } = require("../models");
+const { medical_report, patient, admin, chemist, phone_number, diseases, patient_has_diseases, contract, lab_contracts_doctor, bill, financial_transaction, payment_method, packages_and_offers, employee, branch, test, status, bill_has_test, bill_has_package, bill_has_payment_method } = require("../models");
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const { sign } = require("jsonwebtoken");
 const authenticateUser = require("../middleware/authenticateUser");
@@ -361,6 +361,106 @@ router.get("/transactions", authenticateUser, authorizeRoles("patient"),tenantCo
         return res.status(500).json({ 
             error: "Failed to fetch transactions",
             message: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/patient/invoices - Fetch all bills for the logged-in patient.
+ */
+router.get("/invoices", authenticateUser, authorizeRoles("patient"), tenantContext, async (req, res) => {
+    try {
+        const patient_id = req.user.id;
+        const lab_id = req.tenant.lab_id;
+
+        const bills = await bill.findAll({
+            where: {
+                patient_id,
+                lab_id
+            },
+            include: [
+                {
+                    model: status,
+                    as: "status",
+                    attributes: ['state']
+                },
+                {
+                    model: bill_has_test,
+                    as: "bill_has_tests",
+                    separate: true,
+                    include: [{
+                        model: test,
+                        as: "test",
+                        attributes: ['id', 'name']
+                    }]
+                },
+                {
+                    model: bill_has_package,
+                    as: "bill_has_packages",
+                    separate: true,
+                    include: [{
+                        model: packages_and_offers,
+                        as: "package",
+                        attributes: ['id', 'name', 'type']
+                    }]
+                },
+                {
+                    model: bill_has_payment_method,
+                    as: "bill_has_payment_methods",
+                    separate: true,
+                    include: [{
+                        model: payment_method,
+                        as: "payment_method",
+                        attributes: ['id', 'name']
+                    }]
+                }
+            ],
+            order: [['date', 'DESC']]
+        });
+
+        // Transform the results to match the expected format
+        const formattedBills = bills.map(b => {
+            const billData = b.toJSON();
+
+            return {
+                id: billData.id,
+                date: billData.date,
+                paid: billData.paid,
+                due: billData.due,
+                subtotal: billData.subtotal,
+                total: billData.total,
+                discount: billData.discount,
+                tax: billData.tax,
+                tax_rate: billData.tax_rate,
+                status: billData.status?.state,
+
+                tests: (billData.bill_has_tests || []).map(bht => ({
+                    id: bht.test?.id,
+                    name: bht.test?.name,
+                    price: bht.price
+                })),
+
+                packages: (billData.bill_has_packages || []).map(bhp => ({
+                    id: bhp.package?.id,
+                    name: bhp.package?.name,
+                    price: bhp.price,
+                    type: bhp.package?.type
+                })),
+
+                payments: (billData.bill_has_payment_methods || []).map(bhpm => ({
+                    payment_method_id: bhpm.payment_method?.id,
+                    payment_method_name: bhpm.payment_method?.name,
+                    paid_amount: bhpm.paid_amount
+                })),
+            };
+        });
+
+        res.json(formattedBills);
+    } catch (error) {
+        console.error('Error fetching patient invoices:', error);
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
         });
     }
 });
@@ -1042,7 +1142,7 @@ router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist")
                 // Check if patient has any related records
                 const hasBills = await bill.findOne({ where: { patient_id: patientId } });
                 if (hasBills) {
-                    errors.push(`Patient ID ${patientId}: Cannot delete patient with existing bills`);
+                    errors.push(`Patient ID ${patientId}: Cannot delete patient with associated bills`);
                     continue;
                 }
 

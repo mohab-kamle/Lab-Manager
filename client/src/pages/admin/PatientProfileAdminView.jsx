@@ -124,7 +124,8 @@ const PatientProfileAdminView = () => {
     const fetchTransactions = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get(`${apiUrl}/patient/${id}/transactions?limit=5`, {
+        // Using the enhanced admin transactions endpoint with patient filtering
+        const response = await axios.get(`${apiUrl}/admin/transactions?patient_id=${id}&limit=5`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setTransactions(response.data || []);
@@ -464,7 +465,7 @@ const PatientProfileAdminView = () => {
                           <div className="d-flex justify-content-between mb-1">
                             <span className="fw-bold text-theme text-truncate">{txn.summary || 'General Payment'}</span>
                             <span className={`fw-bold ${txn.processType?.toLowerCase() === 'refund' ? 'text-danger' : 'text-success'}`}>
-                              {txn.processType?.toLowerCase() === 'refund' ? '-' : '+'} {formatCurrency(txn.amount)}
+                              {txn.processType?.toLowerCase() === 'refund' ? '-' : '+'} {formatCurrency(Math.abs(txn.amount))}
                             </span>
                           </div>
                           <div className="d-flex justify-content-between small text-muted">
@@ -558,12 +559,11 @@ const PatientProfileAdminView = () => {
                     variant="primary" 
                     className="rounded-pill w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm"
                     onClick={() => setShowSettlementModal(true)}
-                    disabled={parseFloat(patient.due || 0) <= 0}
                   >
-                    <Receipt size={18} /> Process Settlement
+                    <Receipt size={18} /> {parseFloat(patient.due || 0) < 0 ? 'Cash Out Credit' : 'Process Settlement'}
                   </Button>
                   
-                  {parseFloat(patient.due || 0) <= 0 && (
+                  {parseFloat(patient.due || 0) === 0 && parseFloat(patient.credit || 0) === 0 && (
                     <div className="mt-2 text-success small d-flex align-items-center justify-content-center gap-1">
                       <CheckCircle size={14} /> Account is fully settled
                     </div>
@@ -572,7 +572,9 @@ const PatientProfileAdminView = () => {
                 
                 <div className="mt-4 pt-3 border-top text-center">
                   <p className="text-muted small mb-0">
-                    Settle outstanding invoices.
+                    {parseFloat(patient.credit || 0) > 0
+                      ? 'Patient has credit that can be cashed out.'
+                      : 'Settle outstanding invoices.'}
                   </p>
                 </div>
               </motion.div>

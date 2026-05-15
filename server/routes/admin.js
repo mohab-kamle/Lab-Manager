@@ -132,11 +132,16 @@ router.get(
 // get all lab's transactions
 router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantContext, tenantIsolation, async (req, res) => {
     try {
+        const { patient_id } = req.query;
               
         // 1. Build Dynamic Filter Object
         let whereClause = {
             lab_id: req.labId // Always restrict data to the current lab context
         };
+
+        if (patient_id) {
+            whereClause.patient_id = patient_id;
+        }
 
         // 2. Query the Database
         const transactions = await financial_transaction.findAll({

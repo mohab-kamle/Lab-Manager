@@ -670,7 +670,6 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
     let updated = 0;
     const errors = [];
 
-<<<<<<< HEAD
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       if (!row || Object.keys(row).length === 0) continue;

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Offcanvas, Table, Badge, Spinner } from 'react-bootstrap';
+import { Offcanvas, Badge, Spinner } from 'react-bootstrap';
 import { formatDate } from '../../utils/dateFormatter';
-import { History, PlusCircle, CircleDollarSign, Undo, CheckCheck, Clock } from 'lucide-react';
+import { History, PlusCircle, CircleDollarSign, Undo, CheckCheck, Clock, FlaskConical, Pencil, Wallet } from 'lucide-react';
 import axios from 'axios';
 
 const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     if (show && invoiceId) {
@@ -17,55 +18,13 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      // Mock API call - replace with actual endpoint
-      // const response = await axios.get(`/api/invoices/${invoiceId}/history`);
-      // setHistory(response.data);
-
-      // Mock data based on implementation plan
-      const mockHistory = [
-        {
-          type: 'Creation',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Invoice opened',
-          user: 'Admin Sarah',
-          status: 'Pending'
-        },
-        {
-          type: 'Payment',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Paid $50.00 via Cash',
-          user: 'Receptionist John',
-          amount: 50.00,
-          method: 'Cash',
-          remaining: 100.00
-        },
-        {
-          type: 'Payment',
-          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Paid $100.00 via Visa',
-          user: 'Receptionist John',
-          amount: 100.00,
-          method: 'Visa',
-          remaining: 0.00
-        },
-        {
-          type: 'StatusChange',
-          date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          details: 'Moved to Fully Paid',
-          user: 'System'
-        },
-        {
-          type: 'Refund',
-          date: new Date().toISOString(),
-          details: 'Partial Refund of $30.00',
-          user: 'Admin Sarah',
-          authKeyName: 'Sarah_ManagerKey1',
-          amount: 30.00,
-          refundType: 'Partial'
-        }
-      ].reverse(); // Show newest first
-      
-      setHistory(mockHistory);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${apiUrl}/invoices/${invoiceId}/history`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // The backend returns { invoice_id, timeline }
+      // Show newest events at the top
+      setHistory(response.data.timeline.reverse());
     } catch (error) {
       console.error('Failed to fetch invoice history:', error);
     } finally {
@@ -75,10 +34,12 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
 
   const getEventIcon = (type) => {
     switch (type) {
-      case 'Creation': return <PlusCircle size={18} className="text-primary" />;
+      case 'milestone': return <CheckCheck size={18} className="text-primary" />;
       case 'Payment': return <CircleDollarSign size={18} className="text-success" />;
+      case 'Due': return <Wallet size={18} className="text-warning" />;
       case 'Refund': return <Undo size={18} className="text-danger" />;
-      case 'StatusChange': return <CheckCheck size={18} className="text-info" />;
+      case 'status': return <FlaskConical size={18} className="text-info" />;
+      case 'edit': return <Pencil size={18} className="text-secondary" />;
       default: return <Clock size={18} className="text-secondary" />;
     }
   };
@@ -115,19 +76,21 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
                 </div>
                 <div className="timeline-content pb-4 flex-grow-1 border-bottom">
                   <div className="d-flex justify-content-between align-items-start mb-1">
-                    <h6 className="mb-0 fw-bold text-theme">{event.type}</h6>
+                    <h6 className="mb-0 fw-bold text-theme">{event.event}</h6>
                     <span className="small text-muted">{formatDate(new Date(event.date))}</span>
                   </div>
-                   <p className="mb-2 text-theme opacity-75">{event.details}</p>
+                   <p className="mb-2 text-theme opacity-75">{event.description}</p>
                   
                   <div className="d-flex flex-wrap gap-2 align-items-center">
-                     <Badge bg="subtle" className="text-theme border border-muted font-weight-normal">
-                       By: {event.user}
-                     </Badge>
+                    {event.user && (
+                      <Badge bg="subtle" className="text-theme border border-muted font-weight-normal">
+                        By: {event.user}
+                      </Badge>
+                    )}
                     
-                    {event.method && (
+                    {event.payment_method && (
                       <Badge bg="info" className="text-white border border-info font-weight-normal">
-                        Method: {event.method}
+                        Method: {event.payment_method}
                       </Badge>
                     )}
                     
@@ -136,10 +99,16 @@ const InvoiceHistoryDrawer = ({ show, onHide, invoiceId }) => {
                         Auth Key: {event.authKeyName}
                       </Badge>
                     )}
+
+                    {event.test_name && (
+                      <Badge bg="secondary" className="font-weight-normal">
+                        Test: {event.test_name}
+                      </Badge>
+                    )}
                     
-                    {event.remaining !== undefined && (
-                      <Badge bg={event.remaining === 0 ? 'success' : 'secondary'} className="font-weight-normal">
-                        Due: ${event.remaining.toFixed(2)}
+                    {event.amount !== undefined && (
+                      <Badge bg={event.type === 'Refund' ? 'danger' : 'success'} className="font-weight-normal">
+                        Amount: EGP {Math.abs(event.amount).toFixed(2)}
                       </Badge>
                     )}
                   </div>

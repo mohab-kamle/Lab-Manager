@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const crypto = require("crypto");
-const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, sample_type, financial_transaction, lab, manager_key, lab_samples, lab_sample_type_settings } = require("../models");
+const { bill, bill_has_test, bill_has_payment_method, bill_has_package, test, payment_method, receptionist, patient, packages_and_offers, admin, medical_report, medical_report_has_test, pao_has_test, branch, status, sequelize, doctor, lab_settings, employee, phone_number, sample_type, financial_transaction, lab, manager_key, lab_samples, lab_sample_type_settings, reconciliation_item } = require("../models");
 const { Op } = require("sequelize");
 const bcrypt = require("bcrypt");
 const authenticateUser = require("../middleware/authenticateUser");
@@ -722,6 +722,208 @@ router.get("/:id", authenticateUser, authorizeRoles("admin", "receptionist", "ch
 });
 
 /**
+ * GET /invoices/:id/history - Get the status history and financial milestones for a specific invoice.
+ */
+router.get("/:id/history", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
+    const { id } = req.params;
+    const lab_id = req.tenant.lab_id;
+
+    try {
+        const invoice = await bill.findOne({
+            where: { id, lab_id },
+            include: [
+                {
+                    model: status,
+                    as: "status",
+                    attributes: ['state']
+                },
+                {
+                    model: receptionist,
+                    as: "receptionist",
+                    include: [{
+                        model: employee,
+                        as: "id_employee",
+                        attributes: ['name']
+                    }]
+                },
+                {
+                    model: medical_report,
+                    as: "medical_reports",
+                    include: [
+                        {
+                            model: lab_samples,
+                            as: "lab_samples",
+                            include: [
+                                {
+                                    model: test,
+                                    as: "test",
+                                    attributes: ['name']
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    model: financial_transaction,
+                    as: "financial_transactions",
+                    include: [
+                        {
+                            model: payment_method,
+                            as: "payment_method",
+                            attributes: ['name']
+                        },
+                        {
+                            model: employee,
+                            as: "processed_by",
+                            attributes: ['name']
+                        },
+                        {
+                            model: manager_key,
+                            as: "manager_key",
+                            attributes: ['key_name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (!invoice) {
+            return res.status(404).json({ error: "Invoice not found" });
+        }
+
+        // Fetch activity logs for this bill (updates/edits)
+        const { lab_activity_log } = require("../models");
+        const activityLogs = await lab_activity_log.findAll({
+            where: {
+                lab_id,
+                entity_type: 'bill',
+                entity_id: id
+            },
+            order: [['created_at', 'ASC']]
+        });
+
+        const timeline = [];
+
+        // 1. Invoice Creation
+        timeline.push({
+            event: "Invoice Created",
+            date: invoice.createdAt || invoice.date,
+            type: "milestone",
+            user: invoice.receptionist?.id_employee?.name || 'System',
+            description: `Invoice #${invoice.id} was generated.`
+        });
+
+        // 2. Financial Transactions
+        if (invoice.financial_transactions) {
+            invoice.financial_transactions.forEach(txn => {
+                let eventName = txn.process_type;
+                if (txn.process_type === 'Payment') eventName = "Payment Received";
+                else if (txn.process_type === 'Due') eventName = "Settlement";
+                
+                timeline.push({
+                    event: eventName,
+                    date: txn.date || txn.createdAt,
+                    type: txn.process_type, // 'Payment', 'Refund', 'Due'
+                    amount: txn.amount,
+                    payment_method: txn.payment_method?.name,
+                    user: txn.processed_by?.name || 'Unknown',
+                    authKeyName: txn.manager_key?.key_name,
+                    description: txn.process_type === 'Refund' 
+                        ? `Refund of ${Math.abs(txn.amount)} processed via ${txn.payment_method?.name || 'N/A'}.`
+                        : txn.process_type === 'Due'
+                            ? `Settlement of ${txn.amount} received.`
+                            : `Payment of ${txn.amount} received via ${txn.payment_method?.name || 'N/A'}.`
+                });
+            });
+        }
+
+        // 3. Activity Logs (Edits/Updates)
+        if (activityLogs) {
+            activityLogs.forEach(log => {
+                if (log.action === 'update' || log.action === 'edit') {
+                    timeline.push({
+                        event: "Invoice Updated",
+                        date: log.created_at,
+                        type: "edit",
+                        user: log.user_role === 'admin' ? `Admin (${log.user_id})` : `User (${log.user_id})`, // We could join employee here if needed
+                        description: `Changes were made to the invoice details.`
+                    });
+                }
+            });
+        }
+
+        // 4. Status Check - Milestone for Fully Paid
+        if (invoice.status?.state === 'Paid' || invoice.status?.state === 'Done') {
+            // Find the latest payment date
+            const payments = (invoice.financial_transactions || []).filter(t => t.process_type === 'Payment' || t.process_type === 'Due');
+            if (payments.length > 0) {
+                const latestPayment = payments.reduce((prev, current) => 
+                    (new Date(prev.date || prev.createdAt) > new Date(current.date || current.createdAt)) ? prev : current
+                );
+                timeline.push({
+                    event: "Fully Settled",
+                    date: latestPayment.date || latestPayment.createdAt,
+                    type: "milestone",
+                    description: "The invoice has been fully paid and settled."
+                });
+            }
+        }
+
+        // 5. Sample Status History
+        if (invoice.medical_reports) {
+            invoice.medical_reports.forEach(report => {
+                if (report.lab_samples) {
+                    report.lab_samples.forEach(sample => {
+                        const history = sample.status_history;
+                        if (history) {
+                            const statuses = [
+                                { key: 'pending_collection_at', label: 'Pending Collection' },
+                                { key: 'collected_at', label: 'Sample Collected' },
+                                { key: 'dispatched_at', label: 'Sample Dispatched' },
+                                { key: 'in_process_at', label: 'In Process' },
+                                { key: 'completed_at', label: 'Results Ready' },
+                                { key: 'rejected_at', label: 'Sample Rejected' }
+                            ];
+                            
+                            statuses.forEach(st => {
+                                if (history[st.key]) {
+                                    timeline.push({
+                                        event: st.label,
+                                        date: history[st.key],
+                                        type: "status",
+                                        test_name: sample.test?.name,
+                                        description: st.key === 'completed_at' 
+                                            ? `Results for "${sample.test?.name}" are now ready.`
+                                            : `${st.label} for test "${sample.test?.name}".`
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // Sort timeline by date
+        timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        res.json({
+            invoice_id: invoice.id,
+            current_status: invoice.status?.state,
+            timeline
+        });
+    } catch (error) {
+        console.error('Error fetching invoice history:', error);
+        res.status(500).json({
+            error: "Failed to fetch invoice history",
+            message: error.message
+        });
+    }
+});
+
+
+
+/**
  * GET /invoices/:id/samples-collection - Get grouped tests by sample type for chemist to draw them (Smart Draw).
  */
 router.get("/:id/samples-collection", authenticateUser, authorizeRoles("admin", "receptionist", "chemist", "doctor", "employee"), tenantContext, async (req, res) => {
@@ -1384,15 +1586,20 @@ router.delete("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, 
 
         // Delete all associated records first
         await bill_has_test.destroy({ where: { bill_id: id }, transaction });
-
         await bill_has_package.destroy({ where: { bill_id: id }, transaction });
         await bill_has_payment_method.destroy({ where: { bill_id: id }, transaction });
+
+        // Cleanup financial ledger and reconciliation records
+        await reconciliation_item.destroy({ where: { bill_id: id }, transaction });
+        await financial_transaction.destroy({ where: { bill_id: id }, transaction });
 
         // Find and delete associated medical report and its entries
         const medicalReport = await medical_report.findOne({ where: { bill_id: id }, transaction });
         if (medicalReport) {
+            // Delete associated samples first (they refer to medical_report_id)
+            await lab_samples.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
+            
             await medical_report_has_test.destroy({ where: { medical_report_id: medicalReport.id }, transaction });
-
             await medicalReport.destroy({ transaction });
         }
 
@@ -1472,7 +1679,8 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
         items = { tests: [], packages: [] },
         amountLabPays = 0,
         authKey,
-        payment_method_id
+        payment_method_id,
+        ignoreDue = false
     } = req.body;
     const lab_id = req.tenant.lab_id;
 
@@ -1573,8 +1781,8 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
         const oldBillPaid = parseFloat(existingBill.paid || 0);
         const oldBillDue = parseFloat(existingBill.due || 0);
 
-        // PAY OFF DUE FIRST
-        const amountUsedToPayOffDue = Math.min(totalRefundValue, oldBillDue);
+        // PAY OFF DUE FIRST (Unless ignoreDue is explicitly set to true)
+        const amountUsedToPayOffDue = ignoreDue ? 0 : Math.min(totalRefundValue, oldBillDue);
         const remainderRefund = Math.round((totalRefundValue - amountUsedToPayOffDue) * 100) / 100;
 
         // Calculate Lab Payment vs Credit

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Container, Card, Button, Form, Modal, Alert, Badge, Row, Col } from 'react-bootstrap';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ui/ToastContext';
@@ -19,35 +20,14 @@ const ManagerKeyManagement = () => {
   const fetchKeys = async () => {
     setLoading(true);
     try {
-      /* 
-      TODO: IMPLEMENT BACKEND API CALL
-      const response = await axios.get('/api/admin/keys', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await axios.get(`${apiUrl}/admin/keys`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      setKeys(response.data);
-      */
-      
-      // Mock data for now
-      const mockKeys = [
-        {
-          id: 1,
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          key_name: `${user?.name || 'Admin'}_key1`,
-          first_four: 'ABCD',
-          expires_at: new Date(Date.now() + 5 * 30 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'Active'
-        },
-        {
-          id: 2,
-          created_at: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString(),
-          key_name: `${user?.name || 'Admin'}_oldkey`,
-          first_four: 'WXYZ',
-          expires_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'Expired'
-        }
-      ];
-      setKeys(mockKeys);
+      setKeys(response.data || []);
     } catch (error) {
+      console.error("Error fetching keys:", error);
       toast.error('Failed to fetch keys');
     } finally {
       setLoading(false);
@@ -60,35 +40,32 @@ const ManagerKeyManagement = () => {
 
   const handleGenerateKey = async () => {
     try {
-      // Logic for naming: adminName_customName or adminName_key{number}
+      const token = localStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL;
+      
       const adminPrefix = user?.name || 'Admin';
       const finalName = keyName.trim() 
         ? `${adminPrefix}_${keyName.trim()}` 
         : `${adminPrefix}_key${keys.length + 1}`;
       
-      
-      /* 
-      TODO: IMPLEMENT BACKEND API CALL
-      const response = await axios.post('/api/admin/keys', { 
-        name: finalName 
+      const response = await axios.post(`${apiUrl}/admin/keys`, { 
+        key_name: finalName 
       }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-      const fullKey = response.data.key;
-      */
       
-      const fullKey = `KEY-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const { plain_text_key, expires_at } = response.data;
       
       setGeneratedKey({
-        fullKey,
+        fullKey: plain_text_key,
         name: finalName,
-        expiresAt: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000)
+        expiresAt: new Date(expires_at)
       });
       
-      // Refresh list after generation (in reality, the full key won't be in the list)
       fetchKeys();
     } catch (error) {
-      toast.error('Failed to generate key');
+      console.error("Error generating key:", error);
+      toast.error(error.response?.data?.error || 'Failed to generate key');
     }
   };
 
@@ -111,16 +88,18 @@ const ManagerKeyManagement = () => {
 
     if (isConfirmed) {
       try {
-        /* 
-        TODO: IMPLEMENT BACKEND API CALL
-        await axios.delete(`/api/admin/keys/${id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        const token = localStorage.getItem("token");
+        const apiUrl = import.meta.env.VITE_API_URL;
+        
+        await axios.delete(`${apiUrl}/admin/keys/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        */
+        
         setKeys(keys.filter(k => k.id !== id));
         toast.success('Key deleted successfully');
       } catch (error) {
-        toast.error('Failed to delete key');
+        console.error("Error deleting key:", error);
+        toast.error(error.response?.data?.error || 'Failed to delete key');
       }
     }
   };

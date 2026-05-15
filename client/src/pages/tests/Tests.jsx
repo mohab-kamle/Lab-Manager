@@ -1054,7 +1054,7 @@ const Tests = () => {
           setShowModal(false);
           setCategorySearchTerm("");
           setSampleTypeSearchTerm("");
-          setTestSearch("");
+          setQuestionSearchTerm("");
         }} 
         size="lg"
       >
@@ -1064,7 +1064,7 @@ const Tests = () => {
             setShowModal(false);
             setCategorySearchTerm("");
             setSampleTypeSearchTerm("");
-            setTestSearch("");
+            setQuestionSearchTerm("");
           }}>
             <CircleX size={24} />
           </button>
