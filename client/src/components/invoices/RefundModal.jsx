@@ -94,12 +94,25 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
     return parseFloat(patientData.due || 0) > patientDueLimit;
   }, [patientDueLimit, patientData]);
 
-  // Debt to subtract: if ignoreDue is true and balance is positive (debt), we ignore it.
-  // We never ignore negative balance (overpayment/credit).
-  const debtToSubtract = (ignoreDue && patientTotalBalance > 0) ? 0 : patientTotalBalance;
-  
-  const totalRefundDue = Math.max(0, totalRefundableAmount - debtToSubtract);
-  const creditToAdd = Math.max(0, totalRefundDue - amountLabPays);
+  const debtToPayOff = useMemo(() => {
+    if (patientTotalBalance <= 0) return 0;
+    if (ignoreDue && patientTotalBalance > 0) return 0;
+    return Math.min(totalRefundableAmount, patientTotalBalance);
+  }, [ignoreDue, patientTotalBalance, totalRefundableAmount]);
+
+  const totalRefundDue = useMemo(() => {
+    // If we have credit (negative balance), we add it to the refund amount
+    if (patientTotalBalance < 0) {
+      return totalRefundableAmount + Math.abs(patientTotalBalance);
+    }
+    // Otherwise, we subtract the portion used to pay off debt
+    return Math.max(0, totalRefundableAmount - debtToPayOff);
+  }, [totalRefundableAmount, patientTotalBalance, debtToPayOff]);
+
+  const creditToAdd = useMemo(() => {
+    const payout = parseFloat(amountLabPays) || 0;
+    return Math.max(0, Math.round((totalRefundDue - payout) * 100) / 100);
+  }, [totalRefundDue, amountLabPays]);
 
   const hasSelectedItems = selectedItems.tests.length > 0 || selectedItems.packages.length > 0;
 
@@ -319,6 +332,18 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
                             )}
                           </Form.Group>
                         )}
+                      </div>
+                    )}
+                    {debtToPayOff > 0 && (
+                      <div className="d-flex justify-content-between mb-1">
+                        <span className="text-muted small">Paid off Patient Debt:</span>
+                        <span className="fw-bold text-danger">- EGP {debtToPayOff.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {patientTotalBalance < 0 && (
+                      <div className="d-flex justify-content-between mb-1">
+                        <span className="text-muted small">Existing Credit Added:</span>
+                        <span className="fw-bold text-success">+ EGP {Math.abs(patientTotalBalance).toFixed(2)}</span>
                       </div>
                     )}
                     <hr className="border-secondary" />

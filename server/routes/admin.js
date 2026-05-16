@@ -320,9 +320,8 @@ router.delete('/keys/:id', authenticateUser, authorizeRoles("admin"), tenantCont
         
         if (!key) return res.status(404).json({ error: "Key not found." });
         
-        // Soft delete logic: setting is_active to false
-        await key.update({ is_active: false });
-        res.json({ success: true, message: "Key revoked successfully." });
+        await key.destroy();
+        res.json({ success: true, message: "Key deleted successfully." });
     } catch (error) {
         console.error("Error revoking key:", error);
         res.status(500).json({ error: "Failed to revoke manager key." });

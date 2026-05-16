@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { validateRefundKey } = require("../middleware/authKeyValidator");
 const { tenantContext } = require("../middleware/tenantContext");
 const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
 
@@ -1688,7 +1689,8 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
         items = { tests: [], packages: [] },
         amountLabPays = 0,
         authKey,
-        payment_method_id
+        payment_method_id,
+        ignoreDue = false
     } = req.body;
     const lab_id = req.tenant.lab_id;
 
@@ -1786,20 +1788,32 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
 
         // ── 4. Financial Calculations (Rule 4 & 5) ───────────────────────────────
         const oldBillTotal = parseFloat(existingBill.total || 0);
-        const oldBillPaid = parseFloat(existingBill.paid || 0);
         const oldBillDue = parseFloat(existingBill.due || 0);
 
+        const currentPatient = await patient.findByPk(existingBill.patient_id, { transaction });
+        if (!currentPatient) {
+            await transaction.rollback();
+            return res.status(404).json({ error: "Patient not found." });
+        }
+
+        const patientDue = parseFloat(currentPatient.due || 0);
+
         // PAY OFF DUE FIRST
-        const amountUsedToPayOffDue = Math.min(totalRefundValue, oldBillDue);
-        const remainderRefund = Math.round((totalRefundValue - amountUsedToPayOffDue) * 100) / 100;
+        // If ignoreDue is true, we don't use the refund to pay off any debt.
+        const totalAmountUsedToPayOffDue = (ignoreDue && patientDue > 0) ? 0 : Math.min(totalRefundValue, patientDue);
+        
+        // Specifically for this bill, how much is paid off?
+        const amountToPayOffThisBill = Math.min(totalAmountUsedToPayOffDue, oldBillDue);
+        
+        const remainderRefund = Math.round((totalRefundValue - totalAmountUsedToPayOffDue) * 100) / 100;
 
         // Calculate Lab Payment vs Credit
-        const actualCashBack = Math.min(remainderRefund, Math.max(0, parseFloat(amountLabPays || 0)));
+        const actualCashBack = Math.min(Math.max(0, remainderRefund), Math.max(0, parseFloat(amountLabPays || 0)));
         const addedToCredit = Math.round((remainderRefund - actualCashBack) * 100) / 100;
 
         // New Bill Values
         const newBillTotal = Math.round((oldBillTotal - totalRefundValue) * 100) / 100;
-        const newBillDue = Math.round((oldBillDue - amountUsedToPayOffDue) * 100) / 100;
+        const newBillDue = Math.round((oldBillDue - amountToPayOffThisBill) * 100) / 100;
         const newBillPaid = Math.round((newBillTotal - newBillDue) * 100) / 100;
 
         // ── 5. Database Updates ──────────────────────────────────────────────────
@@ -1816,20 +1830,16 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
             total: newBillTotal,
             paid: newBillPaid,
             due: newBillDue,
-            // Recalculate subtotal (assuming simple sum for this example)
             subtotal: Math.round((parseFloat(existingBill.subtotal) - totalRefundValue) * 100) / 100
         }, { transaction });
 
         // C. Update Patient (Rule 5)
-        const currentPatient = await patient.findByPk(existingBill.patient_id, { transaction });
-        if (currentPatient) {
-            await currentPatient.update({
-                total: Math.max(0, Math.round((parseFloat(currentPatient.total || 0) - totalRefundValue) * 100) / 100),
-                due: Math.max(0, Math.round((parseFloat(currentPatient.due || 0) - amountUsedToPayOffDue) * 100) / 100),
-                paid: Math.max(0, Math.round((parseFloat(currentPatient.paid || 0) - (actualCashBack + addedToCredit)) * 100) / 100),
-                credit: Math.round((parseFloat(currentPatient.credit || 0) + addedToCredit) * 100) / 100
-            }, { transaction });
-        }
+        await currentPatient.update({
+            total: Math.max(0, Math.round((parseFloat(currentPatient.total || 0) - totalRefundValue) * 100) / 100),
+            due: Math.max(0, Math.round((parseFloat(currentPatient.due || 0) - totalAmountUsedToPayOffDue) * 100) / 100),
+            paid: Math.max(0, Math.round((parseFloat(currentPatient.paid || 0) - (actualCashBack + addedToCredit)) * 100) / 100),
+            credit: Math.round((parseFloat(currentPatient.credit || 0) + addedToCredit) * 100) / 100
+        }, { transaction });
 
         // D. Update Medical Report
         const medReport = await medical_report.findOne({ where: { bill_id: id }, transaction });
@@ -1876,7 +1886,7 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
         return res.json({
             success: true,
             total_refund_value: totalRefundValue,
-            paid_off_due: amountUsedToPayOffDue,
+            paid_off_due: totalAmountUsedToPayOffDue,
             cash_back: actualCashBack,
             added_to_credit: addedToCredit,
             new_bill_total: newBillTotal
