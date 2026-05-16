@@ -142,17 +142,27 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
           <p>You are about to process a refund for <strong>{invoice.patient_name}</strong>.</p>
           <div className="bg-theme-inset p-3 rounded mb-3 border-start border-4 border-primary shadow-sm">
             <div className="d-flex justify-content-between mb-2">
-              <span className="text-muted">Refund Amount:</span>
+              <span className="text-muted">Total Gross Refund:</span>
+              <span className="fw-bold">EGP {totalRefundableAmount.toFixed(2)}</span>
+            </div>
+            {debtToPayOff > 0 && (
+              <div className="d-flex justify-content-between mb-2 text-secondary">
+                <span className="text-muted">Applied to Bill Due:</span>
+                <span className="fw-bold">EGP {debtToPayOff.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="d-flex justify-content-between mb-2 border-top border-muted pt-2 text-info">
+              <span className="text-muted">Net Refunded Amount:</span>
               <span className="fw-bold">EGP {totalRefundDue.toFixed(2)}</span>
             </div>
-            <div className="d-flex justify-content-between mb-2 border-top border-muted pt-2">
-              <span className="text-muted">Lab Payout (Cash):</span>
-              <span className="fw-bold text-danger">EGP {parseFloat(amountLabPays).toFixed(2)}</span>
+            <div className="d-flex justify-content-between mb-2 text-danger">
+              <span className="text-muted">Lab Paid (Cash):</span>
+              <span className="fw-bold">EGP {parseFloat(amountLabPays).toFixed(2)}</span>
             </div>
             {creditToAdd > 0 && (
               <div className="d-flex justify-content-between text-success mt-1">
-                <span className="text-muted small">Added to Patient Credit:</span>
-                <span className="fw-bold small">EGP {creditToAdd.toFixed(2)}</span>
+                <span className="text-muted">Added to Bill Credit:</span>
+                <span className="fw-bold">EGP {creditToAdd.toFixed(2)}</span>
               </div>
             )}
           </div>
@@ -283,63 +293,73 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
               <h6 className="text-uppercase small fw-bold text-muted mb-3 ls-wide">Refund Summary</h6>
               <Card className="border-0 shadow-sm bg-theme-inset">
                 <Card.Body className="p-4">
-                  <div className="mb-4">
-                    {/* Header: Total Refunded Amount */}
-                    <div className="text-center mb-4 p-3 bg-theme-surface rounded-3 border-bottom border-primary border-4 shadow-sm">
-                      <div className="text-muted x-small fw-bold text-uppercase ls-wide mb-1">Total Refunded Amount</div>
-                      <div className="h4 mb-0 fw-bold text-primary d-flex align-items-center justify-content-center">
-                        <Info size={18} className="me-2" />
-                        EGP {totalRefundableAmount.toFixed(2)}
-                      </div>
-                    </div>
-                    
                     {/* Metrics Grid */}
-                    <Row className="g-2 mb-3">
-                      <Col xs={6}>
-                        <div className="p-2 bg-theme-surface rounded shadow-sm border-start border-3 border-danger h-100">
-                          <div className="text-muted xx-small fw-bold text-uppercase ls-wide mb-1">New Bill Due</div>
-                          <div className={`fw-bold small d-flex align-items-center ${newDue > 0 ? 'text-danger' : 'text-success'}`}>
-                            <AlertTriangle size={12} className="me-1" />
-                            EGP {newDue.toFixed(2)}
+                    <Row className="g-3 mb-4">
+                      {/* 1. Refunded Amount: Net amount available to the patient after debt reduction */}
+                      {totalRefundDue > 0 && (
+                        <Col xs={6}>
+                          <div className="p-3 bg-theme-surface rounded shadow-sm border-start border-4 border-info h-100 transition-all">
+                            <div className="text-muted x-small fw-bold text-uppercase ls-wide mb-1">Refunded Amount</div>
+                            <div className="h5 mb-0 fw-bold text-info d-flex align-items-center">
+                              <RefreshCcw size={16} className="me-2" />
+                              EGP {totalRefundDue.toFixed(2)}
+                            </div>
                           </div>
-                        </div>
-                      </Col>
-                      <Col xs={6}>
-                        <div className="p-2 bg-theme-surface rounded shadow-sm border-start border-3 border-success h-100">
-                          <div className="text-muted xx-small fw-bold text-uppercase ls-wide mb-1">Added Credit</div>
-                          <div className="fw-bold text-success small d-flex align-items-center">
-                            <ShieldCheck size={12} className="me-1" />
-                            EGP {creditToAdd.toFixed(2)}
-                          </div>
-                        </div>
-                      </Col>
-                      <Col xs={6}>
-                        <div className="p-2 bg-theme-surface rounded shadow-sm border-start border-3 border-info h-100">
-                          <div className="text-muted xx-small fw-bold text-uppercase ls-wide mb-1">Remaining Refund</div>
-                          <div className="fw-bold text-info small d-flex align-items-center">
-                            <RefreshCcw size={12} className="me-1" />
-                            EGP {totalRefundDue.toFixed(2)}
-                          </div>
-                        </div>
-                      </Col>
-                      <Col xs={6}>
-                        <div className="p-2 bg-theme-surface rounded shadow-sm border-start border-3 border-warning h-100">
-                          <div className="text-muted xx-small fw-bold text-uppercase ls-wide mb-1">Invoice Total</div>
-                          <div className="fw-bold text-theme small d-flex align-items-center">
-                            <History size={12} className="me-1" />
-                            EGP {newTotal.toFixed(2)}
-                          </div>
-                        </div>
-                      </Col>
-                    </Row>
+                        </Col>
+                      )}
 
-                    {debtToPayOff > 0 && (
-                      <div className="mt-2 p-2 bg-theme-surface rounded-3 border-start border-3 border-secondary d-flex justify-content-between align-items-center">
-                        <span className="text-muted x-small fw-bold text-uppercase">Debt Offset</span>
-                        <span className="fw-bold text-secondary small">- EGP {debtToPayOff.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
+                      {/* 5. Total: Gross value of selected items */}
+                      {totalRefundableAmount > 0 && (
+                        <Col xs={6}>
+                          <div className="p-3 bg-theme-surface rounded shadow-sm border-start border-4 border-primary h-100 transition-all">
+                            <div className="text-muted x-small fw-bold text-uppercase ls-wide mb-1">Total</div>
+                            <div className="h5 mb-0 fw-bold text-primary d-flex align-items-center">
+                              <Info size={16} className="me-2" />
+                              EGP {totalRefundableAmount.toFixed(2)}
+                            </div>
+                          </div>
+                        </Col>
+                      )}
+
+                      {/* 2. Bill Due: Portion of refund used to offset debt */}
+                      {debtToPayOff > 0 && (
+                        <Col xs={6}>
+                          <div className="p-3 bg-theme-surface rounded shadow-sm border-start border-4 border-secondary h-100 transition-all">
+                            <div className="text-muted x-small fw-bold text-uppercase ls-wide mb-1">Bill Due</div>
+                            <div className="h5 mb-0 fw-bold text-secondary d-flex align-items-center">
+                              <AlertTriangle size={16} className="me-2" />
+                              EGP {debtToPayOff.toFixed(2)}
+                            </div>
+                          </div>
+                        </Col>
+                      )}
+
+                      {/* 6. Paid: Actual cash being handed back */}
+                      {parseFloat(amountLabPays) > 0 && (
+                        <Col xs={6}>
+                          <div className="p-3 bg-theme-surface rounded shadow-sm border-start border-4 border-danger h-100 transition-all">
+                            <div className="text-muted x-small fw-bold text-uppercase ls-wide mb-1">Paid (Cash)</div>
+                            <div className="h5 mb-0 fw-bold text-danger d-flex align-items-center">
+                              <CheckCircle size={16} className="me-2" />
+                              EGP {parseFloat(amountLabPays).toFixed(2)}
+                            </div>
+                          </div>
+                        </Col>
+                      )}
+
+                      {/* 3. Bill Credit: Remainder added to credit */}
+                      {creditToAdd > 0 && (
+                        <Col xs={6}>
+                          <div className="p-3 bg-theme-surface rounded shadow-sm border-start border-4 border-success h-100 transition-all">
+                            <div className="text-muted x-small fw-bold text-uppercase ls-wide mb-1">Bill Credit</div>
+                            <div className="h5 mb-0 fw-bold text-success d-flex align-items-center">
+                              <ShieldCheck size={16} className="me-2" />
+                              EGP {creditToAdd.toFixed(2)}
+                            </div>
+                          </div>
+                        </Col>
+                      )}
+                    </Row>
 
                   <Form.Group className="mb-4">
                     <Form.Label className="small fw-bold text-theme">Amount Lab will pay now (Cash)</Form.Label>
