@@ -1881,12 +1881,32 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
         const newHash = integrityService.signBill({ id: existingBill.id, total: newBillTotal }, allRemainingItems);
         await existingBill.update({ integrity_hash: newHash }, { transaction });
 
+        // G. Activity Logging
+        await lab_activity_log.create({
+            lab_id: lab_id,
+            user_id: req.user ? req.user.id : null,
+            user_role: req.user ? req.user.role : null,
+            action: 'REFUND_PROCESSED',
+            entity_type: 'Bill',
+            entity_id: existingBill.id,
+            details: {
+                refunded_items: itemsToProcess,
+                refund_value: totalRefundValue,
+                cash_back: actualCashBack,
+                credit_added: addedToCredit,
+                paid_off_due: amountToPayOffBillDue,
+                new_total: newBillTotal
+            },
+            ip_address: req.ip,
+            user_agent: req.get('User-Agent')
+        }, { transaction });
+
         await transaction.commit();
 
         return res.json({
             success: true,
             total_refund_value: totalRefundValue,
-            paid_off_due: totalAmountUsedToPayOffDue,
+            paid_off_due: amountToPayOffBillDue,
             cash_back: actualCashBack,
             added_to_credit: addedToCredit,
             new_bill_total: newBillTotal

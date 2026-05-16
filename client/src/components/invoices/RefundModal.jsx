@@ -13,7 +13,6 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
   const [amountLabPays, setAmountLabPays] = useState('0');
   const [isSure, setIsSure] = useState(false);
   const [authKey, setAuthKey] = useState('');
-  const [ignoreDue, setIgnoreDue] = useState(false);
   const [patientData, setPatientData] = useState(null);
   const [fetchingPatient, setFetchingPatient] = useState(false);
   const [paymentMethodId, setPaymentMethodId] = useState('');
@@ -37,7 +36,6 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
       setAmountLabPays('0');
       setIsSure(false);
       setAuthKey('');
-      setIgnoreDue(false);
       setPaymentMethodId('');
       
       if (invoice?.patient_id) {
@@ -113,6 +111,10 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
     const payout = parseFloat(amountLabPays) || 0;
     return Math.max(0, Math.round((totalRefundDue - payout) * 100) / 100);
   }, [totalRefundDue, amountLabPays]);
+
+  const newTotal = useMemo(() => Math.max(0, Math.round((parseFloat(invoice?.total || 0) - totalRefundableAmount) * 100) / 100), [invoice?.total, totalRefundableAmount]);
+  const newPaid = useMemo(() => Math.max(0, Math.round((parseFloat(invoice?.paid || 0) - (parseFloat(amountLabPays) || 0)) * 100) / 100), [invoice?.paid, amountLabPays]);
+  const newDue = useMemo(() => Math.max(0, Math.round((newTotal - newPaid) * 100) / 100), [newTotal, newPaid]);
 
   const hasSelectedItems = selectedItems.tests.length > 0 || selectedItems.packages.length > 0;
 
@@ -289,61 +291,48 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
                       <span className="fw-bold text-theme">EGP {totalRefundableAmount.toFixed(2)}</span>
                     </div>
                     
-                    {patientData && (
-                      <div className="mt-3 pt-3 border-top border-secondary-subtle">
-                        <div className="d-flex justify-content-between mb-1">
-                          <span className="text-muted small">Gross Debt:</span>
-                          <span className="fw-bold text-danger">EGP {parseFloat(patientData.gross_debt || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="d-flex justify-content-between mb-1">
-                          <span className="text-muted small">Gross Credit:</span>
-                          <span className="fw-bold text-success">EGP {parseFloat(patientData.gross_credit || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="d-flex justify-content-between mt-2 pt-2 border-top border-muted">
-                          <span className="fw-bold small">Net Patient Balance:</span>
-                          <span className={`fw-bold ${(ignoreDue && patientTotalBalance > 0) ? 'text-decoration-line-through text-muted' : (patientTotalBalance > 0 ? 'text-danger' : 'text-success')}`}>
-                            EGP {Math.abs(patientTotalBalance).toFixed(2)} {patientTotalBalance > 0 ? '(Debt)' : '(Credit)'}
-                          </span>
-                        </div>
-                        
-                        {patientTotalBalance > 0 && (
-                          <Form.Group className="mt-3 mb-2">
-                            <Form.Check 
-                              type="checkbox"
-                              id="ignore-due-checkbox"
-                              label={
-                                <span className={`small ${isLimitExceeded ? 'text-muted' : 'text-theme fw-medium'}`}>
-                                  Ignore whole debt (Net) for this refund
-                                </span>
-                              }
-                              checked={ignoreDue}
-                              disabled={isLimitExceeded || fetchingPatient}
-                              onChange={(e) => setIgnoreDue(e.target.checked)}
-                              className="user-select-none"
-                            />
-                            {isLimitExceeded && (
-                              <div className="text-danger small mt-1 d-flex align-items-center bg-danger-subtle p-2 rounded">
-                                <AlertTriangle size={14} className="me-2" />
-                                <span>
-                                  <strong>Limit Exceeded:</strong> Whole due (EGP {patientTotalBalance.toFixed(2)}) 
-                                  exceeds the lab limit (EGP {patientDueLimit.toFixed(2)}).
-                                </span>
-                              </div>
-                            )}
-                          </Form.Group>
-                        )}
+                    <div className="bg-white p-3 rounded shadow-sm mb-3 border-start border-4 border-primary">
+                      <div className="d-flex justify-content-between mb-2">
+                        <span className="small text-muted">Original Total:</span>
+                        <span className="fw-bold">EGP {parseFloat(invoice?.total || 0).toFixed(2)}</span>
                       </div>
-                    )}
+                      <div className="d-flex justify-content-between mb-2">
+                        <span className="small text-muted">New Total:</span>
+                        <span className="fw-bold text-primary">EGP {newTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between mb-2 border-top pt-2">
+                        <span className="small text-muted">Original Paid:</span>
+                        <span className="fw-bold">EGP {parseFloat(invoice?.paid || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="small text-muted">New Paid:</span>
+                        <span className="fw-bold text-success">EGP {newPaid.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="d-flex justify-content-between mt-2 pt-2 border-top border-muted">
+                      <span className="fw-bold small">Projected Bill Due:</span>
+                      <span className={`fw-bold ${newDue > 0 ? 'text-danger' : 'text-success'}`}>
+                        EGP {newDue.toFixed(2)}
+                      </span>
+                    </div>
+
                     {debtToPayOff > 0 && (
                       <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted small">Paid off Patient Debt:</span>
+                        <span className="text-muted small">Debt Reduction:</span>
                         <span className="fw-bold text-danger">- EGP {debtToPayOff.toFixed(2)}</span>
                       </div>
                     )}
-                    {patientTotalBalance < 0 && (
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted small">Existing Credit Added:</span>
-                        <span className="fw-bold text-success">+ EGP {Math.abs(patientTotalBalance).toFixed(2)}</span>
+                    
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-bold text-theme">Refund Balance:</span>
+                      <span className="fs-5 fw-bold text-primary">EGP {totalRefundDue.toFixed(2)}</span>
+                    </div>
+                    
+                    {creditToAdd > 0 && (
+                      <div className="d-flex justify-content-between align-items-center text-success border-top border-dashed pt-1 mt-1">
+                        <span className="small fw-bold">Added to Bill Credit:</span>
+                        <span className="fw-bold">+ EGP {creditToAdd.toFixed(2)}</span>
                       </div>
                     )}
                     <hr className="border-secondary" />
