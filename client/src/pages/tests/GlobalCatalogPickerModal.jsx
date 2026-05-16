@@ -13,6 +13,8 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState(null);
+  const [importResult, setImportResult] = useState(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -38,6 +40,9 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
     if (show) {
       fetchGlobalTests(searchQuery, 1);
       setSelectedIds([]);
+      setError(null);
+      setImportResult(null); // Clear any previous import result when reopening
+      setImporting(false);
     }
   }, [show]); // Refetch when opened
 
@@ -106,12 +111,14 @@ const GlobalCatalogPickerModal = ({ show, onHide, onImportSuccess }) => {
         autoClose: 3000
       });
       onImportSuccess();
+    } catch (err) {
       const errorMessage = err.response?.data?.details || err.response?.data?.error || "Failed to import selected tests";
       toast.update(toastId, {
         type: 'error',
         render: errorMessage,
         autoClose: 6000
       });
+      setError(err.response?.data?.error || "Failed to import selected tests");
     } finally {
       setImporting(false);
     }

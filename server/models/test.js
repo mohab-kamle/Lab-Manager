@@ -9,11 +9,13 @@ module.exports = function (sequelize, DataTypes) {
     },
     name: {
       type: DataTypes.STRING(255),
-      allowNull: false
+      allowNull: false,
+      unique: "unique_test_name_per_lab"
     },
     shortcut: {
       type: DataTypes.STRING(255),
-      allowNull: true
+      allowNull: true,
+      unique: "unique_test_shortcut_per_lab"
     },
     price: {
       type: DataTypes.DOUBLE,
@@ -111,6 +113,7 @@ module.exports = function (sequelize, DataTypes) {
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "name" },
           { name: "lab_id" },
         ]
@@ -120,6 +123,7 @@ module.exports = function (sequelize, DataTypes) {
         unique: true,
         using: "BTREE",
         fields: [
+          { name: "lab_id" },
           { name: "shortcut" },
           { name: "lab_id" },
         ]

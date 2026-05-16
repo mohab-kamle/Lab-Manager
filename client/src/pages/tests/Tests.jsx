@@ -852,9 +852,16 @@ const Tests = () => {
             <Download size={16} className="me-2" />
             Export XLSX
           </Button>
-          <Button variant="outline-info" onClick={() => setShowImportModal(true)}>
+          <Button variant="outline-info" as="label" style={{ cursor: 'pointer' }}>
             <Upload size={16} className="me-2" />
             Import Excel
+            <input 
+              type="file" 
+              accept=".xlsx,.xls,.csv" 
+              style={{ display: 'none' }} 
+              onChange={handleImportXLSX} 
+              disabled={isImporting} 
+            />
           </Button>
           <Button variant="primary" onClick={() => setShowGlobalCatalogModal(true)}>
             <Search size={16} className="me-2" />Search Global Catalog
@@ -1049,7 +1056,7 @@ const Tests = () => {
           setShowModal(false);
           setCategorySearchTerm("");
           setSampleTypeSearchTerm("");
-          setTestSearch("");
+          setQuestionSearchTerm("");
         }} 
         size="lg"
       >
@@ -1059,7 +1066,7 @@ const Tests = () => {
             setShowModal(false);
             setCategorySearchTerm("");
             setSampleTypeSearchTerm("");
-            setTestSearch("");
+            setQuestionSearchTerm("");
           }}>
             <CircleX size={24} />
           </button>

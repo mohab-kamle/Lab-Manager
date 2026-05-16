@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { medical_report, patient, admin, chemist, phone_number, diseases, patient_has_diseases, contract, lab_contracts_doctor, bill } = require("../models");
+const { medical_report, patient, admin, chemist, phone_number, diseases, patient_has_diseases, contract, lab_contracts_doctor, bill, financial_transaction, payment_method, packages_and_offers, employee, branch, test, status, bill_has_test, bill_has_package, bill_has_payment_method } = require("../models");
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 const { sign } = require("jsonwebtoken");
 const authenticateUser = require("../middleware/authenticateUser");
@@ -13,6 +13,7 @@ require("dotenv").config();
 const SECRET_KEY = process.env.SECRET_KEY;
 const { sequelize } = require("../models");
 const db = require('../models');
+const Op = db.Sequelize.Op;
 
 // Configure multer for file uploads
 const upload = multer({
@@ -102,6 +103,30 @@ router.post("/login", loginLimiter, async (req, res) => {
         res.status(500).json({ error: "Server error, please try again later." });
     }
 });
+
+// GET Unpaid Bills for a Patient (For the Modal Preview)
+router.get("/:id/due", authenticateUser, authorizeRoles("admin", "receptionist"), tenantContext, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+
+        const unpaidBills = await bill.findAll({
+            where: {
+                patient_id: patientId,
+                lab_id: req.tenant.lab_id,
+                due: {
+                    [Op.gt]: 0 // Only bills where due > 0
+                }
+            },
+            order: [['date', 'ASC']] // Oldest first (FIFO strategy)
+        });
+
+        res.json(unpaidBills);
+    } catch (error) {
+        console.error("Error fetching unpaid bills:", error);
+        res.status(500).json({ error: "Internal server error", message: error.message });
+    }
+});
+
 
 router.get(
     "/reports",
@@ -234,6 +259,209 @@ router.put("/update", authenticateUser, authorizeRoles("patient"), tenantContext
         await transaction.rollback();
         console.error("Error updating patient profile:", error);
         res.status(500).json({ success: false, message: "Error updating profile", error: error.message });
+    }
+});
+
+// get all patient's transactions in current lab
+router.get("/transactions", authenticateUser, authorizeRoles("patient"),tenantContext, async (req, res) => {
+    try {
+        //const { patient_id, startDate, endDate, process_type } = req.query;
+        
+        // 1. Build Dynamic Filter Object
+        let whereClause = {
+            lab_id: req.tenant.lab_id, // Always restrict data to the current lab context
+            patient_id: req.user.id
+        };
+
+        // 2. Query the Database
+        const transactions = await financial_transaction.findAll({
+            where: whereClause,
+            include: [
+                { 
+                    model: payment_method, 
+                    as: 'payment_method',
+                    attributes: ['name'] 
+                },
+                {
+                    model: bill,
+                    as: 'bill',
+                    include: [
+                        { 
+                            model: test, 
+                            as: "test_id_tests", 
+                            attributes: ['name'], 
+                            through: { attributes: [] } 
+                        },
+                        { 
+                            model: packages_and_offers, 
+                            as: "package_id_packages_and_offers", 
+                            attributes: ['name'], 
+                            through: { attributes: [] } 
+                        }
+                    ]
+                },
+                {
+                    model: branch,
+                    as: 'branch',
+                    attributes: ['name']
+                }
+            ],
+            order: [['date', 'DESC']] // Newest transactions first
+        });
+
+        // 3. Map to a flat, UI-friendly JSON format for the frontend
+        const formattedResponse = transactions.map(txn => {
+            
+            let summaryItems = [];
+            
+            if (txn.process_type === 'Refund') {
+                if (txn.refund_items && Array.isArray(txn.refund_items)) {
+                    summaryItems.push(...txn.refund_items.map(item => `Refunded ${item.type} #${item.id}`));
+                } else {
+                    summaryItems.push('Refund');
+                }
+            } else if (txn.process_type === 'Due') {
+                if (txn.refund_items && Array.isArray(txn.refund_items)) {
+                    summaryItems.push(`Paid towards Due (Bills: ${txn.refund_items.map(i => i.id).join(', ')})`);
+                } else {
+                    summaryItems.push('Paid towards due balance');
+                }
+            } else {
+                // Default to Payment logic
+                if (txn.bill) {
+                    if (txn.bill.test_id_tests) {
+                        summaryItems.push(...txn.bill.test_id_tests.map(t => t.name));
+                    }
+                    if (txn.bill.package_id_packages_and_offers) {
+                        summaryItems.push(...txn.bill.package_id_packages_and_offers.map(p => p.name));
+                    }
+                }
+            }
+            
+            const summaryString = summaryItems.length > 0 
+                ? summaryItems.join(', ') 
+                : 'Account Adjustment';
+
+            return {
+                transactionId: txn.transaction_code,
+                date: txn.date,
+                amount: parseFloat(txn.amount),
+                processType: txn.process_type,
+                paidWith: txn.payment_method ? txn.payment_method.name : null,
+                branchName: txn.branchName ? txn.branchName.name : null,
+                invoiceId: txn.bill_id,
+                summary: summaryString
+            };
+        });
+
+        return res.status(200).json(formattedResponse);
+
+    } catch (error) {
+        console.error("Error fetching transactions:", error);
+        return res.status(500).json({ 
+            error: "Failed to fetch transactions",
+            message: error.message 
+        });
+    }
+});
+
+/**
+ * GET /api/patient/invoices - Fetch all bills for the logged-in patient.
+ */
+router.get("/invoices", authenticateUser, authorizeRoles("patient"), tenantContext, async (req, res) => {
+    try {
+        const patient_id = req.user.id;
+        const lab_id = req.tenant.lab_id;
+
+        const bills = await bill.findAll({
+            where: {
+                patient_id,
+                lab_id
+            },
+            include: [
+                {
+                    model: status,
+                    as: "status",
+                    attributes: ['state']
+                },
+                {
+                    model: bill_has_test,
+                    as: "bill_has_tests",
+                    separate: true,
+                    include: [{
+                        model: test,
+                        as: "test",
+                        attributes: ['id', 'name']
+                    }]
+                },
+                {
+                    model: bill_has_package,
+                    as: "bill_has_packages",
+                    separate: true,
+                    include: [{
+                        model: packages_and_offers,
+                        as: "package",
+                        attributes: ['id', 'name', 'type']
+                    }]
+                },
+                {
+                    model: bill_has_payment_method,
+                    as: "bill_has_payment_methods",
+                    separate: true,
+                    include: [{
+                        model: payment_method,
+                        as: "payment_method",
+                        attributes: ['id', 'name']
+                    }]
+                }
+            ],
+            order: [['date', 'DESC']]
+        });
+
+        // Transform the results to match the expected format
+        const formattedBills = bills.map(b => {
+            const billData = b.toJSON();
+
+            return {
+                id: billData.id,
+                date: billData.date,
+                paid: billData.paid,
+                due: billData.due,
+                subtotal: billData.subtotal,
+                total: billData.total,
+                discount: billData.discount,
+                tax: billData.tax,
+                tax_rate: billData.tax_rate,
+                status: billData.status?.state,
+
+                tests: (billData.bill_has_tests || []).map(bht => ({
+                    id: bht.test?.id,
+                    name: bht.test?.name,
+                    price: bht.price
+                })),
+
+                packages: (billData.bill_has_packages || []).map(bhp => ({
+                    id: bhp.package?.id,
+                    name: bhp.package?.name,
+                    price: bhp.price,
+                    type: bhp.package?.type
+                })),
+
+                payments: (billData.bill_has_payment_methods || []).map(bhpm => ({
+                    payment_method_id: bhpm.payment_method?.id,
+                    payment_method_name: bhpm.payment_method?.name,
+                    paid_amount: bhpm.paid_amount
+                })),
+            };
+        });
+
+        res.json(formattedBills);
+    } catch (error) {
+        console.error('Error fetching patient invoices:', error);
+        res.status(500).json({
+            error: "Internal server error",
+            message: error.message
+        });
     }
 });
 
@@ -914,7 +1142,7 @@ router.delete("/bulk", authenticateUser, authorizeRoles("admin", "receptionist")
                 // Check if patient has any related records
                 const hasBills = await bill.findOne({ where: { patient_id: patientId } });
                 if (hasBills) {
-                    errors.push(`Patient ID ${patientId}: Cannot delete patient with existing bills`);
+                    errors.push(`Patient ID ${patientId}: Cannot delete patient with associated bills`);
                     continue;
                 }
 

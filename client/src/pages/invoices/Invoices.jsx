@@ -182,6 +182,9 @@ const Invoices = () => {
   const [settlementPatientId, setSettlementPatientId] = useState(null);
   const [settlementPatientName, setSettlementPatientName] = useState("");
   const [settlementPatientCode, setSettlementPatientCode] = useState("");
+  // Invoice-specific settlement context
+  const [settlementInvoiceId, setSettlementInvoiceId] = useState(null);
+  const [settlementDueAmount, setSettlementDueAmount] = useState(null);
   const [giveChange, setGiveChange] = useState(false);
 
   // Helper function to determine automatic status based on payment conditions
@@ -1758,9 +1761,11 @@ const Invoices = () => {
           setSettlementPatientId(rowData.patient_id);
           setSettlementPatientName(rowData.patient_name || "Unknown Patient");
           setSettlementPatientCode(patient?.patientcode || "");
+          // Pass the specific invoice context for targeted settlement
+          setSettlementInvoiceId(rowData.id);
+          setSettlementDueAmount(parseFloat(rowData.due || 0));
           setShowSettlementModal(true);
         }}
-        disabled={parseFloat(rowData.due || 0) <= 0}
         title="Reconcile Account"
       >
         <Wallet2 size={16} />
@@ -1884,9 +1889,7 @@ const Invoices = () => {
               size="lg"
             >
               <Modal.Header>
-                <Modal.Title>
-                  {editingInvoice ? "Edit" : "New"} Invoice
-                </Modal.Title>
+                <Modal.Title>{editingInvoice ? "Edit Invoice" : "Add New Invoice"}</Modal.Title>
                 <button
                   className="modal-close-btn"
                   onClick={() => {
@@ -3819,11 +3822,6 @@ const Invoices = () => {
                               }
                               placeholder="e.g., Payment pending, Fully paid, Refund needed"
                             />
-                            {giveChange && (invoice.due || 0) < -0.01 && (
-                              <Form.Text className="text-muted d-block mt-1" style={{ fontSize: '0.75rem' }}>
-                                Change of EGP {Math.abs(invoice.due || 0).toFixed(2)} is handed to patient
-                              </Form.Text>
-                            )}
                           </Form.Group>
                         </Col>
                       </Row>
@@ -3937,6 +3935,34 @@ const Invoices = () => {
                   }}
                 >
                   Close
+                </Button>
+              </Modal.Footer>
+            </Modal>
+
+            {/* Delete Status Confirmation Modal */}
+            <Modal
+              show={showStatusDeleteModal}
+              onHide={() => setShowStatusDeleteModal(false)}
+            >
+              <Modal.Header>
+                <Modal.Title>Confirm Delete</Modal.Title>
+                <button
+                  className="modal-close-btn"
+                  onClick={() => setShowStatusDeleteModal(false)}
+                >
+                  <CircleX size={24} />
+                </button>
+              </Modal.Header>
+              <Modal.Body>
+                Are you sure you want to delete this status? This action cannot
+                be undone.
+              </Modal.Body>
+              <Modal.Footer>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowStatusDeleteModal(false)}
+                >
+                  Cancel
                 </Button>
               </Modal.Footer>
             </Modal>
@@ -4308,10 +4334,17 @@ const Invoices = () => {
       {/* Settlement Modal */}
       <SettlementModal
         show={showSettlementModal}
-        onHide={() => setShowSettlementModal(false)}
+        onHide={() => {
+          setShowSettlementModal(false);
+          setSettlementInvoiceId(null);
+          setSettlementDueAmount(null);
+        }}
         initialPatientId={settlementPatientId}
         patientName={settlementPatientName}
         patientCode={settlementPatientCode}
+        initialInvoiceId={settlementInvoiceId}
+        initialDueAmount={settlementDueAmount}
+        onSettled={fetchData}
       />
 
       {/* Refund Modal */}

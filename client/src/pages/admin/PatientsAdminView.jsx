@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-
 import { Container, Button, Modal, Form, Alert, Row, Col, Badge } from "react-bootstrap";
 import { useAuth } from "../../context/AuthContext";
 import Toolbar from "../../components/layout/Toolbar";
@@ -448,6 +447,14 @@ const PatientsAdminView = () => {
     if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
 
     try {
+      const token = localStorage.getItem("token");
+      setLoading(true);
+
+    const updateData = {};
+    if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
+    if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
+
+    try {
       await axios.put(`${apiUrl}/patient/bulk`, {
         patientIds: selectedPatients,
         updateData
@@ -631,7 +638,7 @@ const PatientsAdminView = () => {
         return formatDate(value);
       case 'gender':
         return value;
-      case 'phones':
+      case 'phones': {
         if (!value || value.length === 0) return "-";
         const primary = value.find(p => p.is_primary) || value[0];
         return (
@@ -644,6 +651,7 @@ const PatientsAdminView = () => {
             )}
           </div>
         );
+      }
       case 'patientcode':
         return value ? (
           <span 
@@ -662,26 +670,29 @@ const PatientsAdminView = () => {
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
       case 'paid':
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
-      case 'amount_due':
+      case 'amount_due': {
         // Use rowData.due if available since amount_due is computed from it
         const dueAmount = rowData && rowData.due ? parseFloat(rowData.due) : 0;
         if (dueAmount > 0.01) {
           return <span className="text-danger fw-bold">EGP {dueAmount.toFixed(2)}</span>;
         }
         return <span className="text-muted">-</span>;
-      case 'credit':
+      }
+      case 'credit': {
         // Use rowData.due if available since credit is computed from it (negative due)
         const creditAmount = rowData && rowData.due ? parseFloat(rowData.due) : 0;
         if (creditAmount < -0.01) {
           return <span className="text-success fw-bold">EGP {Math.abs(creditAmount).toFixed(2)}</span>;
         }
         return <span className="text-muted">-</span>;
+      }
       case 'due': // keeping for backward compatibility if needed elsewhere
         return value ? `EGP ${parseFloat(value).toFixed(2)}` : '-';
-      case 'contract_id':
+      case 'contract_id': {
         if (!value) return '-';
         const selectedContract = contracts.find(c => c.id === value);
         return selectedContract ? (selectedContract.name || `${selectedContract.region} - ${selectedContract.governorate}`) : value;
+      }
       case 'diseases_id_diseases':
         if (!Array.isArray(value) || value.length === 0) return '-';
         return (
@@ -1419,8 +1430,6 @@ const PatientsAdminView = () => {
             <Modal.Footer>
               <Button variant="secondary" onClick={() => {
                 setShowAddModal(false);
-                setShowRetryButton(false);
-                setLastAttemptedPatient(null);
                 setFormErrors({});
               }}>
                 Cancel
@@ -1453,7 +1462,7 @@ const PatientsAdminView = () => {
                   onChange={(e) => setImportFile(e.target.files[0])}
                 />
                 <Form.Text className="text-muted">
-                  File should contain columns: Name (required), Primary Phone (required), Email, Gender (Male/Female), Birth Date (YYYY-MM-DD), National ID, Nationality, Passport No, Address, Secondary Phone, Total, Paid, Due, Contract (format: "Region - Governorate"), Diseases (comma-separated disease names)
+                  File should contain columns: Name (required), Primary Phone (required), Email, Gender (Male/Female), Birth Date (YYYY-MM-DD), National ID, Nationality, Passport No, Address, Secondary Phone, Total, Paid, Due, Contract (format: &quot;Region - Governorate&quot;), Diseases (comma-separated disease names)
                 </Form.Text>
               </Form.Group>
             </Modal.Body>

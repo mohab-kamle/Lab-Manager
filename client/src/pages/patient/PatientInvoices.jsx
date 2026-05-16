@@ -1,91 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Badge, Button } from "react-bootstrap";
 import { motion } from "framer-motion";
-import { Receipt, Download, ClockHistory, ArrowLeft, Building, GeoAlt } from "react-bootstrap-icons";
+import { Receipt, Download, ClockHistory, ArrowLeft, Building, GeoAlt, Eye } from "react-bootstrap-icons";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { formatDate } from "../../utils/dateFormatter";
 import axios from "axios";
 import { useToast } from "../../components/ui/ToastContext";
-
-// ─── Mock data for development ───────────────────────────────────────────────
-// Replace with real API data when the backend endpoint is ready.
-// Status logic:
-//   "paid"    → fully settled, no outstanding balance
-//   "pending" → outstanding balance exists (due > 0 means patient owes lab,
-//               credit > 0 means lab owes patient)
-const MOCK_INVOICES = [
-  {
-    _id: "mock-inv-001",
-    id: "INV-2025-001",
-    date: "2025-04-20T10:30:00.000Z",
-    status: "paid",
-    due: 0,
-    credit: 0,
-    total: 1250.00,
-    lab_name: "BioLab Diagnostics",
-    branch_name: "Downtown Branch",
-    tests: [
-      { name: "Complete Blood Count (CBC)", price: 350 },
-      { name: "Glucose Fasting", price: 200 },
-      { name: "Liver Function Test (LFT)", price: 400 },
-    ],
-    packages: [
-      { name: "Basic Checkup Package", price: 300 },
-    ],
-  },
-  {
-    _id: "mock-inv-002",
-    id: "INV-2025-002",
-    date: "2025-04-22T14:15:00.000Z",
-    status: "pending",
-    due: 150.50,    // Patient owes the lab 150.50
-    credit: 0,
-    total: 650.50,
-    lab_name: "BioLab Diagnostics",
-    branch_name: "Nasr City Branch",
-    tests: [
-      { name: "Thyroid Panel (TSH, T3, T4)", price: 450 },
-      { name: "Urine Analysis", price: 200.50 },
-    ],
-    packages: [],
-  },
-  {
-    _id: "mock-inv-003",
-    id: "INV-2025-003",
-    date: "2025-04-25T09:00:00.000Z",
-    status: "pending",
-    due: 0,
-    credit: 75.00,  // Lab owes the patient 75.00 (overpayment)
-    total: 500.00,
-    lab_name: "BioLab Diagnostics",
-    branch_name: "Downtown Branch",
-    tests: [
-      { name: "Vitamin D", price: 300 },
-      { name: "Iron Studies", price: 200 },
-    ],
-    packages: [],
-  },
-  {
-    _id: "mock-inv-004",
-    id: "INV-2025-004",
-    date: "2025-03-10T08:45:00.000Z",
-    status: "paid",
-    due: 0,
-    credit: 0,
-    total: 1800.00,
-    lab_name: "BioLab Diagnostics",
-    branch_name: "Heliopolis Branch",
-    tests: [
-      { name: "HbA1c", price: 250 },
-      { name: "Lipid Profile", price: 350 },
-    ],
-    packages: [
-      { name: "Comprehensive Health Screening", price: 1200 },
-    ],
-  },
-];
+import InvoiceHistoryDrawer from "../../components/invoices/InvoiceHistoryDrawer";
 
 const PatientInvoices = () => {
   const { user } = useAuth();
@@ -93,13 +16,17 @@ const PatientInvoices = () => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   const fetchInvoices = async () => {
-    /* 
-    // API placeholder for when the backend endpoint is ready
     try {
       setLoading(true);
-      const response = await axios.get("/api/patient/invoices");
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${apiUrl}/patient/invoices`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setInvoices(response.data);
     } catch (error) {
       console.error("Error fetching invoices:", error);
@@ -107,10 +34,6 @@ const PatientInvoices = () => {
     } finally {
       setLoading(false);
     }
-    */
-
-    // Load mock data for now
-    setInvoices(MOCK_INVOICES);
   };
 
   useEffect(() => {
@@ -149,30 +72,28 @@ const PatientInvoices = () => {
   const getStatusBadge = (invoice) => {
     const status = (invoice.status || "").toLowerCase();
     const due = parseFloat(invoice.due || 0);
-    const credit = parseFloat(invoice.credit || 0);
 
-    switch (status) {
-      case "paid":
+    // In our system, status is often capitalized or comes from status model (e.g. "Paid", "Partially Paid", "Pending")
+    const isPaid = status === "paid" || status === "fully paid";
+    
+    if (isPaid) {
         return <Badge bg="success" className="px-3 py-2 rounded-pill">Paid</Badge>;
-      case "pending":
+    } else {
         return (
           <div className="d-flex flex-column align-items-end gap-1">
-            <Badge bg="warning" text="dark" className="px-3 py-2 rounded-pill">Pending</Badge>
+            <Badge bg="warning" text="dark" className="px-3 py-2 rounded-pill">{invoice.status || "Pending"}</Badge>
             {/* Show the outstanding amount (due or credit) next to the badge */}
-            {due > 0 && (
+            {due > 0 ? (
               <small className="text-danger fw-semibold">
                 Due: EGP {due.toFixed(2)}
               </small>
-            )}
-            {credit > 0 && (
+            ) : due < 0 ? (
               <small className="text-success fw-semibold">
-                Credit: EGP {credit.toFixed(2)}
+                Credit: EGP {Math.abs(due).toFixed(2)}
               </small>
-            )}
+            ) : null}
           </div>
         );
-      default:
-        return <Badge bg="secondary" className="px-3 py-2 rounded-pill">{invoice.status}</Badge>;
     }
   };
 
@@ -221,7 +142,7 @@ const PatientInvoices = () => {
           ) : (
             <Row className="g-4">
               {invoices.map((invoice) => (
-                <Col lg={6} key={invoice._id}>
+                <Col lg={6} key={invoice.id}>
                   <motion.div variants={itemVariants}>
                     <Card className="patient-profile-card border-0 h-100">
                       <Card.Body className="p-4">
@@ -284,20 +205,33 @@ const PatientInvoices = () => {
                           </ul>
                         </div>
 
-                        {/* Footer: total amount & download */}
+                        {/* Footer: total amount & actions */}
                         <div className="d-flex justify-content-between align-items-center border-top border-muted pt-3">
                           <div>
                             <p className="text-muted small mb-0">Total Amount</p>
                             <h4 className="fw-bold text-primary mb-0">EGP {parseFloat(invoice.total || 0).toFixed(2)}</h4>
                           </div>
-                          <Button 
-                            variant="outline-primary" 
-                            className="d-flex align-items-center gap-2 rounded-pill px-4"
-                            onClick={() => toast.info("Download receipt feature coming soon!")}
-                          >
-                            <Download size={18} />
-                            Download
-                          </Button>
+                          <div className="d-flex gap-2">
+                            <Button 
+                              variant="outline-info" 
+                              className="d-flex align-items-center gap-2 rounded-pill px-3"
+                              onClick={() => {
+                                setSelectedInvoiceId(invoice.id);
+                                setShowHistory(true);
+                              }}
+                            >
+                              <ClockHistory size={18} />
+                              Audit
+                            </Button>
+                            <Button 
+                              variant="outline-primary" 
+                              className="d-flex align-items-center gap-2 rounded-pill px-3"
+                              onClick={() => toast.info("Download receipt feature coming soon!")}
+                            >
+                              <Download size={18} />
+                              Receipt
+                            </Button>
+                          </div>
                         </div>
                       </Card.Body>
                     </Card>
@@ -308,6 +242,12 @@ const PatientInvoices = () => {
           )}
         </motion.div>
       </Container>
+      
+      <InvoiceHistoryDrawer 
+        show={showHistory} 
+        onHide={() => setShowHistory(false)} 
+        invoiceId={selectedInvoiceId} 
+      />
     </div>
   );
 };

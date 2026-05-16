@@ -48,7 +48,7 @@ const TransactionsVault = () => {
       const [transRes, branchRes, empRes, payRes] = await Promise.all([
         api.get('/admin/transactions'),
         api.get('/branches'),
-        api.get('/employees'),
+        api.get('/emp'),
         api.get('/payment-methods')
       ]);
 

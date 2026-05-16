@@ -19,7 +19,6 @@ const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [tableHeaders, setTableHeaders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({
@@ -146,21 +145,18 @@ const Categories = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (category) => {
-    const confirmed = await confirm.delete(category.name);
-    if (confirmed) {
-      try {
+  const handleDelete = (category) => {
+    confirm.delete(category.name, async () => {      try {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
         await axios.delete(`${apiUrl}/categories/${category.id}`, { headers });
-        toast.success("Category deleted successfully");
-        // Refresh using extracted function
-        await fetchCategories();
+        toast.success("Category deleted successfully!");
+        fetchCategories();
       } catch (error) {
-        toast.error("Failed to delete category");
+        console.error("Delete error:", error);
+        toast.error(error.response?.data?.error || "Failed to delete category");
       }
-    }
-  };
+    });  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -212,8 +208,7 @@ const Categories = () => {
       if (result.success) {
         toast.success("Categories exported successfully");
       } else {
-        toast.error(`Export failed: ${result.message}`);
-      }
+        toast.error(`Export failed: ${result.message}`);      }
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export categories");
@@ -232,7 +227,6 @@ const Categories = () => {
 
     setImportLoading(true);
     const loadingToast = toast.loading("Importing categories...");
-
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(

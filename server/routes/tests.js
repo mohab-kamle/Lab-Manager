@@ -665,24 +665,32 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
       await transaction.rollback();
       return res.status(400).json({ error: "No data found in the uploaded file" });
     }
-    let imported = 0, updated = 0, errors = [];
+    
+    let imported = 0;
+    let updated = 0;
+    const errors = [];
+
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       if (!row || Object.keys(row).length === 0) continue;
 
-      // Use a nested transaction (savepoint) for row-level atomicity
+      // Use nested transaction (savepoint) for row-level atomicity
       const rowTransaction = await db.sequelize.transaction({ transaction });
-
       try {
         const name = row.Name || row.name || row['Test Name'];
-        const shortcut = row.Shortcut || row.shortcut || name;
-        const categoryName = row.Category || row['Category Name'] || row.category || row['Category ID'];
-        const sampleTypeName = row['Sample Type'] || row['Sample Type Name'] || row.sample_type || row['Sample Type ID'];
-        const contractName = row.Contract || row['Contract Name'] || row.contract || row['Contract ID'];
+        const categoryName = row.Category || row['Category Name'] || row.category || row['Category ID'] || row.category_id;
+        const sampleTypeName = row['Sample Type'] || row['Sample Type Name'] || row.sample_type || row['Sample Type ID'] || row.sample_type_id;
+        const contractName = row.Contract || row['Contract Name'] || row.contract || row['Contract ID'] || row.contract_id;
 
         if (!name) {
           await rowTransaction.rollback();
-          errors.push(`Row ${i + 2}: Test Name is required`);
+          errors.push({ name: 'Unknown', error: `Row ${i + 2}: Test Name is required` });
+          continue;
+        }
+
+        if (!categoryName) {
+          await rowTransaction.rollback();
+          errors.push({ name: name, error: `Row ${i + 2}: Category is required` });
           continue;
         }
 
@@ -700,7 +708,16 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
             },
             transaction: rowTransaction
           });
-          categoryId = cat.id;
+          
+          if (cat) {
+            categoryId = cat.id;
+          } else if (!isNaN(categoryName)) {
+            categoryId = parseInt(categoryName);
+          } else {
+            await rowTransaction.rollback();
+            errors.push({ name: name, error: `Row ${i + 2}: Category "${categoryName}" could not be created or found` });
+            continue;
+          }
         }
 
         // Look up Sample Type ID (Auto-create if not found)
@@ -730,24 +747,32 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           });
           if (ct) {
             contractId = ct.id;
+          } else if (!isNaN(contractName)) {
+            contractId = parseInt(contractName);
           }
         }
 
+        // Try to find by name
+        let existingTest = await db.test.findOne({ 
+          where: { name: name.toString().trim(), lab_id: req.tenant.lab_id },
+          transaction: rowTransaction
+        });
+        
         // Normalize Lab-to-Lab fields
-        const normalizedStatus = (row['Lab to Lab Status'] || row.lab_to_lab_status || row['L2L Status'])
-          ? (row['Lab to Lab Status'] || row.lab_to_lab_status || row['L2L Status']).toString().trim().toUpperCase() 
+        const normalizedStatus = (row['Lab to Lab Status'] || row['lab_to_lab_status'] || row['Lab to Lab']) 
+          ? (row['Lab to Lab Status'] || row['lab_to_lab_status'] || row['Lab to Lab']).toString().trim().toUpperCase() 
           : null;
-        const normalizedLabName = (row['Lab Name'] || row.lab_name)
-          ? (row['Lab Name'] || row.lab_name).toString().trim() 
+        const normalizedLabName = (row['Lab Name'] || row['lab_name']) 
+          ? (row['Lab Name'] || row['lab_name']).toString().trim() 
           : null;
 
         const testData = {
           lab_id: req.tenant.lab_id,
           name: name.toString().trim(),
-          shortcut: shortcut || null,
+          shortcut: row.Shortcut || row.shortcut || null,
           price: parseFloat(row.Price || row.price) || 0.00,
           cost: parseFloat(row.Cost || row.cost) || 0.00,
-          lab_to_lab_status: normalizedStatus,
+          lab_to_lab_status: normalizedStatus === 'IN' || normalizedStatus === 'OUT' ? normalizedStatus : null,
           lab_name: normalizedLabName,
           category_id: categoryId,
           precautions: row.Precautions || row.precautions || null,
@@ -756,31 +781,32 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), tenantContext,
           sample_type_id: sampleTypeId,
           contract_id: contractId,
           type: row.Type || row.type || 'single',
-          tat_hours: (row['TAT Hours'] || row.tat_hours) ? parseInt(row['TAT Hours'] || row.tat_hours) : null
+          tat_hours: row['TAT Hours'] || row.tat_hours ? parseInt(row['TAT Hours'] || row.tat_hours) : null
         };
-
-        // Try to find by name in THIS lab
-        const existingTest = await db.test.findOne({ 
-          where: { name: testData.name, lab_id: req.tenant.lab_id },
-          transaction: rowTransaction
-        });
 
         if (existingTest) {
           await existingTest.update(testData, { transaction: rowTransaction });
           updated++;
         } else {
-          await db.test.create({
+await db.test.create({
             ...testData,
-            structure_config: [] // Default empty
+            structure_config: [] 
           }, { transaction: rowTransaction });
           imported++;
         }
-
         await rowTransaction.commit();
       } catch (rowError) {
         await rowTransaction.rollback();
-        console.error(`Row Import Error (Row ${i + 2}):`, rowError);
-        errors.push(`Row ${i + 2}: ${rowError.message}`);
+        console.error(`Row Import Error (${row.Name || 'Unknown'}):`, rowError);
+        
+        errors.push({ 
+          name: row.Name || `Row ${i + 2}`, 
+          error: rowError.name === 'SequelizeUniqueConstraintError' 
+            ? 'Duplicate name or shortcut in this lab' 
+            : rowError.message 
+        });
+      }
+    }
       }
     }
 

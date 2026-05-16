@@ -145,6 +145,41 @@ class WhatsAppService {
     
     return { success: status === 'sent', error: errorMessage };
   }
+
+  /**
+   * Send a plain text message via WhatsApp.
+   * Used for OTP delivery and other non-document messages.
+   * @param {string|number} labId
+   * @param {string} phone
+   * @param {string} text - The text message to send
+   */
+  static async sendText(labId, phone, text) {
+    const provider = await this.getProvider(labId);
+
+    if (!provider) {
+      throw new Error('No active WhatsApp provider found for this lab.');
+    }
+
+    // Only the WebProvider supports sendText currently
+    if (typeof provider.implementation.sendText !== 'function') {
+      throw new Error('Text messaging is not supported by the current WhatsApp provider.');
+    }
+
+    try {
+      await provider.implementation.sendText(labId, phone, text);
+      console.log(`[WhatsAppService] Text message sent to ${phone}`);
+
+      // Update last used timestamp (non-critical)
+      this.updateLastUsed(labId, provider.type).catch(err =>
+        console.error('[WhatsApp] Failed to update last_used_at:', err.message)
+      );
+
+      return { success: true };
+    } catch (error) {
+      console.error(`[WhatsAppService] Failed to send text to ${phone}:`, error.message);
+      throw error;
+    }
+  }
 }
 
 module.exports = WhatsAppService;

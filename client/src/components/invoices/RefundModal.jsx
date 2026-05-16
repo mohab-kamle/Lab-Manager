@@ -162,17 +162,15 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
           authKey: isOlderThan24Hours ? authKey : null
         };
 
-        /* 
-        TODO: IMPLEMENT BACKEND API CALL
         await axios.post(`${import.meta.env.VITE_API_URL}/invoices/${invoice.id}/refund`, payload, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
-        */
         
         toast.success('Refund processed successfully');
         onRefundProcessed && onRefundProcessed();
         onHide();
       } catch (error) {
+        console.error('Refund Error:', error);
         toast.error(error.response?.data?.error || 'Failed to process refund');
       } finally {
         setLoading(false);
@@ -388,7 +386,7 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed }) => {
                       variant="primary" 
                       size="lg" 
                       onClick={handleRefund}
-                      disabled={loading || totalRefundDue <= 0 || (isOlderThan24Hours && (!isSure || !authKey.trim()))}
+                      disabled={loading || !hasSelectedItems || (isOlderThan24Hours && (!isSure || !authKey.trim()))}
                       className="shadow-sm"
                     >
                       {loading ? 'Processing...' : 'Proceed to Confirm'}

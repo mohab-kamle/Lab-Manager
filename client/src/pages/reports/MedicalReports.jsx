@@ -683,7 +683,7 @@ const MedicalReports = () => {
       toast.success("Report updated successfully");
     } catch (error) {
       console.error("Error updating report:", error);
-      setError("Failed to update report");
+
       toast.error("Failed to update report");
     } finally {
       setUpdatingReport(false);
@@ -707,7 +707,7 @@ const MedicalReports = () => {
       setShowInvoiceModal(true);
     } catch (error) {
       console.error("Error fetching invoice:", error);
-      setError("Failed to fetch invoice details");
+
       toast.error("Failed to fetch invoice details");
     } finally {
       setLoadingInvoice(null);
@@ -863,7 +863,7 @@ const MedicalReports = () => {
       setShowResultsModal(true);
     } catch (error) {
       console.error("Error preparing results entry:", error);
-      setError("Failed to load results data. Please try again.");
+
       toast.error("Failed to load results data. Please try again.");
     } finally {
       setEnteringResults(null);
