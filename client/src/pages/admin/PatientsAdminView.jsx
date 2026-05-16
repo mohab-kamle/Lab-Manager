@@ -447,14 +447,6 @@ const PatientsAdminView = () => {
     if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
 
     try {
-      const token = localStorage.getItem("token");
-      setLoading(true);
-
-    const updateData = {};
-    if (bulkUpdateData.nationality) updateData.nationality = bulkUpdateData.nationality;
-    if (bulkUpdateData.diseases.length > 0) updateData.diseases = bulkUpdateData.diseases;
-
-    try {
       await axios.put(`${apiUrl}/patient/bulk`, {
         patientIds: selectedPatients,
         updateData
@@ -615,10 +607,6 @@ const PatientsAdminView = () => {
 
     // Email validation (optional)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (patient.email && !emailRegex.test(patient.email)) {
-      errors.email = 'Invalid email format';
-    }
-
     if (patient.email && !emailRegex.test(patient.email)) {
       errors.email = 'Invalid email format';
     }
