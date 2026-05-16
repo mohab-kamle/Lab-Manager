@@ -981,8 +981,16 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
         const existingBill = await bill.findOne({ 
             where: { id, lab_id },
             include: [
-                { model: bill_has_test, as: 'bill_has_tests' },
-                { model: bill_has_package, as: 'bill_has_packages' },
+                { 
+                    model: bill_has_test, 
+                    as: 'bill_has_tests',
+                    include: [{ model: test, as: 'test', attributes: ['name'] }]
+                },
+                { 
+                    model: bill_has_package, 
+                    as: 'bill_has_packages',
+                    include: [{ model: packages_and_offers, as: 'package', attributes: ['name'] }]
+                },
                 { model: bill_has_payment_method, as: 'bill_has_payment_methods' }
             ],
             transaction
@@ -1764,7 +1772,7 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
                 return res.status(422).json({ error: `Integrity check failed for test ID ${testId}.` });
             }
             totalRefundValue += originalPrice;
-            itemsToProcess.push({ id: testId, type: 'test', price: originalPrice });
+            itemsToProcess.push({ id: testId, type: 'test', price: originalPrice, name: bht.test?.name });
         }
 
         // Verify Packages
@@ -1781,7 +1789,7 @@ router.post("/:id/refund", authenticateUser, authorizeRoles("admin", "receptioni
                 return res.status(422).json({ error: `Integrity check failed for package ID ${packageId}.` });
             }
             totalRefundValue += originalPrice;
-            itemsToProcess.push({ id: packageId, type: 'package', price: originalPrice });
+            itemsToProcess.push({ id: packageId, type: 'package', price: originalPrice, name: bhp.package?.name });
         }
 
         totalRefundValue = Math.round(totalRefundValue * 100) / 100;

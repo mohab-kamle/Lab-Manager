@@ -50,7 +50,7 @@ const TransactionSummaryRow = ({ transaction, isAdmin = false, onPatientClick, o
                         }}
                     >
                         <Person className="me-1" />
-                        {transaction.patientId}
+                        {transaction.patientName || transaction.patientId}
                     </Button>
                 ) : '-'}
             </td>

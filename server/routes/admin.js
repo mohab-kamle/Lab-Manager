@@ -174,6 +174,11 @@ router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantCon
                             through: { attributes: [] } 
                         }
                     ]
+                },
+                {
+                    model: branch,
+                    as: 'branch',
+                    attributes: ['name']
                 }
             ],
             order: [['date', 'DESC']] // Newest transactions first
@@ -186,16 +191,17 @@ router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantCon
             
             if (txn.process_type === 'Refund') {
                 if (txn.refund_items && Array.isArray(txn.refund_items)) {
-                    summaryItems.push(...txn.refund_items.map(item => `Refunded ${item.type} #${item.id}`));
+                    summaryItems.push(...txn.refund_items.map(item => item.name || `${item.type} #${item.id}`));
                 } else {
                     summaryItems.push('Refund');
                 }
             } else if (txn.process_type === 'Due') {
-                if (txn.refund_items && Array.isArray(txn.refund_items)) {
-                    summaryItems.push(`Paid towards Due (Bills: ${txn.refund_items.map(i => i.id).join(', ')})`);
-                } else {
-                    summaryItems.push('Paid towards due balance');
+                // For Due payments, show what's in the bill
+                if (txn.bill) {
+                    if (txn.bill.test_id_tests) summaryItems.push(...txn.bill.test_id_tests.map(t => t.name));
+                    if (txn.bill.package_id_packages_and_offers) summaryItems.push(...txn.bill.package_id_packages_and_offers.map(p => p.name));
                 }
+                if (summaryItems.length === 0) summaryItems.push('Paid towards due balance');
             } else {
                 // Default to Payment logic
                 if (txn.bill) {
@@ -212,12 +218,14 @@ router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantCon
                 ? summaryItems.join(', ') 
                 : 'Account Adjustment';
 
-          return {
+            return {
                 transactionId: txn.transaction_code,
                 date: txn.date,
-                amount: parseFloat(txn.amount),
+                // Return amount as positive float, frontend handles direction via processType
+                amount: Math.abs(parseFloat(txn.amount)),
                 processType: txn.process_type,
                 paidWith: txn.payment_method ? txn.payment_method.name : null,
+                branchName: txn.branch ? txn.branch.name : 'Main Branch',
                 
                 // Return nested object for processedBy
                 processedBy: txn.processed_by ? {
@@ -232,6 +240,9 @@ router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantCon
                     name: txn.patient.name
                 } : null,
                 
+                // Fields for the specific table columns
+                patientId: txn.patient ? txn.patient.id : null,
+                patientName: txn.patient ? txn.patient.name : 'N/A',
                 invoiceId: txn.bill_id,
                 summary: summaryString
             };
