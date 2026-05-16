@@ -8,6 +8,7 @@ const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const { cacheInvoicesList, invalidateInvoicesList } = require("../middleware/cacheMiddleware");
+const { generateSampleId } = require("../utils/idGenerator");
 
 const integrityService = require("../services/integrityService");
 require("dotenv").config();
@@ -481,7 +482,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                     }
 
                     // Generate a standardized UUID-based sample ID
-                    const sampleId = `SMP-${crypto.randomUUID()}`;
+                    const sampleId = await generateSampleId(lab_samples);
 
                     await lab_samples.create({
                         sample_id: sampleId,

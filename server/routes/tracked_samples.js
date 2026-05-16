@@ -15,6 +15,7 @@ const {
 const { Sequelize } = require("sequelize");
 const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
+const { generateSampleId } = require("../utils/idGenerator");
 
 // Valid status values and their history-key mapping
 const STATUS_KEY_MAP = {
@@ -171,7 +172,7 @@ router.post(
 
       for (const testItem of testsToProcess) {
         try {
-          const generatedSampleId = `SMP-${crypto.randomUUID()}`;
+          const generatedSampleId = await generateSampleId(lab_samples);
           
           // Use provided sample_type_id or fall back to the one defined in the test
           const effectiveSampleTypeId = sample_type_id || testItem.sample_type_id;

@@ -6,6 +6,7 @@ const authenticateUser = require("../middleware/authenticateUser");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { tenantContext } = require("../middleware/tenantContext");
 const { cacheMedicalReportNewResultsData, cacheMedicalReportsList, invalidateTestResultsCache, invalidateMedicalReportCache, invalidateListCache } = require("../middleware/cacheMiddleware");
+const { generateSampleId } = require("../utils/idGenerator");
 const { Op, where } = require("sequelize");
 const multer = require("multer");
 const path = require("path");
@@ -647,7 +648,7 @@ router.post(
           }
 
           // Generate a unique, barcode-scannable sample ID matching tracked_samples pattern
-          const sampleId = `SMP-${crypto.randomUUID()}`;
+          const sampleId = await generateSampleId(db.lab_samples);
 
           await db.lab_samples.create({
             sample_id: sampleId,
