@@ -21,18 +21,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             return res.status(400).json({ error: "Invalid payment amount" });
         }
 
-        // 2. Fetch Patient & Validate Global Overpayment 
+        // 2. Fetch Patient 
         const patientRecord = await db.patient.findByPk(patient_id, { transaction });
         if (!patientRecord) {
             await transaction.rollback();
             return res.status(404).json({ error: "Patient not found" });
-        }
-
-        if (paymentAmount > parseFloat(patientRecord.due)) {
-            await transaction.rollback();
-            return res.status(400).json({ 
-                error: `Payment amount (${paymentAmount}) exceeds patient's total due balance (${patientRecord.due}).` 
-            });
         }
 
         // 3. Determine Target Bills based on Strategy
@@ -53,10 +46,10 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
 
             // Validate that payment doesn't exceed the sum of the *selected* bills
             const selectedBillsDue = targetBills.reduce((sum, b) => sum + parseFloat(b.due), 0);
-            if (paymentAmount > selectedBillsDue) {
+            if (paymentAmount > parseFloat(selectedBillsDue.toFixed(2))) {
                 await transaction.rollback();
                 return res.status(400).json({
-                    error: `Payment amount (${paymentAmount}) exceeds the total due (${selectedBillsDue}) for the explicitly selected invoices.`
+                    error: `Payment amount (${paymentAmount}) exceeds the total due (${selectedBillsDue.toFixed(2)}) for the explicitly selected invoices.`
                 });
             }
         } else {
@@ -70,6 +63,15 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 order: [['date', 'ASC']],
                 transaction
             });
+
+            // Validate that payment doesn't exceed the sum of all unpaid bills
+            const totalUnpaidBillsDue = targetBills.reduce((sum, b) => sum + parseFloat(b.due), 0);
+            if (paymentAmount > parseFloat(totalUnpaidBillsDue.toFixed(2))) {
+                await transaction.rollback();
+                return res.status(400).json({
+                    error: `Payment amount (${paymentAmount}) exceeds the total due (${totalUnpaidBillsDue.toFixed(2)}) for all unpaid invoices.`
+                });
+            }
         }
 
         const labRecord = await lab.findByPk(req.tenant.lab_id, {
