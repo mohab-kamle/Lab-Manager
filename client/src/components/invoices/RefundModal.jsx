@@ -286,60 +286,40 @@ const RefundModal = ({ show, onHide, invoice, onRefundProcessed, paymentMethods 
               <Card className="border-0 shadow-sm bg-theme-inset">
                 <Card.Body className="p-4">
                   <div className="mb-4">
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Selected Items:</span>
-                      <span className="fw-bold text-theme">EGP {totalRefundableAmount.toFixed(2)}</span>
+                    <div className="d-flex justify-content-between mb-3 pb-2 border-bottom border-muted">
+                      <span className="text-muted fw-bold small text-uppercase ls-wide">1. Refund Amount:</span>
+                      <span className="fw-bold text-primary fs-5">EGP {totalRefundableAmount.toFixed(2)}</span>
                     </div>
                     
-                    <div className="bg-white p-3 rounded shadow-sm mb-3 border-start border-4 border-primary">
-                      <div className="d-flex justify-content-between mb-2">
-                        <span className="small text-muted">Original Total:</span>
-                        <span className="fw-bold">EGP {parseFloat(invoice?.total || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between mb-2">
-                        <span className="small text-muted">New Total:</span>
-                        <span className="fw-bold text-primary">EGP {newTotal.toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between mb-2 border-top pt-2">
-                        <span className="small text-muted">Original Paid:</span>
-                        <span className="fw-bold">EGP {parseFloat(invoice?.paid || 0).toFixed(2)}</span>
-                      </div>
-                      <div className="d-flex justify-content-between">
-                        <span className="small text-muted">New Paid:</span>
-                        <span className="fw-bold text-success">EGP {newPaid.toFixed(2)}</span>
-                      </div>
-                    </div>
-
-                    <div className="d-flex justify-content-between mt-2 pt-2 border-top border-muted">
-                      <span className="fw-bold small">Projected Bill Due:</span>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted small fw-bold text-uppercase ls-wide">2. Bill Due:</span>
                       <span className={`fw-bold ${newDue > 0 ? 'text-danger' : 'text-success'}`}>
                         EGP {newDue.toFixed(2)}
                       </span>
                     </div>
 
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted small fw-bold text-uppercase ls-wide">3. Bill Credit:</span>
+                      <span className="fw-bold text-success">
+                        EGP {creditToAdd.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted small fw-bold text-uppercase ls-wide">4. New Invoice Total:</span>
+                      <span className="fw-bold text-theme">
+                        EGP {newTotal.toFixed(2)}
+                      </span>
+                    </div>
+
                     {debtToPayOff > 0 && (
-                      <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted small">Debt Reduction:</span>
-                        <span className="fw-bold text-danger">- EGP {debtToPayOff.toFixed(2)}</span>
+                      <div className="mt-3 p-2 bg-theme-surface rounded-3 border-start border-3 border-danger">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted x-small fw-bold">DEBT REDUCTION:</span>
+                          <span className="fw-bold text-danger small">- EGP {debtToPayOff.toFixed(2)}</span>
+                        </div>
                       </div>
                     )}
-                    
-                    <div className="d-flex justify-content-between align-items-center mb-1">
-                      <span className="fw-bold text-theme">Refund Balance:</span>
-                      <span className="fs-5 fw-bold text-primary">EGP {totalRefundDue.toFixed(2)}</span>
-                    </div>
-                    
-                    {creditToAdd > 0 && (
-                      <div className="d-flex justify-content-between align-items-center text-success border-top border-dashed pt-1 mt-1">
-                        <span className="small fw-bold">Added to Bill Credit:</span>
-                        <span className="fw-bold">+ EGP {creditToAdd.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <hr className="border-secondary" />
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span className="fs-6 fw-bold text-theme">Total Refund:</span>
-                      <span className="fs-5 fw-bold text-primary">EGP {totalRefundDue.toFixed(2)}</span>
-                    </div>
                   </div>
 
                   <Form.Group className="mb-4">
