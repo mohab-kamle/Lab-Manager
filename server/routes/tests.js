@@ -807,8 +807,6 @@ await db.test.create({
         });
       }
     }
-      }
-    }
 
     await transaction.commit();
     
