@@ -2612,7 +2612,7 @@ const Invoices = () => {
                           }
                           readOnly
                           disabled
-                          className="bg-light"
+                          className="bg-theme-inset text-theme"
                         />
                         <Form.Control.Feedback type="invalid">
                           {formErrors.receptionist_id}
@@ -3155,7 +3155,7 @@ const Invoices = () => {
                           {/* Original Summary Section */}
                           <Row className="mb-4">
                             <Col md={12}>
-                              <div className="border rounded p-3 bg-light border-secondary">
+                              <div className="border rounded p-3 bg-theme-inset text-theme">
                                 <div className="d-flex justify-content-between align-items-center mb-3">
                                   <h6 className="mb-0 text-secondary">
                                     📋 Original Invoice Summary (Read-Only)
@@ -3310,15 +3310,20 @@ const Invoices = () => {
                                         </div>
                                         <Form.Control
                                           type="text"
-                                          value={`EGP ${Math.abs(newDue).toFixed(2)}`}
+                                          value={giveChange ? "" : `EGP ${Math.abs(newDue).toFixed(2)}`}
                                           disabled
                                           className={newDue > 0.01 ? "fw-bold text-danger" : "fw-bold text-success"}
                                         />
+                                        {giveChange && (
+                                          <Form.Text className="text-muted d-block mt-1 fw-medium" style={{ fontSize: "0.85rem" }}>
+                                            EGP {Math.abs(newDue).toFixed(2)} is handed to the patient
+                                          </Form.Text>
+                                        )}
                                       </Form.Group>
                                     </Col>
                                   </Row>
 
-                                  <div className="mt-2 p-2 bg-light rounded text-center small border">
+                                  <div className="mt-2 p-2 bg-theme-inset text-theme rounded text-center small border">
                                     <strong>Final Merged Totals:</strong> Total: EGP {(invoice.total || 0).toFixed(2)} | Paid: EGP {(invoice.paid || 0).toFixed(2)} | Balance Due: EGP {(invoice.due || 0).toFixed(2)}
                                   </div>
                                 </div>
@@ -3533,7 +3538,7 @@ const Invoices = () => {
                                     </div>
                                     <Form.Control
                                       type="text"
-                                      value={`EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
+                                      value={giveChange ? "" : `EGP ${Math.abs(invoice.due || 0).toFixed(2)}`}
                                       disabled
                                       className={
                                         (invoice.due || 0) > 0.01
@@ -3541,6 +3546,11 @@ const Invoices = () => {
                                           : "text-success fw-bold"
                                       }
                                     />
+                                    {giveChange && (
+                                      <Form.Text className="text-muted d-block mt-1 fw-medium" style={{ fontSize: "0.85rem" }}>
+                                        EGP {Math.abs(invoice.due || 0).toFixed(2)} is handed to the patient
+                                      </Form.Text>
+                                    )}
                                   </Form.Group>
                                 </Col>
                               </Row>
