@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, Button, Form, Row, Col, Alert, Table, Badge, InputGroup } from 'react-bootstrap';
+import { Modal, Button, ButtonGroup, Form, Row, Col, Alert, Table, Badge, InputGroup } from 'react-bootstrap';
 import Select from 'react-select';
 import axios from 'axios';
 import { useToast } from '../ui/ToastContext';
@@ -44,6 +44,9 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState('settlement');
 
   // Credit state
   const [useCredit, setUseCredit] = useState(false);
@@ -121,6 +124,7 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
 
   // Reset all state when modal closes/opens
   const resetState = useCallback(() => {
+    setActiveTab('settlement');
     setUseCredit(false);
     setCreditAmount('');
     setOtpSending(false);
@@ -149,13 +153,20 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
         fetchPatientData(initialPatientId);
         setSelectedPatient({ value: initialPatientId, label: patientName || 'Selected Patient' });
 
-        // If targeting a specific invoice, pre-select it in manual mode
+        // If targeting a specific invoice, handle normal due vs credit invoices
         if (initialInvoiceId) {
-          setStrategy('manual');
-          setSelectedInvoiceIds([initialInvoiceId]);
-          // Pre-fill payment amount with the invoice's due
-          if (initialDueAmount) {
-            setPaymentAmount(initialDueAmount.toString());
+          const parsedDue = parseFloat(initialDueAmount || 0);
+          if (parsedDue < 0) {
+            // It's a credit invoice! Enable cashout mode with its absolute value
+            setActiveTab('cashout');
+            setCreditAmount(Math.abs(parsedDue).toString());
+            setPaymentAmount('');
+          } else {
+            // Normal due invoice
+            setActiveTab('settlement');
+            setStrategy('manual');
+            setSelectedInvoiceIds([initialInvoiceId]);
+            setPaymentAmount(parsedDue.toString());
           }
         }
       }
@@ -182,10 +193,26 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
   const creditPay = useCredit ? (parseFloat(creditAmount) || 0) : 0;
   const totalPayment = Math.round((cashPay + creditPay) * 100) / 100;
   const isCreditOnly = cashPay === 0 && creditPay > 0;
-  // Credit cashout mode: patient has credit but no outstanding bills
-  const isCreditCashout = !loading && dueInvoices.length === 0 && patientCredit > 0;
+  // Credit cashout mode: active tab is cashout
+  const isCreditCashout = activeTab === 'cashout';
   // Cashout amount — how much credit is being returned as cash
   const cashoutAmount = parseFloat(creditAmount) || 0;
+
+  // Auto-fill cashout amount with available credit in cashout mode
+  useEffect(() => {
+    if (isCreditCashout && !creditAmount && patientCredit > 0) {
+      setCreditAmount(patientCredit.toString());
+    }
+  }, [isCreditCashout, patientCredit, creditAmount]);
+
+  // Auto-switch to cashout tab if patient has credit but no due invoices
+  useEffect(() => {
+    if (show && selectedPatient && !loading) {
+      if (dueInvoices.length === 0 && patientCredit > 0) {
+        setActiveTab('cashout');
+      }
+    }
+  }, [show, selectedPatient, loading, dueInvoices.length, patientCredit]);
 
   // Allocation Logic
   const calculateAllocation = () => {
@@ -429,6 +456,39 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
 
           {selectedPatient && (
             <>
+              {/* Mode Tabs if patient has both credit and due invoices */}
+              {patientCredit > 0 && dueInvoices.length > 0 && (
+                <div className="d-flex justify-content-center mb-4">
+                  <ButtonGroup className="w-100 shadow-sm rounded-pill p-1 bg-theme-inset border border-muted">
+                    <Button
+                      variant={activeTab === 'settlement' ? 'primary' : 'outline-primary'}
+                      onClick={() => {
+                        setActiveTab('settlement');
+                        setCreditAmount('');
+                        setUseCredit(false);
+                      }}
+                      className={`w-50 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 ${
+                        activeTab === 'settlement' ? 'text-white font-weight-bold bg-primary' : 'text-theme bg-transparent'
+                      }`}
+                    >
+                      <Receipt size={16} /> Settle Invoices
+                    </Button>
+                    <Button
+                      variant={activeTab === 'cashout' ? 'danger' : 'outline-danger'}
+                      onClick={() => {
+                        setActiveTab('cashout');
+                        setCreditAmount(patientCredit.toString());
+                      }}
+                      className={`w-50 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 ${
+                        activeTab === 'cashout' ? 'text-white font-weight-bold bg-danger' : 'text-theme bg-transparent'
+                      }`}
+                    >
+                      <Wallet size={16} /> Cash Out Credit
+                    </Button>
+                  </ButtonGroup>
+                </div>
+              )}
+
               {/* Strategy Selection — only for normal settlement, not cashout */}
               {!isCreditCashout && (
               <div className="settlement-section mb-4 p-3 border rounded bg-theme-surface shadow-sm">
@@ -544,7 +604,37 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                     <hr />
 
                     <Row>
-                      <Col md={6}>
+                      <Col md={4}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-bold text-theme">Cashout Amount (EGP) *</Form.Label>
+                          <InputGroup>
+                            <Form.Control
+                              type="number" step="0.01" min="0.01"
+                              max={patientCredit}
+                              placeholder={`Max: ${patientCredit.toFixed(2)}`}
+                              value={creditAmount}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                if (val > patientCredit) {
+                                  setCreditAmount(patientCredit.toString());
+                                  toast.warning(`Cannot exceed available credit of EGP ${patientCredit.toFixed(2)}`);
+                                } else {
+                                  setCreditAmount(e.target.value);
+                                }
+                              }}
+                              onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
+                              className="bg-theme-inset text-theme border-muted"
+                            />
+                            <Button 
+                              variant="outline-success" 
+                              onClick={() => setCreditAmount(patientCredit.toString())}
+                            >
+                              Max
+                            </Button>
+                          </InputGroup>
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
                         <Form.Group className="mb-3">
                           <Form.Label className="fw-bold text-theme">Payment Method *</Form.Label>
                           <Form.Select
@@ -562,12 +652,26 @@ const SettlementModal = ({ show, onHide, initialPatientId, patientName, patientC
                           </Form.Text>
                         </Form.Group>
                       </Col>
-                      <Col md={6}>
+                      <Col md={4}>
                         <Form.Group className="mb-3">
                           <Form.Label className="fw-bold text-theme">Date</Form.Label>
                           <Form.Control
                             type="date" value={paymentDate}
                             onChange={(e) => setPaymentDate(e.target.value)}
+                            className="bg-theme-inset text-theme border-muted"
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={12}>
+                        <Form.Group className="mb-3">
+                          <Form.Label className="fw-bold text-theme">Notes</Form.Label>
+                          <Form.Control
+                            as="textarea" rows={1}
+                            placeholder="Optional remarks or reason for cashout..."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
                             className="bg-theme-inset text-theme border-muted"
                           />
                         </Form.Group>
