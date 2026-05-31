@@ -808,12 +808,13 @@ const ToastGroup = ({
           <button
             type="button"
             className="toast-close-btn"
+            aria-label="Close notification"
             onClick={(e) => {
               e.stopPropagation();
               removeGroup(type, position);
             }}
           >
-            <X size={18} />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -822,6 +823,7 @@ const ToastGroup = ({
         <button
           type="button"
           className="toast-group-toggle"
+          aria-expanded={expanded}
           onClick={() => toggleGroupExpanded(groupKey)}
         >
           {expanded ? "Hide details" : "Show details"}
