@@ -470,8 +470,7 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
     // Use no-cache so browsers always revalidate after mutations (e.g. patient updates)
     (req, res, next) => {
         res.set({
-            'Cache-Control': 'no-cache',
-            'ETag': `"patients-${req.tenant?.lab_id || req.user.id}-${Date.now()}"`
+            'Cache-Control': 'no-cache'
         });
         next();
     },
@@ -503,7 +502,8 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
                     {
                         model: phone_number,
                         as: 'phones',
-                        attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary']
+                        attributes: ['phone', ['phone', 'phone_number'], 'type', 'is_primary'],
+                        separate: true
                     },
                     {
                         model: diseases,
