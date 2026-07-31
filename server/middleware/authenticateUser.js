@@ -56,6 +56,14 @@ const authenticateUser = async (req, res, next) => {
         userRecord = await employee.findByPk(decoded.id);
     }
 
+    // Security enhancement: if the user record is not found in the DB,
+    // it means the user was deleted, but their JWT is still active.
+    // They should not be allowed to access the system.
+    if (!userRecord) {
+      if (!isProd) console.log(`Authentication failed: User ${decoded.id} with role ${decoded.role} not found in database.`);
+      return res.status(401).json({ error: "Access denied. User no longer exists." });
+    }
+
     // Add lab_id to user context if available
     let labId;
 
