@@ -28,6 +28,14 @@ const normalizePhone = (phoneStr) => {
 router.post("/login", loginLimiter, async (req, res) => {
     const { username, password } = req.body;
 
+    // Validate inputs to prevent object injection
+    if (!username || typeof username !== 'string') {
+        return res.status(400).json({ error: "Invalid username format" });
+    }
+    if (!password || typeof password !== 'string') {
+        return res.status(400).json({ error: "Invalid password format" });
+    }
+
     try {
         const doc = await doctor.findOne({ where: { username } });
         if (!doc) {
@@ -68,11 +76,17 @@ router.post("/signup", loginLimiter, async (req, res) => {
         phone
     } = req.body;
 
+    // Strict type checking to prevent object injection
+    if (!username || typeof username !== 'string') return res.status(400).json({ error: "Invalid username format" });
+    if (!password || typeof password !== 'string') return res.status(400).json({ error: "Invalid password format" });
+    if (!name || typeof name !== 'string') return res.status(400).json({ error: "Invalid name format" });
+    if (email && typeof email !== 'string') return res.status(400).json({ error: "Invalid email format" });
+    if (gender && typeof gender !== 'string') return res.status(400).json({ error: "Invalid gender format" });
+    if (national_id && typeof national_id !== 'string') return res.status(400).json({ error: "Invalid national_id format" });
+    if (specialization && typeof specialization !== 'string') return res.status(400).json({ error: "Invalid specialization format" });
+    if (phone && typeof phone !== 'string') return res.status(400).json({ error: "Invalid phone format" });
+
     try {
-        // Validation
-        if (!username || !password || !name) {
-            return res.status(400).json({ error: "Name, username, and password are required" });
-        }
 
         // Check availability
         const existingUser = await doctor.findOne({ where: { username } });
