@@ -98,44 +98,50 @@ const PatientProfileAdminView = () => {
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        // Fetch patient
-        const patientRes = await axios.get(`${apiUrl}/patient/${id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-
-        setPatient(patientRes.data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error(
-          error.response?.status === 404
-            ? "Patient not found"
-            : "Failed to load patient details"
-        );
-        navigate(-1);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchTransactions = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        // Using the enhanced admin transactions endpoint with patient filtering
-        const response = await axios.get(`${apiUrl}/admin/transactions?patient_id=${id}&limit=5`, {
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      // Fetch patient
+      const patientRes = await axios.get(`${apiUrl}/patient/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
-        });
-        setTransactions(response.data || []);
-      } catch (err) {
-        console.error("Error fetching patient transactions:", err);
-      } finally {
-        setTransactionsLoading(false);
-      }
-    };
+      });
 
+      setPatient(patientRes.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error(
+        error.response?.status === 404
+          ? "Patient not found"
+          : "Failed to load patient details"
+      );
+      navigate(-1);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    setTransactionsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      // Using the enhanced admin transactions endpoint with patient filtering
+      const response = await axios.get(`${apiUrl}/admin/transactions?patient_id=${id}&limit=5`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTransactions(response.data || []);
+    } catch (err) {
+      console.error("Error fetching patient transactions:", err);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
+  const handleSettled = () => {
+    fetchData();
+    fetchTransactions();
+  };
+
+  useEffect(() => {
     fetchData();
     fetchTransactions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -559,6 +565,7 @@ const PatientProfileAdminView = () => {
                     variant="primary" 
                     className="rounded-pill w-100 d-flex align-items-center justify-content-center gap-2 shadow-sm"
                     onClick={() => setShowSettlementModal(true)}
+                    disabled={parseFloat(patient.due || 0) === 0 && parseFloat(patient.credit || 0) === 0}
                   >
                     <Receipt size={18} /> {parseFloat(patient.due || 0) < 0 ? 'Cash Out Credit' : 'Process Settlement'}
                   </Button>
@@ -591,6 +598,7 @@ const PatientProfileAdminView = () => {
         initialPatientId={patient.id}
         patientName={patient.name}
         patientCode={patient.patientcode}
+        onSettled={handleSettled}
       />
     </div>
   );

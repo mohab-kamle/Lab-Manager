@@ -148,7 +148,11 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 return res.status(404).json({ error: "Patient not found." });
             }
 
-            const patientCredit = parseFloat(patientRecord.credit || 0);
+            const patientCredit = Math.max(
+                parseFloat(patientRecord.credit || 0),
+                parseFloat(patientRecord.due || 0) < 0 ? Math.abs(parseFloat(patientRecord.due)) : 0
+            );
+
             if (cashoutAmt > patientCredit) {
                 await transaction.rollback();
                 return res.status(400).json({
@@ -186,10 +190,50 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
             // OTP valid — clear it
             await cacheService.del(redisKey);
 
-            // Deduct credit from patient
+            // Deduct credit from patient (either from standard credit or negative due)
+            let currentCredit = parseFloat(patientRecord.credit || 0);
+            let currentDue = parseFloat(patientRecord.due || 0);
+
+            if (currentCredit >= Math.abs(currentDue)) {
+                currentCredit = Math.round((currentCredit - cashoutAmt) * 100) / 100;
+            } else {
+                currentDue = Math.round((currentDue + cashoutAmt) * 100) / 100;
+            }
+
             await patientRecord.update({
-                credit: Math.round((patientCredit - cashoutAmt) * 100) / 100
+                credit: currentCredit,
+                due: currentDue
             }, { transaction });
+
+            // Also adjust individual overpaid bills (due < 0) towards 0
+            const overpaidBills = await db.bill.findAll({
+                where: {
+                    patient_id,
+                    lab_id: req.tenant.lab_id,
+                    due: { [db.Sequelize.Op.lt]: 0 }
+                },
+                order: [['date', 'ASC']],
+                transaction
+            });
+
+            let remainingCashout = cashoutAmt;
+            for (const overpaidBill of overpaidBills) {
+                if (remainingCashout <= 0) break;
+
+                const billDueVal = parseFloat(overpaidBill.due);
+                const availableCreditOnBill = Math.abs(billDueVal);
+                const amountToReduce = Math.min(remainingCashout, availableCreditOnBill);
+
+                const newDueVal = billDueVal + amountToReduce;
+                const newPaidVal = parseFloat(overpaidBill.paid) - amountToReduce;
+
+                await overpaidBill.update({
+                    due: Math.round(newDueVal * 100) / 100,
+                    paid: Math.round(newPaidVal * 100) / 100
+                }, { transaction });
+
+                remainingCashout -= amountToReduce;
+            }
 
             // Record the cashout as a financial transaction
             await financial_transaction.create({
@@ -199,7 +243,7 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
                 processed_by_type: req.user.role,
                 amount: cashoutAmt,
                 payment_method_id,
-                process_type: 'Credit Cashout',
+                process_type: 'Refund',
                 from: 'Lab',
                 to: 'Patient',
                 refund_items: [{ type: 'credit_cashout' }]

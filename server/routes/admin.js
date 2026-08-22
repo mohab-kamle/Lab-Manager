@@ -191,7 +191,12 @@ router.get("/transactions", authenticateUser, authorizeRoles("admin"), tenantCon
             
             if (txn.process_type === 'Refund') {
                 if (txn.refund_items && Array.isArray(txn.refund_items)) {
-                    summaryItems.push(...txn.refund_items.map(item => `Refunded ${item.type} #${item.id}`));
+                    summaryItems.push(...txn.refund_items.map(item => {
+                        if (item.type === 'credit_cashout') {
+                            return 'Credit Cashout';
+                        }
+                        return `Refunded ${item.type}${item.id ? ` #${item.id}` : ''}`;
+                    }));
                 } else {
                     summaryItems.push('Refund');
                 }
