@@ -56,6 +56,12 @@ const authenticateUser = async (req, res, next) => {
         userRecord = await employee.findByPk(decoded.id);
     }
 
+    // Ensure the user hasn't been deleted
+    if (!userRecord) {
+      if (!isProd) console.log('Authentication failed: User record no longer exists');
+      return res.status(401).json({ error: "Access denied. User no longer exists." });
+    }
+
     // Add lab_id to user context if available
     let labId;
 
