@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const EmailService = require('../services/email/email.service');
 
 // Request demo account
@@ -57,8 +58,8 @@ router.post('/request', async (req, res) => {
     }
     // make a transaction to ensure that the lab is created and the admin user is created
     await sequelize.transaction(async (t) => {
-      // Generate admin credentials
-    const adminPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+      // Generate admin credentials securely
+    const adminPassword = crypto.randomBytes(8).toString('hex');
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
     
     // Create trial lab
