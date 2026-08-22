@@ -379,6 +379,7 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
                 {
                     model: branch_has_employee,
                     as: 'branch_has_employees',
+                    separate: true,
                     include: [
                         {
                             model: branch,
@@ -389,7 +390,8 @@ router.get("/", authenticateUser, authorizeRoles("admin"), tenantContext, async 
                 },
                 {
                     model: phone_number,
-                    as: 'phones'
+                    as: 'phones',
+                    separate: true
                 }
             ],
             order: [['name', 'ASC']],
