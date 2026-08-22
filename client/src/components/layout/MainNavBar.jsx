@@ -986,6 +986,7 @@ const MainNavBar = () => {
                       className="notification-bell-btn"
                       onClick={() => setShowNotifications(!showNotifications)}
                       title="Inventory Notifications"
+                      aria-label="Inventory Notifications"
                     >
                       <Bell size={22} />
                       {unreadCount > 0 && (
@@ -1051,6 +1052,7 @@ const MainNavBar = () => {
                     <button
                       className="chevron-toggle-btn"
                       onClick={() => setIsProfileOpen(!isProfileOpen)}
+                      aria-label="Toggle profile menu"
                     >
                       <ChevronDown
                         size={24}
