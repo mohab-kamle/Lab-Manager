@@ -187,8 +187,8 @@ router.post('/forgotPassword', forgotPasswordLimiter, async (req, res) => {
         const { username } = req.body;
 
         // 1. Basic validation
-        if (!username) {
-            return res.status(400).json({ error: 'username is required' });
+        if (!username || typeof username !== 'string') {
+            return res.status(400).json({ error: 'Valid username is required' });
         }
 
         // 2. Find the employee
@@ -239,8 +239,8 @@ router.post('/forgotPassword', forgotPasswordLimiter, async (req, res) => {
 router.post('/verifyOtp', otpVerifyLimiter, async (req, res) => {
     try {
         const { username, otp } = req.body;
-        if (!username || !otp) {
-            return res.status(400).json({ error: 'Username and OTP are required' });
+        if (!username || typeof username !== 'string' || !otp || typeof otp !== 'string') {
+            return res.status(400).json({ error: 'Valid username and OTP are required' });
         }
 
         // 1. Verify Redis is actually online before attempting to read from it[cite: 6]
@@ -307,8 +307,8 @@ router.post("/resetPassword", resetPasswordLimiter, async (req, res) => {
         const { resetToken, newPassword } = req.body;
 
         // 1. Basic payload validation
-        if (!resetToken || !newPassword) {
-            return res.status(400).json({ error: "Token and new password are required" });
+        if (!resetToken || typeof resetToken !== 'string' || !newPassword || typeof newPassword !== 'string') {
+            return res.status(400).json({ error: "Valid token and new password are required" });
         }
 
         // 2. Verify the JWT token

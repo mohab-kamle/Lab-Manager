@@ -6,6 +6,14 @@ const { tenantContext } = require('../middleware/tenantContext');
 
 router.post('/', tenantContext, async (req, res) => {
   const { username, email } = req.body;
+
+  if (username && typeof username !== 'string') {
+    return res.status(400).json({ error: 'Invalid username format' });
+  }
+  if (email && typeof email !== 'string') {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+
   try {
     const existingAdminByUsername = await employee.findOne({ 
       where: { username: username }
