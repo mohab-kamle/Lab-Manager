@@ -5,6 +5,24 @@ const authenticateUser = require('../middleware/authenticateUser');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const { tenantContext } = require('../middleware/tenantContext');
 
+const multer = require('multer');
+const { readExcelBuffer, validateExcelBuffer } = require('../services/excelService');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['.xlsx', '.xls', '.csv'];
+    const fileExt = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
+    if (allowedTypes.includes(fileExt)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files (.xlsx, .xls) and CSV files are allowed'));
+    }
+  }
+});
+
+
 // All routes require authentication and tenant context
 router.use(authenticateUser);
 router.use(authorizeRoles('admin', 'employee', 'chemist'));
@@ -126,36 +144,47 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// 5. POST /import - Bulk-import outsourced labs from JSON data
-router.post('/import', async (req, res) => {
+// 5. POST /import - Bulk-import outsourced labs from Excel file
+router.post('/import', upload.single('file'), async (req, res) => {
   try {
-    const { labs } = req.body;
-    const lab_id = req.tenant.lab_id;
-
-    if (!labs || !Array.isArray(labs)) {
-      return res.status(400).json({ error: 'Invalid data format. Expected an array of labs.' });
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
     }
+
+    // Validate file
+    const validation = validateExcelBuffer(req.file.buffer);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.message });
+    }
+
+    // Read Excel data
+    const data = await readExcelBuffer(req.file.buffer);
+
+    if (!data || data.length === 0) {
+      return res.status(400).json({ error: 'No data found in the uploaded file' });
+    }
+
+    const lab_id = req.tenant.lab_id;
 
     let imported = 0;
     let skipped = 0;
     let errors = [];
 
-    for (let i = 0; i < labs.length; i++) {
-      const row = labs[i];
-      // Map header names: Name → name, Contact Number → contact_number, Email → email, Address → address
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
       const name = row.Name || row.name;
-      const contact_number = row['Contact Number'] || row.contact_number;
+      const contact_number = row['Contact Number'] || row.contact_number || row.contact;
       const email = row.Email || row.email;
       const address = row.Address || row.address;
 
-      if (!name || name.trim() === '') {
+      if (!name || name.toString().trim() === '') {
         errors.push(`Row ${i + 2}: Name is required`);
         continue;
       }
 
       // Check for duplicate name
       const existingLab = await outsourced_lab.findOne({
-        where: { name: name.trim(), lab_id }
+        where: { name: name.toString().trim(), lab_id }
       });
 
       if (existingLab) {
@@ -165,10 +194,10 @@ router.post('/import', async (req, res) => {
 
       try {
         await outsourced_lab.create({
-          name: name.trim(),
-          contact_number,
-          email,
-          address,
+          name: name.toString().trim(),
+          contact_number: contact_number ? contact_number.toString() : null,
+          email: email ? email.toString() : null,
+          address: address ? address.toString() : null,
           lab_id
         });
         imported++;
@@ -183,7 +212,7 @@ router.post('/import', async (req, res) => {
         imported,
         duplicates: skipped,
         errors: errors.length,
-        total: labs.length
+        total: data.length
       },
       errorDetails: errors,
       message: `Import completed: ${imported} imported, ${skipped} duplicates skipped${errors.length > 0 ? `, ${errors.length} errors` : ''}.`

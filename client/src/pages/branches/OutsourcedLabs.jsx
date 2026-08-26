@@ -5,7 +5,7 @@ import TablePagination from "../../components/ui/TablePagination";
 import DynamicTable from "../../components/ui/DynamicTable";
 import axios from "axios";
 import { Pencil, Trash2, Plus, Download, Upload, CircleX } from "lucide-react";
-import { exportToExcel, importFromExcel, validateExcelFile } from "../../utils/excelUtils";
+import { exportToExcel } from "../../utils/excelUtils";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useToast } from "../../components/ui/ToastContext";
 import { formatDate } from "../../utils/dateFormatter";
@@ -14,8 +14,7 @@ import { formatDate } from "../../utils/dateFormatter";
  * OutsourcedLabs — CRUD management page for outsourced (third-party) labs.
  *
  * Follows the same table + toolbar + modals pattern used by Branches.jsx.
- * All API calls are currently placeholder stubs (see TODO comments).
- * Backend endpoints are documented in outsourced_labs_api.md.
+  * Backend endpoints are documented in outsourced_labs_api.md.
  */
 const OutsourcedLabs = () => {
   const { toast, confirm } = useToast();
@@ -63,16 +62,12 @@ const OutsourcedLabs = () => {
 
   // ─── Data fetching ────────────────────────────────────────────────────
 
-  /**
-   * Fetch all outsourced labs for the current tenant.
-   * TODO: Replace with real API call once the backend endpoint exists.
-   */
+
   const fetchLabs = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // TODO: API call — GET /outsourced-labs
-      const response = await axios.get(`${apiUrl}/outsourced-labs`, {
+            const response = await axios.get(`${apiUrl}/outsourced-labs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (Array.isArray(response.data)) {
@@ -97,10 +92,7 @@ const OutsourcedLabs = () => {
 
   // ─── CRUD handlers ────────────────────────────────────────────────────
 
-  /**
-   * Create a new outsourced lab.
-   * TODO: Backend — POST /outsourced-labs { name, contact_number, email, address }
-   */
+
   const handleAddLab = async () => {
     // Basic client-side validation
     if (!newLab.name.trim()) {
@@ -111,8 +103,7 @@ const OutsourcedLabs = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // TODO: API call — POST /outsourced-labs
-      await axios.post(`${apiUrl}/outsourced-labs`, newLab, {
+            await axios.post(`${apiUrl}/outsourced-labs`, newLab, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Outsourced lab added successfully!");
@@ -127,10 +118,7 @@ const OutsourcedLabs = () => {
     }
   };
 
-  /**
-   * Update an existing outsourced lab.
-   * TODO: Backend — PUT /outsourced-labs/:id { name, contact_number, email, address }
-   */
+
   const handleEditLab = async () => {
     if (!editingLab.name.trim()) {
       toast.error("Lab name is required.");
@@ -140,8 +128,7 @@ const OutsourcedLabs = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // TODO: API call — PUT /outsourced-labs/:id
-      await axios.put(`${apiUrl}/outsourced-labs/${editingLab.id}`, editingLab, {
+            await axios.put(`${apiUrl}/outsourced-labs/${editingLab.id}`, editingLab, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Outsourced lab updated successfully!");
@@ -156,16 +143,12 @@ const OutsourcedLabs = () => {
     }
   };
 
-  /**
-   * Delete an outsourced lab by ID.
-   * TODO: Backend — DELETE /outsourced-labs/:id
-   */
+
   const handleDeleteLab = async (labId) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      // TODO: API call — DELETE /outsourced-labs/:id
-      await axios.delete(`${apiUrl}/outsourced-labs/${labId}`, {
+            await axios.delete(`${apiUrl}/outsourced-labs/${labId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Outsourced lab deleted successfully!");
