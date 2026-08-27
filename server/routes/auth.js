@@ -34,8 +34,8 @@ router.post('/send-otp', otpSendLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required and must be a string' });
     }
 
     // Generate a secure 6-digit OTP
@@ -84,8 +84,8 @@ router.post('/forgot-password', otpSendLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required and must be a string' });
     }
 
     // Enumeration protection: always return success quickly even if email doesn't exist
@@ -131,8 +131,8 @@ router.post('/verify-otp', otpVerifyLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    if (!email || !otp) {
-      return res.status(400).json({ error: 'Email and OTP are required' });
+    if (!email || !otp || typeof email !== 'string' || typeof otp !== 'string') {
+      return res.status(400).json({ error: 'Email and OTP are required and must be strings' });
     }
 
     const verificationRecord = await otp_verification.findOne({
@@ -182,8 +182,8 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, newPassword } = req.body;
 
-    if (!email || !newPassword) {
-      return res.status(400).json({ error: 'Email and new password are required' });
+    if (!email || !newPassword || typeof email !== 'string' || typeof newPassword !== 'string') {
+      return res.status(400).json({ error: 'Email and new password are required and must be strings' });
     }
 
     if (newPassword.length < 8) {
