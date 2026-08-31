@@ -434,6 +434,7 @@ export default function DynamicResultForm({ structureConfig, patientInfo, value 
                                                     delete newAbs[ab];
                                                     handleInputChange(field.key, { ...cultureValue, antibiotics: newAbs });
                                                 }}
+                                                aria-label="Remove antibiotic"
                                             >
                                                 &times;
                                             </button>
