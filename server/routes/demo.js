@@ -15,6 +15,18 @@ router.post('/request', async (req, res) => {
       return res.status(400).json({ error: 'All required fields must be provided' });
     }
 
+    if (typeof email !== 'string' || typeof labName !== 'string' || typeof contactPerson !== 'string' || typeof phone !== 'string') {
+      return res.status(400).json({ error: 'Invalid input format' });
+    }
+
+    if (region && typeof region !== 'string') {
+      return res.status(400).json({ error: 'Invalid region format' });
+    }
+
+    if (message && typeof message !== 'string') {
+      return res.status(400).json({ error: 'Invalid message format' });
+    }
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {

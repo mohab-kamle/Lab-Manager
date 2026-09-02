@@ -422,6 +422,13 @@ router.post('/', registrationLimiter, async (req, res) => {
       return res.status(400).json({ error: 'All required fields must be provided' });
     }
 
+    // Validate types to prevent object injection
+    if (typeof labData.name !== 'string' || typeof labData.email !== 'string' ||
+        typeof adminData.name !== 'string' || typeof adminData.email !== 'string' ||
+        typeof adminData.username !== 'string' || typeof adminData.password !== 'string') {
+      return res.status(400).json({ error: 'Invalid data format provided' });
+    }
+
     // Validate subscription plan
     if (!subscriptionData.plan || !subscriptionData.paymentMethod) {
       return res.status(400).json({ error: 'Subscription plan and payment method are required' });
