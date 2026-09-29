@@ -41,8 +41,16 @@ router.post('/', authenticateUser, authorizeRoles('admin'), async (req, res) => 
   try {
     const { name, shortcut, commercial_name } = req.body;
     
-    if (!name || name.trim() === '') {
-      return res.status(400).json({ error: 'Name is required' });
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ error: 'Name is required and must be a string' });
+    }
+
+    if (shortcut && typeof shortcut !== 'string') {
+      return res.status(400).json({ error: 'Shortcut must be a string' });
+    }
+
+    if (commercial_name && typeof commercial_name !== 'string') {
+      return res.status(400).json({ error: 'Commercial name must be a string' });
     }
 
     // Check if name already exists

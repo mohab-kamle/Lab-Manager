@@ -167,9 +167,14 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
     let { sample_type_id } = req.body;
     const lab_id = req.tenant.lab_id;
 
-    if (!name) {
+    if (!name || typeof name !== 'string') {
       await transaction.rollback();
-      return res.status(400).json({ error: 'Name is required' });
+      return res.status(400).json({ error: 'Name is required and must be a string' });
+    }
+
+    if (shortcut && typeof shortcut !== 'string') {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Shortcut must be a string' });
     }
 
     // The Automation Magic: If they selected a global test, auto-fetch the sample type
@@ -297,6 +302,16 @@ router.put('/:id', authenticateUser, authorizeRoles('admin'), tenantContext, asy
       type,
       tat_hours
     } = req.body;
+
+    if (name !== undefined && typeof name !== 'string') {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Name must be a string' });
+    }
+
+    if (shortcut !== undefined && shortcut !== null && typeof shortcut !== 'string') {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Shortcut must be a string' });
+    }
 
     const test = await db.test.findOne({ 
       where: { id: req.params.id, lab_id: req.tenant.lab_id },

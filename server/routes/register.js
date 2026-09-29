@@ -349,6 +349,10 @@ router.post('/upgrade', registrationLimiter, authenticateUser, async (req, res) 
       return res.status(400).json({ error: 'Lab identity, admin email, and subscription plan are required for upgrade' });
     }
 
+    if (typeof adminData.email !== 'string') {
+        return res.status(400).json({ error: 'Admin email must be a valid string format' });
+    }
+
     // Validate subscription plan
     if (!subscriptionData.paymentMethod) {
       return res.status(400).json({ error: 'Payment method is required' });
