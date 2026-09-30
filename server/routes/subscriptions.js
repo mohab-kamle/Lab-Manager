@@ -113,9 +113,9 @@ router.post("/", authenticateUser, authorizeRoles("admin"), async (req, res) => 
         } = req.body;
         
         // Validate required fields
-        if (!name || !duration_type || !duration_value || price === undefined) {
+        if (!name || typeof name !== 'string' || !duration_type || typeof duration_type !== 'string' || !duration_value || price === undefined) {
             return res.status(400).json({ 
-                error: "Name, duration_type, duration_value, and price are required" 
+                error: "Name, duration_type, duration_value, and price are required, and must be valid types"
             });
         }
         
@@ -176,14 +176,19 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), async (req, res) =
         }
         
         // Check if name is being changed and if it conflicts with existing plans
-        if (updateData.name && updateData.name !== subscriptionPlan.name) {
-            const existingPlan = await subscription.findOne({ 
-                where: { name: updateData.name } 
-            });
-            if (existingPlan) {
-                return res.status(400).json({ 
-                    error: "Subscription plan with this name already exists" 
+        if (updateData.name) {
+            if (typeof updateData.name !== 'string') {
+                return res.status(400).json({ error: "Name must be a valid string" });
+            }
+            if (updateData.name !== subscriptionPlan.name) {
+                const existingPlan = await subscription.findOne({
+                    where: { name: updateData.name }
                 });
+                if (existingPlan) {
+                    return res.status(400).json({
+                        error: "Subscription plan with this name already exists"
+                    });
+                }
             }
         }
         

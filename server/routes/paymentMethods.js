@@ -23,8 +23,8 @@ router.get("/", authenticateUser, authorizeRoles("admin", "receptionist", "chemi
 router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async (req, res) => {
     try {
         const { name } = req.body;
-        if (!name) {
-            return res.status(400).json({ error: "Payment method name is required" });
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ error: "Payment method name is required and must be a string" });
         }
         const existingMethod = await payment_method.findOne({ where: { name, lab_id: req.tenant.lab_id } });
         if (existingMethod) {
@@ -44,8 +44,8 @@ router.put("/:id", authenticateUser, authorizeRoles("admin"), tenantContext, asy
         const { id } = req.params;
         const { name } = req.body;
 
-        if (!name) {
-            return res.status(400).json({ error: "Payment method name is required" });
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ error: "Payment method name is required and must be a string" });
         }
         const existingMethod = await payment_method.findByPk(id, { where: { lab_id: req.tenant.lab_id } });
         if (!existingMethod) {

@@ -474,6 +474,14 @@ router.post("/", authenticateUser, authorizeRoles("admin"), tenantContext, async
             return res.status(400).json({ error: "Name, username, password, role, and branch are required" });
         }
 
+        // Type validations to prevent object injection
+        if (typeof name !== 'string' || typeof username !== 'string' || typeof password !== 'string' || typeof role !== 'string') {
+            return res.status(400).json({ error: "Invalid input format" });
+        }
+        if (national_id && typeof national_id !== 'string') {
+            return res.status(400).json({ error: "Invalid national ID format" });
+        }
+
         // Validate role
         const validRoles = ['admin', 'receptionist', 'chemist', 'doctor', 'employee'];
         if (!validRoles.includes(role)) {
@@ -604,6 +612,10 @@ router.put("/:id", authenticateUser, tenantContext, async (req, res) => {
             branch_id,
             phoneNumbers = [] // Array of { phone, type, is_primary }
         } = req.body;
+
+        // Type validations to prevent object injection
+        if (username && typeof username !== 'string') return res.status(400).json({ error: "Invalid username format" });
+        if (national_id && typeof national_id !== 'string') return res.status(400).json({ error: "Invalid national ID format" });
 
         // Allow if admin OR if updating self
         const isSelfUpdate = parseInt(id) === req.user.id;
