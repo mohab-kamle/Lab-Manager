@@ -62,6 +62,13 @@ router.post("/", authenticateUser, authorizeRoles("admin", "receptionist"), tena
       return res.status(400).json({ error: "Region and governorate are required" });
     }
 
+    if (typeof region !== 'string' || typeof governorate !== 'string') {
+      return res.status(400).json({ error: "Region and governorate must be strings" });
+    }
+    if (name && typeof name !== 'string') return res.status(400).json({ error: "Invalid name format" });
+    if (discount_type && typeof discount_type !== 'string') return res.status(400).json({ error: "Invalid discount_type format" });
+    if (details && typeof details !== 'string') return res.status(400).json({ error: "Invalid details format" });
+
     // Check if contract already exists with same region and governorate
     const existingContract = await contract.findOne({
       where: {  region, governorate , lab_id: req.tenant.lab_id }
@@ -98,6 +105,12 @@ router.put("/:id", authenticateUser, authorizeRoles("admin", "receptionist"), te
   try {
     const { id } = req.params;
     const { name, region, governorate, discount_type, discount_amount, details } = req.body;
+
+    if (name && typeof name !== 'string') return res.status(400).json({ error: "Invalid name format" });
+    if (region && typeof region !== 'string') return res.status(400).json({ error: "Invalid region format" });
+    if (governorate && typeof governorate !== 'string') return res.status(400).json({ error: "Invalid governorate format" });
+    if (discount_type && typeof discount_type !== 'string') return res.status(400).json({ error: "Invalid discount_type format" });
+    if (details && typeof details !== 'string') return res.status(400).json({ error: "Invalid details format" });
 
     const existingContract = await contract.findByPk(id);
     if (!existingContract) {

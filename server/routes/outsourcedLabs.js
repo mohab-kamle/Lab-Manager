@@ -48,9 +48,12 @@ router.post('/', async (req, res) => {
     const { name, contact_number, email, address } = req.body;
     const lab_id = req.tenant.lab_id;
 
-    if (!name || name.trim() === '') {
-      return res.status(400).json({ error: 'Name is required' });
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ error: 'Name is required and must be a string' });
     }
+    if (contact_number && typeof contact_number !== 'string') return res.status(400).json({ error: 'Invalid contact number format' });
+    if (email && typeof email !== 'string') return res.status(400).json({ error: 'Invalid email format' });
+    if (address && typeof address !== 'string') return res.status(400).json({ error: 'Invalid address format' });
 
     // Check for duplicate name within the same lab_id
     const existingLab = await outsourced_lab.findOne({
@@ -82,6 +85,11 @@ router.put('/:id', async (req, res) => {
     const { name, contact_number, email, address } = req.body;
     const { id } = req.params;
     const lab_id = req.tenant.lab_id;
+
+    if (name && typeof name !== 'string') return res.status(400).json({ error: 'Invalid name format' });
+    if (contact_number && typeof contact_number !== 'string') return res.status(400).json({ error: 'Invalid contact number format' });
+    if (email && typeof email !== 'string') return res.status(400).json({ error: 'Invalid email format' });
+    if (address && typeof address !== 'string') return res.status(400).json({ error: 'Invalid address format' });
 
     const labRecord = await outsourced_lab.findOne({
       where: { id, lab_id }

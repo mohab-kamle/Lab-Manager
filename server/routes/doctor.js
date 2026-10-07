@@ -168,9 +168,11 @@ router.post("/", authenticateUser, async (req, res) => {
     try {
         const { name, specialization, phoneNumbers = [], email, commission, contract_id } = req.body;
 
-        if (!name) {
-            return res.status(400).json({ error: "Doctor name is required" });
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ error: "Doctor name is required and must be a string" });
         }
+        if (specialization && typeof specialization !== 'string') return res.status(400).json({ error: "Invalid specialization format" });
+        if (email && typeof email !== 'string') return res.status(400).json({ error: "Invalid email format" });
 
         const newDoctor = await doctor.create({
             name,

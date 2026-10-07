@@ -20,7 +20,7 @@
     - Subscription update endpoint (`server/routes/subscriptions.js`)
 
 ## What this run accomplished
-* Hardened backend security across the board by systematically closing any remaining Sequelize object injection vulnerabilities on `findOne`, `create`, and `update` queries where an attacker could theoretically inject operators to bypass existence or uniqueness checks.
+* Hardened backend security by completing the closure of Sequelize object injection vulnerabilities on `findOne`, `create`, and `update` queries across remaining endpoints (`branches.js`, `contracts.js`, `doctor.js`, and `outsourcedLabs.js`).
 
 ## Recommended next priorities
 * The backend is significantly more robust against injection attacks now. The next priority should be reviewing the UI and UX of critical user flows (e.g., Patient Registration, Test Result Entry, Invoice Generation) to ensure that loading states, error handling, and form validations are comprehensive and user-friendly for a production launch.

@@ -71,6 +71,11 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
     try {
         const { name, lab_id, address, landline, branch_number, manager_id } = req.body;
 
+        if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Name is required and must be a string' });
+        if (address && typeof address !== 'string') return res.status(400).json({ error: 'Invalid address format' });
+        if (landline && typeof landline !== 'string') return res.status(400).json({ error: 'Invalid landline format' });
+        if (branch_number && typeof branch_number !== 'string') return res.status(400).json({ error: 'Invalid branch number format' });
+
         // Verify that the lab belongs to the user
         const labData = await lab.findOne({
             where: { id: lab_id }
@@ -100,6 +105,11 @@ router.post('/', authenticateUser, authorizeRoles('admin'), tenantContext, async
 router.put('/:id', authenticateUser, tenantContext, async (req, res) => {
     try {
         const { name, lab_id, address, landline, branch_number } = req.body;
+
+        if (name && typeof name !== 'string') return res.status(400).json({ error: 'Invalid name format' });
+        if (address && typeof address !== 'string') return res.status(400).json({ error: 'Invalid address format' });
+        if (landline && typeof landline !== 'string') return res.status(400).json({ error: 'Invalid landline format' });
+        if (branch_number && typeof branch_number !== 'string') return res.status(400).json({ error: 'Invalid branch number format' });
 
         // Verify that the branch belongs to the current manager
         const branchData = await branch.findOne({
