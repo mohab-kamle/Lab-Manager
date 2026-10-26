@@ -11,6 +11,7 @@
 * Cleaned up misleading `TODO` placeholder comments in `client/src/pages/branches/OutsourcedLabs.jsx`.
 
 ## Completed Launch-Readiness Items
+* Hardened Excel file upload validation across all `POST /import` endpoints (`samples.js`, `antibiotics.js`, `branches.js`, `categories.js`, `contracts.js`) to ensure files are validated for size and MIME signature using `validateExcelBuffer` before being parsed by `readExcelBuffer`. Fixed bug in `contracts.js` which was checking incorrect property names.
 * Secured the remaining backend endpoints across multiple critical business paths against Sequelize object injection by adding explicit type-checking (verifying inputs are strings) before database queries. Endpoints fixed include:
     - Employee creation and update endpoints (`server/routes/employee.js`)
     - Antibiotic creation and update endpoints (`server/routes/antibiotics.js`)
@@ -20,8 +21,7 @@
     - Subscription update endpoint (`server/routes/subscriptions.js`)
 
 ## What this run accomplished
-* Hardened backend security across the board by systematically closing any remaining Sequelize object injection vulnerabilities on `findOne`, `create`, and `update` queries where an attacker could theoretically inject operators to bypass existence or uniqueness checks.
+* Ensured consistent and robust server-side validation for all Excel file upload endpoints (`/import`), preventing processing of potentially malicious or oversized files before being parsed by the `excelService`. Also fixed a bug in `contracts.js` that was looking for the wrong validation properties (`isValid`, `error` instead of `valid`, `message`).
 
 ## Recommended next priorities
-* The backend is significantly more robust against injection attacks now. The next priority should be reviewing the UI and UX of critical user flows (e.g., Patient Registration, Test Result Entry, Invoice Generation) to ensure that loading states, error handling, and form validations are comprehensive and user-friendly for a production launch.
-* Verify the file upload implementations across other routes (e.g., `branches.js` or `employees.js`) if they also support bulk importing from Excel.
+* The backend is significantly more robust against injection attacks and malicious file uploads now. The next priority should be reviewing the UI and UX of critical user flows (e.g., Patient Registration, Test Result Entry, Invoice Generation) to ensure that loading states, error handling, and form validations are comprehensive and user-friendly for a production launch.
