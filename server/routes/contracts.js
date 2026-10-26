@@ -179,8 +179,8 @@ router.post("/import", authenticateUser, authorizeRoles("admin", "receptionist")
 
     // Validate file
     const validation = validateExcelBuffer(req.file.buffer);
-    if (!validation.isValid) {
-      return res.status(400).json({ error: validation.error });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.message });
     }
 
     // Read Excel data
