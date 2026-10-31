@@ -18,10 +18,12 @@
     - Payment Methods creation and update endpoints (`server/routes/paymentMethods.js`)
     - Subscription upgrade endpoint (`server/routes/register.js`)
     - Subscription update endpoint (`server/routes/subscriptions.js`)
+* Secured Excel import endpoints (`/import`) across multiple modules (`samples.js`, `antibiotics.js`, `branches.js`, `categories.js`) by adding explicit file validation using `validateExcelBuffer()` before attempting to process the files via `readExcelBuffer()`. This mitigates the risk of malformed files or denial-of-service vulnerabilities through large/invalid files processing.
 
 ## What this run accomplished
 * Hardened backend security across the board by systematically closing any remaining Sequelize object injection vulnerabilities on `findOne`, `create`, and `update` queries where an attacker could theoretically inject operators to bypass existence or uniqueness checks.
+* Verified file upload implementations across other routes that support bulk importing from Excel and successfully added file validation to endpoints missing it.
 
 ## Recommended next priorities
 * The backend is significantly more robust against injection attacks now. The next priority should be reviewing the UI and UX of critical user flows (e.g., Patient Registration, Test Result Entry, Invoice Generation) to ensure that loading states, error handling, and form validations are comprehensive and user-friendly for a production launch.
-* Verify the file upload implementations across other routes (e.g., `branches.js` or `employees.js`) if they also support bulk importing from Excel.
+* Verify the frontend implementations of Excel bulk imports to make sure file selection limits match the backend expectations (e.g., max 5MB).
