@@ -11,6 +11,7 @@
 * Cleaned up misleading `TODO` placeholder comments in `client/src/pages/branches/OutsourcedLabs.jsx`.
 
 ## Completed Launch-Readiness Items
+* Added `validateExcelBuffer(req.file.buffer)` file upload validation to endpoints (`/import`) across `server/routes/antibiotics.js`, `server/routes/branches.js`, `server/routes/categories.js`, and `server/routes/samples.js`. Also fixed a bug in `server/routes/contracts.js` which was checking the wrong object properties (`isValid` and `error` instead of `valid` and `message`) on the returned validation object.
 * Secured the remaining backend endpoints across multiple critical business paths against Sequelize object injection by adding explicit type-checking (verifying inputs are strings) before database queries. Endpoints fixed include:
     - Employee creation and update endpoints (`server/routes/employee.js`)
     - Antibiotic creation and update endpoints (`server/routes/antibiotics.js`)
@@ -20,8 +21,8 @@
     - Subscription update endpoint (`server/routes/subscriptions.js`)
 
 ## What this run accomplished
+* Secured multiple backend endpoints against invalid Excel file uploads by adding missing validation steps using `validateExcelBuffer`.
 * Hardened backend security across the board by systematically closing any remaining Sequelize object injection vulnerabilities on `findOne`, `create`, and `update` queries where an attacker could theoretically inject operators to bypass existence or uniqueness checks.
 
 ## Recommended next priorities
 * The backend is significantly more robust against injection attacks now. The next priority should be reviewing the UI and UX of critical user flows (e.g., Patient Registration, Test Result Entry, Invoice Generation) to ensure that loading states, error handling, and form validations are comprehensive and user-friendly for a production launch.
-* Verify the file upload implementations across other routes (e.g., `branches.js` or `employees.js`) if they also support bulk importing from Excel.

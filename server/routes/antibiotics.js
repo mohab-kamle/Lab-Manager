@@ -178,6 +178,11 @@ router.post('/import', authenticateUser, authorizeRoles('admin'), upload.single(
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    const validation = validateExcelBuffer(req.file.buffer);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.message });
+    }
+
     // Read Excel file using secure ExcelJS service
     const data = await readExcelBuffer(req.file.buffer, req.file.mimetype);
     
